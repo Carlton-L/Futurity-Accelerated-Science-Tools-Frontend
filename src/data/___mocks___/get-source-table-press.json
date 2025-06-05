@@ -1,0 +1,235 @@
+{
+  "rows": [
+    {
+      "ent_fsid": "fsid_the_conversation_uk-2025-04-08t14-00-00z-computer_vision",
+      "_id": "6811cf185c4c79e9d9da98c6",
+      "ent_name": "Shark AI uses fossil shark teeth to get middle school kids interested in paleontology and computer vision",
+      "ent_summary": "Lesson plans incorporating shark fossil teeth help prepare kids to live and work in an AI world.",
+      "ent_year": 2025,
+      "ent_url": "https://theconversation.com/shark-ai-uses-fossil-shark-teeth-to-get-middle-school-kids-interested-in-paleontology-and-computer-vision-251125",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6811cf185c4c79e9d9da98c6",
+        "ent_fsid": "fsid_the_conversation_uk-2025-04-08t14-00-00z-computer_vision",
+        "ent_name": "Shark AI uses fossil shark teeth to get middle school kids interested in paleontology and computer vision",
+        "ent_summary": "Lesson plans incorporating shark fossil teeth help prepare kids to live and work in an AI world.",
+        "ent_url": "https://theconversation.com/shark-ai-uses-fossil-shark-teeth-to-get-middle-school-kids-interested-in-paleontology-and-computer-vision-251125",
+        "ent_year": 2025
+      }
+    },
+    {
+      "ent_fsid": "fsid_bol_news-2020-11-30t10-05-07z-computer_vision",
+      "_id": "67ee3f358a61f5c12170ff10",
+      "ent_name": "Cool off with your personal person-tracking smart fan",
+      "ent_summary": "The Following Fan is the latest cool gadget to own. It is a person tracking smart fan which uses computer vision to stay pointed at the",
+      "ent_year": 2020,
+      "ent_url": "https://www.bolnews.com/technology/2020/11/cool-off-with-your-personal-person-tracking-smart-fan/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f358a61f5c12170ff10",
+        "ent_fsid": "fsid_bol_news-2020-11-30t10-05-07z-computer_vision",
+        "ent_name": "Cool off with your personal person-tracking smart fan",
+        "ent_summary": "The Following Fan is the latest cool gadget to own. It is a person tracking smart fan which uses computer vision to stay pointed at the",
+        "ent_url": "https://www.bolnews.com/technology/2020/11/cool-off-with-your-personal-person-tracking-smart-fan/",
+        "ent_year": 2020
+      }
+    },
+    {
+      "ent_fsid": "fsid_gadgets_360-2020-10-26t18-30-00z-computer_vision",
+      "_id": "67ee3f358a61f5c12170ff1d",
+      "ent_name": "Apple Acquires Vilynx, a Self-Learning AI Video Firm That Can Help Improve Its Apps",
+      "ent_summary": "Apple acquired Vilynx, a startup specialising in advanced artificial intelligence and computer vision technology, that may help the iPhone maker improve its own AI across a number of apps and services.",
+      "ent_year": 2020,
+      "ent_url": "https://gadgets.ndtv.com/mobiles/news/apple-vilynx-deal-acquisition-buys-self-learning-ai-video-improve-apps-iphone-2316780",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f358a61f5c12170ff1d",
+        "ent_fsid": "fsid_gadgets_360-2020-10-26t18-30-00z-computer_vision",
+        "ent_name": "Apple Acquires Vilynx, a Self-Learning AI Video Firm That Can Help Improve Its Apps",
+        "ent_summary": "Apple acquired Vilynx, a startup specialising in advanced artificial intelligence and computer vision technology, that may help the iPhone maker improve its own AI across a number of apps and services.",
+        "ent_url": "https://gadgets.ndtv.com/mobiles/news/apple-vilynx-deal-acquisition-buys-self-learning-ai-video-improve-apps-iphone-2316780",
+        "ent_year": 2020
+      }
+    },
+    {
+      "ent_fsid": "fsid_business_insider-2021-02-11t15-44-49z-computer_vision",
+      "_id": "67ee3f338a61f5c12170fef3",
+      "ent_name": "Keysight Technologies Enhances Eggplant Digital Automation Intelligence Platform with High-Speed Computer Vision",
+      "ent_summary": "Keysight Technologies, Inc. (NYSE: KEYS), a leading technology company that helps enterprises, service providers and governments accelerate inn...",
+      "ent_year": 2021,
+      "ent_url": "https://markets.businessinsider.com/news/stocks/keysight-technologies-enhances-eggplant-digital-automation-intelligence-platform-with-high-speed-computer-vision-1030073676",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f338a61f5c12170fef3",
+        "ent_fsid": "fsid_business_insider-2021-02-11t15-44-49z-computer_vision",
+        "ent_name": "Keysight Technologies Enhances Eggplant Digital Automation Intelligence Platform with High-Speed Computer Vision",
+        "ent_summary": "Keysight Technologies, Inc. (NYSE: KEYS), a leading technology company that helps enterprises, service providers and governments accelerate inn...",
+        "ent_url": "https://markets.businessinsider.com/news/stocks/keysight-technologies-enhances-eggplant-digital-automation-intelligence-platform-with-high-speed-computer-vision-1030073676",
+        "ent_year": 2021
+      }
+    },
+    {
+      "ent_fsid": "fsid_venturebeat-2020-12-15t19-03-22z-computer_vision",
+      "_id": "67ee3f348a61f5c12170ff07",
+      "ent_name": "Unity has acquired RestAR to enable AI-based 3D capture",
+      "ent_summary": "Game engine maker Unity has acquired RestAR, a Tel Aviv-based computer vision and deep learning company that enables AI-based 3D capture.",
+      "ent_year": 2020,
+      "ent_url": "https://venturebeat.com/2020/12/15/unity-has-acquired-restar-to-enable-ai-based-3d-capture/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f348a61f5c12170ff07",
+        "ent_fsid": "fsid_venturebeat-2020-12-15t19-03-22z-computer_vision",
+        "ent_name": "Unity has acquired RestAR to enable AI-based 3D capture",
+        "ent_summary": "Game engine maker Unity has acquired RestAR, a Tel Aviv-based computer vision and deep learning company that enables AI-based 3D capture.",
+        "ent_url": "https://venturebeat.com/2020/12/15/unity-has-acquired-restar-to-enable-ai-based-3d-capture/",
+        "ent_year": 2020
+      }
+    },
+    {
+      "ent_fsid": "fsid_techcrunch-2020-10-20t08-25-06z-computer_vision",
+      "_id": "67ee3f358a61f5c12170ff22",
+      "ent_name": "Tiliter bags $7.5M for its ‘plug and play’ cashierless checkout tech",
+      "ent_summary": "Tiliter, an Australian startup that’s using computer vision to power cashierless checkout tech that replaces the need for barcodes on products, has closed a $7.5 million Series A round of funding led by Investec Emerging Companies. The 2017-founded company is using AI for retail product recognition — claiming advantages such as removing the need for […]",
+      "ent_year": 2020,
+      "ent_url": "https://techcrunch.com/2020/10/20/tiliter-bags-7-5m-for-its-plug-and-play-cashierless-checkout-tech/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f358a61f5c12170ff22",
+        "ent_fsid": "fsid_techcrunch-2020-10-20t08-25-06z-computer_vision",
+        "ent_name": "Tiliter bags $7.5M for its ‘plug and play’ cashierless checkout tech",
+        "ent_summary": "Tiliter, an Australian startup that’s using computer vision to power cashierless checkout tech that replaces the need for barcodes on products, has closed a $7.5 million Series A round of funding led by Investec Emerging Companies. The 2017-founded company is using AI for retail product recognition — claiming advantages such as removing the need for […]",
+        "ent_url": "https://techcrunch.com/2020/10/20/tiliter-bags-7-5m-for-its-plug-and-play-cashierless-checkout-tech/",
+        "ent_year": 2020
+      }
+    },
+    {
+      "ent_fsid": "fsid_techcrunch-2020-11-17t11-16-28z-computer_vision",
+      "_id": "67ee3f358a61f5c12170ff13",
+      "ent_name": "Hover secures $60M for a 3D imaging platform used to assess and fix properties",
+      "ent_summary": "The US property market has proven to be more resilient than you might have assumed it would be in the midst of a coronavirus pandemic, and today a startup that’s built a computer vision tool to help owners assess and fix those properties more easily is announcing a significant round of funding as it sees […]",
+      "ent_year": 2020,
+      "ent_url": "https://techcrunch.com/2020/11/17/hover-secures-60m-for-a-3d-imaging-platform-used-to-assess-and-fix-properties/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f358a61f5c12170ff13",
+        "ent_fsid": "fsid_techcrunch-2020-11-17t11-16-28z-computer_vision",
+        "ent_name": "Hover secures $60M for a 3D imaging platform used to assess and fix properties",
+        "ent_summary": "The US property market has proven to be more resilient than you might have assumed it would be in the midst of a coronavirus pandemic, and today a startup that’s built a computer vision tool to help owners assess and fix those properties more easily is announcing a significant round of funding as it sees […]",
+        "ent_url": "https://techcrunch.com/2020/11/17/hover-secures-60m-for-a-3d-imaging-platform-used-to-assess-and-fix-properties/",
+        "ent_year": 2020
+      }
+    },
+    {
+      "ent_fsid": "fsid_techcrunch-2021-01-29t12-34-40z-computer_vision",
+      "_id": "67ee3f348a61f5c12170fefa",
+      "ent_name": "Cadeera is doing AI visual search for home decor",
+      "ent_summary": "In recent years we’ve seen a whole bunch of visual/style fashion-focused search engines cropping up, tailored to helping people find the perfect threads to buy online by applying computer vision and other AI technologies to perform smarter-than-keywords visual search which can easily match and surface specific shapes and styles. Startups like Donde Search, Glisten and […]",
+      "ent_year": 2021,
+      "ent_url": "https://techcrunch.com/2021/01/29/cadeera-is-doing-ai-visual-search-for-home-decor/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f348a61f5c12170fefa",
+        "ent_fsid": "fsid_techcrunch-2021-01-29t12-34-40z-computer_vision",
+        "ent_name": "Cadeera is doing AI visual search for home decor",
+        "ent_summary": "In recent years we’ve seen a whole bunch of visual/style fashion-focused search engines cropping up, tailored to helping people find the perfect threads to buy online by applying computer vision and other AI technologies to perform smarter-than-keywords visual search which can easily match and surface specific shapes and styles. Startups like Donde Search, Glisten and […]",
+        "ent_url": "https://techcrunch.com/2021/01/29/cadeera-is-doing-ai-visual-search-for-home-decor/",
+        "ent_year": 2021
+      }
+    },
+    {
+      "ent_fsid": "fsid_the_indian_express-2021-03-11t09-43-21z-computer_vision",
+      "_id": "67ee3f338a61f5c12170fee7",
+      "ent_name": "Delhi Technological University partners Samsung to set up innovation lab",
+      "ent_summary": "As part of the lab, engineers at Samsung R&D Institute, Noida (SRI-N) will work on collaborative research projects with DTU students and faculty on smartphone domains based on cutting edge technology areas such as Artificial Intelligence, Machine Learning and Computer Vision.",
+      "ent_year": 2021,
+      "ent_url": "https://indianexpress.com/article/education/delhi-technological-university-partners-samsung-to-set-up-innovation-lab/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f338a61f5c12170fee7",
+        "ent_fsid": "fsid_the_indian_express-2021-03-11t09-43-21z-computer_vision",
+        "ent_name": "Delhi Technological University partners Samsung to set up innovation lab",
+        "ent_summary": "As part of the lab, engineers at Samsung R&D Institute, Noida (SRI-N) will work on collaborative research projects with DTU students and faculty on smartphone domains based on cutting edge technology areas such as Artificial Intelligence, Machine Learning and Computer Vision.",
+        "ent_url": "https://indianexpress.com/article/education/delhi-technological-university-partners-samsung-to-set-up-innovation-lab/",
+        "ent_year": 2021
+      }
+    },
+    {
+      "ent_fsid": "fsid_analytics_india_magazine-2021-02-16t04-45-00z-computer_vision",
+      "_id": "67ee3f338a61f5c12170fef2",
+      "ent_name": "Guide to VISSL: Vision Library for Self-Supervised Learning",
+      "ent_summary": "VISSL is a computer VIsion library for state-of-the-art Self-Supervised Learning research. This framework is based on PyTorch.",
+      "ent_year": 2021,
+      "ent_url": "https://analyticsindiamag.com/guide-to-vissl-vision-library-for-self-supervised-learning/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "67ee3f338a61f5c12170fef2",
+        "ent_fsid": "fsid_analytics_india_magazine-2021-02-16t04-45-00z-computer_vision",
+        "ent_name": "Guide to VISSL: Vision Library for Self-Supervised Learning",
+        "ent_summary": "VISSL is a computer VIsion library for state-of-the-art Self-Supervised Learning research. This framework is based on PyTorch.",
+        "ent_url": "https://analyticsindiamag.com/guide-to-vissl-vision-library-for-self-supervised-learning/",
+        "ent_year": 2021
+      }
+    }
+  ],
+  "count": 0,
+  "draw": "1",
+  "data": [
+    [
+      "<div style=\"width: 55px;\">2025</div>",
+      "<div class=\"name-div\"><a href=\"https://theconversation.com/shark-ai-uses-fossil-shark-teeth-to-get-middle-school-kids-interested-in-paleontology-and-computer-vision-251125\" target=\"_blank\">Shark AI uses fossil shark teeth to get middle school kids interested in paleontology and computer vision</a> <small class=\"text-muted\">Lesson plans incorporating shark fossil teeth help prepare kids to live and work in an AI world.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2020</div>",
+      "<div class=\"name-div\"><a href=\"https://www.bolnews.com/technology/2020/11/cool-off-with-your-personal-person-tracking-smart-fan/\" target=\"_blank\">Cool off with your personal person-tracking smart fan</a> <small class=\"text-muted\">The Following Fan is the latest cool gadget to own. It is a person tracking smart fan which uses computer vision to stay pointed at the</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2020</div>",
+      "<div class=\"name-div\"><a href=\"https://gadgets.ndtv.com/mobiles/news/apple-vilynx-deal-acquisition-buys-self-learning-ai-video-improve-apps-iphone-2316780\" target=\"_blank\">Apple Acquires Vilynx, a Self-Learning AI Video Firm That Can Help Improve Its Apps</a> <small class=\"text-muted\">Apple acquired Vilynx, a startup specialising in advanced artificial intelligence and computer vision technology, that may help the iPhone maker improve its own AI across a number of apps and services.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2021</div>",
+      "<div class=\"name-div\"><a href=\"https://markets.businessinsider.com/news/stocks/keysight-technologies-enhances-eggplant-digital-automation-intelligence-platform-with-high-speed-computer-vision-1030073676\" target=\"_blank\">Keysight Technologies Enhances Eggplant Digital Automation Intelligence Platform with High-Speed Computer Vision</a> <small class=\"text-muted\">Keysight Technologies, Inc. (NYSE: KEYS), a leading technology company that helps enterprises, service providers and governments accelerate inn...</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2020</div>",
+      "<div class=\"name-div\"><a href=\"https://venturebeat.com/2020/12/15/unity-has-acquired-restar-to-enable-ai-based-3d-capture/\" target=\"_blank\">Unity has acquired RestAR to enable AI-based 3D capture</a> <small class=\"text-muted\">Game engine maker Unity has acquired RestAR, a Tel Aviv-based computer vision and deep learning company that enables AI-based 3D capture.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2020</div>",
+      "<div class=\"name-div\"><a href=\"https://techcrunch.com/2020/10/20/tiliter-bags-7-5m-for-its-plug-and-play-cashierless-checkout-tech/\" target=\"_blank\">Tiliter bags $7.5M for its ‘plug and play’ cashierless checkout tech</a> <small class=\"text-muted\">Tiliter, an Australian startup that’s using computer vision to power cashierless checkout tech that replaces the need for barcodes on products, has closed a $7.5 million Series A round of funding led by Investec Emerging Companies. The 2017-founded company is using AI for retail product recognition — claiming advantages such as removing the need for […]</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2020</div>",
+      "<div class=\"name-div\"><a href=\"https://techcrunch.com/2020/11/17/hover-secures-60m-for-a-3d-imaging-platform-used-to-assess-and-fix-properties/\" target=\"_blank\">Hover secures $60M for a 3D imaging platform used to assess and fix properties</a> <small class=\"text-muted\">The US property market has proven to be more resilient than you might have assumed it would be in the midst of a coronavirus pandemic, and today a startup that’s built a computer vision tool to help owners assess and fix those properties more easily is announcing a significant round of funding as it sees […]</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2021</div>",
+      "<div class=\"name-div\"><a href=\"https://techcrunch.com/2021/01/29/cadeera-is-doing-ai-visual-search-for-home-decor/\" target=\"_blank\">Cadeera is doing AI visual search for home decor</a> <small class=\"text-muted\">In recent years we’ve seen a whole bunch of visual/style fashion-focused search engines cropping up, tailored to helping people find the perfect threads to buy online by applying computer vision and other AI technologies to perform smarter-than-keywords visual search which can easily match and surface specific shapes and styles. Startups like Donde Search, Glisten and […]</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2021</div>",
+      "<div class=\"name-div\"><a href=\"https://indianexpress.com/article/education/delhi-technological-university-partners-samsung-to-set-up-innovation-lab/\" target=\"_blank\">Delhi Technological University partners Samsung to set up innovation lab</a> <small class=\"text-muted\">As part of the lab, engineers at Samsung R&D Institute, Noida (SRI-N) will work on collaborative research projects with DTU students and faculty on smartphone domains based on cutting edge technology areas such as Artificial Intelligence, Machine Learning and Computer Vision.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2021</div>",
+      "<div class=\"name-div\"><a href=\"https://analyticsindiamag.com/guide-to-vissl-vision-library-for-self-supervised-learning/\" target=\"_blank\">Guide to VISSL: Vision Library for Self-Supervised Learning</a> <small class=\"text-muted\">VISSL is a computer VIsion library for state-of-the-art Self-Supervised Learning research. This framework is based on PyTorch.</small></div>"
+    ]
+  ],
+  "recordsTotal": 749,
+  "recordsFiltered": 749,
+  "debug": {
+    "raw_found": [],
+    "mongo_query_size": 100,
+    "mongo_query_count": 1,
+    "mongo_count": 10,
+    "fields_integrity": {
+      "_id": { "valid": 10, "total": 10 },
+      "ent_fsid": { "valid": 10, "total": 10 },
+      "ent_name": { "valid": 10, "total": 10 },
+      "ent_summary": { "valid": 10, "total": 10 },
+      "ent_year": { "valid": 10, "total": 10 },
+      "ent_url": { "valid": 10, "total": 10 },
+      "sentiment_score": { "valid": 0, "total": 10 }
+    }
+  }
+}

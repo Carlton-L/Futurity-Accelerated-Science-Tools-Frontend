@@ -1,0 +1,199 @@
+{
+  "rows": [],
+  "count": 0,
+  "mongo_ent_fsid": "fsid_google_trends_-_computer_vision",
+  "mongo_row": {
+    "_id": { "$oid": "655cc6cc9f2db6a9f1674250" },
+    "type": "Google Trends",
+    "id": "1171399",
+    "labels": ["Metric"],
+    "nodeCreated": 1641826410770,
+    "nodeMatched": 1687799416785,
+    "values": [
+      {
+        "date": "2004-01-01",
+        "value": 100,
+        "subject": "computer vision",
+        "year": 2004
+      },
+      {
+        "date": "2005-01-01",
+        "value": 85,
+        "subject": "computer vision",
+        "year": 2005
+      },
+      {
+        "date": "2006-01-01",
+        "value": 63,
+        "subject": "computer vision",
+        "year": 2006
+      },
+      {
+        "date": "2007-01-01",
+        "value": 53,
+        "subject": "computer vision",
+        "year": 2007
+      },
+      {
+        "date": "2008-01-01",
+        "value": 48,
+        "subject": "computer vision",
+        "year": 2008
+      },
+      {
+        "date": "2009-01-01",
+        "value": 44,
+        "subject": "computer vision",
+        "year": 2009
+      },
+      {
+        "date": "2010-01-01",
+        "value": 42,
+        "subject": "computer vision",
+        "year": 2010
+      },
+      {
+        "date": "2011-01-01",
+        "value": 37,
+        "subject": "computer vision",
+        "year": 2011
+      },
+      {
+        "date": "2012-01-01",
+        "value": 36,
+        "subject": "computer vision",
+        "year": 2012
+      },
+      {
+        "date": "2013-01-01",
+        "value": 34,
+        "subject": "computer vision",
+        "year": 2013
+      },
+      {
+        "date": "2014-01-01",
+        "value": 33,
+        "subject": "computer vision",
+        "year": 2014
+      },
+      {
+        "date": "2015-01-01",
+        "value": 34,
+        "subject": "computer vision",
+        "year": 2015
+      },
+      {
+        "date": "2016-01-01",
+        "value": 32,
+        "subject": "computer vision",
+        "year": 2016
+      },
+      {
+        "date": "2017-01-01",
+        "value": 39,
+        "subject": "computer vision",
+        "year": 2017
+      },
+      {
+        "date": "2018-01-01",
+        "value": 41,
+        "subject": "computer vision",
+        "year": 2018
+      },
+      {
+        "date": "2019-01-01",
+        "value": 43,
+        "subject": "computer vision",
+        "year": 2019
+      },
+      {
+        "date": "2020-01-01",
+        "value": 45,
+        "subject": "computer vision",
+        "year": 2020
+      },
+      {
+        "date": "2021-01-01",
+        "value": 42,
+        "subject": "computer vision",
+        "year": 2021
+      },
+      {
+        "date": "2022-01-01",
+        "value": 60,
+        "subject": "computer vision",
+        "year": 2022
+      },
+      {
+        "date": "2023-01-01",
+        "value": 65,
+        "subject": "computer vision",
+        "year": 2023
+      },
+      {
+        "date": "2024-01-01",
+        "value": 75,
+        "subject": "computer vision",
+        "year": 2024
+      },
+      {
+        "date": "2025-01-01",
+        "value": 80,
+        "subject": "computer vision",
+        "year": 2025
+      }
+    ],
+    "ent_name": "Google Trends - computer vision",
+    "ent_summary": "Google Trends analyze the popularity of top search queries in Google Search",
+    "source": "https://trends.google.com/",
+    "units": "Google Trend score",
+    "status": "ok",
+    "ent_fsid": "fsid_google_trends_-_computer_vision",
+    "target_ent_fsid": "computer vision",
+    "ent_type": "Google Trends"
+  },
+  "mongo_row_fsid": "fsid_google_trends_-_computer_vision",
+  "rows_by_year": {
+    "2004": 100,
+    "2005": 85,
+    "2006": 63,
+    "2007": 53,
+    "2008": 48,
+    "2009": 44,
+    "2010": 42,
+    "2011": 37,
+    "2012": 36,
+    "2013": 34,
+    "2014": 33,
+    "2015": 34,
+    "2016": 32,
+    "2017": 39,
+    "2018": 41,
+    "2019": 43,
+    "2020": 45,
+    "2021": 42,
+    "2022": 60,
+    "2023": 65,
+    "2024": 75,
+    "2025": 80
+  },
+  "plot_data": [
+    {
+      "type": "scatter",
+      "x": [
+        2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015,
+        2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
+      ],
+      "y": [
+        100, 85, 63, 53, 48, 44, 42, 37, 36, 34, 33, 34, 32, 39, 41, 43, 45, 42,
+        60, 65, 75, 80
+      ],
+      "name": "Historical Data",
+      "line": { "width": 3 }
+    }
+  ],
+  "plot_layout": {
+    "legend": { "orientation": "h" },
+    "margin": { "t": 80, "r": 40, "b": 80, "l": 40 }
+  }
+}

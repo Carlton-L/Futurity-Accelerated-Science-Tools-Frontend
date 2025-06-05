@@ -1,0 +1,235 @@
+{
+  "rows": [
+    {
+      "ent_fsid": "fsid_kr-100872557-b1",
+      "_id": "66b10e3f6e85369fd7918471",
+      "ent_name": "Apparatus for controlling displacement of pipe welding using computer vision",
+      "ent_summary": "A pipe welding position control device using the computer vision is provided to reduce welding failure by controlling the location of the welding rod using photographing information of the vision camera. A pipe welding position control device(100) using the computer vision comprises a respective holder part respectively included a moving holder(111) guides either side circumference of the supply board material(10) is surrounded and be moved up/down, and a fixed holder(112) in which location is fixed while surrounding the other one side; a welding rod(120) performing welding between both end part in the holder part backend; a vision camera taking a picture of the separation distance between both end part of the supply board material and transmits the photographed separation distance value; a vision means(130) including the illuminating means irradiating the light source; and a controller controlling the movement of the moving holder by comparing the separation distance value which it is transmitted from the vision camera with the already stored standard distance value.",
+      "ent_year": 2007,
+      "ent_url": "https://patents.google.com/patent/KR100872557B1/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b10e3f6e85369fd7918471",
+        "ent_fsid": "fsid_kr-100872557-b1",
+        "ent_name": "Apparatus for controlling displacement of pipe welding using computer vision",
+        "ent_url": "https://patents.google.com/patent/KR100872557B1/en",
+        "ent_summary": "A pipe welding position control device using the computer vision is provided to reduce welding failure by controlling the location of the welding rod using photographing information of the vision camera. A pipe welding position control device(100) using the computer vision comprises a respective holder part respectively included a moving holder(111) guides either side circumference of the supply board material(10) is surrounded and be moved up/down, and a fixed holder(112) in which location is fixed while surrounding the other one side; a welding rod(120) performing welding between both end part in the holder part backend; a vision camera taking a picture of the separation distance between both end part of the supply board material and transmits the photographed separation distance value; a vision means(130) including the illuminating means irradiating the light source; and a controller controlling the movement of the moving holder by comparing the separation distance value which it is transmitted from the vision camera with the already stored standard distance value.",
+        "ent_year": 2007
+      }
+    },
+    {
+      "ent_fsid": "fsid_cn-102999939-a",
+      "_id": "66b0df006047c434e4cd0792",
+      "ent_name": "Coordinate acquisition device, real-time three-dimensional reconstruction system, real-time three-dimensional reconstruction method and three-dimensional interactive equipment",
+      "ent_summary": "The invention discloses a real-time three-dimensional target reconstruction system and a real-time three-dimensional target reconstruction method based on computer vision, a three-dimensional coordinate information acquisition device used by the same and three-dimensional interactive equipment. The coordinate acquisition device comprises an image acquisition module, an area selection module, an edge point extraction module and a depth calculation module, wherein the image acquisition module is used for shooting one target by the aid of a first camera body and a second camera body of an infrared binocular camera so as to obtain a first image and a second image respectively; the area selection module is used for determining an interested area in the first image based on the image gray feature; the edge point extraction module is used for extracting an edge point for the interested area; and the depth calculation module is used for searching a match point corresponding to the edge point of the first image in the second image and obtaining a three-dimensional coordinate of the match point according to a coordinate of the edge point and a coordinate of the match point. The method, the device, the equipment and the system are applicable to close-range three-dimensional target reconstruction.",
+      "ent_year": 2012,
+      "ent_url": "https://patents.google.com/patent/CN102999939A/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0df006047c434e4cd0792",
+        "ent_fsid": "fsid_cn-102999939-a",
+        "ent_name": "Coordinate acquisition device, real-time three-dimensional reconstruction system, real-time three-dimensional reconstruction method and three-dimensional interactive equipment",
+        "ent_url": "https://patents.google.com/patent/CN102999939A/en",
+        "ent_summary": "The invention discloses a real-time three-dimensional target reconstruction system and a real-time three-dimensional target reconstruction method based on computer vision, a three-dimensional coordinate information acquisition device used by the same and three-dimensional interactive equipment. The coordinate acquisition device comprises an image acquisition module, an area selection module, an edge point extraction module and a depth calculation module, wherein the image acquisition module is used for shooting one target by the aid of a first camera body and a second camera body of an infrared binocular camera so as to obtain a first image and a second image respectively; the area selection module is used for determining an interested area in the first image based on the image gray feature; the edge point extraction module is used for extracting an edge point for the interested area; and the depth calculation module is used for searching a match point corresponding to the edge point of the first image in the second image and obtaining a three-dimensional coordinate of the match point according to a coordinate of the edge point and a coordinate of the match point. The method, the device, the equipment and the system are applicable to close-range three-dimensional target reconstruction.",
+        "ent_year": 2012
+      }
+    },
+    {
+      "ent_fsid": "fsid_cn-102968266-a",
+      "_id": "66b0defe6047c434e4cd0787",
+      "ent_name": "Identification method and apparatus",
+      "ent_summary": "An identification method includes: obtaining instruction information, wherein the instruction information is used for a computer vision application; obtaining image data from a camera module and defining at least one region of recognition corresponding to the image data by user gesture input on a touch-sensitive display; outputting a recognition result of the aforementioned at least one region of recognition; and searching at least one database according to the recognition result in order to execute the computer vision application. Associated apparatus are also provided for reducing complexity of the computer vision system and applying the correlative computer vision system.",
+      "ent_year": 2012,
+      "ent_url": "https://patents.google.com/patent/CN102968266A/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0defe6047c434e4cd0787",
+        "ent_fsid": "fsid_cn-102968266-a",
+        "ent_name": "Identification method and apparatus",
+        "ent_url": "https://patents.google.com/patent/CN102968266A/en",
+        "ent_summary": "An identification method includes: obtaining instruction information, wherein the instruction information is used for a computer vision application; obtaining image data from a camera module and defining at least one region of recognition corresponding to the image data by user gesture input on a touch-sensitive display; outputting a recognition result of the aforementioned at least one region of recognition; and searching at least one database according to the recognition result in order to execute the computer vision application. Associated apparatus are also provided for reducing complexity of the computer vision system and applying the correlative computer vision system.",
+        "ent_year": 2012
+      }
+    },
+    {
+      "ent_fsid": "fsid_cn-102456142-a",
+      "_id": "66b10df0599ad790e7bc42c7",
+      "ent_name": "Analysis method for smoke blackness based on computer vision",
+      "ent_summary": "The invention belongs to the field of environmental protection integrated monitoring, and particularly discloses an analysis method for a smoke blackness based on a computer vision. The analysis method for a smoke blackness based on a computer vision comprises the following steps of: demarcating a standard Ringelmann blackness figure; modelling a Ringelmann blackness judgement mathematical model and performing a parameter learning; extracting image characteristics, and estimating model parameters via a sample; and extracting the image characteristics, and then inputting to the model to perform a blackness analysis. The analysis method for a smoke blackness based on a computer vision disclosed by the invention can be conveniently applied to an environmental protection integrated monitoring system; because the present integrated monitoring systems are provided with lots of video monitoring cameras, an analysis and a recognition can be performed by obtaining videos at video acquisition terminals without installing debugging equipment additionally, and the video monitoring cameras are simple and easy to integrate. The analysis method for a smoke blackness based on a computer vision disclosed by the invention is self-adaptive for a brightness adjustment, so as to reduce the influences caused by weather and illumination factors; and the analysis method for a smoke blackness based on a computer vision disclosed by the invention can be applied to various different smoke emission points by modifying adjustment parameters only based on a computer vision technology, and has a very wide application prospect in environmental protection integrated monitoring.",
+      "ent_year": 2010,
+      "ent_url": "https://patents.google.com/patent/CN102456142A/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b10df0599ad790e7bc42c7",
+        "ent_fsid": "fsid_cn-102456142-a",
+        "ent_name": "Analysis method for smoke blackness based on computer vision",
+        "ent_url": "https://patents.google.com/patent/CN102456142A/en",
+        "ent_summary": "The invention belongs to the field of environmental protection integrated monitoring, and particularly discloses an analysis method for a smoke blackness based on a computer vision. The analysis method for a smoke blackness based on a computer vision comprises the following steps of: demarcating a standard Ringelmann blackness figure; modelling a Ringelmann blackness judgement mathematical model and performing a parameter learning; extracting image characteristics, and estimating model parameters via a sample; and extracting the image characteristics, and then inputting to the model to perform a blackness analysis. The analysis method for a smoke blackness based on a computer vision disclosed by the invention can be conveniently applied to an environmental protection integrated monitoring system; because the present integrated monitoring systems are provided with lots of video monitoring cameras, an analysis and a recognition can be performed by obtaining videos at video acquisition terminals without installing debugging equipment additionally, and the video monitoring cameras are simple and easy to integrate. The analysis method for a smoke blackness based on a computer vision disclosed by the invention is self-adaptive for a brightness adjustment, so as to reduce the influences caused by weather and illumination factors; and the analysis method for a smoke blackness based on a computer vision disclosed by the invention can be applied to various different smoke emission points by modifying adjustment parameters only based on a computer vision technology, and has a very wide application prospect in environmental protection integrated monitoring.",
+        "ent_year": 2010
+      }
+    },
+    {
+      "ent_fsid": "fsid_cn-102866158-a",
+      "_id": "66b0dedb6047c434e4cd06fb",
+      "ent_name": "Detection method of power transmission and distribution cables for tunnel routing inspection",
+      "ent_summary": "The invention discloses a detection method of power transmission and distribution cables for tunnel routing inspection, which belongs to the technical field of computer vision and pattern recognition. The method comprises the steps of: 1) setting a first frame image collected by a tunnel robot which executes a task as a reference image; dividing the reference image into a plurality of cable areas and establishing an analyzing interface for each divided cable area, and setting the divided reference image as a detection template drawing; 2) after the reference image is set, setting n frame images as a first to-be-detected image to the nth to-be-detected image collected again by the tunnel robot which executes the task, and carrying out characteristic match and projection on the first to-be-detected image to the nth to-be-detected image sequentially; and 3) updating the detection template drawing and the reference image. The detection method of the power transmission and distribution cables for tunnel routing inspection provided by the invention has the beneficial effects that automatic detection of the power transmission and distribution cables is realized in video, and an important base for automatically processing massive tunnel routing inspection videos and automatically analyzing defects of the cables is established.",
+      "ent_year": 2012,
+      "ent_url": "https://patents.google.com/patent/CN102866158A/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0dedb6047c434e4cd06fb",
+        "ent_fsid": "fsid_cn-102866158-a",
+        "ent_name": "Detection method of power transmission and distribution cables for tunnel routing inspection",
+        "ent_url": "https://patents.google.com/patent/CN102866158A/en",
+        "ent_summary": "The invention discloses a detection method of power transmission and distribution cables for tunnel routing inspection, which belongs to the technical field of computer vision and pattern recognition. The method comprises the steps of: 1) setting a first frame image collected by a tunnel robot which executes a task as a reference image; dividing the reference image into a plurality of cable areas and establishing an analyzing interface for each divided cable area, and setting the divided reference image as a detection template drawing; 2) after the reference image is set, setting n frame images as a first to-be-detected image to the nth to-be-detected image collected again by the tunnel robot which executes the task, and carrying out characteristic match and projection on the first to-be-detected image to the nth to-be-detected image sequentially; and 3) updating the detection template drawing and the reference image. The detection method of the power transmission and distribution cables for tunnel routing inspection provided by the invention has the beneficial effects that automatic detection of the power transmission and distribution cables is realized in video, and an important base for automatically processing massive tunnel routing inspection videos and automatically analyzing defects of the cables is established.",
+        "ent_year": 2012
+      }
+    },
+    {
+      "ent_fsid": "fsid_us-2010080446-a1",
+      "_id": "66b0dec66a89b9219857d237",
+      "ent_name": "Inline low-damage automated failure analysis",
+      "ent_summary": "A system and method for failure analysis of devices on a semiconductor wafer is disclosed. The present invention comprises the use of an inline focused ion beam milling tool to perform milling and image capturing of cross sections of a desired inspection point. The inspection points are located by identifying at least one fiducial that corresponds to an X-Y offset from the desired inspection point. The fiducials are recognized by a computer vision system. By automating the inspection process, the time required to perform the inspections is greatly reduced.",
+      "ent_year": 2008,
+      "ent_url": "https://patents.google.com/patent/US20100080446A1/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0dec66a89b9219857d237",
+        "ent_fsid": "fsid_us-2010080446-a1",
+        "ent_name": "Inline low-damage automated failure analysis",
+        "ent_url": "https://patents.google.com/patent/US20100080446A1/en",
+        "ent_summary": "A system and method for failure analysis of devices on a semiconductor wafer is disclosed. The present invention comprises the use of an inline focused ion beam milling tool to perform milling and image capturing of cross sections of a desired inspection point. The inspection points are located by identifying at least one fiducial that corresponds to an X-Y offset from the desired inspection point. The fiducials are recognized by a computer vision system. By automating the inspection process, the time required to perform the inspections is greatly reduced.",
+        "ent_year": 2008
+      }
+    },
+    {
+      "ent_fsid": "fsid_cn-101995219-a",
+      "_id": "66b0de30599ad790e7ba9458",
+      "ent_name": "Three-point coding mark point based method for measuring key points of vehicle frame",
+      "ent_summary": "The invention relates to a code point and computer vision based method for measuring key points of a vehicle frame, belonging to the field of reverse engineering. The method comprises the steps of: pasting digital stereoscopic coding mark points to key positions of the vehicle frame, and placing a cross target pasted with the code mark points and a ruler near an object, wherein a high-precision digital camera is adopted; firstly, carrying out image acquisition on different directions of the objected to be measured; resolving the three-dimensional coordinates of certain pixel points of the mark points through the acquired images; and further obtaining the coordinate information of the key point of the vehicle frame though the acquired images and the three-dimensional coordinate information of the mark points by combining with an algorithm so as to provide data base for the subsequent vehicle frame matching. The algorithm provided by the invention for resolving the key points of the vehicle frame enriches the basic theory of three-dimensional vision measurement, provides a foundation for the reverse engineering and the three-dimensional vision detection theory and improves the level of the manufacture industry in China.",
+      "ent_year": 2010,
+      "ent_url": "https://patents.google.com/patent/CN101995219A/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0de30599ad790e7ba9458",
+        "ent_fsid": "fsid_cn-101995219-a",
+        "ent_name": "Three-point coding mark point based method for measuring key points of vehicle frame",
+        "ent_url": "https://patents.google.com/patent/CN101995219A/en",
+        "ent_summary": "The invention relates to a code point and computer vision based method for measuring key points of a vehicle frame, belonging to the field of reverse engineering. The method comprises the steps of: pasting digital stereoscopic coding mark points to key positions of the vehicle frame, and placing a cross target pasted with the code mark points and a ruler near an object, wherein a high-precision digital camera is adopted; firstly, carrying out image acquisition on different directions of the objected to be measured; resolving the three-dimensional coordinates of certain pixel points of the mark points through the acquired images; and further obtaining the coordinate information of the key point of the vehicle frame though the acquired images and the three-dimensional coordinate information of the mark points by combining with an algorithm so as to provide data base for the subsequent vehicle frame matching. The algorithm provided by the invention for resolving the key points of the vehicle frame enriches the basic theory of three-dimensional vision measurement, provides a foundation for the reverse engineering and the three-dimensional vision detection theory and improves the level of the manufacture industry in China.",
+        "ent_year": 2010
+      }
+    },
+    {
+      "ent_fsid": "fsid_cn-100432897-c",
+      "_id": "66b0ddd13f2164c5b9f81ebd",
+      "ent_name": "System and method of contactless position input by hand and eye relation guiding",
+      "ent_summary": "The invention relates to a discontact location input system and method guided by hand and eye. It includes two CCD video cameras, a large scale display terminal, a computer installed plural image acquisition card. The system uses platform labeling module to label video camera parameter. The location input method includes following steps: full automation video camera demarcating, hand and eye location gathering, and demarcating target point solving. The invention is based on computer vision technology, and has the advantages of visual, accurate and real time.",
+      "ent_year": 2006,
+      "ent_url": "https://patents.google.com/patent/CN100432897C/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0ddd13f2164c5b9f81ebd",
+        "ent_fsid": "fsid_cn-100432897-c",
+        "ent_name": "System and method of contactless position input by hand and eye relation guiding",
+        "ent_url": "https://patents.google.com/patent/CN100432897C/en",
+        "ent_summary": "The invention relates to a discontact location input system and method guided by hand and eye. It includes two CCD video cameras, a large scale display terminal, a computer installed plural image acquisition card. The system uses platform labeling module to label video camera parameter. The location input method includes following steps: full automation video camera demarcating, hand and eye location gathering, and demarcating target point solving. The invention is based on computer vision technology, and has the advantages of visual, accurate and real time.",
+        "ent_year": 2006
+      }
+    },
+    {
+      "ent_fsid": "fsid_us-8068132-b2",
+      "_id": "66b10da33f2164c5b9f9f625",
+      "ent_name": "Method for identifying Guignardia citricarpa",
+      "ent_summary": "The present invention refers to a computer vision system for identifying the fungus  Guignardia citricarpa , the causing agent of the citrus black spot. The invention refers to a method for identifying  Guignardia citricarpa  using a computer vision system comprising the steps of a) image acquisition from a collection disk using a digital camera connected to a microscope b) pre-processing to improve (or correct) the scanned images c) image segmentation to segregate each particle in the image d) analysis and extraction of relevant features of the segmented particles and e) identification using artificial intelligence techniques and artificial neural networks.",
+      "ent_year": 2006,
+      "ent_url": "https://patents.google.com/patent/US8068132B2/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b10da33f2164c5b9f9f625",
+        "ent_fsid": "fsid_us-8068132-b2",
+        "ent_name": "Method for identifying Guignardia citricarpa",
+        "ent_url": "https://patents.google.com/patent/US8068132B2/en",
+        "ent_summary": "The present invention refers to a computer vision system for identifying the fungus  Guignardia citricarpa , the causing agent of the citrus black spot. The invention refers to a method for identifying  Guignardia citricarpa  using a computer vision system comprising the steps of a) image acquisition from a collection disk using a digital camera connected to a microscope b) pre-processing to improve (or correct) the scanned images c) image segmentation to segregate each particle in the image d) analysis and extraction of relevant features of the segmented particles and e) identification using artificial intelligence techniques and artificial neural networks.",
+        "ent_year": 2006
+      }
+    },
+    {
+      "ent_fsid": "fsid_us-8706544-b1",
+      "_id": "66b0c3d96e85369fd78ee611",
+      "ent_name": "Method and system for automatically measuring and forecasting the demographic characterization of customers to help customize programming contents in a media network",
+      "ent_summary": "The present invention is a method and system for forecasting the demographic characterization of customers to help customize programming contents on each means for playing output of each site of a plurality of sites in a media network through automatically measuring, characterizing, and estimating the demographic information of customers that appear in the vicinity of each means for playing output. The analysis of demographic information of customers is performed automatically based on the visual information of the customers, using a plurality of means for capturing images and a plurality of computer vision technologies on the visual information. The measurement of the demographic information is performed in each measured node, where the node is defined as means for playing output. Extrapolation of the measurement characterizes the demographic information per each node of a plurality of nodes in a site of a plurality of sites of a media network. The forecasting and customization of the programming contents is based on the characterization of the demographic information.",
+      "ent_year": 2007,
+      "ent_url": "https://patents.google.com/patent/US8706544B1/en",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66b0c3d96e85369fd78ee611",
+        "ent_fsid": "fsid_us-8706544-b1",
+        "ent_name": "Method and system for automatically measuring and forecasting the demographic characterization of customers to help customize programming contents in a media network",
+        "ent_url": "https://patents.google.com/patent/US8706544B1/en",
+        "ent_summary": "The present invention is a method and system for forecasting the demographic characterization of customers to help customize programming contents on each means for playing output of each site of a plurality of sites in a media network through automatically measuring, characterizing, and estimating the demographic information of customers that appear in the vicinity of each means for playing output. The analysis of demographic information of customers is performed automatically based on the visual information of the customers, using a plurality of means for capturing images and a plurality of computer vision technologies on the visual information. The measurement of the demographic information is performed in each measured node, where the node is defined as means for playing output. Extrapolation of the measurement characterizes the demographic information per each node of a plurality of nodes in a site of a plurality of sites of a media network. The forecasting and customization of the programming contents is based on the characterization of the demographic information.",
+        "ent_year": 2007
+      }
+    }
+  ],
+  "count": 0,
+  "draw": "1",
+  "data": [
+    [
+      "<div style=\"width: 55px;\">2007</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/KR100872557B1/en\" target=\"_blank\">Apparatus for controlling displacement of pipe welding using computer vision</a> <small class=\"text-muted\">A pipe welding position control device using the computer vision is provided to reduce welding failure by controlling the location of the welding rod using photographing information of the vision camera. A pipe welding position control device(100) using the computer vision comprises a respective holder part respectively included a moving holder(111) guides either side circumference of the supply board material(10) is surrounded and be moved up/down, and a fixed holder(112) in which location is fixed while surrounding the other one side; a welding rod(120) performing welding between both end part in the holder part backend; a vision camera taking a picture of the separation distance between both end part of the supply board material and transmits the photographed separation distance value; a vision means(130) including the illuminating means irradiating the light source; and a controller controlling the movement of the moving holder by comparing the separation distance value which it is transmitted from the vision camera with the already stored standard distance value.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2012</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/CN102999939A/en\" target=\"_blank\">Coordinate acquisition device, real-time three-dimensional reconstruction system, real-time three-dimensional reconstruction method and three-dimensional interactive equipment</a> <small class=\"text-muted\">The invention discloses a real-time three-dimensional target reconstruction system and a real-time three-dimensional target reconstruction method based on computer vision, a three-dimensional coordinate information acquisition device used by the same and three-dimensional interactive equipment. The coordinate acquisition device comprises an image acquisition module, an area selection module, an edge point extraction module and a depth calculation module, wherein the image acquisition module is used for shooting one target by the aid of a first camera body and a second camera body of an infrared binocular camera so as to obtain a first image and a second image respectively; the area selection module is used for determining an interested area in the first image based on the image gray feature; the edge point extraction module is used for extracting an edge point for the interested area; and the depth calculation module is used for searching a match point corresponding to the edge point of the first image in the second image and obtaining a three-dimensional coordinate of the match point according to a coordinate of the edge point and a coordinate of the match point. The method, the device, the equipment and the system are applicable to close-range three-dimensional target reconstruction.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2012</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/CN102968266A/en\" target=\"_blank\">Identification method and apparatus</a> <small class=\"text-muted\">An identification method includes: obtaining instruction information, wherein the instruction information is used for a computer vision application; obtaining image data from a camera module and defining at least one region of recognition corresponding to the image data by user gesture input on a touch-sensitive display; outputting a recognition result of the aforementioned at least one region of recognition; and searching at least one database according to the recognition result in order to execute the computer vision application. Associated apparatus are also provided for reducing complexity of the computer vision system and applying the correlative computer vision system.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2010</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/CN102456142A/en\" target=\"_blank\">Analysis method for smoke blackness based on computer vision</a> <small class=\"text-muted\">The invention belongs to the field of environmental protection integrated monitoring, and particularly discloses an analysis method for a smoke blackness based on a computer vision. The analysis method for a smoke blackness based on a computer vision comprises the following steps of: demarcating a standard Ringelmann blackness figure; modelling a Ringelmann blackness judgement mathematical model and performing a parameter learning; extracting image characteristics, and estimating model parameters via a sample; and extracting the image characteristics, and then inputting to the model to perform a blackness analysis. The analysis method for a smoke blackness based on a computer vision disclosed by the invention can be conveniently applied to an environmental protection integrated monitoring system; because the present integrated monitoring systems are provided with lots of video monitoring cameras, an analysis and a recognition can be performed by obtaining videos at video acquisition terminals without installing debugging equipment additionally, and the video monitoring cameras are simple and easy to integrate. The analysis method for a smoke blackness based on a computer vision disclosed by the invention is self-adaptive for a brightness adjustment, so as to reduce the influences caused by weather and illumination factors; and the analysis method for a smoke blackness based on a computer vision disclosed by the invention can be applied to various different smoke emission points by modifying adjustment parameters only based on a computer vision technology, and has a very wide application prospect in environmental protection integrated monitoring.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2012</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/CN102866158A/en\" target=\"_blank\">Detection method of power transmission and distribution cables for tunnel routing inspection</a> <small class=\"text-muted\">The invention discloses a detection method of power transmission and distribution cables for tunnel routing inspection, which belongs to the technical field of computer vision and pattern recognition. The method comprises the steps of: 1) setting a first frame image collected by a tunnel robot which executes a task as a reference image; dividing the reference image into a plurality of cable areas and establishing an analyzing interface for each divided cable area, and setting the divided reference image as a detection template drawing; 2) after the reference image is set, setting n frame images as a first to-be-detected image to the nth to-be-detected image collected again by the tunnel robot which executes the task, and carrying out characteristic match and projection on the first to-be-detected image to the nth to-be-detected image sequentially; and 3) updating the detection template drawing and the reference image. The detection method of the power transmission and distribution cables for tunnel routing inspection provided by the invention has the beneficial effects that automatic detection of the power transmission and distribution cables is realized in video, and an important base for automatically processing massive tunnel routing inspection videos and automatically analyzing defects of the cables is established.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2008</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/US20100080446A1/en\" target=\"_blank\">Inline low-damage automated failure analysis</a> <small class=\"text-muted\">A system and method for failure analysis of devices on a semiconductor wafer is disclosed. The present invention comprises the use of an inline focused ion beam milling tool to perform milling and image capturing of cross sections of a desired inspection point. The inspection points are located by identifying at least one fiducial that corresponds to an X-Y offset from the desired inspection point. The fiducials are recognized by a computer vision system. By automating the inspection process, the time required to perform the inspections is greatly reduced.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2010</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/CN101995219A/en\" target=\"_blank\">Three-point coding mark point based method for measuring key points of vehicle frame</a> <small class=\"text-muted\">The invention relates to a code point and computer vision based method for measuring key points of a vehicle frame, belonging to the field of reverse engineering. The method comprises the steps of: pasting digital stereoscopic coding mark points to key positions of the vehicle frame, and placing a cross target pasted with the code mark points and a ruler near an object, wherein a high-precision digital camera is adopted; firstly, carrying out image acquisition on different directions of the objected to be measured; resolving the three-dimensional coordinates of certain pixel points of the mark points through the acquired images; and further obtaining the coordinate information of the key point of the vehicle frame though the acquired images and the three-dimensional coordinate information of the mark points by combining with an algorithm so as to provide data base for the subsequent vehicle frame matching. The algorithm provided by the invention for resolving the key points of the vehicle frame enriches the basic theory of three-dimensional vision measurement, provides a foundation for the reverse engineering and the three-dimensional vision detection theory and improves the level of the manufacture industry in China.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2006</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/CN100432897C/en\" target=\"_blank\">System and method of contactless position input by hand and eye relation guiding</a> <small class=\"text-muted\">The invention relates to a discontact location input system and method guided by hand and eye. It includes two CCD video cameras, a large scale display terminal, a computer installed plural image acquisition card. The system uses platform labeling module to label video camera parameter. The location input method includes following steps: full automation video camera demarcating, hand and eye location gathering, and demarcating target point solving. The invention is based on computer vision technology, and has the advantages of visual, accurate and real time.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2006</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/US8068132B2/en\" target=\"_blank\">Method for identifying Guignardia citricarpa</a> <small class=\"text-muted\">The present invention refers to a computer vision system for identifying the fungus  Guignardia citricarpa , the causing agent of the citrus black spot. The invention refers to a method for identifying  Guignardia citricarpa  using a computer vision system comprising the steps of a) image acquisition from a collection disk using a digital camera connected to a microscope b) pre-processing to improve (or correct) the scanned images c) image segmentation to segregate each particle in the image d) analysis and extraction of relevant features of the segmented particles and e) identification using artificial intelligence techniques and artificial neural networks.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2007</div>",
+      "<div class=\"name-div\"><a href=\"https://patents.google.com/patent/US8706544B1/en\" target=\"_blank\">Method and system for automatically measuring and forecasting the demographic characterization of customers to help customize programming contents in a media network</a> <small class=\"text-muted\">The present invention is a method and system for forecasting the demographic characterization of customers to help customize programming contents on each means for playing output of each site of a plurality of sites in a media network through automatically measuring, characterizing, and estimating the demographic information of customers that appear in the vicinity of each means for playing output. The analysis of demographic information of customers is performed automatically based on the visual information of the customers, using a plurality of means for capturing images and a plurality of computer vision technologies on the visual information. The measurement of the demographic information is performed in each measured node, where the node is defined as means for playing output. Extrapolation of the measurement characterizes the demographic information per each node of a plurality of nodes in a site of a plurality of sites of a media network. The forecasting and customization of the programming contents is based on the characterization of the demographic information.</small></div>"
+    ]
+  ],
+  "recordsTotal": 15546,
+  "recordsFiltered": 15546,
+  "debug": {
+    "raw_found": [],
+    "mongo_query_size": 100,
+    "mongo_query_count": 1,
+    "mongo_count": 10,
+    "fields_integrity": {
+      "_id": { "valid": 10, "total": 10 },
+      "ent_fsid": { "valid": 10, "total": 10 },
+      "ent_name": { "valid": 10, "total": 10 },
+      "ent_summary": { "valid": 10, "total": 10 },
+      "ent_year": { "valid": 10, "total": 10 },
+      "ent_url": { "valid": 10, "total": 10 },
+      "sentiment_score": { "valid": 0, "total": 10 }
+    }
+  }
+}

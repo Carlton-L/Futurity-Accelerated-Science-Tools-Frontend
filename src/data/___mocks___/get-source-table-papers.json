@@ -1,0 +1,234 @@
+{
+  "rows": [
+    {
+      "ent_fsid": "fsid_10-1007-978-981-10-7305-2",
+      "_id": "681b45bd5c4c79e9d9049c86",
+      "ent_name": "Computer Vision",
+      "ent_summary": "",
+      "ent_year": 2017,
+      "ent_url": "https://www.semanticscholar.org/paper/fa12f4cfb6e4c5e2a6729774155f544b76d5b6ad",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "681b45bd5c4c79e9d9049c86",
+        "ent_fsid": "fsid_10-1007-978-981-10-7305-2",
+        "ent_name": "Computer Vision",
+        "ent_summary": "",
+        "ent_url": "https://www.semanticscholar.org/paper/fa12f4cfb6e4c5e2a6729774155f544b76d5b6ad",
+        "ent_year": 2017
+      }
+    },
+    {
+      "ent_fsid": "fsid_10-1109-cvpr52733-2024-00461",
+      "_id": "681b45bc5c4c79e9d9049c64",
+      "ent_name": "Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks",
+      "ent_summary": "We introduce Florence-2, a novel vision foundation model with a unified, prompt-based representation for various computer vision and vision-language tasks. While existing large vision models excel in transfer learning, they struggle to perform diverse tasks with simple instructions, a capability that implies handling the complexity of various spatial hierarchy and semantic granularity. Florence-2 was designed to take text-prompt as task instructions and generate desirable results in text forms, whether it be captioning, object detection, grounding or segmentation. This multi-task learning setup demands large-scale, high-quality annotated data. To this end, we co-developed FLD-5B that consists of 5.4 billion comprehensive visual annotations on 126 million images, using an iterative strategy of automated image annotation and model refinement. We adopted a sequence-to-sequence structure to train Florence-2 to perform versatile and comprehensive vision tasks. Extensive evaluations on numerous tasks demonstrated Florence-2 to be a strong vision foundation model contender with un-precedented zero-shot and fine-tuning capabilities.",
+      "ent_year": 2023,
+      "ent_url": "https://www.semanticscholar.org/paper/441bada9aa6dfd1f94d45d20e0f7eb060d59dd30",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "681b45bc5c4c79e9d9049c64",
+        "ent_fsid": "fsid_10-1109-cvpr52733-2024-00461",
+        "ent_name": "Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks",
+        "ent_summary": "We introduce Florence-2, a novel vision foundation model with a unified, prompt-based representation for various computer vision and vision-language tasks. While existing large vision models excel in transfer learning, they struggle to perform diverse tasks with simple instructions, a capability that implies handling the complexity of various spatial hierarchy and semantic granularity. Florence-2 was designed to take text-prompt as task instructions and generate desirable results in text forms, whether it be captioning, object detection, grounding or segmentation. This multi-task learning setup demands large-scale, high-quality annotated data. To this end, we co-developed FLD-5B that consists of 5.4 billion comprehensive visual annotations on 126 million images, using an iterative strategy of automated image annotation and model refinement. We adopted a sequence-to-sequence structure to train Florence-2 to perform versatile and comprehensive vision tasks. Extensive evaluations on numerous tasks demonstrated Florence-2 to be a strong vision foundation model contender with un-precedented zero-shot and fine-tuning capabilities.",
+        "ent_url": "https://www.semanticscholar.org/paper/441bada9aa6dfd1f94d45d20e0f7eb060d59dd30",
+        "ent_year": 2023
+      }
+    },
+    {
+      "ent_fsid": "fsid_doi_missing_1746617780",
+      "_id": "681b45b65c4c79e9d9049abb",
+      "ent_name": "Algorithms for image processing and computer vision",
+      "ent_summary": "",
+      "ent_year": 1996,
+      "ent_url": "https://www.semanticscholar.org/paper/98811e9bb24657e1fac4512be39ea9acd4c85230",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "681b45b65c4c79e9d9049abb",
+        "ent_fsid": "fsid_doi_missing_1746617780",
+        "ent_name": "Algorithms for image processing and computer vision",
+        "ent_summary": "",
+        "ent_url": "https://www.semanticscholar.org/paper/98811e9bb24657e1fac4512be39ea9acd4c85230",
+        "ent_year": 1996
+      }
+    },
+    {
+      "ent_fsid": "fsid_10-1109-cvprw63382-2024-00179",
+      "_id": "68121ac95c4c79e9d9de0ae4",
+      "ent_name": "Recognize Anything: A Strong Image Tagging Model",
+      "ent_summary": "We present the Recognize Anything Model (RAM): a strong foundation model for image tagging. RAM makes a substantial step for foundation models in computer vision, demonstrating the zero-shot ability to recognize any common category with high accuracy. By leveraging large-scale image-text pairs for training instead of manual annotations, RAM introduces a new paradigm for image tagging.The development of RAM comprises four key steps. Firstly, annotation-free image tags are obtained at scale through automatic text semantic parsing. Subsequently, a preliminary model is trained for automatic annotation by unifying the captioning and tagging tasks, supervised by the original texts and parsed tags, respectively. Thirdly, a data engine is employed to generate additional annotations and clean incorrect ones. Lastly, the model is retrained with the processed data and fine-tuned using a smaller but higher-quality dataset.We evaluate the tagging capability of RAM on numerous benchmarks and observe an impressive zero-shot performance, which significantly outperforms CLIP and BLIP. Remarkably, RAM even surpasses fully supervised models and exhibits a competitive performance compared with the Google tagging API. We have released RAM at https://recognize-anything.github.io/ to foster the advancement of foundation models in computer vision.",
+      "ent_year": 2023,
+      "ent_url": "https://www.semanticscholar.org/paper/9541cf136f442e992f10021c53081f33c73a2ed0",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "68121ac95c4c79e9d9de0ae4",
+        "ent_fsid": "fsid_10-1109-cvprw63382-2024-00179",
+        "ent_name": "Recognize Anything: A Strong Image Tagging Model",
+        "ent_summary": "We present the Recognize Anything Model (RAM): a strong foundation model for image tagging. RAM makes a substantial step for foundation models in computer vision, demonstrating the zero-shot ability to recognize any common category with high accuracy. By leveraging large-scale image-text pairs for training instead of manual annotations, RAM introduces a new paradigm for image tagging.The development of RAM comprises four key steps. Firstly, annotation-free image tags are obtained at scale through automatic text semantic parsing. Subsequently, a preliminary model is trained for automatic annotation by unifying the captioning and tagging tasks, supervised by the original texts and parsed tags, respectively. Thirdly, a data engine is employed to generate additional annotations and clean incorrect ones. Lastly, the model is retrained with the processed data and fine-tuned using a smaller but higher-quality dataset.We evaluate the tagging capability of RAM on numerous benchmarks and observe an impressive zero-shot performance, which significantly outperforms CLIP and BLIP. Remarkably, RAM even surpasses fully supervised models and exhibits a competitive performance compared with the Google tagging API. We have released RAM at https://recognize-anything.github.io/ to foster the advancement of foundation models in computer vision.",
+        "ent_url": "https://www.semanticscholar.org/paper/9541cf136f442e992f10021c53081f33c73a2ed0",
+        "ent_year": 2023
+      }
+    },
+    {
+      "ent_fsid": "fsid_doi_missing_1746016335",
+      "_id": "6812184f5c4c79e9d9ddf494",
+      "ent_name": "EMNIST: an extension of MNIST to handwritten letters",
+      "ent_summary": "The MNIST dataset has become a standard benchmark for learning, classification and computer vision systems. Contributing to its widespread adoption are the understandable and intuitive nature of the task, its relatively small size and storage requirements and the accessibility and ease-of-use of the database itself. The MNIST database was derived from a larger dataset known as the NIST Special Database 19 which contains digits, uppercase and lowercase handwritten letters. This paper introduces a variant of the full NIST dataset, which we have called Extended MNIST (EMNIST), which follows the same conversion paradigm used to create the MNIST dataset. The result is a set of datasets that constitute a more challenging classification tasks involving letters and digits, and that shares the same image structure and parameters as the original MNIST task, allowing for direct compatibility with all existing classifiers and systems. Benchmark results are presented along with a validation of the conversion process through the comparison of the classification results on converted NIST digits and the MNIST digits.",
+      "ent_year": 2017,
+      "ent_url": "https://www.semanticscholar.org/paper/8c2a9f6c7721d3f39ed13be8ef1bb80670ed2282",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6812184f5c4c79e9d9ddf494",
+        "ent_fsid": "fsid_doi_missing_1746016335",
+        "ent_name": "EMNIST: an extension of MNIST to handwritten letters",
+        "ent_summary": "The MNIST dataset has become a standard benchmark for learning, classification and computer vision systems. Contributing to its widespread adoption are the understandable and intuitive nature of the task, its relatively small size and storage requirements and the accessibility and ease-of-use of the database itself. The MNIST database was derived from a larger dataset known as the NIST Special Database 19 which contains digits, uppercase and lowercase handwritten letters. This paper introduces a variant of the full NIST dataset, which we have called Extended MNIST (EMNIST), which follows the same conversion paradigm used to create the MNIST dataset. The result is a set of datasets that constitute a more challenging classification tasks involving letters and digits, and that shares the same image structure and parameters as the original MNIST task, allowing for direct compatibility with all existing classifiers and systems. Benchmark results are presented along with a validation of the conversion process through the comparison of the classification results on converted NIST digits and the MNIST digits.",
+        "ent_url": "https://www.semanticscholar.org/paper/8c2a9f6c7721d3f39ed13be8ef1bb80670ed2282",
+        "ent_year": 2017
+      }
+    },
+    {
+      "ent_fsid": "fsid_doi_missing_1746009206",
+      "_id": "6811fc765c4c79e9d9dc965f",
+      "ent_name": "Physics-Based Deformable Models: Applications to Computer Vision, Graphics, and Medical Imaging",
+      "ent_summary": null,
+      "ent_year": 1996,
+      "ent_url": "https://www.semanticscholar.org/paper/4d2d5995c22dbd3bb030f2d5583d4d4e53af152e",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6811fc765c4c79e9d9dc965f",
+        "ent_fsid": "fsid_doi_missing_1746009206",
+        "ent_name": "Physics-Based Deformable Models: Applications to Computer Vision, Graphics, and Medical Imaging",
+        "ent_summary": null,
+        "ent_url": "https://www.semanticscholar.org/paper/4d2d5995c22dbd3bb030f2d5583d4d4e53af152e",
+        "ent_year": 1996
+      }
+    },
+    {
+      "ent_fsid": "fsid_10-1201-9780429142741-105",
+      "_id": "680777b916741f02213522cc",
+      "ent_name": "Computer Vision",
+      "ent_summary": null,
+      "ent_year": null,
+      "ent_url": "https://www.semanticscholar.org/paper/19c669c00edcca74f75ddf56b95f4215920e7af7",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "680777b916741f02213522cc",
+        "ent_fsid": "fsid_10-1201-9780429142741-105",
+        "ent_name": "Computer Vision",
+        "ent_summary": null,
+        "ent_url": "https://www.semanticscholar.org/paper/19c669c00edcca74f75ddf56b95f4215920e7af7"
+      }
+    },
+    {
+      "ent_fsid": "fsid_doi_missing_1745319867",
+      "_id": "680777bb16741f02213522db",
+      "ent_name": "An Iterative Image Registration Technique with an Application to Stereo Vision",
+      "ent_summary": null,
+      "ent_year": 1981,
+      "ent_url": "https://www.semanticscholar.org/paper/a06547951c97b2a32f23a6c2b5f79c8c75c9b9bd",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "680777bb16741f02213522db",
+        "ent_fsid": "fsid_doi_missing_1745319867",
+        "ent_name": "An Iterative Image Registration Technique with an Application to Stereo Vision",
+        "ent_summary": null,
+        "ent_url": "https://www.semanticscholar.org/paper/a06547951c97b2a32f23a6c2b5f79c8c75c9b9bd",
+        "ent_year": 1981
+      }
+    },
+    {
+      "ent_fsid": "fsid_10-22214-ijraset-2021-35926",
+      "_id": "68064f1d16741f0221286bce",
+      "ent_name": "Computer Vision",
+      "ent_summary": "Computer vision may be a field of computer science that trains computers to interpret and perceive the visual world. exploitation digital pictures from cameras and videos and deep learning models, machines will accurately determine and classify objects — and so react to what they \"see.”. Computer vision is Associate in Nursing knowledge domain scientific field that deals with however computers will gain high-level understanding from digital pictures or videos. From the angle of engineering, it seeks to grasp and alter tasks that the human sensory system will do. Computer vision tasks embrace strategies for exploit, processing, analyzing and understanding digital pictures, and extraction of high-dimensional knowledge from the important world so as to supply numerical or symbolic info, e.g. within the styles of selections. Understanding during this context suggests that the transformation of visual pictures (the input of the retina) into descriptions of the planet that be to thought processes and might elicit acceptable action. This image understanding will be seen because the disentangling of symbolic info from image knowledge mistreatment models created with the help of pure mathematics, physics, statistics, and learning theory.",
+      "ent_year": 2021,
+      "ent_url": "https://www.semanticscholar.org/paper/d672db7a8fa9eec85c16478ba39393ed1859a659",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "68064f1d16741f0221286bce",
+        "ent_fsid": "fsid_10-22214-ijraset-2021-35926",
+        "ent_name": "Computer Vision",
+        "ent_summary": "Computer vision may be a field of computer science that trains computers to interpret and perceive the visual world. exploitation digital pictures from cameras and videos and deep learning models, machines will accurately determine and classify objects — and so react to what they \"see.”. Computer vision is Associate in Nursing knowledge domain scientific field that deals with however computers will gain high-level understanding from digital pictures or videos. From the angle of engineering, it seeks to grasp and alter tasks that the human sensory system will do. Computer vision tasks embrace strategies for exploit, processing, analyzing and understanding digital pictures, and extraction of high-dimensional knowledge from the important world so as to supply numerical or symbolic info, e.g. within the styles of selections. Understanding during this context suggests that the transformation of visual pictures (the input of the retina) into descriptions of the planet that be to thought processes and might elicit acceptable action. This image understanding will be seen because the disentangling of symbolic info from image knowledge mistreatment models created with the help of pure mathematics, physics, statistics, and learning theory.",
+        "ent_url": "https://www.semanticscholar.org/paper/d672db7a8fa9eec85c16478ba39393ed1859a659",
+        "ent_year": 2021
+      }
+    },
+    {
+      "ent_fsid": "fsid_10-48550-arxiv-2203-15269",
+      "_id": "6800453a16741f02211ec8fa",
+      "ent_name": "Vision Transformers in Medical Computer Vision - A Contemplative Retrospection",
+      "ent_summary": "Recent escalation in the field of computer vision underpins a huddle of algorithms with the magnificent potential to unravel the information contained within images. These computer vision algorithms are being practised in medical image analysis and are transfiguring the perception and interpretation of Imaging data. Among these algorithms, Vision Transformers are evolved as one of the most contemporary and dominant architectures that are being used in the field of computer vision. These are immensely utilized by a plenty of researchers to perform new as well as former experiments. Here, in this article we investigate the intersection of Vision Transformers and Medical images and proffered an overview of various ViTs based frameworks that are being used by different researchers in order to decipher the obstacles in Medical Computer Vision. We surveyed the application of Vision transformers in different areas of medical computer vision such as image-based disease classification, anatomical structure segmentation, registration, region-based lesion Detection, captioning, report generation, reconstruction using multiple medical imaging modalities that greatly assist in medical diagnosis and hence treatment process. Along with this, we also demystify several imaging modalities used in Medical Computer Vision. Moreover, to get more insight and deeper understanding, self-attention mechanism of transformers is also explained briefly. Conclusively, we also put some light on available data sets, adopted methodology, their performance measures, challenges and their solutions in form of discussion. We hope that this review article will open future directions for researchers in medical computer vision.",
+      "ent_year": 2022,
+      "ent_url": "https://www.semanticscholar.org/paper/224ecc21a917dd246420d2da0b3edee5834f3391",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6800453a16741f02211ec8fa",
+        "ent_fsid": "fsid_10-48550-arxiv-2203-15269",
+        "ent_name": "Vision Transformers in Medical Computer Vision - A Contemplative Retrospection",
+        "ent_summary": "Recent escalation in the field of computer vision underpins a huddle of algorithms with the magnificent potential to unravel the information contained within images. These computer vision algorithms are being practised in medical image analysis and are transfiguring the perception and interpretation of Imaging data. Among these algorithms, Vision Transformers are evolved as one of the most contemporary and dominant architectures that are being used in the field of computer vision. These are immensely utilized by a plenty of researchers to perform new as well as former experiments. Here, in this article we investigate the intersection of Vision Transformers and Medical images and proffered an overview of various ViTs based frameworks that are being used by different researchers in order to decipher the obstacles in Medical Computer Vision. We surveyed the application of Vision transformers in different areas of medical computer vision such as image-based disease classification, anatomical structure segmentation, registration, region-based lesion Detection, captioning, report generation, reconstruction using multiple medical imaging modalities that greatly assist in medical diagnosis and hence treatment process. Along with this, we also demystify several imaging modalities used in Medical Computer Vision. Moreover, to get more insight and deeper understanding, self-attention mechanism of transformers is also explained briefly. Conclusively, we also put some light on available data sets, adopted methodology, their performance measures, challenges and their solutions in form of discussion. We hope that this review article will open future directions for researchers in medical computer vision.",
+        "ent_url": "https://www.semanticscholar.org/paper/224ecc21a917dd246420d2da0b3edee5834f3391",
+        "ent_year": 2022
+      }
+    }
+  ],
+  "count": 0,
+  "draw": "1",
+  "data": [
+    [
+      "<div style=\"width: 55px;\">2017</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/fa12f4cfb6e4c5e2a6729774155f544b76d5b6ad\" target=\"_blank\">Computer Vision</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2023</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/441bada9aa6dfd1f94d45d20e0f7eb060d59dd30\" target=\"_blank\">Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks</a> <small class=\"text-muted\">We introduce Florence-2, a novel vision foundation model with a unified, prompt-based representation for various computer vision and vision-language tasks. While existing large vision models excel in transfer learning, they struggle to perform diverse tasks with simple instructions, a capability that implies handling the complexity of various spatial hierarchy and semantic granularity. Florence-2 was designed to take text-prompt as task instructions and generate desirable results in text forms, whether it be captioning, object detection, grounding or segmentation. This multi-task learning setup demands large-scale, high-quality annotated data. To this end, we co-developed FLD-5B that consists of 5.4 billion comprehensive visual annotations on 126 million images, using an iterative strategy of automated image annotation and model refinement. We adopted a sequence-to-sequence structure to train Florence-2 to perform versatile and comprehensive vision tasks. Extensive evaluations on numerous tasks demonstrated Florence-2 to be a strong vision foundation model contender with un-precedented zero-shot and fine-tuning capabilities.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">1996</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/98811e9bb24657e1fac4512be39ea9acd4c85230\" target=\"_blank\">Algorithms for image processing and computer vision</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2023</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/9541cf136f442e992f10021c53081f33c73a2ed0\" target=\"_blank\">Recognize Anything: A Strong Image Tagging Model</a> <small class=\"text-muted\">We present the Recognize Anything Model (RAM): a strong foundation model for image tagging. RAM makes a substantial step for foundation models in computer vision, demonstrating the zero-shot ability to recognize any common category with high accuracy. By leveraging large-scale image-text pairs for training instead of manual annotations, RAM introduces a new paradigm for image tagging.The development of RAM comprises four key steps. Firstly, annotation-free image tags are obtained at scale through automatic text semantic parsing. Subsequently, a preliminary model is trained for automatic annotation by unifying the captioning and tagging tasks, supervised by the original texts and parsed tags, respectively. Thirdly, a data engine is employed to generate additional annotations and clean incorrect ones. Lastly, the model is retrained with the processed data and fine-tuned using a smaller but higher-quality dataset.We evaluate the tagging capability of RAM on numerous benchmarks and observe an impressive zero-shot performance, which significantly outperforms CLIP and BLIP. Remarkably, RAM even surpasses fully supervised models and exhibits a competitive performance compared with the Google tagging API. We have released RAM at https://recognize-anything.github.io/ to foster the advancement of foundation models in computer vision.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2017</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/8c2a9f6c7721d3f39ed13be8ef1bb80670ed2282\" target=\"_blank\">EMNIST: an extension of MNIST to handwritten letters</a> <small class=\"text-muted\">The MNIST dataset has become a standard benchmark for learning, classification and computer vision systems. Contributing to its widespread adoption are the understandable and intuitive nature of the task, its relatively small size and storage requirements and the accessibility and ease-of-use of the database itself. The MNIST database was derived from a larger dataset known as the NIST Special Database 19 which contains digits, uppercase and lowercase handwritten letters. This paper introduces a variant of the full NIST dataset, which we have called Extended MNIST (EMNIST), which follows the same conversion paradigm used to create the MNIST dataset. The result is a set of datasets that constitute a more challenging classification tasks involving letters and digits, and that shares the same image structure and parameters as the original MNIST task, allowing for direct compatibility with all existing classifiers and systems. Benchmark results are presented along with a validation of the conversion process through the comparison of the classification results on converted NIST digits and the MNIST digits.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">1996</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/4d2d5995c22dbd3bb030f2d5583d4d4e53af152e\" target=\"_blank\">Physics-Based Deformable Models: Applications to Computer Vision, Graphics, and Medical Imaging</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\"></div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/19c669c00edcca74f75ddf56b95f4215920e7af7\" target=\"_blank\">Computer Vision</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">1981</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/a06547951c97b2a32f23a6c2b5f79c8c75c9b9bd\" target=\"_blank\">An Iterative Image Registration Technique with an Application to Stereo Vision</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2021</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/d672db7a8fa9eec85c16478ba39393ed1859a659\" target=\"_blank\">Computer Vision</a> <small class=\"text-muted\">Computer vision may be a field of computer science that trains computers to interpret and perceive the visual world. exploitation digital pictures from cameras and videos and deep learning models, machines will accurately determine and classify objects — and so react to what they \"see.”. Computer vision is Associate in Nursing knowledge domain scientific field that deals with however computers will gain high-level understanding from digital pictures or videos. From the angle of engineering, it seeks to grasp and alter tasks that the human sensory system will do. Computer vision tasks embrace strategies for exploit, processing, analyzing and understanding digital pictures, and extraction of high-dimensional knowledge from the important world so as to supply numerical or symbolic info, e.g. within the styles of selections. Understanding during this context suggests that the transformation of visual pictures (the input of the retina) into descriptions of the planet that be to thought processes and might elicit acceptable action. This image understanding will be seen because the disentangling of symbolic info from image knowledge mistreatment models created with the help of pure mathematics, physics, statistics, and learning theory.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2022</div>",
+      "<div class=\"name-div\"><a href=\"https://www.semanticscholar.org/paper/224ecc21a917dd246420d2da0b3edee5834f3391\" target=\"_blank\">Vision Transformers in Medical Computer Vision - A Contemplative Retrospection</a> <small class=\"text-muted\">Recent escalation in the field of computer vision underpins a huddle of algorithms with the magnificent potential to unravel the information contained within images. These computer vision algorithms are being practised in medical image analysis and are transfiguring the perception and interpretation of Imaging data. Among these algorithms, Vision Transformers are evolved as one of the most contemporary and dominant architectures that are being used in the field of computer vision. These are immensely utilized by a plenty of researchers to perform new as well as former experiments. Here, in this article we investigate the intersection of Vision Transformers and Medical images and proffered an overview of various ViTs based frameworks that are being used by different researchers in order to decipher the obstacles in Medical Computer Vision. We surveyed the application of Vision transformers in different areas of medical computer vision such as image-based disease classification, anatomical structure segmentation, registration, region-based lesion Detection, captioning, report generation, reconstruction using multiple medical imaging modalities that greatly assist in medical diagnosis and hence treatment process. Along with this, we also demystify several imaging modalities used in Medical Computer Vision. Moreover, to get more insight and deeper understanding, self-attention mechanism of transformers is also explained briefly. Conclusively, we also put some light on available data sets, adopted methodology, their performance measures, challenges and their solutions in form of discussion. We hope that this review article will open future directions for researchers in medical computer vision.</small></div>"
+    ]
+  ],
+  "recordsTotal": 8545,
+  "recordsFiltered": 8545,
+  "debug": {
+    "raw_found": [],
+    "mongo_query_size": 100,
+    "mongo_query_count": 1,
+    "mongo_count": 10,
+    "fields_integrity": {
+      "_id": { "valid": 10, "total": 10 },
+      "ent_fsid": { "valid": 10, "total": 10 },
+      "ent_name": { "valid": 10, "total": 10 },
+      "ent_summary": { "valid": 5, "total": 10 },
+      "ent_year": { "valid": 9, "total": 10 },
+      "ent_url": { "valid": 10, "total": 10 },
+      "sentiment_score": { "valid": 0, "total": 10 }
+    }
+  }
+}

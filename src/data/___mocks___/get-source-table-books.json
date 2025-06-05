@@ -1,0 +1,235 @@
+{
+  "rows": [
+    {
+      "ent_fsid": "fsid_0879420898",
+      "_id": "650c2df6d5a19fd102418b3f",
+      "ent_name": "Computer Methods in Image Analysis",
+      "ent_summary": "NaN",
+      "ent_year": 1977,
+      "ent_url": "http://books.google.com/books?id=FoClxwEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=482&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2df6d5a19fd102418b3f",
+        "ent_url": "http://books.google.com/books?id=FoClxwEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=482&source=gbs_api",
+        "ent_summary": "NaN",
+        "ent_year": 1977,
+        "ent_name": "Computer Methods in Image Analysis",
+        "ent_fsid": "fsid_0879420898"
+      }
+    },
+    {
+      "ent_fsid": "fsid_0367572257",
+      "_id": "650c2df3d5a19fd102418b13",
+      "ent_name": "Introduction to Visual Computing",
+      "ent_summary": "\\\\\\\"Introduction to Visual Computing: Core Concepts in Computer Vision, Graphics, and Image Processing covers the fundamental concepts of visual computing. Whereas past books have treated these concepts within the context of specific fields such as computer graphics, computer vision or image processing, this book offers a unified view of these core concepts, thereby providing a unified treatment of computational and mathematical methods for creating, capturing, analyzing and manipulating visual data (e.g. 2D images, 3D models). Fundamentals covered in the book include convolution, Fourier transform, filters, geometric transformations, epipolar geometry, 3D reconstruction, color and the image synthesis pipeline. The book is organized in four parts. The first part provides an exposure to different kinds of visual data (e.g. 2D images, videos and 3D geometry) and the core mathematical techniques that are required for their processing (e.g. interpolation and linear regression.) The second part of the book on Image Based Visual Computing deals with several fundamental techniques to process 2D images (e.g. convolution, spectral analysis and feature detection) and corresponds to the low level retinal image processing that happens in the eye in the human visual system pathway. The next part of the book on Geometric Visual Computing deals with the fundamental techniques used to combine the geometric information from multiple eyes creating a 3D interpretation of the object and world around us (e.g. transformations, projective and epipolar geometry, and 3D reconstruction). This corresponds to the higher level processing that happens in the brain combining information from both the eyes thereby helping us to navigate through the 3D world around us. The last two parts of the book cover Radiometric Visual Computing and Visual Content Synthesis. These parts focus on the fundamental techniques for processing information arising from the interaction of light with objects around us, as well as the fundamentals of creating virtual computer generated worlds that mimic all the processing presented in the prior sections. The book is written for a 16 week long semester course and can be used for both undergraduate and graduate teaching, as well as a reference for professionals.\\\\\\\"--Provided by publisher.",
+      "ent_year": 2018,
+      "ent_url": "http://books.google.com/books?id=38rMvQEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=357&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2df3d5a19fd102418b13",
+        "ent_url": "http://books.google.com/books?id=38rMvQEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=357&source=gbs_api",
+        "ent_summary": "\\\\\\\"Introduction to Visual Computing: Core Concepts in Computer Vision, Graphics, and Image Processing covers the fundamental concepts of visual computing. Whereas past books have treated these concepts within the context of specific fields such as computer graphics, computer vision or image processing, this book offers a unified view of these core concepts, thereby providing a unified treatment of computational and mathematical methods for creating, capturing, analyzing and manipulating visual data (e.g. 2D images, 3D models). Fundamentals covered in the book include convolution, Fourier transform, filters, geometric transformations, epipolar geometry, 3D reconstruction, color and the image synthesis pipeline. The book is organized in four parts. The first part provides an exposure to different kinds of visual data (e.g. 2D images, videos and 3D geometry) and the core mathematical techniques that are required for their processing (e.g. interpolation and linear regression.) The second part of the book on Image Based Visual Computing deals with several fundamental techniques to process 2D images (e.g. convolution, spectral analysis and feature detection) and corresponds to the low level retinal image processing that happens in the eye in the human visual system pathway. The next part of the book on Geometric Visual Computing deals with the fundamental techniques used to combine the geometric information from multiple eyes creating a 3D interpretation of the object and world around us (e.g. transformations, projective and epipolar geometry, and 3D reconstruction). This corresponds to the higher level processing that happens in the brain combining information from both the eyes thereby helping us to navigate through the 3D world around us. The last two parts of the book cover Radiometric Visual Computing and Visual Content Synthesis. These parts focus on the fundamental techniques for processing information arising from the interaction of light with objects around us, as well as the fundamentals of creating virtual computer generated worlds that mimic all the processing presented in the prior sections. The book is written for a 16 week long semester course and can be used for both undergraduate and graduate teaching, as well as a reference for professionals.\\\\\\\"--Provided by publisher.",
+        "ent_year": 2018,
+        "ent_name": "Introduction to Visual Computing",
+        "ent_fsid": "fsid_0367572257"
+      }
+    },
+    {
+      "ent_fsid": "fsid_1506080944",
+      "_id": "650c2df1d5a19fd102418afc",
+      "ent_name": "OpenCV Computer Vision with Python",
+      "ent_summary": "A practical, project-based tutorial for Python developers and hobbyists who want to get started with computer vision with OpenCV and Python. OpenCV Computer Vision with Python is written for Python developers who are new to computer vision and want a practical guide to teach them the essentials. Some understanding of image data (for example, pixels and color channels) would be beneficial. At a minimum you will need access to at least one webcam. Certain exercises require additional hardware like a second webcam, a Microsoft Kinect or an OpenNI-compliant depth sensor such as the Asus Xtion PRO.",
+      "ent_year": 2013,
+      "ent_url": "http://books.google.com/books?id=zKdwtAEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=322&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2df1d5a19fd102418afc",
+        "ent_url": "http://books.google.com/books?id=zKdwtAEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=322&source=gbs_api",
+        "ent_summary": "A practical, project-based tutorial for Python developers and hobbyists who want to get started with computer vision with OpenCV and Python. OpenCV Computer Vision with Python is written for Python developers who are new to computer vision and want a practical guide to teach them the essentials. Some understanding of image data (for example, pixels and color channels) would be beneficial. At a minimum you will need access to at least one webcam. Certain exercises require additional hardware like a second webcam, a Microsoft Kinect or an OpenNI-compliant depth sensor such as the Asus Xtion PRO.",
+        "ent_year": 2013,
+        "ent_name": "OpenCV Computer Vision with Python",
+        "ent_fsid": "fsid_1506080944"
+      }
+    },
+    {
+      "ent_fsid": "fsid_9048154871",
+      "_id": "650c2deed5a19fd102418ad4",
+      "ent_name": "Performance Characterization in Computer Vision",
+      "ent_summary": "This edited volume addresses a subject which has been discussed inten sively in the computer vision community for several years. Performance characterization and evaluation of computer vision algorithms are of key importance, particularly with respect to the configuration of reliable and ro bust computer vision systems as well as the dissemination of reconfigurable systems in novel application domains. Although a plethora of literature on this subject is available for certain' areas of computer vision, the re search community still faces a lack of a well-grounded, generally accepted, and--eventually-standardized methods. The range of fundamental problems encoIl!passes the value of synthetic images in experimental computer vision, the selection of a representative set of real images related to specific domains and tasks, the definition of ground truth given different tasks and applications, the design of experimental test beds, the analysis of algorithms with respect to general characteristics such as complexity, resource consumption, convergence, stability, or range of admissible input data, the definition and analysis of performance measures for classes of algorithms, the role of statistics-based performance measures, the generation of data sheets with performance measures of algorithms sup porting the system engineer in his configuration problem, and the validity of model assumptions for specific applications of computer vision.",
+      "ent_year": 2014,
+      "ent_url": "http://books.google.com/books?id=0lL1sgEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=266&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2deed5a19fd102418ad4",
+        "ent_url": "http://books.google.com/books?id=0lL1sgEACAAJ&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=266&source=gbs_api",
+        "ent_summary": "This edited volume addresses a subject which has been discussed inten sively in the computer vision community for several years. Performance characterization and evaluation of computer vision algorithms are of key importance, particularly with respect to the configuration of reliable and ro bust computer vision systems as well as the dissemination of reconfigurable systems in novel application domains. Although a plethora of literature on this subject is available for certain' areas of computer vision, the re search community still faces a lack of a well-grounded, generally accepted, and--eventually-standardized methods. The range of fundamental problems encoIl!passes the value of synthetic images in experimental computer vision, the selection of a representative set of real images related to specific domains and tasks, the definition of ground truth given different tasks and applications, the design of experimental test beds, the analysis of algorithms with respect to general characteristics such as complexity, resource consumption, convergence, stability, or range of admissible input data, the definition and analysis of performance measures for classes of algorithms, the role of statistics-based performance measures, the generation of data sheets with performance measures of algorithms sup porting the system engineer in his configuration problem, and the validity of model assumptions for specific applications of computer vision.",
+        "ent_year": 2014,
+        "ent_name": "Performance Characterization in Computer Vision",
+        "ent_fsid": "fsid_9048154871"
+      }
+    },
+    {
+      "ent_fsid": "fsid_1108649998",
+      "_id": "650c2debd5a19fd102418aa7",
+      "ent_name": "Biological and Computer Vision",
+      "ent_summary": "This book introduces neural mechanisms of biological vision and how artificial intelligence algorithms learn to interpret images.",
+      "ent_year": 2021,
+      "ent_url": "http://books.google.com/books?id=LTQTEAAAQBAJ&printsec=frontcover&dq=%22machine+vision%22&hl=&as_pt=BOOKS&cd=341&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2debd5a19fd102418aa7",
+        "ent_url": "http://books.google.com/books?id=LTQTEAAAQBAJ&printsec=frontcover&dq=%22machine+vision%22&hl=&as_pt=BOOKS&cd=341&source=gbs_api",
+        "ent_summary": "This book introduces neural mechanisms of biological vision and how artificial intelligence algorithms learn to interpret images.",
+        "ent_year": 2021,
+        "ent_name": "Biological and Computer Vision",
+        "ent_fsid": "fsid_1108649998"
+      }
+    },
+    {
+      "ent_fsid": "fsid_0470890843",
+      "_id": "650c2debd5a19fd102418a9f",
+      "ent_name": "Color in Computer Vision",
+      "ent_summary": "While the field of computer vision drives many of today’sdigital technologies and communication networks, the topic of colorhas emerged only recently in most computer vision applications. Oneof the most extensive works to date on color in computer vision,this book provides a complete set of tools for working with colorin the field of image understanding. Based on the authors’ intense collaboration for more thana decade and drawing on the latest thinking in the field ofcomputer science, the book integrates topics from color science andcomputer vision, clearly linking theories, techniques, machinelearning, and applications. The fundamental basics, sampleapplications, and downloadable versions of the software and datasets are also included. Clear, thorough, and practical, Colorin Computer Vision explains: Computer vision, including color-driven algorithms andquantitative results of various state-of-the-art methods Color science topics such as color systems, color reflectionmechanisms, color invariance, and color constancy Digital image processing, including edge detection, featureextraction, image segmentation, and image transformations Signal processing techniques for the development of both imageprocessing and machine learning Robotics and artificial intelligence, including such topics assupervised learning and classifiers for object and scenecategorization Researchers and professionals in computer science,computer vision, color science, electrical engineering, and signalprocessing will learn how to implement color in computer visionapplications and gain insight into future developments in thisdynamic and expanding field.",
+      "ent_year": 2012,
+      "ent_url": "http://books.google.com/books?id=DQhBT9T9qLAC&printsec=frontcover&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=173&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2debd5a19fd102418a9f",
+        "ent_url": "http://books.google.com/books?id=DQhBT9T9qLAC&printsec=frontcover&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=173&source=gbs_api",
+        "ent_summary": "While the field of computer vision drives many of today’sdigital technologies and communication networks, the topic of colorhas emerged only recently in most computer vision applications. Oneof the most extensive works to date on color in computer vision,this book provides a complete set of tools for working with colorin the field of image understanding. Based on the authors’ intense collaboration for more thana decade and drawing on the latest thinking in the field ofcomputer science, the book integrates topics from color science andcomputer vision, clearly linking theories, techniques, machinelearning, and applications. The fundamental basics, sampleapplications, and downloadable versions of the software and datasets are also included. Clear, thorough, and practical, Colorin Computer Vision explains: Computer vision, including color-driven algorithms andquantitative results of various state-of-the-art methods Color science topics such as color systems, color reflectionmechanisms, color invariance, and color constancy Digital image processing, including edge detection, featureextraction, image segmentation, and image transformations Signal processing techniques for the development of both imageprocessing and machine learning Robotics and artificial intelligence, including such topics assupervised learning and classifiers for object and scenecategorization Researchers and professionals in computer science,computer vision, color science, electrical engineering, and signalprocessing will learn how to implement color in computer visionapplications and gain insight into future developments in thisdynamic and expanding field.",
+        "ent_year": 2012,
+        "ent_name": "Color in Computer Vision",
+        "ent_fsid": "fsid_0470890843"
+      }
+    },
+    {
+      "ent_fsid": "fsid_uom-39015019623878",
+      "_id": "650c2dead5a19fd102418a94",
+      "ent_name": "Curves and Surfaces in Computer Vision and Graphics",
+      "ent_summary": "NaN",
+      "ent_year": 1992,
+      "ent_url": "http://books.google.com/books?id=9fpRAQAAIAAJ&q=%22computer+vision%22&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=156&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2dead5a19fd102418a94",
+        "ent_url": "http://books.google.com/books?id=9fpRAQAAIAAJ&q=%22computer+vision%22&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=156&source=gbs_api",
+        "ent_summary": "NaN",
+        "ent_year": 1992,
+        "ent_name": "Curves and Surfaces in Computer Vision and Graphics",
+        "ent_fsid": "fsid_uom-39015019623878"
+      }
+    },
+    {
+      "ent_fsid": "fsid_1681730138",
+      "_id": "650c2de9d5a19fd102418a85",
+      "ent_name": "Covariances in Computer Vision and Machine Learning",
+      "ent_summary": "Covariance matrices play important roles in many areas of mathematics, statistics, and machine learning, as well as their applications. In computer vision and image processing, they give rise to a powerful data representation, namely the covariance descriptor, with numerous practical applications. In this book, we begin by presenting an overview of the {\\\\it finite-dimensional covariance matrix} representation approach of images, along with its statistical interpretation. In particular, we discuss the various distances and divergences that arise from the intrinsic geometrical structures of the set of Symmetric Positive Definite (SPD) matrices, namely Riemannian manifold and convex cone structures. Computationally, we focus on kernel methods on covariance matrices, especially using the Log-Euclidean distance. We then show some of the latest developments in the generalization of the finite-dimensional covariance matrix representation to the {\\\\it infinite-dimensional covariance operator} representation via positive definite kernels. We present the generalization of the affine-invariant Riemannian metric and the Log-Hilbert-Schmidt metric, which generalizes the Log Euclidean distance. Computationally, we focus on kernel methods on covariance operators, especially using the Log-Hilbert-Schmidt distance. Specifically, we present a two-layer kernel machine, using the Log-Hilbert-Schmidt distance and its finite-dimensional approximation, which reduces the computational complexity of the exact formulation while largely preserving its capability. Theoretical analysis shows that, mathematically, the approximate Log-Hilbert-Schmidt distance should be preferred over the approximate Log-Hilbert-Schmidt inner product and, computationally, it should be preferred over the approximate affine-invariant Riemannian distance. Numerical experiments on image classification demonstrate significant improvements of the infinite-dimensional formulation over the finite-dimensional counterpart. Given the numerous applications of covariance matrices in many areas of mathematics, statistics, and machine learning, just to name a few, we expect that the infinite-dimensional covariance operator formulation presented here will have many more applications beyond those in computer vision.",
+      "ent_year": 2017,
+      "ent_url": "http://books.google.com/books?id=ALg-DwAAQBAJ&printsec=frontcover&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=145&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2de9d5a19fd102418a85",
+        "ent_url": "http://books.google.com/books?id=ALg-DwAAQBAJ&printsec=frontcover&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=145&source=gbs_api",
+        "ent_summary": "Covariance matrices play important roles in many areas of mathematics, statistics, and machine learning, as well as their applications. In computer vision and image processing, they give rise to a powerful data representation, namely the covariance descriptor, with numerous practical applications. In this book, we begin by presenting an overview of the {\\\\it finite-dimensional covariance matrix} representation approach of images, along with its statistical interpretation. In particular, we discuss the various distances and divergences that arise from the intrinsic geometrical structures of the set of Symmetric Positive Definite (SPD) matrices, namely Riemannian manifold and convex cone structures. Computationally, we focus on kernel methods on covariance matrices, especially using the Log-Euclidean distance. We then show some of the latest developments in the generalization of the finite-dimensional covariance matrix representation to the {\\\\it infinite-dimensional covariance operator} representation via positive definite kernels. We present the generalization of the affine-invariant Riemannian metric and the Log-Hilbert-Schmidt metric, which generalizes the Log Euclidean distance. Computationally, we focus on kernel methods on covariance operators, especially using the Log-Hilbert-Schmidt distance. Specifically, we present a two-layer kernel machine, using the Log-Hilbert-Schmidt distance and its finite-dimensional approximation, which reduces the computational complexity of the exact formulation while largely preserving its capability. Theoretical analysis shows that, mathematically, the approximate Log-Hilbert-Schmidt distance should be preferred over the approximate Log-Hilbert-Schmidt inner product and, computationally, it should be preferred over the approximate affine-invariant Riemannian distance. Numerical experiments on image classification demonstrate significant improvements of the infinite-dimensional formulation over the finite-dimensional counterpart. Given the numerous applications of covariance matrices in many areas of mathematics, statistics, and machine learning, just to name a few, we expect that the infinite-dimensional covariance operator formulation presented here will have many more applications beyond those in computer vision.",
+        "ent_year": 2017,
+        "ent_name": "Covariances in Computer Vision and Machine Learning",
+        "ent_fsid": "fsid_1681730138"
+      }
+    },
+    {
+      "ent_fsid": "fsid_stanford-36105031553600",
+      "_id": "650c2de9d5a19fd102418a7f",
+      "ent_name": "Geometric Modeling for Computer Vision",
+      "ent_summary": "The main contribution of this thesis is the development of a three dimensional geometric modeling system for application to computer vision. In computer vision geometric models provide a goal for descriptive image analysis, an origin for verification image synthesis, and a context for spatial problem solving. Some of the design ideas presented have been implemented in two programs named GEOMED and CRE; the programs are demonstrated in situations involving camera motion relative to a static world.",
+      "ent_year": 1974,
+      "ent_url": "http://books.google.com/books?id=kMRGAAAAIAAJ&q=%22computer+vision%22&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=130&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2de9d5a19fd102418a7f",
+        "ent_url": "http://books.google.com/books?id=kMRGAAAAIAAJ&q=%22computer+vision%22&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=130&source=gbs_api",
+        "ent_summary": "The main contribution of this thesis is the development of a three dimensional geometric modeling system for application to computer vision. In computer vision geometric models provide a goal for descriptive image analysis, an origin for verification image synthesis, and a context for spatial problem solving. Some of the design ideas presented have been implemented in two programs named GEOMED and CRE; the programs are demonstrated in situations involving camera motion relative to a static world.",
+        "ent_year": 1974,
+        "ent_name": "Geometric Modeling for Computer Vision",
+        "ent_fsid": "fsid_stanford-36105031553600"
+      }
+    },
+    {
+      "ent_fsid": "fsid_1447156935",
+      "_id": "650c2de7d5a19fd102418a6a",
+      "ent_name": "Information Theory in Computer Vision and Pattern Recognition",
+      "ent_summary": "Information theory has proved to be effective for solving many computer vision and pattern recognition (CVPR) problems (such as image matching, clustering and segmentation, saliency detection, feature selection, optimal classifier design and many others). Nowadays, researchers are widely bringing information theory elements to the CVPR arena. Among these elements there are measures (entropy, mutual information...), principles (maximum entropy, minimax entropy...) and theories (rate distortion theory, method of types...). This book explores and introduces the latter elements through an incremental complexity approach at the same time where CVPR problems are formulated and the most representative algorithms are presented. Interesting connections between information theory principles when applied to different problems are highlighted, seeking a comprehensive research roadmap. The result is a novel tool both for CVPR and machine learning researchers, and contributes to a cross-fertilization of both areas.",
+      "ent_year": 2009,
+      "ent_url": "http://books.google.com/books?id=yCNOErJ4ENwC&printsec=frontcover&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=111&source=gbs_api",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "650c2de7d5a19fd102418a6a",
+        "ent_url": "http://books.google.com/books?id=yCNOErJ4ENwC&printsec=frontcover&dq=%22computer+vision%22&hl=&as_pt=BOOKS&cd=111&source=gbs_api",
+        "ent_summary": "Information theory has proved to be effective for solving many computer vision and pattern recognition (CVPR) problems (such as image matching, clustering and segmentation, saliency detection, feature selection, optimal classifier design and many others). Nowadays, researchers are widely bringing information theory elements to the CVPR arena. Among these elements there are measures (entropy, mutual information...), principles (maximum entropy, minimax entropy...) and theories (rate distortion theory, method of types...). This book explores and introduces the latter elements through an incremental complexity approach at the same time where CVPR problems are formulated and the most representative algorithms are presented. Interesting connections between information theory principles when applied to different problems are highlighted, seeking a comprehensive research roadmap. The result is a novel tool both for CVPR and machine learning researchers, and contributes to a cross-fertilization of both areas.",
+        "ent_year": 2009,
+        "ent_name": "Information Theory in Computer Vision and Pattern Recognition",
+        "ent_fsid": "fsid_1447156935"
+      }
+    }
+  ],
+  "count": 0,
+  "draw": "1",
+  "data": [
+    [
+      "<div style=\"width: 55px;\">1977</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=FoClxwEACAAJ&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=482&amp;source=gbs_api\" target=\"_blank\">Computer Methods in Image Analysis</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2018</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=38rMvQEACAAJ&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=357&amp;source=gbs_api\" target=\"_blank\">Introduction to Visual Computing</a> <small class=\"text-muted\">\\\\\\\"Introduction to Visual Computing: Core Concepts in Computer Vision, Graphics, and Image Processing covers the fundamental concepts of visual computing. Whereas past books have treated these concepts within the context of specific fields such as computer graphics, computer vision or image processing, this book offers a unified view of these core concepts, thereby providing a unified treatment of computational and mathematical methods for creating, capturing, analyzing and manipulating visual data (e.g. 2D images, 3D models). Fundamentals covered in the book include convolution, Fourier transform, filters, geometric transformations, epipolar geometry, 3D reconstruction, color and the image synthesis pipeline. The book is organized in four parts. The first part provides an exposure to different kinds of visual data (e.g. 2D images, videos and 3D geometry) and the core mathematical techniques that are required for their processing (e.g. interpolation and linear regression.) The second part of the book on Image Based Visual Computing deals with several fundamental techniques to process 2D images (e.g. convolution, spectral analysis and feature detection) and corresponds to the low level retinal image processing that happens in the eye in the human visual system pathway. The next part of the book on Geometric Visual Computing deals with the fundamental techniques used to combine the geometric information from multiple eyes creating a 3D interpretation of the object and world around us (e.g. transformations, projective and epipolar geometry, and 3D reconstruction). This corresponds to the higher level processing that happens in the brain combining information from both the eyes thereby helping us to navigate through the 3D world around us. The last two parts of the book cover Radiometric Visual Computing and Visual Content Synthesis. These parts focus on the fundamental techniques for processing information arising from the interaction of light with objects around us, as well as the fundamentals of creating virtual computer generated worlds that mimic all the processing presented in the prior sections. The book is written for a 16 week long semester course and can be used for both undergraduate and graduate teaching, as well as a reference for professionals.\\\\\\\"--Provided by publisher.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2013</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=zKdwtAEACAAJ&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=322&amp;source=gbs_api\" target=\"_blank\">OpenCV Computer Vision with Python</a> <small class=\"text-muted\">A practical, project-based tutorial for Python developers and hobbyists who want to get started with computer vision with OpenCV and Python. OpenCV Computer Vision with Python is written for Python developers who are new to computer vision and want a practical guide to teach them the essentials. Some understanding of image data (for example, pixels and color channels) would be beneficial. At a minimum you will need access to at least one webcam. Certain exercises require additional hardware like a second webcam, a Microsoft Kinect or an OpenNI-compliant depth sensor such as the Asus Xtion PRO.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2014</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=0lL1sgEACAAJ&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=266&amp;source=gbs_api\" target=\"_blank\">Performance Characterization in Computer Vision</a> <small class=\"text-muted\">This edited volume addresses a subject which has been discussed inten sively in the computer vision community for several years. Performance characterization and evaluation of computer vision algorithms are of key importance, particularly with respect to the configuration of reliable and ro bust computer vision systems as well as the dissemination of reconfigurable systems in novel application domains. Although a plethora of literature on this subject is available for certain' areas of computer vision, the re search community still faces a lack of a well-grounded, generally accepted, and--eventually-standardized methods. The range of fundamental problems encoIl!passes the value of synthetic images in experimental computer vision, the selection of a representative set of real images related to specific domains and tasks, the definition of ground truth given different tasks and applications, the design of experimental test beds, the analysis of algorithms with respect to general characteristics such as complexity, resource consumption, convergence, stability, or range of admissible input data, the definition and analysis of performance measures for classes of algorithms, the role of statistics-based performance measures, the generation of data sheets with performance measures of algorithms sup porting the system engineer in his configuration problem, and the validity of model assumptions for specific applications of computer vision.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2021</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=LTQTEAAAQBAJ&amp;printsec=frontcover&amp;dq=%22machine+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=341&amp;source=gbs_api\" target=\"_blank\">Biological and Computer Vision</a> <small class=\"text-muted\">This book introduces neural mechanisms of biological vision and how artificial intelligence algorithms learn to interpret images.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2012</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=DQhBT9T9qLAC&amp;printsec=frontcover&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=173&amp;source=gbs_api\" target=\"_blank\">Color in Computer Vision</a> <small class=\"text-muted\">While the field of computer vision drives many of today’sdigital technologies and communication networks, the topic of colorhas emerged only recently in most computer vision applications. Oneof the most extensive works to date on color in computer vision,this book provides a complete set of tools for working with colorin the field of image understanding. Based on the authors’ intense collaboration for more thana decade and drawing on the latest thinking in the field ofcomputer science, the book integrates topics from color science andcomputer vision, clearly linking theories, techniques, machinelearning, and applications. The fundamental basics, sampleapplications, and downloadable versions of the software and datasets are also included. Clear, thorough, and practical, Colorin Computer Vision explains: Computer vision, including color-driven algorithms andquantitative results of various state-of-the-art methods Color science topics such as color systems, color reflectionmechanisms, color invariance, and color constancy Digital image processing, including edge detection, featureextraction, image segmentation, and image transformations Signal processing techniques for the development of both imageprocessing and machine learning Robotics and artificial intelligence, including such topics assupervised learning and classifiers for object and scenecategorization Researchers and professionals in computer science,computer vision, color science, electrical engineering, and signalprocessing will learn how to implement color in computer visionapplications and gain insight into future developments in thisdynamic and expanding field.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">1992</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=9fpRAQAAIAAJ&amp;q=%22computer+vision%22&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=156&amp;source=gbs_api\" target=\"_blank\">Curves and Surfaces in Computer Vision and Graphics</a> <small class=\"text-muted\"></small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2017</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=ALg-DwAAQBAJ&amp;printsec=frontcover&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=145&amp;source=gbs_api\" target=\"_blank\">Covariances in Computer Vision and Machine Learning</a> <small class=\"text-muted\">Covariance matrices play important roles in many areas of mathematics, statistics, and machine learning, as well as their applications. In computer vision and image processing, they give rise to a powerful data representation, namely the covariance descriptor, with numerous practical applications. In this book, we begin by presenting an overview of the {\\\\it finite-dimensional covariance matrix} representation approach of images, along with its statistical interpretation. In particular, we discuss the various distances and divergences that arise from the intrinsic geometrical structures of the set of Symmetric Positive Definite (SPD) matrices, namely Riemannian manifold and convex cone structures. Computationally, we focus on kernel methods on covariance matrices, especially using the Log-Euclidean distance. We then show some of the latest developments in the generalization of the finite-dimensional covariance matrix representation to the {\\\\it infinite-dimensional covariance operator} representation via positive definite kernels. We present the generalization of the affine-invariant Riemannian metric and the Log-Hilbert-Schmidt metric, which generalizes the Log Euclidean distance. Computationally, we focus on kernel methods on covariance operators, especially using the Log-Hilbert-Schmidt distance. Specifically, we present a two-layer kernel machine, using the Log-Hilbert-Schmidt distance and its finite-dimensional approximation, which reduces the computational complexity of the exact formulation while largely preserving its capability. Theoretical analysis shows that, mathematically, the approximate Log-Hilbert-Schmidt distance should be preferred over the approximate Log-Hilbert-Schmidt inner product and, computationally, it should be preferred over the approximate affine-invariant Riemannian distance. Numerical experiments on image classification demonstrate significant improvements of the infinite-dimensional formulation over the finite-dimensional counterpart. Given the numerous applications of covariance matrices in many areas of mathematics, statistics, and machine learning, just to name a few, we expect that the infinite-dimensional covariance operator formulation presented here will have many more applications beyond those in computer vision.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">1974</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=kMRGAAAAIAAJ&amp;q=%22computer+vision%22&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=130&amp;source=gbs_api\" target=\"_blank\">Geometric Modeling for Computer Vision</a> <small class=\"text-muted\">The main contribution of this thesis is the development of a three dimensional geometric modeling system for application to computer vision. In computer vision geometric models provide a goal for descriptive image analysis, an origin for verification image synthesis, and a context for spatial problem solving. Some of the design ideas presented have been implemented in two programs named GEOMED and CRE; the programs are demonstrated in situations involving camera motion relative to a static world.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2009</div>",
+      "<div class=\"name-div\"><a href=\"http://books.google.com/books?id=yCNOErJ4ENwC&amp;printsec=frontcover&amp;dq=%22computer+vision%22&amp;hl=&amp;as_pt=BOOKS&amp;cd=111&amp;source=gbs_api\" target=\"_blank\">Information Theory in Computer Vision and Pattern Recognition</a> <small class=\"text-muted\">Information theory has proved to be effective for solving many computer vision and pattern recognition (CVPR) problems (such as image matching, clustering and segmentation, saliency detection, feature selection, optimal classifier design and many others). Nowadays, researchers are widely bringing information theory elements to the CVPR arena. Among these elements there are measures (entropy, mutual information...), principles (maximum entropy, minimax entropy...) and theories (rate distortion theory, method of types...). This book explores and introduces the latter elements through an incremental complexity approach at the same time where CVPR problems are formulated and the most representative algorithms are presented. Interesting connections between information theory principles when applied to different problems are highlighted, seeking a comprehensive research roadmap. The result is a novel tool both for CVPR and machine learning researchers, and contributes to a cross-fertilization of both areas.</small></div>"
+    ]
+  ],
+  "recordsTotal": 516,
+  "recordsFiltered": 516,
+  "debug": {
+    "raw_found": [],
+    "mongo_query_size": 100,
+    "mongo_query_count": 1,
+    "mongo_count": 10,
+    "fields_integrity": {
+      "_id": { "valid": 10, "total": 10 },
+      "ent_fsid": { "valid": 10, "total": 10 },
+      "ent_name": { "valid": 10, "total": 10 },
+      "ent_summary": { "valid": 10, "total": 10 },
+      "ent_year": { "valid": 10, "total": 10 },
+      "ent_url": { "valid": 10, "total": 10 },
+      "sentiment_score": { "valid": 0, "total": 10 }
+    }
+  }
+}

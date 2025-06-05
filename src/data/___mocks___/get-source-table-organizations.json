@@ -1,0 +1,235 @@
+{
+  "rows": [
+    {
+      "ent_fsid": "fsid_cortica",
+      "_id": "6707f82b206ee2e2760c93a7",
+      "ent_name": "Cortica",
+      "ent_summary": "Cortica provides a wide range of neurological therapies, diagnoses, and services for children with autism and other developmental differences, including in-home, in-clinic, and telehealth options. Their comprehensive offerings include gene sequencing, metabolic testing, therapy, coaching",
+      "ent_year": 2014,
+      "ent_url": "https://www.corticacare.com",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6707f82b206ee2e2760c93a7",
+        "ent_fsid": "fsid_cortica",
+        "ent_name": "Cortica",
+        "ent_url": "https://www.corticacare.com",
+        "ent_summary": "Cortica provides a wide range of neurological therapies, diagnoses, and services for children with autism and other developmental differences, including in-home, in-clinic, and telehealth options. Their comprehensive offerings include gene sequencing, metabolic testing, therapy, coaching",
+        "ent_year": 2014
+      }
+    },
+    {
+      "ent_fsid": "fsid_toradex",
+      "_id": "66e45cb157355076a0253872",
+      "ent_name": "Toradex",
+      "ent_summary": "Toradex specializes in ARM embedded computer module hardware and software, offering high performance with low power consumption globally across varied industries, with a focus on enhancing customer value through transparent pricing, long product life cycles, and free support by development engineers. With a",
+      "ent_year": 2003,
+      "ent_url": "https://www.toradex.com",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66e45cb157355076a0253872",
+        "ent_name": "Toradex",
+        "ent_summary": "Toradex specializes in ARM embedded computer module hardware and software, offering high performance with low power consumption globally across varied industries, with a focus on enhancing customer value through transparent pricing, long product life cycles, and free support by development engineers. With a",
+        "ent_url": "https://www.toradex.com",
+        "ent_fsid": "fsid_toradex",
+        "ent_year": 2003
+      }
+    },
+    {
+      "ent_fsid": "fsid_quark-ai",
+      "_id": "6720b1867e1883edc16e628c",
+      "ent_name": "Quark.ai",
+      "ent_summary": "Quark.ai is a Generative AI Support platform that automates customer support, providing accurate solutions and boosting productivity for high tech and industrial companies. It uses LLMs, NLP, and Computer Vision to interpret queries, generate answers with 100",
+      "ent_year": 2019,
+      "ent_url": "https://www.quark.ai",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6720b1867e1883edc16e628c",
+        "ent_fsid": "fsid_quark-ai",
+        "ent_name": "Quark.ai",
+        "ent_url": "https://www.quark.ai",
+        "ent_summary": "Quark.ai is a Generative AI Support platform that automates customer support, providing accurate solutions and boosting productivity for high tech and industrial companies. It uses LLMs, NLP, and Computer Vision to interpret queries, generate answers with 100",
+        "ent_year": 2019
+      }
+    },
+    {
+      "ent_fsid": "fsid_clean_connect",
+      "_id": "66e45cb357355076a025430e",
+      "ent_name": "Clean Connect",
+      "ent_summary": "Clean Connect provides AI and computer vision technology to oil and gas companies to produce clean energy solutions.",
+      "ent_year": 2020,
+      "ent_url": "https://www.cleanconnect.ai",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66e45cb357355076a025430e",
+        "ent_name": "Clean Connect",
+        "ent_summary": "Clean Connect provides AI and computer vision technology to oil and gas companies to produce clean energy solutions.",
+        "ent_url": "https://www.cleanconnect.ai",
+        "ent_fsid": "fsid_clean_connect",
+        "ent_year": 2020
+      }
+    },
+    {
+      "ent_fsid": "fsid_reduced_energy_microsystems",
+      "_id": "66e45ca057355076a0250646",
+      "ent_name": "Reduced Energy Microsystems",
+      "ent_summary": "Reduced Energy Microsystems is a fabless semiconductor company specializing in energy-efficient silicon for embedded computer vision and artificial intelligence applications, advancing embedded computing with innovative technology and software tools.",
+      "ent_year": 2014,
+      "ent_url": "http://www.remicro.com/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66e45ca057355076a0250646",
+        "ent_name": "Reduced Energy Microsystems",
+        "ent_summary": "Reduced Energy Microsystems is a fabless semiconductor company specializing in energy-efficient silicon for embedded computer vision and artificial intelligence applications, advancing embedded computing with innovative technology and software tools.",
+        "ent_url": "http://www.remicro.com/",
+        "ent_fsid": "fsid_reduced_energy_microsystems",
+        "ent_year": 2014
+      }
+    },
+    {
+      "ent_fsid": "fsid_aman_vision",
+      "_id": "66e45c9a57355076a024f23c",
+      "ent_name": "Aman Vision",
+      "ent_summary": "Aman Vision operates a safety and compliance monitoring platform to ensure secure, efficient, and healthy workplaces.",
+      "ent_year": 2023,
+      "ent_url": "https://www.amanvision.ai/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66e45c9a57355076a024f23c",
+        "ent_name": "Aman Vision",
+        "ent_summary": "Aman Vision operates a safety and compliance monitoring platform to ensure secure, efficient, and healthy workplaces.",
+        "ent_url": "https://www.amanvision.ai/",
+        "ent_fsid": "fsid_aman_vision",
+        "ent_year": 2023
+      }
+    },
+    {
+      "ent_fsid": "fsid_mirrori",
+      "_id": "66d7084957355076a0bab329",
+      "ent_name": "Mirrori",
+      "ent_summary": "Mirrori is an AI-based virtual beauty assistant offering personalized advice to women based on their facial features and beauty products inventory, utilizing computer vision, machine learning, and deep learning technologies. Founded in 2018, Mirrori is located in Haifa,",
+      "ent_year": 2018,
+      "ent_url": "http://www.mirrori.co",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66d7084957355076a0bab329",
+        "ent_name": "Mirrori",
+        "ent_url": "http://www.mirrori.co",
+        "ent_fsid": "fsid_mirrori",
+        "ent_summary": "Mirrori is an AI-based virtual beauty assistant offering personalized advice to women based on their facial features and beauty products inventory, utilizing computer vision, machine learning, and deep learning technologies. Founded in 2018, Mirrori is located in Haifa,",
+        "ent_year": 2018
+      }
+    },
+    {
+      "ent_fsid": "fsid_basemark",
+      "_id": "66e45c4657355076a02403dc",
+      "ent_name": "Basemark",
+      "ent_summary": "Rocksolid AR develops augmented reality software to enhance safety in driving by creating tools for automotive OEMs to quickly deploy AR applications in production vehicles. Their suite includes features like AR navigation, Computer Vision, and ADAS technologies for improved driving experiences.",
+      "ent_year": 2015,
+      "ent_url": "https://www.basemark.com",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66e45c4657355076a02403dc",
+        "ent_name": "Basemark",
+        "ent_summary": "Rocksolid AR develops augmented reality software to enhance safety in driving by creating tools for automotive OEMs to quickly deploy AR applications in production vehicles. Their suite includes features like AR navigation, Computer Vision, and ADAS technologies for improved driving experiences.",
+        "ent_url": "https://www.basemark.com",
+        "ent_fsid": "fsid_basemark",
+        "ent_year": 2015
+      }
+    },
+    {
+      "ent_fsid": "fsid_infinite_intelligence_group-_llc",
+      "_id": "6717ab79206ee2e2760d0fdc",
+      "ent_name": "Infinite Intelligence Group, LLC",
+      "ent_summary": "I2G is a leading supplier of integrated remote sensing, analysis & iOT solutions to the agriculture industry, utilizing sensors and artificial intelligence to detect nutrition, diseases, and plant status issues in various crops, delivering immediate insights to growers and agronomists",
+      "ent_year": 2018,
+      "ent_url": 0,
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "6717ab79206ee2e2760d0fdc",
+        "ent_fsid": "fsid_infinite_intelligence_group-_llc",
+        "ent_name": "Infinite Intelligence Group, LLC",
+        "ent_url": 0,
+        "ent_summary": "I2G is a leading supplier of integrated remote sensing, analysis & iOT solutions to the agriculture industry, utilizing sensors and artificial intelligence to detect nutrition, diseases, and plant status issues in various crops, delivering immediate insights to growers and agronomists",
+        "ent_year": 2018
+      }
+    },
+    {
+      "ent_fsid": "fsid_libai",
+      "_id": "66e45ca257355076a0250a2e",
+      "ent_name": "LibAI",
+      "ent_summary": "LibAI is an institution focused on artificial general intelligence, specializing in the research and development of computer vision and language models to enhance human capabilities and productivity with technologies like cutout.pro.",
+      "ent_year": 2018,
+      "ent_url": "https://www.cutout.pro/",
+      "sentiment_score": null,
+      "mongo_row": {
+        "_id": "66e45ca257355076a0250a2e",
+        "ent_name": "LibAI",
+        "ent_summary": "LibAI is an institution focused on artificial general intelligence, specializing in the research and development of computer vision and language models to enhance human capabilities and productivity with technologies like cutout.pro.",
+        "ent_url": "https://www.cutout.pro/",
+        "ent_fsid": "fsid_libai",
+        "ent_year": 2018
+      }
+    }
+  ],
+  "count": 0,
+  "draw": "1",
+  "data": [
+    [
+      "<div style=\"width: 55px;\">2014</div>",
+      "<div class=\"name-div\"><a href=\"https://www.corticacare.com\" target=\"_blank\">Cortica</a> <small class=\"text-muted\">Cortica provides a wide range of neurological therapies, diagnoses, and services for children with autism and other developmental differences, including in-home, in-clinic, and telehealth options. Their comprehensive offerings include gene sequencing, metabolic testing, therapy, coaching</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2003</div>",
+      "<div class=\"name-div\"><a href=\"https://www.toradex.com\" target=\"_blank\">Toradex</a> <small class=\"text-muted\">Toradex specializes in ARM embedded computer module hardware and software, offering high performance with low power consumption globally across varied industries, with a focus on enhancing customer value through transparent pricing, long product life cycles, and free support by development engineers. With a</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2019</div>",
+      "<div class=\"name-div\"><a href=\"https://www.quark.ai\" target=\"_blank\">Quark.ai</a> <small class=\"text-muted\">Quark.ai is a Generative AI Support platform that automates customer support, providing accurate solutions and boosting productivity for high tech and industrial companies. It uses LLMs, NLP, and Computer Vision to interpret queries, generate answers with 100</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2020</div>",
+      "<div class=\"name-div\"><a href=\"https://www.cleanconnect.ai\" target=\"_blank\">Clean Connect</a> <small class=\"text-muted\">Clean Connect provides AI and computer vision technology to oil and gas companies to produce clean energy solutions.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2014</div>",
+      "<div class=\"name-div\"><a href=\"http://www.remicro.com/\" target=\"_blank\">Reduced Energy Microsystems</a> <small class=\"text-muted\">Reduced Energy Microsystems is a fabless semiconductor company specializing in energy-efficient silicon for embedded computer vision and artificial intelligence applications, advancing embedded computing with innovative technology and software tools.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2023</div>",
+      "<div class=\"name-div\"><a href=\"https://www.amanvision.ai/\" target=\"_blank\">Aman Vision</a> <small class=\"text-muted\">Aman Vision operates a safety and compliance monitoring platform to ensure secure, efficient, and healthy workplaces.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2018</div>",
+      "<div class=\"name-div\"><a href=\"http://www.mirrori.co\" target=\"_blank\">Mirrori</a> <small class=\"text-muted\">Mirrori is an AI-based virtual beauty assistant offering personalized advice to women based on their facial features and beauty products inventory, utilizing computer vision, machine learning, and deep learning technologies. Founded in 2018, Mirrori is located in Haifa,</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2015</div>",
+      "<div class=\"name-div\"><a href=\"https://www.basemark.com\" target=\"_blank\">Basemark</a> <small class=\"text-muted\">Rocksolid AR develops augmented reality software to enhance safety in driving by creating tools for automotive OEMs to quickly deploy AR applications in production vehicles. Their suite includes features like AR navigation, Computer Vision, and ADAS technologies for improved driving experiences.</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2018</div>",
+      "<div class=\"name-div\">Infinite Intelligence Group, LLC <small class=\"text-muted\">I2G is a leading supplier of integrated remote sensing, analysis & iOT solutions to the agriculture industry, utilizing sensors and artificial intelligence to detect nutrition, diseases, and plant status issues in various crops, delivering immediate insights to growers and agronomists</small></div>"
+    ],
+    [
+      "<div style=\"width: 55px;\">2018</div>",
+      "<div class=\"name-div\"><a href=\"https://www.cutout.pro/\" target=\"_blank\">LibAI</a> <small class=\"text-muted\">LibAI is an institution focused on artificial general intelligence, specializing in the research and development of computer vision and language models to enhance human capabilities and productivity with technologies like cutout.pro.</small></div>"
+    ]
+  ],
+  "recordsTotal": 1308,
+  "recordsFiltered": 1308,
+  "debug": {
+    "raw_found": [],
+    "mongo_query_size": 100,
+    "mongo_query_count": 1,
+    "mongo_count": 10,
+    "fields_integrity": {
+      "_id": { "valid": 10, "total": 10 },
+      "ent_fsid": { "valid": 10, "total": 10 },
+      "ent_name": { "valid": 10, "total": 10 },
+      "ent_summary": { "valid": 10, "total": 10 },
+      "ent_year": { "valid": 10, "total": 10 },
+      "ent_url": { "valid": 9, "total": 10 },
+      "sentiment_score": { "valid": 0, "total": 10 }
+    }
+  }
+}
