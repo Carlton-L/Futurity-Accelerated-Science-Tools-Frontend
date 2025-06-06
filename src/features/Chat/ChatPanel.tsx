@@ -10,6 +10,7 @@ import {
 import { useChatInteract, useChatMessages } from '@chainlit/react-client';
 import type { IStep } from '@chainlit/react-client';
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { usePage } from '../../context/PageContext';
 
 function flattenMessages(
   messages: IStep[],
@@ -32,6 +33,8 @@ export function ChatPanel() {
   const { sendMessage } = useChatInteract();
   const { messages } = useChatMessages();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { getContextMessage } = usePage();
 
   const flatMessages = useMemo(() => {
     return flattenMessages(messages, (m) => m.type.includes('message'));
@@ -42,6 +45,16 @@ export function ChatPanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [flatMessages, isWaitingForResponse]);
 
+  // Refocus input after AI response
+  useEffect(() => {
+    if (!isWaitingForResponse) {
+      // Small delay to ensure the input is enabled before focusing
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isWaitingForResponse]);
+
   // FAKE AI BEHAVIOR - Replace this entire function with real AI integration
   const simulateAIResponse = async () => {
     setIsWaitingForResponse(true);
@@ -49,11 +62,14 @@ export function ChatPanel() {
     // Simulate 4 second delay
     await new Promise((resolve) => setTimeout(resolve, 4000));
 
-    // Create fake AI response message
+    // Get current page context for the response
+    const contextInfo = getContextMessage();
+
+    // Create fake AI response message with context
     const aiMessage = {
       name: 'assistant',
       type: 'assistant_message' as const,
-      output: 'AI response',
+      output: `AI response regarding ${contextInfo}`,
     };
 
     // Send the fake AI message
@@ -64,10 +80,18 @@ export function ChatPanel() {
   const handleSendMessage = async () => {
     const content = inputValue.trim();
     if (content && !isWaitingForResponse) {
+      // Get current page context to include with the message
+      const contextInfo = getContextMessage();
+
       const message = {
         name: 'user',
         type: 'user_message' as const,
         output: content,
+        // REAL AI INTEGRATION: Add context to the message metadata
+        // You might want to structure this differently based on how chainlit expects context
+        metadata: {
+          pageContext: contextInfo,
+        },
       };
       sendMessage(message, []);
       setInputValue('');
@@ -151,6 +175,7 @@ export function ChatPanel() {
       <Box borderTopWidth='1px' p={4} bg='white' _dark={{ bg: 'gray.800' }}>
         <Flex gap={2}>
           <Input
+            ref={inputRef}
             autoFocus
             flex='1'
             id='message-input'
