@@ -1,11 +1,12 @@
-// import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Box } from '@chakra-ui/react';
 import Navbar from './Navbar';
-// import ChatDrawer from './components/ChatDrawer';
+import ChatDrawer from './ChatDrawer';
+import ChatButton from './ChatButton';
 
 const MainLayout: React.FC = () => {
-  // const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
     <Box minH='100vh' bg='gray.50'>
@@ -20,12 +21,12 @@ const MainLayout: React.FC = () => {
       </Box>
 
       {/* Chat Button - Fixed position */}
-      {/* <Box position='fixed' bottom='20px' right='20px' zIndex={1000}>
+      <Box position='fixed' bottom='20px' right='20px' zIndex={1000}>
         <ChatButton onClick={() => setIsChatOpen(true)} />
-      </Box> */}
+      </Box>
 
       {/* Chat Drawer */}
-      {/* <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} /> */}
+      <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </Box>
   );
 };
