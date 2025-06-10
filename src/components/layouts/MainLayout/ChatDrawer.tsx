@@ -1,4 +1,4 @@
-import { Drawer, CloseButton, Portal, Box } from '@chakra-ui/react';
+import { Drawer, CloseButton, Portal } from '@chakra-ui/react';
 import { ChatPanel } from '../../../features/Chat/ChatPanel';
 
 interface ChatDrawerProps {
