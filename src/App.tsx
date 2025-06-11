@@ -5,6 +5,7 @@ import Layout from './components/layouts/MainLayout/MainLayout';
 import Subject from './pages/Subject';
 import Organization from './pages/Organization';
 import Login from './pages/Login/Login';
+import Lab from './pages/Lab';
 // import Login from './pages/Login';
 
 function App() {
@@ -20,8 +21,8 @@ function App() {
             {/* Layout */}
             <Route element={<Layout />}>
               {/* <Route path='/' element={<Organization />} /> */}
-              <Route path='/' element={<Subject />} />
-              {/* <Route path='/subject/:id' element={<Subject />} /> */}
+              <Route path='/' element={<Lab />} />
+              <Route path='/subject/:id' element={<Subject />} />
               <Route path='/organization/:id' element={<Organization />} />
             </Route>
           </Route>
