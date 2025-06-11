@@ -1,24 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Button,
   Card,
   Flex,
   Heading,
   Text,
   SimpleGrid,
-  Stat,
   VStack,
   HStack,
-  Input,
+  Link,
 } from '@chakra-ui/react';
-import { FiPlus, FiCheck } from 'react-icons/fi';
-import { BsSticky } from 'react-icons/bs';
-import { TbTestPipe } from 'react-icons/tb';
+import { FiExternalLink } from 'react-icons/fi';
 import CardScroller from '../../components/shared/CardScroller';
-import TrendsChart from './TrendsChart';
-import ForecastChart from './ForecastChart';
-import RelatedDocuments from '../../components/shared/RelatedDocuments';
+// import TrendsChart from './TrendsChart';
+// import ForecastChart from './ForecastChart';
 
 // TypeScript interfaces
 // TODO: Move interfaces to separate types file when project grows
@@ -39,53 +34,77 @@ interface RelatedAnalysis {
   createdAt: string; // ISO date string for sorting
 }
 
-interface SubjectStats {
-  organizations: number;
-  press: number;
-  patents: number;
-  papers: number;
-  books: number;
-  relatedDocs: number;
+interface FinancialMetrics {
+  stockPrice: number;
+  marketCap: number; // in billions
+  revenue: number; // in billions
+  ebitda: number; // in billions
 }
 
-interface Subject {
+interface Organization {
   name: string;
   description: string;
-  horizonRanking: number;
-  whiteSpace: number;
-  techTransfer: number;
-  stats: SubjectStats;
+  sector: string;
+  industry: string;
+  country: string;
+  city: string;
+  employees: number;
+  website: string;
+  financialMetrics: FinancialMetrics;
   relatedSubjects: RelatedSubject[];
   relatedAnalyses: RelatedAnalysis[];
 }
 
-// Placeholder Network Graph Component
-// TODO: Replace with actual network graph implementation
-const NetworkGraph: React.FC = () => {
+// TODO: Replace with actual financial chart implementation
+const FinancialChart: React.FC<{
+  title: string;
+  value: string;
+  subtitle?: string;
+}> = ({ title, value, subtitle }) => {
   return (
-    <Box
-      bg='gray.50'
-      border='1px solid'
-      borderColor='gray.200'
-      borderRadius='md'
-      display='flex'
-      alignItems='center'
-      justifyContent='center'
-      height='100%'
-      minHeight='400px'
-    >
-      <Text color='gray.500' fontSize='lg'>
-        Network Graph Component
-        <br />
-        (Replace with your network graph)
-      </Text>
-    </Box>
+    <Card.Root>
+      <Card.Body p={4}>
+        <VStack gap={3} align='stretch'>
+          <Heading as='h3' size='md'>
+            {title}
+          </Heading>
+          <Box
+            height='200px'
+            bg='gray.50'
+            border='1px solid'
+            borderColor='gray.200'
+            borderRadius='md'
+            display='flex'
+            alignItems='center'
+            justifyContent='center'
+          >
+            <VStack gap={2}>
+              <Text color='gray.500' fontSize='lg'>
+                {title} Chart
+              </Text>
+              <Text color='gray.400' fontSize='sm'>
+                D3 Chart Placeholder
+              </Text>
+            </VStack>
+          </Box>
+          <VStack gap={1}>
+            <Text fontSize='2xl' fontWeight='bold' color='blue.500'>
+              {value}
+            </Text>
+            {subtitle && (
+              <Text fontSize='sm' color='gray.600'>
+                {subtitle}
+              </Text>
+            )}
+          </VStack>
+        </VStack>
+      </Card.Body>
+    </Card.Root>
   );
 };
 
-const Subject: React.FC = () => {
-  const [subject, setSubject] = useState<Subject | null>(null);
-  const [isInWhiteboard, setIsInWhiteboard] = useState<boolean>(false); // TODO: Initialize from API/context to check if subject is already in whiteboard
+const Organization: React.FC = () => {
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Related subjects state
@@ -99,173 +118,118 @@ const Subject: React.FC = () => {
 
   // TODO: Replace with actual data fetching from API
   useEffect(() => {
-    const fetchSubjectData = async (): Promise<void> => {
+    const fetchOrganizationData = async (): Promise<void> => {
       // TODO: Replace setTimeout with actual API call
       setTimeout(() => {
         // TODO: Replace mock data with actual API response
-        setSubject({
-          name: 'Artificial Intelligence',
+        setOrganization({
+          name: 'Apple Inc.',
           description:
-            'Artificial Intelligence (AI) refers to the simulation of human intelligence in machines that are programmed to think and learn like humans. The term may also be applied to any machine that exhibits traits associated with a human mind such as learning and problem-solving.',
-          horizonRanking: 0.85,
-          whiteSpace: 67,
-          techTransfer: 42,
-          stats: {
-            organizations: 1247,
-            press: 8934,
-            patents: 12456,
-            papers: 67890,
-            books: 892,
-            relatedDocs: 3421,
+            'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories comprising AirPods, Apple TV, Apple Watch, Beats products, and HomePod. It also provides AppleCare support and cloud services; and operates various platforms, including the App Store that allow customers to discover and download applications and digital content, such as books, music, video, games, and podcasts, as well as advertising services include third-party licensing arrangements and its own advertising platforms. In addition, the company offers various subscription-based services, such as Apple Arcade, a game subscription service; Apple Fitness+, a personalized fitness service; Apple Music, which offers users a curated listening experience with on-demand radio stations; Apple News+, a subscription news and magazine service; Apple TV+, which offers exclusive original content; Apple Card, a co-branded credit card; and Apple Pay, a cashless payment service, as well as licenses its intellectual property. The company serves consumers, and small and mid-sized businesses; and the education, enterprise, and government markets. It distributes third-party applications for its products through the App Store. The company also sells its products through its retail and online stores, and direct sales force; and third-party cellular network carriers, wholesalers, retailers, and resellers. Apple Inc. was founded in 1976 and is headquartered in Cupertino, California.',
+          sector: 'Technology',
+          industry: 'Consumer Electronics',
+          country: 'United States',
+          city: 'Cupertino',
+          employees: 164000,
+          website: 'https://www.apple.com',
+          financialMetrics: {
+            stockPrice: 192.53,
+            marketCap: 2980.5,
+            revenue: 383.3,
+            ebitda: 123.7,
           },
           relatedSubjects: [
             {
               id: '1',
-              name: '3D Bioprinter',
-              horizonRanking: 0.92,
-              slug: '3d-bioprinter',
+              name: 'Artificial Intelligence',
+              horizonRanking: 0.85,
+              slug: 'artificial-intelligence',
             },
             {
               id: '2',
-              name: 'Gender Futures',
-              horizonRanking: 0.67,
-              slug: 'gender-futures',
-            },
-            {
-              id: '3',
-              name: 'Biohacking',
-              horizonRanking: 0.78,
-              slug: 'biohacking',
-            },
-            {
-              id: '4',
               name: 'Machine Learning',
               horizonRanking: 0.95,
               slug: 'machine-learning',
             },
             {
-              id: '5',
+              id: '3',
               name: 'Computer Vision',
               horizonRanking: 0.88,
               slug: 'computer-vision',
             },
             {
-              id: '6',
+              id: '4',
               name: 'Neural Networks',
               horizonRanking: 0.91,
               slug: 'neural-networks',
             },
             {
+              id: '5',
+              name: 'Mobile Computing',
+              horizonRanking: 0.78,
+              slug: 'mobile-computing',
+            },
+            {
+              id: '6',
+              name: 'Wearable Technology',
+              horizonRanking: 0.82,
+              slug: 'wearable-technology',
+            },
+            {
               id: '7',
-              name: 'Robotics',
-              horizonRanking: 0.84,
-              slug: 'robotics',
+              name: 'Augmented Reality',
+              horizonRanking: 0.76,
+              slug: 'augmented-reality',
             },
             {
               id: '8',
-              name: 'Natural Language Processing',
+              name: 'Cloud Computing',
               horizonRanking: 0.89,
-              slug: 'natural-language-processing',
-            },
-            {
-              id: '9',
-              name: 'Quantum Computing',
-              horizonRanking: 0.73,
-              slug: 'quantum-computing',
-            },
-            {
-              id: '10',
-              name: 'Autonomous Vehicles',
-              horizonRanking: 0.82,
-              slug: 'autonomous-vehicles',
-            },
-            {
-              id: '11',
-              name: 'Deep Learning',
-              horizonRanking: 0.93,
-              slug: 'deep-learning',
-            },
-            {
-              id: '12',
-              name: 'Data Science',
-              horizonRanking: 0.76,
-              slug: 'data-science',
+              slug: 'cloud-computing',
             },
           ],
           relatedAnalyses: [
             {
               id: 'analysis-1',
               labId: 'lab-1',
-              title: 'The Age of Autonomous Commerce',
+              title: "Apple's AI Strategy in Consumer Electronics",
               description:
-                'Societal, industrial, and economic impact as autonomous machines and intelligent agents enter the market',
+                "Analysis of Apple's artificial intelligence initiatives and their impact on the consumer electronics market",
               status: 'Ready',
               imageUrl:
-                'https://via.placeholder.com/100x100/4A90E2/FFFFFF?text=Auto',
-              createdAt: '2024-01-15T10:30:00Z',
+                'https://via.placeholder.com/100x100/007AFF/FFFFFF?text=Apple',
+              createdAt: '2024-03-15T10:30:00Z',
             },
             {
               id: 'analysis-2',
               labId: 'lab-2',
-              title: 'Futurefarms and Cities',
+              title: 'iPhone Market Dominance and Innovation',
               description:
-                'Delve into the transformations unfolding in the luxury market. These changes are primarily driven by Gen Z and Zillennials—a generation bridging Millennials and Gen Z—but also by the Ageless generation, characterized by their adaptability, technological integration, and disregard for age as a limiting factor.',
-              status: 'Coming soon...',
+                "Comprehensive study of iPhone's market position and technological innovations driving consumer adoption",
+              status: 'Ready',
               imageUrl:
-                'https://via.placeholder.com/100x100/50C878/FFFFFF?text=Farm',
-              createdAt: '2024-02-20T14:45:00Z',
+                'https://via.placeholder.com/100x100/FF3B30/FFFFFF?text=iPhone',
+              createdAt: '2024-02-28T14:45:00Z',
             },
             {
               id: 'analysis-3',
               labId: 'lab-1',
-              title: 'Digital Identity Revolution',
+              title: 'Apple Services Ecosystem Growth',
               description:
-                'How blockchain and AI are reshaping personal identity verification and privacy in the digital age',
-              status: 'Ready',
-              imageUrl:
-                'https://via.placeholder.com/100x100/FF6B6B/FFFFFF?text=ID',
-              createdAt: '2024-03-10T09:15:00Z',
-            },
-            {
-              id: 'analysis-4',
-              labId: 'lab-3',
-              title: 'Quantum Internet Protocols',
-              description:
-                'Exploring the infrastructure needed for quantum communication networks and their implications for cybersecurity',
+                "Examination of Apple's services revenue growth and ecosystem lock-in effects",
               status: 'Coming soon...',
               imageUrl:
-                'https://via.placeholder.com/100x100/9B59B6/FFFFFF?text=QNet',
-              createdAt: '2024-01-05T16:20:00Z',
-            },
-            {
-              id: 'analysis-5',
-              labId: 'lab-2',
-              title: 'Synthetic Biology Markets',
-              description:
-                'Market analysis of engineered biological systems and their potential to disrupt traditional manufacturing',
-              status: 'Ready',
-              imageUrl:
-                'https://via.placeholder.com/100x100/F39C12/FFFFFF?text=Bio',
-              createdAt: '2024-02-28T11:00:00Z',
+                'https://via.placeholder.com/100x100/34C759/FFFFFF?text=Svc',
+              createdAt: '2024-01-20T09:15:00Z',
             },
           ],
-        } as Subject);
+        } as Organization);
         setLoading(false);
       }, 1000);
     };
 
-    fetchSubjectData();
+    fetchOrganizationData();
   }, []);
-
-  const handleAddToWhiteboard = (): void => {
-    // TODO: Replace with actual API call to add subject to whiteboard
-    setIsInWhiteboard(true);
-  };
-
-  const handleAddToLab = (): void => {
-    // TODO: Replace with actual API call to add subject to lab
-    console.log('Added to lab');
-  };
 
   const handleSubjectClick = (slug: string): void => {
     // TODO: Replace with actual navigation using useNavigate hook
@@ -281,10 +245,10 @@ const Subject: React.FC = () => {
 
   // Filter and sort related analyses
   const getFilteredAndSortedAnalyses = (): RelatedAnalysis[] => {
-    if (!subject?.relatedAnalyses) return [];
+    if (!organization?.relatedAnalyses) return [];
 
     // Filter by search text
-    const filtered = subject.relatedAnalyses.filter(
+    const filtered = organization.relatedAnalyses.filter(
       (analysis) =>
         analysis.title
           .toLowerCase()
@@ -317,10 +281,10 @@ const Subject: React.FC = () => {
 
   // Filter and sort related subjects
   const getFilteredAndSortedSubjects = (): RelatedSubject[] => {
-    if (!subject?.relatedSubjects) return [];
+    if (!organization?.relatedSubjects) return [];
 
     // Filter by search text
-    const filtered = subject.relatedSubjects.filter((relatedSubject) =>
+    const filtered = organization.relatedSubjects.filter((relatedSubject) =>
       relatedSubject.name.toLowerCase().includes(filterText.toLowerCase())
     );
 
@@ -340,7 +304,7 @@ const Subject: React.FC = () => {
   };
 
   // TODO: Add error handling for failed API calls
-  if (loading || !subject) {
+  if (loading || !organization) {
     return (
       <Box p={6}>
         {/* TODO: Replace with proper loading component/skeleton */}
@@ -351,211 +315,112 @@ const Subject: React.FC = () => {
 
   return (
     <Box p={6} bg='gray.50' minHeight='calc(100vh - 64px)'>
-      {/* Main Subject Card */}
-      <Card.Root maxW='1024px' mb={6}>
+      {/* Main Organization Card */}
+      <Card.Root width='100%' mb={6}>
         <Card.Body p={6}>
           <Flex justify='space-between' align='flex-start' mb={4}>
             <Heading as='h1' size='xl' flex='1' mr={4}>
-              {subject.name}
+              {organization.name}
             </Heading>
-            <HStack gap={3}>
-              <Button
-                size='md'
-                colorScheme={isInWhiteboard ? 'gray' : 'blue'}
-                variant={isInWhiteboard ? 'outline' : 'solid'}
-                disabled={isInWhiteboard}
-                onClick={handleAddToWhiteboard}
-              >
-                {isInWhiteboard ? <FiCheck size={16} /> : <FiPlus size={16} />}
-                <BsSticky size={16} />
-                {isInWhiteboard ? 'in Whiteboard' : 'add to whiteboard'}
-              </Button>
-              <Button
-                size='md'
-                colorScheme='green'
-                variant='solid'
-                onClick={handleAddToLab}
-              >
-                <FiPlus size={16} />
-                <TbTestPipe size={16} />
-                add to lab
-              </Button>
-            </HStack>
           </Flex>
-          <Text color='gray.600' lineHeight='1.6'>
-            {subject.description}
+          <Text color='gray.600' lineHeight='1.6' mb={4}>
+            {organization.description}
           </Text>
+
+          {/* Organization Details */}
+          <SimpleGrid columns={{ base: 2, md: 3 }} gap={4} mt={4}>
+            <Box>
+              <Text fontSize='sm' fontWeight='medium' color='gray.700'>
+                Sector
+              </Text>
+              <Text fontSize='sm' color='gray.600'>
+                {organization.sector}
+              </Text>
+            </Box>
+            <Box>
+              <Text fontSize='sm' fontWeight='medium' color='gray.700'>
+                Industry
+              </Text>
+              <Text fontSize='sm' color='gray.600'>
+                {organization.industry}
+              </Text>
+            </Box>
+            <Box>
+              <Text fontSize='sm' fontWeight='medium' color='gray.700'>
+                Country
+              </Text>
+              <Text fontSize='sm' color='gray.600'>
+                {organization.country}
+              </Text>
+            </Box>
+            <Box>
+              <Text fontSize='sm' fontWeight='medium' color='gray.700'>
+                City
+              </Text>
+              <Text fontSize='sm' color='gray.600'>
+                {organization.city}
+              </Text>
+            </Box>
+            <Box>
+              <Text fontSize='sm' fontWeight='medium' color='gray.700'>
+                Employees
+              </Text>
+              <Text fontSize='sm' color='gray.600'>
+                {organization.employees.toLocaleString()}
+              </Text>
+            </Box>
+            <Box>
+              <Text fontSize='sm' fontWeight='medium' color='gray.700'>
+                Website
+              </Text>
+              <Link
+                href={organization.website}
+                target='_blank'
+                color='blue.600'
+                fontSize='sm'
+                display='flex'
+                alignItems='center'
+                gap={1}
+              >
+                {organization.website.replace('https://', '')}
+                <FiExternalLink size={12} />
+              </Link>
+            </Box>
+          </SimpleGrid>
         </Card.Body>
       </Card.Root>
 
-      {/* Main Content Area */}
-      <Flex gap={6} align='flex-start'>
-        {/* Left Side Stats */}
-        <VStack gap={4} maxW='300px' flex='0 0 300px'>
-          {/* Horizon Ranking Card */}
-          <Card.Root w='100%'>
-            <Card.Body p={4}>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h3' size='md' mb={2}>
-                    Horizon Ranking
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText
-                  fontSize='2xl'
-                  fontWeight='bold'
-                  color='blue.500'
-                >
-                  {subject.horizonRanking.toFixed(2)}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          {/* White Space Card */}
-          <Card.Root w='100%'>
-            <Card.Body p={4}>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h3' size='md' mb={2}>
-                    White Space
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText
-                  fontSize='2xl'
-                  fontWeight='bold'
-                  color='green.500'
-                >
-                  {subject.whiteSpace}%
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          {/* Tech Transfer Card */}
-          <Card.Root w='100%'>
-            <Card.Body p={4}>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h3' size='md' mb={2}>
-                    Tech Transfer
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText
-                  fontSize='2xl'
-                  fontWeight='bold'
-                  color='purple.500'
-                >
-                  {subject.techTransfer}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-        </VStack>
-
-        {/* Network Graph */}
-        <Box flex='1' height='100vh'>
-          <NetworkGraph />
-        </Box>
-      </Flex>
-
-      {/* Bottom Stats Cards */}
-      <Box mt={6}>
-        <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} gap={4}>
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Organizations
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.organizations.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Press
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.press.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Patents
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.patents.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Papers
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.papers.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Books
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.books.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Related Docs
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.relatedDocs.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
+      {/* Financial Metrics Charts */}
+      <Box mb={6}>
+        <Heading as='h2' size='lg' mb={4}>
+          Financial Metrics
+        </Heading>
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap={4}>
+          <FinancialChart
+            title='Stock Price'
+            value={`$${organization.financialMetrics.stockPrice}`}
+            subtitle='Current price per share'
+          />
+          <FinancialChart
+            title='Market Cap'
+            value={`$${organization.financialMetrics.marketCap}B`}
+            subtitle='Total market value'
+          />
+          <FinancialChart
+            title='Revenue'
+            value={`$${organization.financialMetrics.revenue}B`}
+            subtitle='Annual revenue'
+          />
+          <FinancialChart
+            title='EBITDA'
+            value={`$${organization.financialMetrics.ebitda}B`}
+            subtitle='Earnings before interest, taxes, depreciation, and amortization'
+          />
         </SimpleGrid>
       </Box>
 
       {/* Related Subjects and Related Analyses */}
-      <HStack gap={6} mt={6} align='flex-start'>
+      <HStack gap={6} align='flex-start'>
         {/* Related Subjects Card */}
         <Card.Root flex='1' height='400px'>
           <Card.Body p={6} display='flex' flexDirection='column' height='100%'>
@@ -599,14 +464,19 @@ const Subject: React.FC = () => {
                     <option value='z-a'>Z-A</option>
                   </select>
                 </HStack>
-                <Input
+                <input
                   placeholder='Filter subjects...'
                   value={filterText}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFilterText(e.target.value)
                   }
-                  size='sm'
-                  flex='1'
+                  style={{
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '14px',
+                    flex: '1',
+                  }}
                 />
               </HStack>
 
@@ -703,14 +573,19 @@ const Subject: React.FC = () => {
                     <option value='z-a'>Z-A</option>
                   </select>
                 </HStack>
-                <Input
+                <input
                   placeholder='Filter analyses...'
                   value={analysisFilterText}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setAnalysisFilterText(e.target.value)
                   }
-                  size='sm'
-                  flex='1'
+                  style={{
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '14px',
+                    flex: '1',
+                  }}
                 />
               </HStack>
 
@@ -816,17 +691,8 @@ const Subject: React.FC = () => {
           </Card.Body>
         </Card.Root>
       </HStack>
-
-      {/* Trends Chart */}
-      <TrendsChart subjectSlug='computer-vision' />
-
-      {/* Forecast Analysis Chart */}
-      <ForecastChart subjectSlug='computer-vision' />
-
-      {/* Related Documents */}
-      <RelatedDocuments />
     </Box>
   );
 };
 
-export default Subject;
+export default Organization;
