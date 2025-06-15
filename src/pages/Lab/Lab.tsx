@@ -12,11 +12,13 @@ import {
   Textarea,
   IconButton,
   Dialog,
+  Tabs,
 } from '@chakra-ui/react';
 import { FiEdit, FiSave, FiX, FiSettings } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { Lab as LabType, LabUpdateRequest } from './types';
+import Gather from './Gather';
 
 const Lab: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +37,7 @@ const Lab: React.FC = () => {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
   // TODO: Replace with actual API call to fetch lab data
@@ -179,7 +182,7 @@ const Lab: React.FC = () => {
   return (
     <Box p={6} bg='gray.50' minHeight='calc(100vh - 64px)'>
       {/* Main Lab Card */}
-      <Card.Root maxW='1024px' mb={6}>
+      <Card.Root w='100%' mb={6}>
         <Card.Body p={6}>
           <VStack gap={4} align='stretch'>
             {/* Header with Title and Actions */}
@@ -194,15 +197,18 @@ const Lab: React.FC = () => {
               </VStack>
 
               <HStack gap={2}>
-                <Button
-                  size='md'
-                  colorScheme='blue'
-                  variant='outline'
-                  onClick={handleEditToggle}
-                >
-                  <FiEdit size={16} />
-                  Edit Lab
-                </Button>
+                {/* Edit Lab Button - Only show for admins */}
+                {isLabAdmin() && (
+                  <Button
+                    size='md'
+                    colorScheme='blue'
+                    variant='outline'
+                    onClick={handleEditToggle}
+                  >
+                    <FiEdit size={16} />
+                    Edit Lab
+                  </Button>
+                )}
 
                 {/* Lab Settings Button - Only show for admins */}
                 {isLabAdmin() && (
@@ -222,18 +228,111 @@ const Lab: React.FC = () => {
             {/* Lab Metadata */}
             <HStack gap={6} pt={2} borderTop='1px solid' borderColor='gray.200'>
               <Text fontSize='sm' color='gray.500'>
-                Created: {new Date(lab.createdAt).toLocaleDateString()}
-              </Text>
-              <Text fontSize='sm' color='gray.500'>
-                Last updated: {new Date(lab.updatedAt).toLocaleDateString()}
-              </Text>
-              <Text fontSize='sm' color='gray.500'>
                 Members: {lab.memberIds.length}
+              </Text>
+              <Text fontSize='sm' color='gray.500'>
+                Subjects: {lab.subjects.length}
+              </Text>
+              <Text fontSize='sm' color='gray.500'>
+                Analyses: {lab.analyses.length}
               </Text>
             </HStack>
           </VStack>
         </Card.Body>
       </Card.Root>
+
+      {/* Sticky Tab Navigation */}
+      <Box position='sticky' top='64px' zIndex='10' mb={6}>
+        <Card.Root w='100%' boxShadow='lg'>
+          <Card.Body p={4}>
+            <Tabs.Root
+              value={activeTab}
+              onValueChange={(details) => setActiveTab(details.value)}
+            >
+              <Tabs.List>
+                <Tabs.Trigger value='dashboard'>Dashboard</Tabs.Trigger>
+                <Tabs.Trigger value='gather'>Gather</Tabs.Trigger>
+                <Tabs.Trigger value='analyze'>Analyze</Tabs.Trigger>
+                <Tabs.Trigger value='forecast'>Forecast</Tabs.Trigger>
+                <Tabs.Trigger value='invent'>Invent</Tabs.Trigger>
+              </Tabs.List>
+            </Tabs.Root>
+          </Card.Body>
+        </Card.Root>
+      </Box>
+
+      {/* Tab Content */}
+      <Box>
+        {activeTab === 'dashboard' && (
+          <Box>
+            {/* TODO: Create Dashboard component */}
+            <Card.Root>
+              <Card.Body p={6}>
+                <Heading as='h2' size='lg' mb={4}>
+                  Dashboard
+                </Heading>
+                <Text color='gray.600'>
+                  Dashboard content will go here. This should show lab overview,
+                  recent activity, and key metrics.
+                </Text>
+              </Card.Body>
+            </Card.Root>
+          </Box>
+        )}
+
+        {activeTab === 'gather' && <Gather labId={lab.id} />}
+
+        {activeTab === 'analyze' && (
+          <Box>
+            {/* TODO: Create Analyze component */}
+            <Card.Root>
+              <Card.Body p={6}>
+                <Heading as='h2' size='lg' mb={4}>
+                  Analyze
+                </Heading>
+                <Text color='gray.600'>
+                  Analyze content will go here. This should handle data analysis
+                  and insights.
+                </Text>
+              </Card.Body>
+            </Card.Root>
+          </Box>
+        )}
+
+        {activeTab === 'forecast' && (
+          <Box>
+            {/* TODO: Create Forecast component */}
+            <Card.Root>
+              <Card.Body p={6}>
+                <Heading as='h2' size='lg' mb={4}>
+                  Forecast
+                </Heading>
+                <Text color='gray.600'>
+                  Forecast content will go here. This should handle predictive
+                  analysis and forecasting.
+                </Text>
+              </Card.Body>
+            </Card.Root>
+          </Box>
+        )}
+
+        {activeTab === 'invent' && (
+          <Box>
+            {/* TODO: Create Invent component */}
+            <Card.Root>
+              <Card.Body p={6}>
+                <Heading as='h2' size='lg' mb={4}>
+                  Invent
+                </Heading>
+                <Text color='gray.600'>
+                  Invent content will go here. This should handle innovation and
+                  ideation tools.
+                </Text>
+              </Card.Body>
+            </Card.Root>
+          </Box>
+        )}
+      </Box>
 
       {/* Edit Dialog */}
       <Dialog.Root
