@@ -15,6 +15,7 @@ import {
   Tooltip,
   Spinner,
   Menu,
+  Field,
 } from '@chakra-ui/react';
 import {
   FiPlus,
@@ -585,6 +586,7 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
 
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
 
   // Subject search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -597,6 +599,90 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
 
   // Horizontal scroll container ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll shadow state
+  const [scrollShadows, setScrollShadows] = useState({
+    left: false,
+    right: false,
+  });
+
+  // Update scroll shadows based on scroll position
+  const updateScrollShadows = useCallback(() => {
+    if (!scrollContainerRef.current) return;
+
+    const container = scrollContainerRef.current;
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+
+    setScrollShadows({
+      left: scrollLeft > 0,
+      right: scrollLeft < scrollWidth - clientWidth - 1, // -1 for rounding errors
+    });
+  }, []);
+
+  // Add scroll listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Initial check
+    updateScrollShadows();
+
+    // Add scroll listener
+    container.addEventListener('scroll', updateScrollShadows);
+
+    // Add resize listener to handle window resize
+    const handleResize = () => {
+      setTimeout(updateScrollShadows, 100); // Delay to ensure layout is updated
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      container.removeEventListener('scroll', updateScrollShadows);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [updateScrollShadows]);
+
+  // Update shadows when categories change
+  useEffect(() => {
+    setTimeout(updateScrollShadows, 100);
+  }, [categories, updateScrollShadows]);
+
+  // Validate category name
+  const validateCategoryName = (name: string): string => {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      return 'Category name cannot be empty';
+    }
+
+    if (trimmedName.length < 2) {
+      return 'Category name must be at least 2 characters';
+    }
+
+    if (trimmedName.length > 50) {
+      return 'Category name cannot exceed 50 characters';
+    }
+
+    // Check for duplicate names (case insensitive)
+    const existingNames = categories.map((cat) => cat.name.toLowerCase());
+    if (existingNames.includes(trimmedName.toLowerCase())) {
+      return 'A category with this name already exists';
+    }
+
+    return '';
+  };
+
+  // Handle category name input change with validation
+  const handleCategoryNameChange = (value: string) => {
+    setNewCategoryName(value);
+    if (categoryError) {
+      // Clear error as user types
+      const error = validateCategoryName(value);
+      if (!error) {
+        setCategoryError('');
+      }
+    }
+  };
 
   // Check if a subject already exists in the lab
   const isSubjectInLab = (subjectId: string): boolean => {
@@ -834,21 +920,34 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
 
   // Handle category creation
   const handleCreateCategory = () => {
-    if (newCategoryName.trim()) {
-      const newCategory: SubjectCategory = {
-        id: `cat-${Date.now()}`,
-        name: newCategoryName.trim(),
-        isDefault: false,
-        subjects: [],
-      };
+    const error = validateCategoryName(newCategoryName);
 
-      setCategories((prev) => [...prev, newCategory]);
-      setNewCategoryName('');
-      setIsAddCategoryOpen(false);
-
-      // TODO: Make API call to create category
-      console.log('Created new category:', newCategory.name);
+    if (error) {
+      setCategoryError(error);
+      return;
     }
+
+    const newCategory: SubjectCategory = {
+      id: `cat-${Date.now()}`,
+      name: newCategoryName.trim(),
+      isDefault: false,
+      subjects: [],
+    };
+
+    setCategories((prev) => [...prev, newCategory]);
+    setNewCategoryName('');
+    setCategoryError('');
+    setIsAddCategoryOpen(false);
+
+    // TODO: Make API call to create category
+    console.log('Created new category:', newCategory.name);
+  };
+
+  // Handle dialog close
+  const handleDialogClose = () => {
+    setIsAddCategoryOpen(false);
+    setNewCategoryName('');
+    setCategoryError('');
   };
 
   // Handle category rename
@@ -928,7 +1027,7 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <VStack gap={6} align='stretch'>
+      <VStack gap={4} align='stretch'>
         {/* Header */}
         <HStack justify='space-between' align='center'>
           <HStack gap={4} flex='1'>
@@ -1137,76 +1236,107 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
           </HStack>
         </HStack>
 
-        {/* Kanban Board - Horizontal Scrolling Categories */}
-        <Box
-          ref={scrollContainerRef}
-          w='100%'
-          overflowX='auto'
-          overflowY='hidden'
-          pb={4}
-          css={{
-            '&::-webkit-scrollbar': {
-              height: '8px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#2d3748',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#4a5568',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-thumb:hover': {
-              background: '#718096',
-            },
-          }}
-        >
-          <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
-            {categories.map((category) => (
-              <CategoryColumn
-                key={category.id}
-                category={category}
-                onSubjectMove={handleSubjectMove}
-                onCategoryRename={handleCategoryRename}
-                onCategoryDelete={handleCategoryDelete}
-                onSubjectClick={handleSubjectClick}
-                onSubjectRemove={handleSubjectRemove}
-                onSubjectView={handleSubjectView}
-              />
-            ))}
-
-            {/* Add New Category Column */}
+        {/* Kanban Board - Horizontal Scrolling Categories with Scroll Shadows */}
+        <Box position='relative' w='100%' pt={2}>
+          {/* Left scroll shadow */}
+          {scrollShadows.left && (
             <Box
-              minW='280px'
-              maxW='320px'
-              h='200px'
-              border='2px dashed'
-              borderColor='gray.400'
-              borderRadius='md'
-              display='flex'
-              alignItems='center'
-              justifyContent='center'
-              cursor='pointer'
-              _hover={{ borderColor: 'blue.400', bg: 'gray.50' }}
-              onClick={() => setIsAddCategoryOpen(true)}
-              transition='all 0.2s'
-            >
-              <VStack gap={2}>
-                <Box color='gray.400'>
-                  <FiPlus size={24} />
-                </Box>
-                <Text color='gray.500' fontSize='sm' fontWeight='medium'>
-                  Add Category
-                </Text>
-              </VStack>
-            </Box>
-          </HStack>
+              position='absolute'
+              left='0'
+              top='0'
+              bottom='0'
+              width='20px'
+              background='linear-gradient(to right, rgba(0,0,0,0.15), transparent)'
+              zIndex='10'
+              pointerEvents='none'
+            />
+          )}
+
+          {/* Right scroll shadow */}
+          {scrollShadows.right && (
+            <Box
+              position='absolute'
+              right='0'
+              top='0'
+              bottom='0'
+              width='20px'
+              background='linear-gradient(to left, rgba(0,0,0,0.15), transparent)'
+              zIndex='10'
+              pointerEvents='none'
+            />
+          )}
+
+          <Box
+            ref={scrollContainerRef}
+            w='100%'
+            overflowX='auto'
+            overflowY='hidden'
+            pb={4}
+            pt={2}
+            css={{
+              '&::-webkit-scrollbar': {
+                height: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: '#2d3748',
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: '#4a5568',
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                background: '#718096',
+              },
+            }}
+          >
+            <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
+              {categories.map((category) => (
+                <CategoryColumn
+                  key={category.id}
+                  category={category}
+                  onSubjectMove={handleSubjectMove}
+                  onCategoryRename={handleCategoryRename}
+                  onCategoryDelete={handleCategoryDelete}
+                  onSubjectClick={handleSubjectClick}
+                  onSubjectRemove={handleSubjectRemove}
+                  onSubjectView={handleSubjectView}
+                />
+              ))}
+
+              {/* Add New Category Column */}
+              <Box
+                minW='280px'
+                maxW='320px'
+                h='200px'
+                border='2px dashed'
+                borderColor='gray.400'
+                borderRadius='md'
+                display='flex'
+                alignItems='center'
+                justifyContent='center'
+                cursor='pointer'
+                _hover={{ borderColor: 'blue.400', bg: 'gray.50' }}
+                onClick={() => setIsAddCategoryOpen(true)}
+                transition='all 0.2s'
+              >
+                <VStack gap={2}>
+                  <Box color='gray.400'>
+                    <FiPlus size={24} />
+                  </Box>
+                  <Text color='gray.500' fontSize='sm' fontWeight='medium'>
+                    Add Category
+                  </Text>
+                </VStack>
+              </Box>
+            </HStack>
+          </Box>
         </Box>
 
         {/* Add Category Dialog */}
         <Dialog.Root
           open={isAddCategoryOpen}
-          onOpenChange={({ open }) => setIsAddCategoryOpen(open)}
+          onOpenChange={({ open }) => !open && handleDialogClose()}
         >
           <Dialog.Backdrop />
           <Dialog.Positioner>
@@ -1217,31 +1347,40 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
 
               <Dialog.Body>
                 <VStack gap={4} align='stretch'>
-                  <Box>
-                    <Text fontSize='sm' fontWeight='medium' mb={2}>
+                  <Field.Root invalid={!!categoryError}>
+                    <Field.Label fontSize='sm' fontWeight='medium'>
                       Category Name
-                    </Text>
+                    </Field.Label>
                     <Input
                       value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onChange={(e) => handleCategoryNameChange(e.target.value)}
                       placeholder='Enter category name...'
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' && handleCreateCategory()
-                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleCreateCategory();
+                        }
+                      }}
+                      autoFocus
                     />
-                  </Box>
+                    {categoryError && (
+                      <Field.ErrorText fontSize='sm'>
+                        {categoryError}
+                      </Field.ErrorText>
+                    )}
+                  </Field.Root>
                 </VStack>
               </Dialog.Body>
 
               <Dialog.Footer>
                 <HStack gap={3}>
-                  <Button
-                    variant='outline'
-                    onClick={() => setIsAddCategoryOpen(false)}
-                  >
+                  <Button variant='outline' onClick={handleDialogClose}>
                     Cancel
                   </Button>
-                  <Button colorScheme='blue' onClick={handleCreateCategory}>
+                  <Button
+                    colorScheme='blue'
+                    onClick={handleCreateCategory}
+                    disabled={!!categoryError || !newCategoryName.trim()}
+                  >
                     Create Category
                   </Button>
                 </HStack>
