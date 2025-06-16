@@ -1,71 +1,33 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
-  Card,
-  Flex,
   Heading,
   Text,
   VStack,
   HStack,
   Input,
-  IconButton,
   Dialog,
-  Checkbox,
-  Tooltip,
   Spinner,
-  Menu,
   Field,
+  Flex,
 } from '@chakra-ui/react';
-import {
-  FiPlus,
-  FiEdit2,
-  FiTrash2,
-  FiMove,
-  FiTag,
-  FiSearch,
-  FiExternalLink,
-  FiX,
-  FiCheck,
-  FiMoreHorizontal,
-  FiEye,
-} from 'react-icons/fi';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { FiPlus } from 'react-icons/fi';
+import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import type { LabSubject } from './types';
-
-// Types for drag and drop
-interface DragItem {
-  type: string;
-  id: string;
-  categoryId: string;
-}
-
-interface SubjectSearchResult {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  horizonRanking: number;
-}
-
-interface SubjectCategory {
-  id: string;
-  name: string;
-  isDefault: boolean;
-  subjects: LabSubject[];
-}
+import { debounce } from 'lodash';
+import type { LabSubject, SubjectSearchResult, SubjectCategory } from './types';
+import { CategoryUtils } from './types';
+import SubjectCard from './SubjectCard';
+import { useToast, ToastDisplay } from './ToastSystem';
+import { SubjectSearch } from './SubjectSearch';
+import { CategoryColumn } from './CategoryColumn';
 
 interface GatherProps {
   labId: string;
 }
 
-// Drag and drop types
-const ItemTypes = {
-  SUBJECT: 'subject',
-};
-
-// Mock search results
+// TODO: Remove mock data once API is working
 const mockSearchResults: SubjectSearchResult[] = [
   {
     id: 'search-1',
@@ -90,7 +52,6 @@ const mockSearchResults: SubjectSearchResult[] = [
   },
 ];
 
-// Mock subjects data
 const mockSubjects: LabSubject[] = [
   {
     id: 'subj-1',
@@ -137,753 +98,204 @@ const mockSubjects: LabSubject[] = [
   },
 ];
 
-// Subject Card Component
-const SubjectCard: React.FC<{
-  subject: LabSubject;
-  categoryId: string;
-  onSubjectClick: (subject: LabSubject) => void;
-  onSubjectRemove: (subjectId: string, categoryId: string) => void;
-  onSubjectView: (subject: LabSubject) => void;
-}> = ({
-  subject,
-  categoryId,
-  onSubjectClick,
-  onSubjectRemove,
-  onSubjectView,
-}) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: ItemTypes.SUBJECT,
-    item: { type: ItemTypes.SUBJECT, id: subject.id, categoryId },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  });
+const mockCategories: SubjectCategory[] = [
+  {
+    id: 'uncategorized',
+    name: 'Uncategorized',
+    type: 'default',
+    subjects: mockSubjects.slice(0, 2),
+    description: 'Default category for new subjects',
+  },
+  {
+    id: 'exclude',
+    name: 'Exclude',
+    type: 'exclude',
+    subjects: [mockSubjects[4]], // Move one subject to exclude for demo
+    description: 'Subjects to exclude from analysis and search results',
+  },
+  {
+    id: 'cat-1',
+    name: 'Core Technologies',
+    type: 'custom',
+    subjects: mockSubjects.slice(2, 4),
+  },
+];
 
-  // Check if description needs truncation (rough estimate based on length)
-  const needsTruncation = subject.notes && subject.notes.length > 60;
-  const truncatedNotes = needsTruncation
-    ? subject.notes?.substring(0, 60) + '...'
-    : subject.notes;
-
-  const handleRemoveSubject = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    onSubjectRemove(subject.id, categoryId);
-  };
-
-  const handleViewSubject = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    onSubjectView(subject);
-  };
-
-  return (
-    <Card.Root
-      ref={drag}
-      size='sm'
-      variant='outline'
-      cursor='grab'
-      opacity={isDragging ? 0.5 : 1}
-      _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
-      onClick={() => onSubjectClick(subject)}
-      transition='all 0.2s'
-      mb={3}
-      w='100%'
-    >
-      <Card.Body p={3}>
-        <VStack gap={2} align='stretch'>
-          <HStack justify='space-between' align='flex-start'>
-            <Text
-              fontSize='sm'
-              fontWeight='medium'
-              color='blue.600'
-              flex='1'
-              lineHeight='1.3'
-            >
-              {subject.subjectName}
-            </Text>
-            <HStack gap={1}>
-              {/* Drag handle - visual indicator only */}
-              <Box color='gray.400' cursor='grab'>
-                <FiMove size={10} />
-              </Box>
-
-              {/* Actions menu */}
-              <Menu.Root>
-                <Menu.Trigger asChild>
-                  <Box
-                    as='button'
-                    p={1}
-                    borderRadius='sm'
-                    color='gray.400'
-                    _hover={{ color: 'gray.600', bg: 'gray.100' }}
-                    cursor='pointer'
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label='Subject actions'
-                  >
-                    <FiMoreHorizontal size={10} />
-                  </Box>
-                </Menu.Trigger>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    <Menu.Item value='view' onClick={handleViewSubject}>
-                      <FiEye size={14} />
-                      View Subject
-                    </Menu.Item>
-                    <Menu.Item
-                      value='remove'
-                      onClick={handleRemoveSubject}
-                      color='red.500'
-                    >
-                      <FiTrash2 size={14} />
-                      Remove from Lab
-                    </Menu.Item>
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Menu.Root>
-            </HStack>
-          </HStack>
-          {subject.notes && (
-            <Box>
-              <Text fontSize='xs' color='gray.500' lineHeight='1.3'>
-                {truncatedNotes}
-                {needsTruncation && (
-                  <Tooltip.Root>
-                    <Tooltip.Trigger asChild>
-                      <Text
-                        as='span'
-                        textDecoration='underline'
-                        color='blue.500'
-                        cursor='help'
-                        ml={1}
-                      >
-                        more
-                      </Text>
-                    </Tooltip.Trigger>
-                    <Tooltip.Positioner>
-                      <Tooltip.Content>
-                        <Tooltip.Arrow />
-                        <Text fontSize='xs' maxW='300px' whiteSpace='normal'>
-                          {subject.notes}
-                        </Text>
-                      </Tooltip.Content>
-                    </Tooltip.Positioner>
-                  </Tooltip.Root>
-                )}
-              </Text>
-            </Box>
-          )}
-          <Text fontSize='xs' color='gray.400'>
-            {new Date(subject.addedAt).toLocaleDateString()}
-          </Text>
-        </VStack>
-      </Card.Body>
-    </Card.Root>
-  );
-};
-
-// Category Column Component (Kanban-style)
-const CategoryColumn: React.FC<{
-  category: SubjectCategory;
-  onSubjectMove: (
-    subjectId: string,
-    fromCategoryId: string,
-    toCategoryId: string
-  ) => void;
-  onCategoryRename: (categoryId: string, newName: string) => void;
-  onCategoryDelete: (
-    categoryId: string,
-    moveSubjectsToUncategorized: boolean
-  ) => void;
-  onSubjectClick: (subject: LabSubject) => void;
-  onSubjectRemove: (subjectId: string, categoryId: string) => void;
-  onSubjectView: (subject: LabSubject) => void;
-}> = ({
-  category,
-  onSubjectMove,
-  onCategoryRename,
-  onCategoryDelete,
-  onSubjectClick,
-  onSubjectRemove,
-  onSubjectView,
-}) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(category.name);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [moveSubjectsToUncategorized, setMoveSubjectsToUncategorized] =
-    useState(true);
-
-  const [{ isOver }, drop] = useDrop({
-    accept: ItemTypes.SUBJECT,
-    drop: (item: DragItem) => {
-      if (item.categoryId !== category.id) {
-        onSubjectMove(item.id, item.categoryId, category.id);
-      }
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-    }),
-  });
-
-  const handleRename = () => {
-    if (editName.trim() && editName !== category.name) {
-      onCategoryRename(category.id, editName.trim());
-    }
-    setIsEditing(false);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRename();
-    } else if (e.key === 'Escape') {
-      setEditName(category.name);
-      setIsEditing(false);
-    }
-  };
-
-  const handleTitleClick = () => {
-    if (!category.isDefault) {
-      setIsEditing(true);
-    }
-  };
-
-  const handleDeleteConfirm = () => {
-    onCategoryDelete(category.id, moveSubjectsToUncategorized);
-    setIsDeleteDialogOpen(false);
-    setMoveSubjectsToUncategorized(true); // Reset for next time
-  };
-
-  return (
-    <>
-      <Box
-        ref={drop}
-        minW='280px'
-        maxW='320px'
-        h='calc(100vh - 250px)'
-        bg={isOver ? '#2a2a2a' : '#1a1a1a'}
-        borderColor={isOver ? 'blue.400' : 'gray.600'}
-        borderWidth='1px'
-        borderRadius='md'
-        transition='all 0.2s'
-        display='flex'
-        flexDirection='column'
-      >
-        {/* Column Header */}
-        <Box p={4} borderBottom='1px solid' borderBottomColor='gray.600'>
-          <HStack justify='space-between' align='center'>
-            <HStack gap={2} flex='1'>
-              <FiTag size={14} color='gray.400' />
-              {isEditing ? (
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onBlur={handleRename}
-                  onKeyDown={handleKeyPress}
-                  size='sm'
-                  autoFocus
-                  bg='gray.700'
-                  borderColor='gray.500'
-                  color='white'
-                  _focus={{ borderColor: 'blue.400' }}
-                  fontSize='sm'
-                />
-              ) : (
-                <Text
-                  fontSize='sm'
-                  fontWeight='medium'
-                  color='white'
-                  cursor={category.isDefault ? 'default' : 'pointer'}
-                  onClick={handleTitleClick}
-                  _hover={category.isDefault ? {} : { color: 'blue.300' }}
-                  transition='color 0.2s'
-                  flex='1'
-                >
-                  {category.name}
-                </Text>
-              )}
-              <Box
-                bg='gray.600'
-                color='gray.200'
-                fontSize='xs'
-                px={2}
-                py={1}
-                borderRadius='md'
-                minW='20px'
-                textAlign='center'
-              >
-                {category.subjects.length}
-              </Box>
-            </HStack>
-
-            <HStack gap={1}>
-              {/* Edit Button - Only show for non-default categories */}
-              {!category.isDefault && !isEditing && (
-                <Box
-                  as='button'
-                  p={1}
-                  borderRadius='sm'
-                  color='gray.400'
-                  _hover={{ color: 'blue.300', bg: 'gray.700' }}
-                  cursor='pointer'
-                  onClick={() => setIsEditing(true)}
-                  aria-label='Edit category name'
-                >
-                  <FiEdit2 size={12} />
-                </Box>
-              )}
-
-              {/* Delete Button - Only show for non-default categories */}
-              {!category.isDefault && (
-                <Box
-                  as='button'
-                  p={1}
-                  borderRadius='sm'
-                  color='red.400'
-                  _hover={{ color: 'red.300', bg: 'red.900' }}
-                  cursor='pointer'
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  aria-label='Delete category'
-                >
-                  <FiTrash2 size={12} />
-                </Box>
-              )}
-            </HStack>
-          </HStack>
-        </Box>
-
-        {/* Subjects List */}
-        <Box flex='1' p={3} overflowY='auto'>
-          {category.subjects.length > 0 ? (
-            <VStack gap={0} align='stretch'>
-              {category.subjects.map((subject) => (
-                <SubjectCard
-                  key={subject.id}
-                  subject={subject}
-                  categoryId={category.id}
-                  onSubjectClick={onSubjectClick}
-                  onSubjectRemove={onSubjectRemove}
-                  onSubjectView={onSubjectView}
-                />
-              ))}
-            </VStack>
-          ) : (
-            <Flex
-              height='120px'
-              align='center'
-              justify='center'
-              border='2px dashed'
-              borderColor={isOver ? 'blue.400' : 'gray.600'}
-              borderRadius='md'
-              bg={isOver ? 'gray.700' : 'gray.800'}
-              transition='all 0.2s'
-            >
-              <Text color='gray.400' fontSize='sm' textAlign='center'>
-                {isOver ? 'Drop subject here' : 'No subjects'}
-              </Text>
-            </Flex>
-          )}
-        </Box>
-
-        {/* Add Subject Button - Only for uncategorized */}
-        {category.isDefault && (
-          <Box p={3} borderTop='1px solid' borderTopColor='gray.600'>
-            <Text fontSize='xs' color='gray.500' textAlign='center'>
-              New subjects added here
-            </Text>
-          </Box>
-        )}
-      </Box>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog.Root
-        open={isDeleteDialogOpen}
-        onOpenChange={({ open }) => setIsDeleteDialogOpen(open)}
-      >
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>Delete Category</Dialog.Title>
-            </Dialog.Header>
-
-            <Dialog.Body>
-              <VStack gap={4} align='stretch'>
-                <Text>
-                  Are you sure you want to delete the category "{category.name}
-                  "?
-                </Text>
-
-                {category.subjects.length > 0 && (
-                  <Box>
-                    <Text fontSize='sm' color='gray.600' mb={2}>
-                      This category contains {category.subjects.length} subject
-                      {category.subjects.length !== 1 ? 's' : ''}.
-                    </Text>
-                    <Checkbox.Root
-                      checked={moveSubjectsToUncategorized}
-                      onCheckedChange={(details) =>
-                        setMoveSubjectsToUncategorized(!!details.checked)
-                      }
-                    >
-                      <Checkbox.HiddenInput />
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Checkbox.Label fontSize='sm'>
-                        Move subjects to "Uncategorized" category
-                      </Checkbox.Label>
-                    </Checkbox.Root>
-                    {!moveSubjectsToUncategorized && (
-                      <Text fontSize='xs' color='red.500' mt={1}>
-                        Warning: Subjects will be permanently removed from this
-                        lab.
-                      </Text>
-                    )}
-                  </Box>
-                )}
-              </VStack>
-            </Dialog.Body>
-
-            <Dialog.Footer>
-              <HStack gap={3}>
-                <Button
-                  variant='outline'
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button colorScheme='red' onClick={handleDeleteConfirm}>
-                  Delete Category
-                </Button>
-              </HStack>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Dialog.Root>
-    </>
-  );
-};
-
-const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
-  const [categories, setCategories] = useState<SubjectCategory[]>([
-    {
-      id: 'uncategorized',
-      name: 'Uncategorized',
-      isDefault: true,
-      subjects: mockSubjects.slice(0, 2), // First 2 subjects
-    },
-    {
-      id: 'cat-1',
-      name: 'Core Technologies',
-      isDefault: false,
-      subjects: mockSubjects.slice(2, 4), // Next 2 subjects
-    },
-    {
-      id: 'cat-2',
-      name: 'Emerging Fields',
-      isDefault: false,
-      subjects: mockSubjects.slice(4), // Remaining subjects
-    },
-  ]);
-
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
-  const [categoryError, setCategoryError] = useState('');
-
-  // Subject search state
+/**
+ * Custom hook for search functionality
+ */
+const useSubjectSearch = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SubjectSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Horizontal scroll container ref
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  // Scroll shadow state
-  const [scrollShadows, setScrollShadows] = useState({
-    left: false,
-    right: false,
-  });
-
-  // Update scroll shadows based on scroll position
-  const updateScrollShadows = useCallback(() => {
-    if (!scrollContainerRef.current) return;
-
-    const container = scrollContainerRef.current;
-    const { scrollLeft, scrollWidth, clientWidth } = container;
-
-    setScrollShadows({
-      left: scrollLeft > 0,
-      right: scrollLeft < scrollWidth - clientWidth - 1, // -1 for rounding errors
-    });
-  }, []);
-
-  // Add scroll listener
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    // Initial check
-    updateScrollShadows();
-
-    // Add scroll listener
-    container.addEventListener('scroll', updateScrollShadows);
-
-    // Add resize listener to handle window resize
-    const handleResize = () => {
-      setTimeout(updateScrollShadows, 100); // Delay to ensure layout is updated
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      container.removeEventListener('scroll', updateScrollShadows);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [updateScrollShadows]);
-
-  // Update shadows when categories change
-  useEffect(() => {
-    setTimeout(updateScrollShadows, 100);
-  }, [categories, updateScrollShadows]);
-
-  // Validate category name
-  const validateCategoryName = (name: string): string => {
-    const trimmedName = name.trim();
-
-    if (!trimmedName) {
-      return 'Category name cannot be empty';
-    }
-
-    if (trimmedName.length < 2) {
-      return 'Category name must be at least 2 characters';
-    }
-
-    if (trimmedName.length > 50) {
-      return 'Category name cannot exceed 50 characters';
-    }
-
-    // Check for duplicate names (case insensitive)
-    const existingNames = categories.map((cat) => cat.name.toLowerCase());
-    if (existingNames.includes(trimmedName.toLowerCase())) {
-      return 'A category with this name already exists';
-    }
-
-    return '';
-  };
-
-  // Handle category name input change with validation
-  const handleCategoryNameChange = (value: string) => {
-    setNewCategoryName(value);
-    if (categoryError) {
-      // Clear error as user types
-      const error = validateCategoryName(value);
-      if (!error) {
-        setCategoryError('');
-      }
-    }
-  };
-
-  // Check if a subject already exists in the lab
-  const isSubjectInLab = (subjectId: string): boolean => {
-    return categories.some((category) =>
-      category.subjects.some((subject) => subject.subjectId === subjectId)
-    );
-  };
-
-  // Handle auto-scroll when dragging near edges
-  const handleDragScroll = useCallback((clientX: number) => {
-    if (!scrollContainerRef.current) return;
-
-    const container = scrollContainerRef.current;
-    const rect = container.getBoundingClientRect();
-    const scrollZone = 100; // pixels from edge to trigger scroll
-    const scrollSpeed = 10;
-
-    if (clientX < rect.left + scrollZone) {
-      // Scroll left
-      container.scrollLeft = Math.max(0, container.scrollLeft - scrollSpeed);
-    } else if (clientX > rect.right - scrollZone) {
-      // Scroll right
-      container.scrollLeft = Math.min(
-        container.scrollWidth - container.clientWidth,
-        container.scrollLeft + scrollSpeed
+  const performSearch = useCallback(
+    async (query: string): Promise<SubjectSearchResult[]> => {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return mockSearchResults.filter(
+        (subject) =>
+          subject.name.toLowerCase().includes(query.toLowerCase()) ||
+          subject.description.toLowerCase().includes(query.toLowerCase())
       );
-    }
-  }, []);
+    },
+    []
+  );
 
-  // Add mouse move listener for drag scrolling
-  useEffect(() => {
-    let animationFrame: number;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
-      animationFrame = requestAnimationFrame(() => {
-        handleDragScroll(e.clientX);
-      });
-    };
-
-    // Only add listener when dragging
-    const handleDragStart = () => {
-      document.addEventListener('mousemove', handleMouseMove);
-    };
-
-    const handleDragEnd = () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
-    };
-
-    document.addEventListener('dragstart', handleDragStart);
-    document.addEventListener('dragend', handleDragEnd);
-
-    return () => {
-      document.removeEventListener('dragstart', handleDragStart);
-      document.removeEventListener('dragend', handleDragEnd);
-      document.removeEventListener('mousemove', handleMouseMove);
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [handleDragScroll]);
-
-  // Handle search input focus
-  const handleSearchFocus = () => {
-    if (searchQuery.trim().length > 0) {
-      setShowSearchDropdown(true);
-      // Re-trigger search if there are no results but there's a query
-      if (searchResults.length === 0 && !isSearching) {
-        handleSearchInputChange(searchQuery);
-      }
-    }
-  };
-
-  // Handle clearing search
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    setShowSearchDropdown(false);
-    setSearchResults([]);
-    setIsSearching(false);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-  };
-
-  // Handle subject search with debouncing
-  const handleSearchInputChange = (value: string) => {
-    setSearchQuery(value);
-
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (value.trim().length > 0) {
-      setIsSearching(true);
-      setShowSearchDropdown(true);
-
-      searchTimeoutRef.current = setTimeout(async () => {
-        try {
-          // TODO: Replace with actual API call
-
-          // Simulate API delay
-          await new Promise((resolve) => setTimeout(resolve, 300));
-
-          // Filter mock results based on search query
-          const filteredResults = mockSearchResults.filter(
-            (subject) =>
-              subject.name.toLowerCase().includes(value.toLowerCase()) ||
-              subject.description.toLowerCase().includes(value.toLowerCase())
-          );
-
-          setSearchResults(filteredResults);
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        if (!query.trim()) {
+          setSearchResults([]);
           setIsSearching(false);
-        } catch (error) {
-          console.error('Search failed:', error);
+          setShowSearchDropdown(false);
+          return;
+        }
+
+        setIsSearching(true);
+        setShowSearchDropdown(true);
+
+        try {
+          const results = await performSearch(query);
+          setSearchResults(results);
+        } catch (searchError) {
+          console.error('Search failed:', searchError);
+          setSearchResults([]);
+        } finally {
           setIsSearching(false);
         }
-      }, 100);
-    } else {
-      setShowSearchDropdown(false);
-      setSearchResults([]);
-      setIsSearching(false);
-    }
-  };
+      }, 300),
+    [performSearch]
+  );
 
-  // Handle adding subject to uncategorized
-  const handleAddSubject = (searchResult: SubjectSearchResult) => {
-    // Check for duplicates
-    if (isSubjectInLab(searchResult.id)) {
-      console.log('Subject already exists in lab:', searchResult.name);
-      return;
-    }
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      debouncedSearch(value);
+    },
+    [debouncedSearch]
+  );
 
-    // Create new LabSubject from search result
-    const newSubject: LabSubject = {
-      id: `subj-${Date.now()}`,
-      subjectId: searchResult.id,
-      subjectName: searchResult.name,
-      subjectSlug: searchResult.slug,
-      addedAt: new Date().toISOString(),
-      addedById: 'current-user', // TODO: Get from auth context
-      notes: searchResult.description,
-    };
-
-    // Add to uncategorized category
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.isDefault
-          ? { ...cat, subjects: [...cat.subjects, newSubject] }
-          : cat
-      )
-    );
-
-    // Clear search
+  const clearSearch = useCallback(() => {
     setSearchQuery('');
-    setShowSearchDropdown(false);
     setSearchResults([]);
-
-    // TODO: Make API call to add subject to lab
-    console.log(`Added "${searchResult.name}" to Uncategorized`);
-  };
-
-  // Handle navigation to full search results
-  const handleGoToSearchResults = () => {
-    // TODO: Navigate to search results page with current query
-    console.log('Navigate to search results for:', searchQuery);
+    setIsSearching(false);
     setShowSearchDropdown(false);
-  };
+    debouncedSearch.cancel();
+  }, [debouncedSearch]);
 
-  // Close search dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const isInsideSearchInput = searchInputRef.current?.contains(target);
-      const isInsideDropdown = searchDropdownRef.current?.contains(target);
-
-      if (!isInsideSearchInput && !isInsideDropdown) {
-        setShowSearchDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
+  return {
+    searchQuery,
+    searchResults,
+    isSearching,
+    showSearchDropdown,
+    setShowSearchDropdown,
+    handleSearchChange,
+    clearSearch,
+  };
+};
+
+/**
+ * Main Gather component - manages lab subjects and categories
+ */
+const Gather: React.FC<GatherProps> = ({ labId }) => {
+  const { toast, toasts, removeToast, executeUndo } = useToast();
+  const [userRole] = useState<'reader' | 'editor' | 'admin'>('editor');
+  const [categories, setCategories] =
+    useState<SubjectCategory[]>(mockCategories);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Category creation state
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  // Search functionality
+  const {
+    searchQuery,
+    searchResults,
+    isSearching,
+    showSearchDropdown,
+    setShowSearchDropdown,
+    handleSearchChange,
+    clearSearch,
+  } = useSubjectSearch();
+
+  // Load initial lab data
+  useEffect(() => {
+    const loadLabData = async () => {
+      setIsLoading(true);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setCategories(mockCategories);
+      } catch (loadError) {
+        console.error('Failed to load lab data:', loadError);
+        toast({
+          title: 'Error loading lab data',
+          description: 'Please refresh the page to try again.',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
-  }, []);
+
+    loadLabData();
+  }, [labId, toast]);
+
+  // Validation for category names
+  const validateCategoryName = useCallback(
+    (name: string): string => {
+      const trimmedName = name.trim();
+      if (!trimmedName) return 'Category name cannot be empty';
+      if (trimmedName.length < 2)
+        return 'Category name must be at least 2 characters';
+      if (trimmedName.length > 50)
+        return 'Category name cannot exceed 50 characters';
+
+      const existingNames = categories.map((cat) => cat.name.toLowerCase());
+      if (existingNames.includes(trimmedName.toLowerCase())) {
+        return 'A category with this name already exists';
+      }
+      return '';
+    },
+    [categories]
+  );
+
+  // Check if subject already exists in lab
+  const isSubjectInLab = useCallback(
+    (subjectId: string): boolean => {
+      return categories.some((category) =>
+        category.subjects.some((subject) => subject.subjectId === subjectId)
+      );
+    },
+    [categories]
+  );
 
   // Handle subject movement between categories
   const handleSubjectMove = useCallback(
-    (subjectId: string, fromCategoryId: string, toCategoryId: string) => {
+    async (subjectId: string, fromCategoryId: string, toCategoryId: string) => {
+      if (userRole === 'reader') {
+        toast({
+          title: 'Permission denied',
+          description: 'You do not have permission to move subjects.',
+          status: 'warning',
+          duration: 3000,
+        });
+        return;
+      }
+
+      const previousCategories = [...categories];
       setCategories((prev) => {
         const newCategories = [...prev];
-
-        // Find the subject to move
         const fromCategory = newCategories.find(
           (cat) => cat.id === fromCategoryId
         );
@@ -899,384 +311,472 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
           subjectIndex >= 0
         ) {
           const subject = fromCategory.subjects[subjectIndex];
-
-          // Remove from source category
           fromCategory.subjects.splice(subjectIndex, 1);
-
-          // Add to target category
           toCategory.subjects.push(subject);
         }
-
         return newCategories;
       });
 
-      // TODO: Make API call to update subject category
-      console.log(
-        `Moved subject ${subjectId} from ${fromCategoryId} to ${toCategoryId}`
-      );
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log(
+          `Moved subject ${subjectId} from ${fromCategoryId} to ${toCategoryId}`
+        );
+      } catch (moveError) {
+        setCategories(previousCategories);
+        toast({
+          title: 'Failed to move subject',
+          description: 'The subject could not be moved. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+        console.error('Failed to move subject:', moveError);
+      }
     },
-    []
+    [userRole, categories, toast]
+  );
+
+  // Handle adding subject to lab
+  const handleAddSubject = useCallback(
+    async (searchResult: SubjectSearchResult) => {
+      if (userRole === 'reader') {
+        toast({
+          title: 'Permission denied',
+          description: 'You do not have permission to add subjects.',
+          status: 'warning',
+          duration: 3000,
+        });
+        return;
+      }
+
+      if (isSubjectInLab(searchResult.id)) {
+        toast({
+          title: 'Subject already exists',
+          description: `"${searchResult.name}" is already in this lab.`,
+          status: 'info',
+          duration: 3000,
+        });
+        return;
+      }
+
+      const newSubject: LabSubject = {
+        id: `subj-${Date.now()}`,
+        subjectId: searchResult.id,
+        subjectName: searchResult.name,
+        subjectSlug: searchResult.slug,
+        addedAt: new Date().toISOString(),
+        addedById: 'current-user',
+        notes: searchResult.description,
+      };
+
+      const previousCategories = [...categories];
+      setCategories((prev) =>
+        prev.map((cat) =>
+          CategoryUtils.isDefault(cat)
+            ? { ...cat, subjects: [...cat.subjects, newSubject] }
+            : cat
+        )
+      );
+
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        clearSearch();
+        toast({
+          title: 'Subject added',
+          description: `"${searchResult.name}" has been added to your lab.`,
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (addError) {
+        setCategories(previousCategories);
+        toast({
+          title: 'Failed to add subject',
+          description: 'The subject could not be added. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+        console.error('Failed to add subject:', addError);
+      }
+    },
+    [userRole, isSubjectInLab, categories, clearSearch, toast]
   );
 
   // Handle category creation
-  const handleCreateCategory = () => {
+  const handleCreateCategory = useCallback(async () => {
     const error = validateCategoryName(newCategoryName);
-
     if (error) {
       setCategoryError(error);
       return;
     }
 
-    const newCategory: SubjectCategory = {
-      id: `cat-${Date.now()}`,
-      name: newCategoryName.trim(),
-      isDefault: false,
-      subjects: [],
-    };
+    setIsCreatingCategory(true);
+    const trimmedName = newCategoryName.trim();
 
-    setCategories((prev) => [...prev, newCategory]);
-    setNewCategoryName('');
-    setCategoryError('');
-    setIsAddCategoryOpen(false);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // TODO: Make API call to create category
-    console.log('Created new category:', newCategory.name);
-  };
+      const newCategory: SubjectCategory = {
+        id: `cat-${Date.now()}`,
+        name: trimmedName,
+        type: 'custom',
+        subjects: [],
+      };
 
-  // Handle dialog close
-  const handleDialogClose = () => {
-    setIsAddCategoryOpen(false);
-    setNewCategoryName('');
-    setCategoryError('');
-  };
+      setCategories((prev) => [...prev, newCategory]);
+      setNewCategoryName('');
+      setCategoryError('');
+      setIsAddCategoryOpen(false);
+
+      toast({
+        title: 'Category created',
+        description: `"${trimmedName}" category has been created.`,
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (createError) {
+      toast({
+        title: 'Failed to create category',
+        description: 'The category could not be created. Please try again.',
+        status: 'error',
+        duration: 5000,
+      });
+      console.error('Failed to create category:', createError);
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  }, [validateCategoryName, newCategoryName, toast]);
 
   // Handle category rename
-  const handleCategoryRename = (categoryId: string, newName: string) => {
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.id === categoryId ? { ...cat, name: newName } : cat
-      )
-    );
+  const handleCategoryRename = useCallback(
+    async (categoryId: string, newName: string) => {
+      const previousCategories = [...categories];
 
-    // TODO: Make API call to rename category
-    console.log(`Renamed category ${categoryId} to ${newName}`);
-  };
-
-  // Handle category deletion
-  const handleCategoryDelete = (
-    categoryId: string,
-    moveSubjectsToUncategorized: boolean
-  ) => {
-    setCategories((prev) => {
-      const newCategories = [...prev];
-      const categoryToDelete = newCategories.find(
-        (cat) => cat.id === categoryId
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId ? { ...cat, name: newName } : cat
+        )
       );
-      const uncategorized = newCategories.find((cat) => cat.isDefault);
 
-      if (categoryToDelete && uncategorized) {
-        if (moveSubjectsToUncategorized) {
-          // Move all subjects to uncategorized
-          uncategorized.subjects.push(...categoryToDelete.subjects);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        toast({
+          title: 'Category renamed',
+          description: `Category has been renamed to "${newName}".`,
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (renameError) {
+        setCategories(previousCategories);
+        toast({
+          title: 'Failed to rename category',
+          description: 'The category could not be renamed. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+        console.error('Failed to rename category:', renameError);
+        throw renameError;
+      }
+    },
+    [categories, toast]
+  );
+
+  // Handle category deletion with undo functionality
+  const handleCategoryDelete = useCallback(
+    async (categoryId: string, moveSubjectsToUncategorized: boolean) => {
+      const previousCategories = [...categories];
+      const categoryToDelete = categories.find((cat) => cat.id === categoryId);
+
+      if (!categoryToDelete) return;
+
+      const deletedCategorySubjects = [...categoryToDelete.subjects];
+
+      setCategories((prev) => {
+        const newCategories = [...prev];
+        const categoryToDelete = newCategories.find(
+          (cat) => cat.id === categoryId
+        );
+        const uncategorized = newCategories.find((cat) =>
+          CategoryUtils.isDefault(cat)
+        );
+
+        if (categoryToDelete && uncategorized) {
+          if (moveSubjectsToUncategorized) {
+            uncategorized.subjects.push(...categoryToDelete.subjects);
+          }
+          return newCategories.filter((cat) => cat.id !== categoryId);
         }
-        // Note: If moveSubjectsToUncategorized is false, subjects are effectively deleted
+        return newCategories;
+      });
 
-        // Remove the category
-        return newCategories.filter((cat) => cat.id !== categoryId);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        toast({
+          title: 'Category deleted',
+          description: moveSubjectsToUncategorized
+            ? `"${categoryToDelete.name}" deleted. ${categoryToDelete.subjects.length} subjects moved to Uncategorized.`
+            : `"${categoryToDelete.name}" and its ${categoryToDelete.subjects.length} subjects deleted.`,
+          status: 'info',
+          undoAction: () => {
+            setCategories((currentCategories) => {
+              const newCategories = [...currentCategories];
+
+              if (moveSubjectsToUncategorized) {
+                const uncategorized = newCategories.find((cat) =>
+                  CategoryUtils.isDefault(cat)
+                );
+                if (uncategorized) {
+                  uncategorized.subjects = uncategorized.subjects.filter(
+                    (subject) =>
+                      !deletedCategorySubjects.some(
+                        (deletedSubject) => deletedSubject.id === subject.id
+                      )
+                  );
+                }
+              }
+
+              const restoredCategory: SubjectCategory = {
+                ...categoryToDelete,
+                subjects: deletedCategorySubjects,
+              };
+
+              return [...newCategories, restoredCategory];
+            });
+
+            toast({
+              title: 'Category restored',
+              description: `"${categoryToDelete.name}" has been restored with all its subjects.`,
+              status: 'success',
+              duration: 3000,
+            });
+          },
+          undoLabel: 'Undo Delete',
+        });
+      } catch (deleteError) {
+        setCategories(previousCategories);
+        toast({
+          title: 'Failed to delete category',
+          description: 'The category could not be deleted. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+        console.error('Failed to delete category:', deleteError);
+        throw deleteError;
+      }
+    },
+    [categories, toast]
+  );
+
+  // Handle subject removal with undo functionality
+  const handleSubjectRemove = useCallback(
+    async (subjectId: string, categoryId: string) => {
+      if (userRole === 'reader') {
+        toast({
+          title: 'Permission denied',
+          description: 'You do not have permission to remove subjects.',
+          status: 'warning',
+          duration: 3000,
+        });
+        return;
       }
 
-      return newCategories;
-    });
+      const previousCategories = [...categories];
+      const category = categories.find((cat) => cat.id === categoryId);
+      const subject = category?.subjects.find((subj) => subj.id === subjectId);
 
-    // TODO: Make API call to delete category
-    console.log(
-      `Deleted category ${categoryId}, moved subjects to uncategorized: ${moveSubjectsToUncategorized}`
-    );
-  };
+      if (!subject) return;
 
-  // Handle subject removal
-  const handleSubjectRemove = (subjectId: string, categoryId: string) => {
-    setCategories((prev) =>
-      prev.map((cat) =>
-        cat.id === categoryId
-          ? {
-              ...cat,
-              subjects: cat.subjects.filter(
-                (subject) => subject.id !== subjectId
-              ),
-            }
-          : cat
-      )
-    );
+      const subjectToRemove = { ...subject };
+      const originalCategoryId = categoryId;
 
-    // TODO: Make API call to remove subject from lab
-    console.log(`Removed subject ${subjectId} from category ${categoryId}`);
-  };
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === categoryId
+            ? {
+                ...cat,
+                subjects: cat.subjects.filter(
+                  (subject) => subject.id !== subjectId
+                ),
+              }
+            : cat
+        )
+      );
 
-  // Handle subject view
-  const handleSubjectView = (subject: LabSubject) => {
-    // TODO: Navigate to subject page
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        toast({
+          title: 'Subject removed',
+          description: `"${subject.subjectName}" removed from ${
+            category?.name || 'the lab'
+          }.`,
+          status: 'info',
+          undoAction: () => {
+            setCategories((currentCategories) => {
+              return currentCategories.map((cat) =>
+                cat.id === originalCategoryId
+                  ? {
+                      ...cat,
+                      subjects: [...cat.subjects, subjectToRemove],
+                    }
+                  : cat
+              );
+            });
+
+            toast({
+              title: 'Subject restored',
+              description: `"${subject.subjectName}" has been restored to ${
+                category?.name || 'the lab'
+              }.`,
+              status: 'success',
+              duration: 3000,
+            });
+          },
+          undoLabel: 'Undo Remove',
+        });
+      } catch (removeError) {
+        setCategories(previousCategories);
+        toast({
+          title: 'Failed to remove subject',
+          description: 'The subject could not be removed. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+        console.error('Failed to remove subject:', removeError);
+      }
+    },
+    [userRole, categories, toast]
+  );
+
+  // Handle subject view and click
+  const handleSubjectView = useCallback((subject: LabSubject) => {
     console.log(`Navigate to subject: /subject/${subject.subjectSlug}`);
-  };
+  }, []);
 
-  // Handle subject click
-  const handleSubjectClick = (subject: LabSubject) => {
-    // TODO: Navigate to subject detail or open subject modal
+  const handleSubjectClick = useCallback((subject: LabSubject) => {
     console.log('Clicked subject:', subject.subjectName);
-  };
+  }, []);
+
+  const handleGoToSearchResults = useCallback(() => {
+    console.log('Navigate to search results for:', searchQuery);
+    setShowSearchDropdown(false);
+  }, [searchQuery, setShowSearchDropdown]);
+
+  const handleSearchFocus = useCallback(() => {
+    if (searchQuery.trim().length > 0) {
+      setShowSearchDropdown(true);
+    }
+  }, [searchQuery, setShowSearchDropdown]);
+
+  const handleCategoryNameChange = useCallback(
+    (value: string) => {
+      setNewCategoryName(value);
+      if (categoryError) {
+        const error = validateCategoryName(value);
+        if (!error) setCategoryError('');
+      }
+    },
+    [categoryError, validateCategoryName]
+  );
+
+  const handleDialogClose = useCallback(() => {
+    setIsAddCategoryOpen(false);
+    setNewCategoryName('');
+    setCategoryError('');
+  }, []);
+
+  // Memoized subject card renderer
+  const renderSubjectCard = useCallback(
+    (subject: LabSubject) => {
+      const categoryId =
+        categories.find((cat) => cat.subjects.some((s) => s.id === subject.id))
+          ?.id || '';
+
+      return (
+        <SubjectCard
+          subject={subject}
+          categoryId={categoryId}
+          onSubjectClick={handleSubjectClick}
+          onSubjectRemove={handleSubjectRemove}
+          onSubjectView={handleSubjectView}
+        />
+      );
+    },
+    [categories, handleSubjectClick, handleSubjectRemove, handleSubjectView]
+  );
+
+  // Early return if loading
+  if (isLoading) {
+    return (
+      <VStack gap={4} align='stretch'>
+        <HStack justify='space-between' align='center'>
+          <Heading as='h2' size='lg'>
+            Subjects
+          </Heading>
+        </HStack>
+        <Flex justify='center' align='center' minH='400px'>
+          <VStack gap={3}>
+            <Spinner size='lg' color='blue.500' />
+            <Text color='gray.500'>Loading lab data...</Text>
+          </VStack>
+        </Flex>
+      </VStack>
+    );
+  }
 
   return (
     <DndProvider backend={HTML5Backend}>
       <VStack gap={4} align='stretch'>
-        {/* Header */}
+        {/* Header with search */}
         <HStack justify='space-between' align='center'>
           <HStack gap={4} flex='1'>
             <Heading as='h2' size='lg'>
               Subjects
             </Heading>
 
-            {/* Subject Search Input */}
-            <Box position='relative' flex='1' maxW='400px'>
-              <Box position='relative'>
-                <Input
-                  ref={searchInputRef}
-                  placeholder='Search and add subjects...'
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInputChange(e.target.value)}
-                  onFocus={handleSearchFocus}
-                  size='md'
-                  bg='gray.700'
-                  borderColor='gray.500'
-                  color='white'
-                  _placeholder={{ color: 'gray.400' }}
-                  _focus={{ borderColor: 'blue.400' }}
-                  pr={searchQuery.length > 0 ? '40px' : '12px'}
-                />
-
-                {/* Clear button */}
-                {searchQuery.length > 0 && (
-                  <IconButton
-                    position='absolute'
-                    right='8px'
-                    top='50%'
-                    transform='translateY(-50%)'
-                    size='xs'
-                    variant='ghost'
-                    aria-label='Clear search'
-                    onClick={handleClearSearch}
-                    color='gray.400'
-                    _hover={{ color: 'gray.200' }}
-                  >
-                    <FiX size={14} />
-                  </IconButton>
-                )}
-              </Box>
-
-              {/* Search Results Dropdown */}
-              {showSearchDropdown && (
-                <Box
-                  ref={searchDropdownRef}
-                  position='absolute'
-                  top='100%'
-                  left='0'
-                  right='0'
-                  mt={1}
-                  bg='gray.800'
-                  border='1px solid'
-                  borderColor='gray.600'
-                  borderRadius='md'
-                  boxShadow='lg'
-                  zIndex='20'
-                  maxH='300px'
-                  overflowY='auto'
-                >
-                  {/* Go to Search Results Button */}
-                  <Button
-                    w='100%'
-                    variant='ghost'
-                    justifyContent='flex-start'
-                    onClick={handleGoToSearchResults}
-                    color='blue.300'
-                    _hover={{ bg: 'gray.700' }}
-                    borderRadius='0'
-                    borderBottom='1px solid'
-                    borderBottomColor='gray.600'
-                    py={3}
-                  >
-                    <FiSearch size={16} />
-                    <Text ml={2}>
-                      View all search results for "{searchQuery}"
-                    </Text>
-                    <FiExternalLink size={14} />
-                  </Button>
-
-                  {/* Loading State */}
-                  {isSearching && (
-                    <Flex align='center' justify='center' py={4}>
-                      <Spinner size='sm' color='blue.400' />
-                      <Text ml={2} fontSize='sm' color='gray.400'>
-                        Searching...
-                      </Text>
-                    </Flex>
-                  )}
-
-                  {/* Search Results */}
-                  {!isSearching && searchResults.length > 0 && (
-                    <VStack gap={0} align='stretch'>
-                      {searchResults.map((result) => {
-                        const alreadyInLab = isSubjectInLab(result.id);
-
-                        return (
-                          <HStack
-                            key={result.id}
-                            p={3}
-                            _hover={{ bg: 'gray.700' }}
-                            justify='space-between'
-                            opacity={alreadyInLab ? 0.6 : 1}
-                          >
-                            <VStack gap={1} align='stretch' flex='1'>
-                              <HStack gap={2}>
-                                <Text
-                                  fontSize='sm'
-                                  fontWeight='medium'
-                                  color='white'
-                                >
-                                  {result.name}
-                                </Text>
-                                <Box
-                                  bg='blue.600'
-                                  color='white'
-                                  fontSize='xs'
-                                  px={2}
-                                  py={1}
-                                  borderRadius='md'
-                                >
-                                  {result.horizonRanking.toFixed(2)}
-                                </Box>
-                                {alreadyInLab && (
-                                  <Box
-                                    bg='green.600'
-                                    color='white'
-                                    fontSize='xs'
-                                    px={2}
-                                    py={1}
-                                    borderRadius='md'
-                                  >
-                                    In Lab
-                                  </Box>
-                                )}
-                              </HStack>
-                              <Text fontSize='xs' color='gray.400' truncate>
-                                {result.description}
-                              </Text>
-                            </VStack>
-
-                            <Button
-                              size='sm'
-                              variant='ghost'
-                              colorScheme={alreadyInLab ? 'gray' : 'green'}
-                              aria-label={
-                                alreadyInLab
-                                  ? `${result.name} already in lab`
-                                  : `Add ${result.name} to lab`
-                              }
-                              onClick={() => {
-                                if (!alreadyInLab) {
-                                  handleAddSubject(result);
-                                }
-                              }}
-                              color={alreadyInLab ? 'gray.400' : 'green.400'}
-                              _hover={
-                                alreadyInLab
-                                  ? {}
-                                  : { color: 'green.300', bg: 'green.900' }
-                              }
-                              minW='auto'
-                              p={2}
-                              cursor={alreadyInLab ? 'not-allowed' : 'pointer'}
-                              disabled={alreadyInLab}
-                            >
-                              {alreadyInLab ? (
-                                <FiCheck size={16} />
-                              ) : (
-                                <FiPlus size={16} />
-                              )}
-                            </Button>
-                          </HStack>
-                        );
-                      })}
-                    </VStack>
-                  )}
-
-                  {/* No Results */}
-                  {!isSearching &&
-                    searchResults.length === 0 &&
-                    searchQuery.length > 0 && (
-                      <Flex align='center' justify='center' py={4}>
-                        <Text fontSize='sm' color='gray.400'>
-                          No subjects found for "{searchQuery}"
-                        </Text>
-                      </Flex>
-                    )}
-                </Box>
-              )}
-            </Box>
+            <SubjectSearch
+              searchQuery={searchQuery}
+              searchResults={searchResults}
+              isSearching={isSearching}
+              showSearchDropdown={showSearchDropdown}
+              userRole={userRole}
+              isSubjectInLab={isSubjectInLab}
+              onSearchChange={handleSearchChange}
+              onSearchFocus={handleSearchFocus}
+              onClearSearch={clearSearch}
+              onAddSubject={handleAddSubject}
+              onGoToSearchResults={handleGoToSearchResults}
+              setShowSearchDropdown={setShowSearchDropdown}
+            />
           </HStack>
 
+          {/* Action buttons */}
           <HStack gap={3}>
-            <Button
-              size='md'
-              colorScheme='blue'
-              variant='outline'
-              onClick={() => setIsAddCategoryOpen(true)}
-            >
-              <FiPlus size={16} />
-              New Category
-            </Button>
+            {userRole !== 'reader' && (
+              <Button
+                size='md'
+                colorScheme='blue'
+                variant='outline'
+                onClick={() => setIsAddCategoryOpen(true)}
+                disabled={isLoading}
+              >
+                <FiPlus size={16} />
+                New Category
+              </Button>
+            )}
           </HStack>
         </HStack>
 
-        {/* Kanban Board - Horizontal Scrolling Categories with Scroll Shadows */}
-        <Box position='relative' w='100%' pt={2}>
-          {/* Left scroll shadow */}
-          {scrollShadows.left && (
-            <Box
-              position='absolute'
-              left='0'
-              top='0'
-              bottom='0'
-              width='20px'
-              background='linear-gradient(to right, rgba(0,0,0,0.15), transparent)'
-              zIndex='10'
-              pointerEvents='none'
-            />
-          )}
-
-          {/* Right scroll shadow */}
-          {scrollShadows.right && (
-            <Box
-              position='absolute'
-              right='0'
-              top='0'
-              bottom='0'
-              width='20px'
-              background='linear-gradient(to left, rgba(0,0,0,0.15), transparent)'
-              zIndex='10'
-              pointerEvents='none'
-            />
-          )}
-
+        {/* Kanban Board */}
+        <Box position='relative' w='100%'>
           <Box
-            ref={scrollContainerRef}
             w='100%'
             overflowX='auto'
             overflowY='hidden'
             pb={4}
             pt={2}
             css={{
-              '&::-webkit-scrollbar': {
-                height: '8px',
-              },
+              '&::-webkit-scrollbar': { height: '8px' },
               '&::-webkit-scrollbar-track': {
                 background: '#2d3748',
                 borderRadius: '4px',
@@ -1298,37 +798,39 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
                   onSubjectMove={handleSubjectMove}
                   onCategoryRename={handleCategoryRename}
                   onCategoryDelete={handleCategoryDelete}
-                  onSubjectClick={handleSubjectClick}
-                  onSubjectRemove={handleSubjectRemove}
-                  onSubjectView={handleSubjectView}
+                  renderSubjectCard={renderSubjectCard}
+                  isLoading={isLoading}
+                  userRole={userRole}
                 />
               ))}
 
               {/* Add New Category Column */}
-              <Box
-                minW='280px'
-                maxW='320px'
-                h='200px'
-                border='2px dashed'
-                borderColor='gray.400'
-                borderRadius='md'
-                display='flex'
-                alignItems='center'
-                justifyContent='center'
-                cursor='pointer'
-                _hover={{ borderColor: 'blue.400', bg: 'gray.50' }}
-                onClick={() => setIsAddCategoryOpen(true)}
-                transition='all 0.2s'
-              >
-                <VStack gap={2}>
-                  <Box color='gray.400'>
-                    <FiPlus size={24} />
-                  </Box>
-                  <Text color='gray.500' fontSize='sm' fontWeight='medium'>
-                    Add Category
-                  </Text>
-                </VStack>
-              </Box>
+              {userRole !== 'reader' && (
+                <Box
+                  minW='280px'
+                  maxW='320px'
+                  h='200px'
+                  border='2px dashed'
+                  borderColor='gray.400'
+                  borderRadius='md'
+                  display='flex'
+                  alignItems='center'
+                  justifyContent='center'
+                  cursor='pointer'
+                  _hover={{ borderColor: 'blue.400', bg: 'gray.50' }}
+                  onClick={() => setIsAddCategoryOpen(true)}
+                  transition='all 0.2s'
+                >
+                  <VStack gap={2}>
+                    <Box color='gray.400'>
+                      <FiPlus size={24} />
+                    </Box>
+                    <Text color='gray.500' fontSize='sm' fontWeight='medium'>
+                      Add Category
+                    </Text>
+                  </VStack>
+                </Box>
+              )}
             </HStack>
           </Box>
         </Box>
@@ -1356,11 +858,10 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
                       onChange={(e) => handleCategoryNameChange(e.target.value)}
                       placeholder='Enter category name...'
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleCreateCategory();
-                        }
+                        if (e.key === 'Enter') handleCreateCategory();
                       }}
                       autoFocus
+                      disabled={isCreatingCategory}
                     />
                     {categoryError && (
                       <Field.ErrorText fontSize='sm'>
@@ -1373,13 +874,21 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
 
               <Dialog.Footer>
                 <HStack gap={3}>
-                  <Button variant='outline' onClick={handleDialogClose}>
+                  <Button
+                    variant='outline'
+                    onClick={handleDialogClose}
+                    disabled={isCreatingCategory}
+                  >
                     Cancel
                   </Button>
                   <Button
                     colorScheme='blue'
                     onClick={handleCreateCategory}
-                    disabled={!!categoryError || !newCategoryName.trim()}
+                    disabled={
+                      !!categoryError ||
+                      !newCategoryName.trim() ||
+                      isCreatingCategory
+                    }
                   >
                     Create Category
                   </Button>
@@ -1388,6 +897,13 @@ const Gather: React.FC<GatherProps> = ({ labId: _labId }) => {
             </Dialog.Content>
           </Dialog.Positioner>
         </Dialog.Root>
+
+        {/* Toast Container */}
+        <ToastDisplay
+          toasts={toasts}
+          onRemove={removeToast}
+          onUndo={executeUndo}
+        />
       </VStack>
     </DndProvider>
   );

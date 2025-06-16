@@ -1,3 +1,11 @@
+// ============================================================================
+// Lab-related Types
+// ============================================================================
+
+/**
+ * Main lab interface
+ * TODO: Confirm exact structure with backend team
+ */
 export interface Lab {
   id: string;
   name: string;
@@ -9,18 +17,30 @@ export interface Lab {
   memberIds: string[];
   subjects: LabSubject[];
   analyses: LabAnalysis[];
+  // TODO: Add categories field once backend structure is confirmed
+  // categories?: SubjectCategory[];
 }
 
+/**
+ * Subject within a lab context
+ * NOTE: This represents a subject that has been added to a specific lab
+ */
 export interface LabSubject {
-  id: string;
-  subjectId: string;
+  id: string; // Unique ID for this lab-subject relationship
+  subjectId: string; // Reference to the actual subject in 'fst-subject' collection
   subjectName: string;
   subjectSlug: string;
   addedAt: string; // ISO date string
   addedById: string;
-  notes?: string;
+  notes?: string; // Optional notes specific to this lab
+  // TODO: Confirm if categoryId is stored here or in category documents
+  // categoryId?: string;
 }
 
+/**
+ * Lab analysis/project
+ * TODO: Determine if this is used in the Gather component
+ */
 export interface LabAnalysis {
   id: string;
   title: string;
@@ -34,100 +54,327 @@ export interface LabAnalysis {
   tags: string[];
 }
 
+/**
+ * Lab member with role information
+ * Used for permission checking in the UI
+ */
 export interface LabMember {
   id: string;
   userId: string;
   userName: string;
   userEmail: string;
-  role: 'Owner' | 'Admin' | 'Member' | 'Viewer';
+  role: 'reader' | 'editor' | 'admin'; // NOTE: Different from backend which uses 'Owner' | 'Admin' | 'Member' | 'Viewer'
   joinedAt: string; // ISO date string
   invitedById?: string;
 }
 
-export interface LabSettings {
-  visibility: 'Private' | 'Internal' | 'Public';
-  allowMemberInvites: boolean;
-  allowSubjectAddition: boolean;
-  allowAnalysisCreation: boolean;
-  defaultAnalysisStatus: LabAnalysis['status'];
-  notifications: {
-    newMembers: boolean;
-    newSubjects: boolean;
-    newAnalyses: boolean;
-    analysisUpdates: boolean;
-  };
+// ============================================================================
+// Subject Search Types
+// ============================================================================
+
+/**
+ * Search result from the 'fst-subject' MongoDB collection
+ * This represents subjects available to add to labs
+ */
+export interface SubjectSearchResult {
+  id: string; // Subject ID in the database
+  name: string;
+  slug: string;
+  description: string;
+  horizonRanking: number; // Numerical ranking/score for the subject
+  // TODO: Add any other fields returned by the search API
 }
 
+// ============================================================================
+// Category Types (Frontend Organization)
+// ============================================================================
+
+/**
+ * Category type enumeration for special handling
+ */
+export type CategoryType = 'default' | 'exclude' | 'custom';
+
+/**
+ * Subject category for organizing subjects within a lab
+ * TODO: Confirm if this structure matches backend category documents
+ */
+export interface SubjectCategory {
+  id: string;
+  name: string;
+  type: CategoryType; // Replaces isDefault boolean for more flexibility
+  subjects: LabSubject[]; // Subjects in this category
+  description?: string; // Optional description for special categories
+  // TODO: Add labId reference if categories are separate documents
+  // labId?: string;
+  // TODO: Add order/position field for custom sorting
+  // order?: number;
+}
+
+// ============================================================================
+// API Request/Response Types
+// ============================================================================
+
+/**
+ * Lab update request payload
+ * TODO: Update based on actual GraphQL mutation schema
+ */
 export interface LabUpdateRequest {
   name: string;
   description: string;
 }
 
+/**
+ * Lab creation request payload
+ * TODO: Update based on actual GraphQL mutation schema
+ */
 export interface LabCreateRequest {
   name: string;
   description: string;
-  visibility: LabSettings['visibility'];
+  visibility: 'Private' | 'Internal' | 'Public';
 }
 
-export interface LabInviteRequest {
-  email: string;
-  role: LabMember['role'];
-  message?: string;
+/**
+ * Subject addition request
+ * TODO: Define based on actual API structure
+ */
+export interface AddSubjectToLabRequest {
+  labId: string;
+  subjectId: string;
+  categoryId?: string; // Optional, defaults to "uncategorized"
+  notes?: string;
 }
 
+/**
+ * Subject movement request
+ * TODO: Define based on actual API structure
+ */
+export interface MoveSubjectRequest {
+  labId: string;
+  subjectId: string;
+  newCategoryId: string;
+}
+
+/**
+ * Category creation request
+ * TODO: Define based on actual API structure
+ */
+export interface CreateCategoryRequest {
+  labId: string;
+  name: string;
+}
+
+/**
+ * Category update request
+ * TODO: Define based on actual API structure
+ */
+export interface UpdateCategoryRequest {
+  labId: string;
+  categoryId: string;
+  name?: string;
+  // TODO: Add other updatable fields
+}
+
+/**
+ * Category deletion request
+ * TODO: Define based on actual API structure
+ */
+export interface DeleteCategoryRequest {
+  labId: string;
+  categoryId: string;
+  moveSubjectsToUncategorized: boolean;
+}
+
+// ============================================================================
+// GraphQL Response Types
+// ============================================================================
+
+/**
+ * Standard GraphQL response wrapper
+ * TODO: Update based on actual GraphQL schema
+ */
+export interface GraphQLResponse<T> {
+  data?: T;
+  errors?: Array<{
+    message: string;
+    path?: string[];
+    extensions?: Record<string, any>;
+  }>;
+}
+
+/**
+ * Lab query response
+ * TODO: Update based on actual GraphQL schema
+ */
 export interface LabQueryResult {
   lab: Lab;
 }
 
-export interface LabsQueryResult {
-  labs: Lab[];
-  total: number;
+/**
+ * Subject search query response
+ * TODO: Update based on actual GraphQL schema
+ */
+export interface SubjectSearchQueryResult {
+  searchSubjects: SubjectSearchResult[];
 }
 
-export interface LabMembersQueryResult {
-  labMembers: LabMember[];
-  total: number;
+/**
+ * Mutation response for lab operations
+ * TODO: Update based on actual GraphQL schema
+ */
+export interface LabMutationResult {
+  success: boolean;
+  message: string;
+  lab?: Lab;
 }
 
-export interface LabSettingsQueryResult {
-  labSettings: LabSettings;
+/**
+ * Mutation response for subject operations
+ * TODO: Update based on actual GraphQL schema
+ */
+export interface SubjectMutationResult {
+  success: boolean;
+  message: string;
+  subject?: LabSubject;
 }
 
-export interface UpdateLabResult {
-  updateLab: {
-    success: boolean;
-    message: string;
-    lab?: Lab;
-  };
+/**
+ * Mutation response for category operations
+ * TODO: Update based on actual GraphQL schema
+ */
+export interface CategoryMutationResult {
+  success: boolean;
+  message: string;
+  category?: SubjectCategory;
 }
 
-export interface CreateLabResult {
-  createLab: {
-    success: boolean;
-    message: string;
-    lab?: Lab;
-  };
+// ============================================================================
+// Drag and Drop Types (react-dnd)
+// ============================================================================
+
+/**
+ * Drag item interface for react-dnd
+ * Used in the kanban board for subject movement
+ */
+export interface DragItem {
+  type: string;
+  id: string;
+  columnId: string;
 }
 
-export interface InviteToLabResult {
-  inviteToLab: {
-    success: boolean;
-    message: string;
-  };
+// ============================================================================
+// Form Validation Types
+// ============================================================================
+
+/**
+ * Category name validation result
+ */
+export interface CategoryValidation {
+  isValid: boolean;
+  error?: string;
 }
 
-export interface AddSubjectToLabResult {
-  addSubjectToLab: {
-    success: boolean;
-    message: string;
-    labSubject?: LabSubject;
-  };
+/**
+ * Search input validation
+ */
+export interface SearchValidation {
+  isValid: boolean;
+  minLength: number;
+  maxLength: number;
 }
 
-export interface CreateAnalysisResult {
-  createAnalysis: {
-    success: boolean;
-    message: string;
-    analysis?: LabAnalysis;
-  };
+// ============================================================================
+// Permission Types
+// ============================================================================
+
+/**
+ * User permissions within a lab
+ */
+export interface LabPermissions {
+  canView: boolean;
+  canAddSubjects: boolean;
+  canRemoveSubjects: boolean;
+  canMoveSubjects: boolean;
+  canCreateCategories: boolean;
+  canEditCategories: boolean;
+  canDeleteCategories: boolean;
+  canEditLab: boolean;
+  canManageMembers: boolean;
 }
+
+// ============================================================================
+// Error Types
+// ============================================================================
+
+/**
+ * API error response
+ * TODO: Update based on actual error response structure
+ */
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: Record<string, any>;
+}
+
+/**
+ * Validation error for forms
+ */
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+// ============================================================================
+// Loading State Types
+// ============================================================================
+
+/**
+ * Loading states for different operations
+ */
+export interface LoadingStates {
+  lab: boolean;
+  subjects: boolean;
+  categories: boolean;
+  search: boolean;
+  addSubject: boolean;
+  moveSubject: boolean;
+  createCategory: boolean;
+  updateCategory: boolean;
+  deleteCategory: boolean;
+}
+
+// ============================================================================
+// Utility Types
+// ============================================================================
+
+/**
+ * Partial update type for optimistic updates
+ */
+export type PartialUpdate<T> = Partial<T> & { id: string };
+
+/**
+ * Async operation result
+ */
+export interface AsyncResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+// ============================================================================
+// Helper Functions for Category Types
+// ============================================================================
+
+/**
+ * Type guards and utility functions for working with category types
+ */
+export const CategoryUtils = {
+  isDefault: (category: SubjectCategory): boolean =>
+    category.type === 'default',
+  isExclude: (category: SubjectCategory): boolean =>
+    category.type === 'exclude',
+  isCustom: (category: SubjectCategory): boolean => category.type === 'custom',
+  isSpecial: (category: SubjectCategory): boolean =>
+    category.type === 'default' || category.type === 'exclude',
+  canDelete: (category: SubjectCategory): boolean => category.type === 'custom',
+  canRename: (category: SubjectCategory): boolean => category.type === 'custom',
+};

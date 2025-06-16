@@ -19,6 +19,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { Lab as LabType, LabUpdateRequest } from './types';
 import Gather from './Gather';
+import Analyze from './Analyze';
+import Forecast from './Forecast';
+import Invent from './Invent';
 
 const Lab: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -282,56 +285,11 @@ const Lab: React.FC = () => {
 
         {activeTab === 'gather' && <Gather labId={lab.id} />}
 
-        {activeTab === 'analyze' && (
-          <Box>
-            {/* TODO: Create Analyze component */}
-            <Card.Root>
-              <Card.Body p={6}>
-                <Heading as='h2' size='lg' mb={4}>
-                  Analyze
-                </Heading>
-                <Text color='gray.600'>
-                  Analyze content will go here. This should handle data analysis
-                  and insights.
-                </Text>
-              </Card.Body>
-            </Card.Root>
-          </Box>
-        )}
+        {activeTab === 'analyze' && <Analyze labId={lab.id} />}
 
-        {activeTab === 'forecast' && (
-          <Box>
-            {/* TODO: Create Forecast component */}
-            <Card.Root>
-              <Card.Body p={6}>
-                <Heading as='h2' size='lg' mb={4}>
-                  Forecast
-                </Heading>
-                <Text color='gray.600'>
-                  Forecast content will go here. This should handle predictive
-                  analysis and forecasting.
-                </Text>
-              </Card.Body>
-            </Card.Root>
-          </Box>
-        )}
+        {activeTab === 'forecast' && <Forecast labId={lab.id} />}
 
-        {activeTab === 'invent' && (
-          <Box>
-            {/* TODO: Create Invent component */}
-            <Card.Root>
-              <Card.Body p={6}>
-                <Heading as='h2' size='lg' mb={4}>
-                  Invent
-                </Heading>
-                <Text color='gray.600'>
-                  Invent content will go here. This should handle innovation and
-                  ideation tools.
-                </Text>
-              </Card.Body>
-            </Card.Root>
-          </Box>
-        )}
+        {activeTab === 'invent' && <Invent labId={lab.id} />}
       </Box>
 
       {/* Edit Dialog */}
@@ -403,12 +361,6 @@ const Lab: React.FC = () => {
           </Dialog.Content>
         </Dialog.Positioner>
       </Dialog.Root>
-
-      {/* TODO: Add additional lab content sections */}
-      {/* TODO: Add subjects section */}
-      {/* TODO: Add analyses section */}
-      {/* TODO: Add members section */}
-      {/* TODO: Add activity feed */}
     </Box>
   );
 };
