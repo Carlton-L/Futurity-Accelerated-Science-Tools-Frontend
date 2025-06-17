@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -19,6 +19,7 @@ import CardScroller from '../../components/shared/CardScroller';
 import TrendsChart from './TrendsChart';
 import ForecastChart from './ForecastChart';
 import RelatedDocuments from '../../components/shared/RelatedDocuments';
+import { usePage } from '../../context/PageContext';
 
 // TypeScript interfaces
 // TODO: Move interfaces to separate types file when project grows
@@ -49,6 +50,7 @@ interface SubjectStats {
 }
 
 interface Subject {
+  id: string; // Added id field for PageContext
   name: string;
   description: string;
   horizonRanking: number;
@@ -84,6 +86,7 @@ const NetworkGraph: React.FC = () => {
 };
 
 const Subject: React.FC = () => {
+  const { setPageContext, clearPageContext } = usePage();
   const [subject, setSubject] = useState<Subject | null>(null);
   const [isInWhiteboard, setIsInWhiteboard] = useState<boolean>(false); // TODO: Initialize from API/context to check if subject is already in whiteboard
   const [loading, setLoading] = useState<boolean>(true);
@@ -97,6 +100,30 @@ const Subject: React.FC = () => {
     useState<string>('most-recent');
   const [analysisFilterText, setAnalysisFilterText] = useState<string>('');
 
+  // Memoize the page context to prevent infinite re-renders
+  const subjectPageContext = useMemo(() => {
+    if (!subject) return null;
+
+    return {
+      pageType: 'subject' as const,
+      pageTitle: `Subject: ${subject.name}`,
+      subject: {
+        id: subject.id,
+        name: subject.name,
+        title: subject.name,
+      },
+    };
+  }, [subject]);
+
+  // Set up page context when subject data is loaded
+  useEffect(() => {
+    if (subjectPageContext) {
+      setPageContext(subjectPageContext);
+    }
+
+    return () => clearPageContext();
+  }, [setPageContext, clearPageContext, subjectPageContext]);
+
   // TODO: Replace with actual data fetching from API
   useEffect(() => {
     const fetchSubjectData = async (): Promise<void> => {
@@ -104,6 +131,7 @@ const Subject: React.FC = () => {
       setTimeout(() => {
         // TODO: Replace mock data with actual API response
         setSubject({
+          id: 'artificial-intelligence-001', // Added ID for PageContext
           name: 'Artificial Intelligence',
           description:
             'Artificial Intelligence (AI) refers to the simulation of human intelligence in machines that are programmed to think and learn like humans. The term may also be applied to any machine that exhibits traits associated with a human mind such as learning and problem-solving.',

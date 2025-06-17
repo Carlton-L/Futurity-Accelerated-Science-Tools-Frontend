@@ -39,6 +39,7 @@ export interface WhiteboardDraft {
   name: string;
   description?: string;
   subjects: WhiteboardSubject[];
+  terms: string[];
 
   // AI-generated taxonomy and insights
   aiTaxonomy?: {
@@ -354,10 +355,6 @@ export const generateTaxonomySuggestions = (
 
   // Mock AI logic based on subject keywords
   const keywords = subjects.flatMap((s) => s.name.toLowerCase().split(' '));
-  const keywordCounts = keywords.reduce((acc, word) => {
-    acc[word] = (acc[word] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
 
   // Simple heuristics for demonstration
   if (

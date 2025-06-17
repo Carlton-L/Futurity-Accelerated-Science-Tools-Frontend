@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -17,7 +17,9 @@ import {
 import { FiEdit, FiSave, FiX, FiSettings } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { usePage } from '../../context/PageContext';
 import type { Lab as LabType, LabUpdateRequest } from './types';
+import type { LabTab } from '../../context/PageContext/pageTypes';
 import Gather from './Gather';
 import Analyze from './Analyze';
 import Forecast from './Forecast';
@@ -27,6 +29,7 @@ const Lab: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { setPageContext, clearPageContext } = usePage();
 
   const [lab, setLab] = useState<LabType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -40,8 +43,33 @@ const Lab: React.FC = () => {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<LabTab>('dashboard');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+
+  // Memoize the page context to prevent infinite re-renders
+  const labPageContext = useMemo(() => {
+    if (!lab) return null;
+
+    return {
+      pageType: 'lab' as const,
+      pageTitle: `Lab: ${lab.name}`,
+      lab: {
+        id: lab.id,
+        name: lab.name,
+        title: lab.name,
+      },
+      currentTab: activeTab,
+    };
+  }, [lab, activeTab]);
+
+  // Set up page context when lab data is loaded or tab changes
+  useEffect(() => {
+    if (labPageContext) {
+      setPageContext(labPageContext);
+    }
+
+    return () => clearPageContext();
+  }, [setPageContext, clearPageContext, labPageContext]);
 
   // TODO: Replace with actual API call to fetch lab data
   useEffect(() => {
@@ -164,6 +192,21 @@ const Lab: React.FC = () => {
     navigate(`/lab/${id}/admin`);
   };
 
+  // Handle tab change with proper typing
+  const handleTabChange = (value: string): void => {
+    // Validate that the value is a valid LabTab
+    const validTabs: LabTab[] = [
+      'dashboard',
+      'gather',
+      'analyze',
+      'forecast',
+      'invent',
+    ];
+    if (validTabs.includes(value as LabTab)) {
+      setActiveTab(value as LabTab);
+    }
+  };
+
   // TODO: Add error handling for failed API calls
   if (loading) {
     return (
@@ -250,7 +293,7 @@ const Lab: React.FC = () => {
           <Card.Body p={4}>
             <Tabs.Root
               value={activeTab}
-              onValueChange={(details) => setActiveTab(details.value)}
+              onValueChange={(details) => handleTabChange(details.value)}
             >
               <Tabs.List>
                 <Tabs.Trigger value='dashboard'>Dashboard</Tabs.Trigger>

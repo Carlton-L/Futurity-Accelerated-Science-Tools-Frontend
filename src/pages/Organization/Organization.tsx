@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -12,8 +12,9 @@ import {
 } from '@chakra-ui/react';
 import { FiExternalLink } from 'react-icons/fi';
 import CardScroller from '../../components/shared/CardScroller';
-// import TrendsChart from './TrendsChart';
-// import ForecastChart from './ForecastChart';
+import TrendsChart from './TrendsChart';
+import ForecastChart from './ForecastChart';
+import { usePage } from '../../context/PageContext';
 
 // TypeScript interfaces
 // TODO: Move interfaces to separate types file when project grows
@@ -42,6 +43,7 @@ interface FinancialMetrics {
 }
 
 interface Organization {
+  id: string; // Added id field for PageContext
   name: string;
   description: string;
   sector: string;
@@ -104,6 +106,7 @@ const FinancialChart: React.FC<{
 };
 
 const Organization: React.FC = () => {
+  const { setPageContext, clearPageContext } = usePage();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -116,6 +119,30 @@ const Organization: React.FC = () => {
     useState<string>('most-recent');
   const [analysisFilterText, setAnalysisFilterText] = useState<string>('');
 
+  // Memoize the page context to prevent infinite re-renders
+  const organizationPageContext = useMemo(() => {
+    if (!organization) return null;
+
+    return {
+      pageType: 'organization' as const,
+      pageTitle: `Organization: ${organization.name}`,
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        title: organization.name,
+      },
+    };
+  }, [organization]);
+
+  // Set up page context when organization data is loaded
+  useEffect(() => {
+    if (organizationPageContext) {
+      setPageContext(organizationPageContext);
+    }
+
+    return () => clearPageContext();
+  }, [setPageContext, clearPageContext, organizationPageContext]);
+
   // TODO: Replace with actual data fetching from API
   useEffect(() => {
     const fetchOrganizationData = async (): Promise<void> => {
@@ -123,6 +150,7 @@ const Organization: React.FC = () => {
       setTimeout(() => {
         // TODO: Replace mock data with actual API response
         setOrganization({
+          id: 'apple-inc-001', // Added ID for PageContext
           name: 'Apple Inc.',
           description:
             'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, a line of smartphones; Mac, a line of personal computers; iPad, a line of multi-purpose tablets; and wearables, home, and accessories comprising AirPods, Apple TV, Apple Watch, Beats products, and HomePod. It also provides AppleCare support and cloud services; and operates various platforms, including the App Store that allow customers to discover and download applications and digital content, such as books, music, video, games, and podcasts, as well as advertising services include third-party licensing arrangements and its own advertising platforms. In addition, the company offers various subscription-based services, such as Apple Arcade, a game subscription service; Apple Fitness+, a personalized fitness service; Apple Music, which offers users a curated listening experience with on-demand radio stations; Apple News+, a subscription news and magazine service; Apple TV+, which offers exclusive original content; Apple Card, a co-branded credit card; and Apple Pay, a cashless payment service, as well as licenses its intellectual property. The company serves consumers, and small and mid-sized businesses; and the education, enterprise, and government markets. It distributes third-party applications for its products through the App Store. The company also sells its products through its retail and online stores, and direct sales force; and third-party cellular network carriers, wholesalers, retailers, and resellers. Apple Inc. was founded in 1976 and is headquartered in Cupertino, California.',
@@ -691,6 +719,12 @@ const Organization: React.FC = () => {
           </Card.Body>
         </Card.Root>
       </HStack>
+
+      {/* Trends Chart */}
+      <TrendsChart organizationSlug='apple-inc' />
+
+      {/* Forecast Analysis Chart */}
+      <ForecastChart organizationSlug='apple-inc' />
     </Box>
   );
 };

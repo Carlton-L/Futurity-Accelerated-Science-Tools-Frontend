@@ -23,6 +23,7 @@ import {
   Textarea,
   Field,
   Spinner,
+  Separator,
 } from '@chakra-ui/react';
 import { Progress } from '@chakra-ui/react';
 import {
@@ -57,6 +58,8 @@ import {
 
 // Import visualization components
 import { ListView } from './visualizations';
+
+import { usePage } from '../../context/PageContext';
 
 // Mock data
 const mockSubjects: WhiteboardSubject[] = [
@@ -196,6 +199,7 @@ const DraggableSubjectCard: React.FC<{
   showQuickAdd?: boolean;
   onRemove?: (subjectId: string) => void;
   onQuickAdd?: (subjectId: string) => void;
+  onRemoveFromWhiteboard?: (subjectId: string) => void;
 }> = ({
   subject,
   sourceType,
@@ -203,6 +207,7 @@ const DraggableSubjectCard: React.FC<{
   showQuickAdd,
   onRemove,
   onQuickAdd,
+  onRemoveFromWhiteboard,
 }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: ItemTypes.SUBJECT,
@@ -273,6 +278,16 @@ const DraggableSubjectCard: React.FC<{
                     >
                       <FiPlus size={14} />
                       Quick Add to Draft
+                    </Menu.Item>
+                  )}
+                  {onRemoveFromWhiteboard && (
+                    <Menu.Item
+                      value='removeFromWhiteboard'
+                      onClick={() => onRemoveFromWhiteboard(subject.id)}
+                      color='red.600'
+                    >
+                      <FiTrash2 size={14} />
+                      Delete from Whiteboard
                     </Menu.Item>
                   )}
                   {onRemove && (
@@ -384,24 +399,38 @@ const DroppableDraftArea: React.FC<{
     sourceType: 'unpooled' | 'draft',
     sourceDraftId?: string
   ) => void;
-}> = ({ draftId, children, onDrop }) => {
-  const [{ isOver }, drop] = useDrop(() => ({
-    accept: ItemTypes.SUBJECT,
-    drop: (item: DragItem) => {
-      onDrop(item.id, draftId, item.sourceType, item.sourceDraftId);
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
+  existingSubjectIds: string[];
+}> = ({ draftId, children, onDrop, existingSubjectIds }) => {
+  const [{ isOver, canDrop }, drop] = useDrop(
+    () => ({
+      accept: ItemTypes.SUBJECT,
+      drop: (item: DragItem) => {
+        // Check if subject already exists in this draft
+        if (existingSubjectIds.includes(item.id)) {
+          return; // Don't allow drop
+        }
+        onDrop(item.id, draftId, item.sourceType, item.sourceDraftId);
+      },
+      canDrop: (item: DragItem) => {
+        // Don't allow dropping if subject already exists in this draft
+        return !existingSubjectIds.includes(item.id);
+      },
+      collect: (monitor) => ({
+        isOver: monitor.isOver(),
+        canDrop: monitor.canDrop(),
+      }),
     }),
-  }));
+    [existingSubjectIds]
+  );
 
   return (
     <Box
       ref={drop}
-      bg={isOver ? 'blue.50' : 'transparent'}
+      bg={isOver ? (canDrop ? 'blue.50' : 'red.50') : 'transparent'}
       borderRadius='md'
       transition='background-color 0.2s'
       minH='200px'
+      cursor={isOver && !canDrop ? 'not-allowed' : 'default'}
     >
       {children}
     </Box>
@@ -410,11 +439,14 @@ const DroppableDraftArea: React.FC<{
 
 // Main Whiteboard Component
 const Whiteboard: React.FC = () => {
+  // Page Context
+  const { setPageContext, clearPageContext } = usePage();
+
   // State management
-  const [unassignedSubjects, setUnassignedSubjects] = useState<
+  const [availableSubjects, setAvailableSubjects] = useState<
     WhiteboardSubject[]
   >(
-    mockSubjects.slice(0, 3) // Start with some unassigned
+    mockSubjects // Include all mock subjects in available
   );
   const [drafts, setDrafts] = useState<WhiteboardDraft[]>([
     {
@@ -433,21 +465,36 @@ const Whiteboard: React.FC = () => {
       updatedAt: '2024-03-15T14:20:00Z',
       createdById: 'user-1',
       isPublished: false,
+      terms: ['something'],
     },
   ]);
 
   const [selectedVisualization, setSelectedVisualization] = useState<
     Record<string, VisualizationType>
   >({});
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SubjectSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  // Filter and sort states for Available Subjects
+  const [sortMethod, setSortMethod] = useState<string>('horizon-high');
+  const [filterText, setFilterText] = useState<string>('');
 
   // Dialog states
   const [isCreateDraftOpen, setIsCreateDraftOpen] = useState(false);
   const [newDraftName, setNewDraftName] = useState('');
   const [newDraftDescription, setNewDraftDescription] = useState('');
+
+  // Delete confirmation modal states
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] =
+    useState<WhiteboardSubject | null>(null);
+  const [draftsContainingSubject, setDraftsContainingSubject] = useState<
+    WhiteboardDraft[]
+  >([]);
+
+  // Search states - keeping for future implementation
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SubjectSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
   // Refs
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -456,13 +503,45 @@ const Whiteboard: React.FC = () => {
   // Calculate overall metrics
   const overallMetrics = useMemo((): DraftMetrics => {
     const allSubjects = [
-      ...unassignedSubjects,
+      ...availableSubjects,
       ...drafts.flatMap((d) => d.subjects),
     ];
     return calculateDraftMetrics(allSubjects);
-  }, [unassignedSubjects, drafts]);
+  }, [availableSubjects, drafts]);
 
-  // Search functionality
+  // Filter and sort available subjects
+  const getFilteredAndSortedSubjects = useCallback((): WhiteboardSubject[] => {
+    // Filter by search text
+    const filtered = availableSubjects.filter(
+      (subject) =>
+        subject.name.toLowerCase().includes(filterText.toLowerCase()) ||
+        subject.description.toLowerCase().includes(filterText.toLowerCase())
+    );
+
+    // Sort based on selected method
+    switch (sortMethod) {
+      case 'horizon-high':
+        return filtered.sort((a, b) => b.horizonRank - a.horizonRank);
+      case 'horizon-low':
+        return filtered.sort((a, b) => a.horizonRank - b.horizonRank);
+      case 'techTransfer-high':
+        return filtered.sort((a, b) => b.techTransfer - a.techTransfer);
+      case 'techTransfer-low':
+        return filtered.sort((a, b) => a.techTransfer - b.techTransfer);
+      case 'whiteSpace-high':
+        return filtered.sort((a, b) => b.whiteSpace - a.whiteSpace);
+      case 'whiteSpace-low':
+        return filtered.sort((a, b) => a.whiteSpace - b.whiteSpace);
+      case 'a-z':
+        return filtered.sort((a, b) => a.name.localeCompare(b.name));
+      case 'z-a':
+        return filtered.sort((a, b) => b.name.localeCompare(a.name));
+      default:
+        return filtered;
+    }
+  }, [availableSubjects, filterText, sortMethod]);
+
+  // Search functionality - keeping for future implementation
   const performSearch = useCallback(async (query: string) => {
     setIsSearching(true);
     // Simulate API call
@@ -478,7 +557,7 @@ const Whiteboard: React.FC = () => {
     setIsSearching(false);
   }, []);
 
-  // Handle search input changes
+  // Handle search input changes - keeping for future implementation
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
@@ -493,7 +572,7 @@ const Whiteboard: React.FC = () => {
     [performSearch]
   );
 
-  // Handle clicks outside search dropdown
+  // Handle clicks outside search dropdown - keeping for future implementation
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -507,6 +586,39 @@ const Whiteboard: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Memoize the transformed drafts to prevent recreation on every render
+  const transformedDrafts = useMemo(() => {
+    return drafts.map((draft) => ({
+      id: draft.id,
+      name: draft.name,
+      subjects: draft.subjects.map((subject) => ({
+        id: subject.id,
+        name: subject.name,
+        title: subject.name, // Use name as title if title doesn't exist
+      })),
+      terms: draft.terms.map((termString, index) => ({
+        id: `term-${draft.id}-${index}`, // Generate unique ID
+        name: termString,
+        text: termString, // Use the string as both name and text
+      })),
+    }));
+  }, [drafts]);
+
+  // Memoize the whiteboard context to prevent recreation
+  const whiteboardContext = useMemo(
+    () => ({
+      pageType: 'whiteboard' as const,
+      pageTitle: 'Whiteboard',
+      drafts: transformedDrafts,
+    }),
+    [transformedDrafts]
+  );
+
+  useEffect(() => {
+    setPageContext(whiteboardContext);
+    return () => clearPageContext();
+  }, [setPageContext, clearPageContext, whiteboardContext]);
 
   // Draft management
   const handleCreateDraft = useCallback(() => {
@@ -522,6 +634,7 @@ const Whiteboard: React.FC = () => {
       updatedAt: new Date().toISOString(),
       createdById: 'current-user',
       isPublished: false,
+      terms: [],
     };
 
     setDrafts((prev) => [...prev, newDraft]);
@@ -539,11 +652,17 @@ const Whiteboard: React.FC = () => {
       sourceDraftId?: string
     ) => {
       if (sourceType === 'unpooled') {
-        // Move from unassigned to draft
-        const subject = unassignedSubjects.find((s) => s.id === subjectId);
+        // Copy from available to draft (don't remove from available)
+        const subject = availableSubjects.find((s) => s.id === subjectId);
         if (!subject) return;
 
-        setUnassignedSubjects((prev) => prev.filter((s) => s.id !== subjectId));
+        // Check if subject already exists in target draft
+        const targetDraft = drafts.find((d) => d.id === targetDraftId);
+        if (targetDraft?.subjects.some((s) => s.id === subjectId)) {
+          // Subject already exists in draft, don't add
+          return;
+        }
+
         setDrafts((prev) =>
           prev.map((draft) =>
             draft.id === targetDraftId
@@ -561,8 +680,18 @@ const Whiteboard: React.FC = () => {
         sourceDraftId &&
         sourceDraftId !== targetDraftId
       ) {
-        // Move between drafts
+        // Move between drafts (existing logic)
         let subjectToMove: WhiteboardSubject | undefined;
+
+        // Check if subject already exists in target draft
+        const targetDraft = drafts.find((d) => d.id === targetDraftId);
+        const sourceDraft = drafts.find((d) => d.id === sourceDraftId);
+        const subject = sourceDraft?.subjects.find((s) => s.id === subjectId);
+
+        if (subject && targetDraft?.subjects.some((s) => s.id === subjectId)) {
+          // Subject already exists in target draft, don't move
+          return;
+        }
 
         setDrafts((prev) =>
           prev.map((draft) => {
@@ -601,10 +730,10 @@ const Whiteboard: React.FC = () => {
         }
       }
     },
-    [unassignedSubjects]
+    [availableSubjects, drafts]
   );
 
-  // Handle adding subject from search
+  // Handle adding subject from search - keeping for future implementation
   const handleAddSubjectFromSearch = useCallback(
     (searchResult: SubjectSearchResult) => {
       const newSubject: WhiteboardSubject = {
@@ -620,12 +749,63 @@ const Whiteboard: React.FC = () => {
         source: 'search',
       };
 
-      setUnassignedSubjects((prev) => [...prev, newSubject]);
+      setAvailableSubjects((prev) => [...prev, newSubject]);
       setSearchQuery('');
       setShowSearchDropdown(false);
     },
     []
   );
+
+  // Handle removing subject from whiteboard entirely
+  const handleRemoveFromWhiteboard = useCallback(
+    (subjectId: string) => {
+      const subject = availableSubjects.find((s) => s.id === subjectId);
+      if (!subject) return;
+
+      // Find which drafts contain this subject
+      const containingDrafts = drafts.filter((draft) =>
+        draft.subjects.some((s) => s.id === subjectId)
+      );
+
+      if (containingDrafts.length > 0) {
+        // Show confirmation modal if subject is in drafts
+        setSubjectToDelete(subject);
+        setDraftsContainingSubject(containingDrafts);
+        setIsDeleteConfirmOpen(true);
+      } else {
+        // Remove directly if not in any drafts
+        setAvailableSubjects((prev) => prev.filter((s) => s.id !== subjectId));
+      }
+    },
+    [availableSubjects, drafts]
+  );
+
+  // Confirm deletion from whiteboard
+  const handleConfirmDelete = useCallback(() => {
+    if (!subjectToDelete) return;
+
+    // Remove from available subjects
+    setAvailableSubjects((prev) =>
+      prev.filter((s) => s.id !== subjectToDelete.id)
+    );
+
+    // Remove from all drafts
+    setDrafts((prev) =>
+      prev.map((draft) => ({
+        ...draft,
+        subjects: draft.subjects.filter((s) => s.id !== subjectToDelete.id),
+        metrics: calculateDraftMetrics(
+          draft.subjects.filter((s) => s.id !== subjectToDelete.id)
+        ),
+        updatedAt: new Date().toISOString(),
+      }))
+    );
+
+    // Reset modal state
+    setIsDeleteConfirmOpen(false);
+    setSubjectToDelete(null);
+    setDraftsContainingSubject([]);
+  }, [subjectToDelete]);
 
   // Handle publishing draft
   const handlePublishDraft = useCallback(
@@ -650,45 +830,37 @@ const Whiteboard: React.FC = () => {
   // Remove subject from draft
   const handleRemoveSubjectFromDraft = useCallback(
     (draftId: string, subjectId: string) => {
-      const draft = drafts.find((d) => d.id === draftId);
-      const subject = draft?.subjects.find((s) => s.id === subjectId);
-
-      if (subject) {
-        // Remove from draft and add back to unassigned
-        setDrafts((prev) =>
-          prev.map((d) =>
-            d.id === draftId
-              ? {
-                  ...d,
-                  subjects: d.subjects.filter((s) => s.id !== subjectId),
-                  metrics: calculateDraftMetrics(
-                    d.subjects.filter((s) => s.id !== subjectId)
-                  ),
-                  updatedAt: new Date().toISOString(),
-                }
-              : d
-          )
-        );
-        setUnassignedSubjects((prev) => [...prev, subject]);
-      }
+      // Simply remove from draft (subject stays in available subjects)
+      setDrafts((prev) =>
+        prev.map((d) =>
+          d.id === draftId
+            ? {
+                ...d,
+                subjects: d.subjects.filter((s) => s.id !== subjectId),
+                metrics: calculateDraftMetrics(
+                  d.subjects.filter((s) => s.id !== subjectId)
+                ),
+                updatedAt: new Date().toISOString(),
+              }
+            : d
+        )
+      );
     },
-    [drafts]
+    []
   );
 
   // Delete draft entirely
-  const handleDeleteDraft = useCallback(
-    (draftId: string) => {
-      const draft = drafts.find((d) => d.id === draftId);
-      if (draft) {
-        // Move all subjects back to unassigned
-        setUnassignedSubjects((prev) => [...prev, ...draft.subjects]);
-        setDrafts((prev) => prev.filter((d) => d.id !== draftId));
-      }
-    },
+  const handleDeleteDraft = useCallback((draftId: string) => {
+    // Just remove the draft (subjects stay in available subjects)
+    setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+  }, []);
+
+  // Update draft AI taxonomy when subjects change
+  const draftSubjectsKey = useMemo(
+    () => drafts.map((d) => d.subjects.map((s) => s.id).join(',')).join('|'),
     [drafts]
   );
 
-  // Update draft AI taxonomy when subjects change
   useEffect(() => {
     setDrafts((prev) =>
       prev.map((draft) => ({
@@ -696,7 +868,7 @@ const Whiteboard: React.FC = () => {
         aiTaxonomy: generateTaxonomySuggestions(draft.subjects),
       }))
     );
-  }, [drafts.map((d) => d.subjects.map((s) => s.id).join(',')).join('|')]);
+  }, [draftSubjectsKey]);
 
   // Draft Card Component
   const DraftCard: React.FC<{ draft: WhiteboardDraft }> = ({ draft }) => {
@@ -705,7 +877,11 @@ const Whiteboard: React.FC = () => {
     return (
       <Card.Root size='lg' variant='outline' minH='450px'>
         <Card.Body p={4}>
-          <DroppableDraftArea draftId={draft.id} onDrop={handleSubjectDrop}>
+          <DroppableDraftArea
+            draftId={draft.id}
+            onDrop={handleSubjectDrop}
+            existingSubjectIds={draft.subjects.map((s) => s.id)}
+          >
             <VStack gap={3} align='stretch'>
               {/* Header */}
               <HStack justify='space-between' align='flex-start'>
@@ -778,29 +954,29 @@ const Whiteboard: React.FC = () => {
               </HStack>
 
               {/* Metrics Summary */}
-              <Box p={2} bg='gray.50' borderRadius='md'>
+              <Box p={2} bg='black' borderRadius='md'>
                 <Grid templateColumns='repeat(4, 1fr)' gap={3} fontSize='xs'>
                   <VStack gap={0}>
-                    <Text color='gray.500'>Avg HR</Text>
-                    <Text fontWeight='bold'>
+                    <Text color='gray.400'>Avg HR</Text>
+                    <Text fontWeight='bold' color='white'>
                       {draft.metrics.avgHorizonRank.toFixed(2)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
-                    <Text color='gray.500'>Avg TT</Text>
-                    <Text fontWeight='bold'>
+                    <Text color='gray.400'>Avg TT</Text>
+                    <Text fontWeight='bold' color='white'>
                       {Math.round(draft.metrics.avgTechTransfer)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
-                    <Text color='gray.500'>Avg WS</Text>
-                    <Text fontWeight='bold'>
+                    <Text color='gray.400'>Avg WS</Text>
+                    <Text fontWeight='bold' color='white'>
                       {Math.round(draft.metrics.avgWhiteSpace)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
-                    <Text color='gray.500'>Innovation</Text>
-                    <Text fontWeight='bold'>
+                    <Text color='gray.400'>Innovation</Text>
+                    <Text fontWeight='bold' color='white'>
                       {Math.round(draft.metrics.innovationPotential)}
                     </Text>
                   </VStack>
@@ -930,31 +1106,76 @@ const Whiteboard: React.FC = () => {
           {/* Header */}
           <Card.Root>
             <Card.Body p={6}>
+              <VStack gap={1} align='start'>
+                <Heading as='h1' size='xl'>
+                  Whiteboard
+                </Heading>
+                <Text color='gray.600'>
+                  Collect snapshots, organize into drafts, and publish to labs
+                </Text>
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+
+          {/* Metrics Overview */}
+          <Card.Root>
+            <Card.Body p={4}>
               <VStack gap={4} align='stretch'>
                 <HStack justify='space-between' align='center'>
-                  <VStack gap={1} align='start'>
-                    <Heading as='h1' size='xl'>
-                      Whiteboard
-                    </Heading>
-                    <Text color='gray.600'>
-                      Collect snapshots, organize into drafts, and publish to
-                      labs
-                    </Text>
-                  </VStack>
-                  <HStack gap={3}>
-                    <Button
-                      colorScheme='blue'
-                      variant='outline'
-                      onClick={() => setIsCreateDraftOpen(true)}
-                    >
-                      <FiPlus size={16} />
-                      New Draft
-                    </Button>
-                  </HStack>
+                  <Text fontWeight='medium'>Overall Metrics</Text>
+                  <Grid
+                    templateColumns='repeat(5, 1fr)'
+                    gap={6}
+                    flex='1'
+                    maxW='600px'
+                  >
+                    <VStack gap={0}>
+                      <Text fontSize='xs' color='gray.500'>
+                        Total Subjects
+                      </Text>
+                      <Text fontWeight='bold'>
+                        {overallMetrics.subjectCount}
+                      </Text>
+                    </VStack>
+                    <VStack gap={0}>
+                      <Text fontSize='xs' color='gray.500'>
+                        Avg Horizon Rank
+                      </Text>
+                      <Text fontWeight='bold'>
+                        {overallMetrics.avgHorizonRank.toFixed(2)}
+                      </Text>
+                    </VStack>
+                    <VStack gap={0}>
+                      <Text fontSize='xs' color='gray.500'>
+                        Avg Tech Transfer
+                      </Text>
+                      <Text fontWeight='bold'>
+                        {Math.round(overallMetrics.avgTechTransfer)}
+                      </Text>
+                    </VStack>
+                    <VStack gap={0}>
+                      <Text fontSize='xs' color='gray.500'>
+                        Avg White Space
+                      </Text>
+                      <Text fontWeight='bold'>
+                        {Math.round(overallMetrics.avgWhiteSpace)}
+                      </Text>
+                    </VStack>
+                    <VStack gap={0}>
+                      <Text fontSize='xs' color='gray.500'>
+                        Innovation Potential
+                      </Text>
+                      <Text fontWeight='bold'>
+                        {Math.round(overallMetrics.innovationPotential)}
+                      </Text>
+                    </VStack>
+                  </Grid>
                 </HStack>
 
-                {/* Search */}
-                <HStack gap={4}>
+                <Separator />
+
+                {/* Search and Actions */}
+                <HStack gap={4} align='center'>
                   <Box position='relative' flex='1' maxW='400px'>
                     <Input
                       ref={searchInputRef}
@@ -1052,81 +1273,92 @@ const Whiteboard: React.FC = () => {
                       </Box>
                     )}
                   </Box>
+
+                  <Button
+                    colorScheme='blue'
+                    variant='outline'
+                    onClick={() => setIsCreateDraftOpen(true)}
+                  >
+                    <FiPlus size={16} />
+                    New Draft
+                  </Button>
                 </HStack>
               </VStack>
             </Card.Body>
           </Card.Root>
 
-          {/* Metrics Overview */}
-          <Card.Root>
-            <Card.Body p={4}>
-              <HStack justify='space-between' align='center'>
-                <Text fontWeight='medium'>Overall Metrics</Text>
-                <Grid
-                  templateColumns='repeat(5, 1fr)'
-                  gap={6}
-                  flex='1'
-                  maxW='600px'
-                >
-                  <VStack gap={0}>
-                    <Text fontSize='xs' color='gray.500'>
-                      Total Subjects
-                    </Text>
-                    <Text fontWeight='bold'>{overallMetrics.subjectCount}</Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text fontSize='xs' color='gray.500'>
-                      Avg Horizon Rank
-                    </Text>
-                    <Text fontWeight='bold'>
-                      {overallMetrics.avgHorizonRank.toFixed(2)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text fontSize='xs' color='gray.500'>
-                      Avg Tech Transfer
-                    </Text>
-                    <Text fontWeight='bold'>
-                      {Math.round(overallMetrics.avgTechTransfer)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text fontSize='xs' color='gray.500'>
-                      Avg White Space
-                    </Text>
-                    <Text fontWeight='bold'>
-                      {Math.round(overallMetrics.avgWhiteSpace)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text fontSize='xs' color='gray.500'>
-                      Innovation Potential
-                    </Text>
-                    <Text fontWeight='bold'>
-                      {Math.round(overallMetrics.innovationPotential)}
-                    </Text>
-                  </VStack>
-                </Grid>
-              </HStack>
-            </Card.Body>
-          </Card.Root>
-
           {/* Main Content */}
           <HStack gap={6} align='flex-start'>
-            {/* Unpooled Subjects Sidebar */}
+            {/* Available Subjects Sidebar */}
             <Box minW='280px' maxW='320px'>
               <Card.Root>
                 <Card.Body p={4}>
                   <VStack gap={3} align='stretch'>
                     <HStack justify='space-between' align='center'>
-                      <Text fontWeight='medium'>Unpooled Subjects</Text>
+                      <Text fontWeight='medium'>Available Subjects</Text>
                       <Badge colorScheme='gray'>
-                        {unassignedSubjects.length}
+                        {availableSubjects.length}
                       </Badge>
                     </HStack>
 
+                    {/* Filter and Sort Controls */}
+                    <VStack gap={2} align='stretch'>
+                      <HStack gap={2} align='center'>
+                        <Text
+                          fontSize='sm'
+                          fontWeight='medium'
+                          color='gray.700'
+                          whiteSpace='nowrap'
+                        >
+                          Sort by:
+                        </Text>
+                        <select
+                          value={sortMethod}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                            setSortMethod(e.target.value)
+                          }
+                          style={{
+                            padding: '4px',
+                            borderRadius: '4px',
+                            border: '1px solid #E2E8F0',
+                            fontSize: '12px',
+                            width: '100%',
+                          }}
+                        >
+                          <option value='horizon-high'>
+                            Horizon Rank (High to Low)
+                          </option>
+                          <option value='horizon-low'>
+                            Horizon Rank (Low to High)
+                          </option>
+                          <option value='techTransfer-high'>
+                            Tech Transfer (High to Low)
+                          </option>
+                          <option value='techTransfer-low'>
+                            Tech Transfer (Low to High)
+                          </option>
+                          <option value='whiteSpace-high'>
+                            White Space (High to Low)
+                          </option>
+                          <option value='whiteSpace-low'>
+                            White Space (Low to High)
+                          </option>
+                          <option value='a-z'>A-Z</option>
+                          <option value='z-a'>Z-A</option>
+                        </select>
+                      </HStack>
+                      <Input
+                        placeholder='Filter subjects...'
+                        value={filterText}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setFilterText(e.target.value)
+                        }
+                        size='sm'
+                      />
+                    </VStack>
+
                     <Box maxH='600px' overflowY='auto'>
-                      {unassignedSubjects.length === 0 ? (
+                      {getFilteredAndSortedSubjects().length === 0 ? (
                         <Flex
                           align='center'
                           justify='center'
@@ -1136,20 +1368,23 @@ const Whiteboard: React.FC = () => {
                           <VStack gap={2}>
                             <FiSearch size={24} />
                             <Text fontSize='sm' textAlign='center'>
-                              All subjects are in drafts.
-                              <br />
-                              Search to add more.
+                              {filterText || sortMethod !== 'horizon-high'
+                                ? 'No subjects match your filters.'
+                                : 'No available subjects. Search to add more.'}
                             </Text>
                           </VStack>
                         </Flex>
                       ) : (
                         <VStack gap={2} align='stretch'>
-                          {unassignedSubjects.map((subject) => (
+                          {getFilteredAndSortedSubjects().map((subject) => (
                             <DraggableSubjectCard
                               key={subject.id}
                               subject={subject}
                               sourceType='unpooled'
                               showQuickAdd
+                              onRemoveFromWhiteboard={
+                                handleRemoveFromWhiteboard
+                              }
                             />
                           ))}
                         </VStack>
@@ -1258,6 +1493,85 @@ const Whiteboard: React.FC = () => {
                       disabled={!newDraftName.trim()}
                     >
                       Create Draft
+                    </Button>
+                  </HStack>
+                </Dialog.Footer>
+              </Dialog.Content>
+            </Dialog.Positioner>
+          </Dialog.Root>
+          {/* Delete Confirmation Dialog */}
+          <Dialog.Root
+            open={isDeleteConfirmOpen}
+            onOpenChange={({ open }) => {
+              setIsDeleteConfirmOpen(open);
+              if (!open) {
+                setSubjectToDelete(null);
+                setDraftsContainingSubject([]);
+              }
+            }}
+          >
+            <Dialog.Backdrop />
+            <Dialog.Positioner>
+              <Dialog.Content>
+                <Dialog.Header>
+                  <Dialog.Title>Confirm Delete from Whiteboard</Dialog.Title>
+                  <Dialog.CloseTrigger asChild>
+                    <IconButton size='sm' variant='ghost'>
+                      <FiX />
+                    </IconButton>
+                  </Dialog.CloseTrigger>
+                </Dialog.Header>
+
+                <Dialog.Body>
+                  <VStack gap={3} align='stretch'>
+                    <Text>
+                      Are you sure you want to delete "{subjectToDelete?.name}"
+                      from the whiteboard?
+                    </Text>
+
+                    {draftsContainingSubject.length > 0 && (
+                      <Box
+                        p={3}
+                        bg='red.50'
+                        borderRadius='md'
+                        border='1px solid'
+                        borderColor='red.200'
+                      >
+                        <Text
+                          fontSize='sm'
+                          color='red.800'
+                          fontWeight='medium'
+                          mb={2}
+                        >
+                          ⚠️ This subject is currently in{' '}
+                          {draftsContainingSubject.length} draft(s):
+                        </Text>
+                        <VStack gap={1} align='start'>
+                          {draftsContainingSubject.map((draft) => (
+                            <Text key={draft.id} fontSize='sm' color='red.700'>
+                              • {draft.name}
+                            </Text>
+                          ))}
+                        </VStack>
+                        <Text fontSize='sm' color='red.800' mt={2}>
+                          Removing it from the whiteboard will also remove it
+                          from these drafts.
+                        </Text>
+                      </Box>
+                    )}
+                  </VStack>
+                </Dialog.Body>
+
+                <Dialog.Footer>
+                  <HStack gap={3}>
+                    <Button
+                      variant='outline'
+                      onClick={() => setIsDeleteConfirmOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button colorScheme='red' onClick={handleConfirmDelete}>
+                      Delete from Whiteboard
                     </Button>
                   </HStack>
                 </Dialog.Footer>

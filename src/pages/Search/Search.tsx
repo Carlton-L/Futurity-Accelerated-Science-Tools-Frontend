@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -9,8 +9,6 @@ import {
   SimpleGrid,
   VStack,
   HStack,
-  Input,
-  IconButton,
   Spinner,
 } from '@chakra-ui/react';
 import {
@@ -19,6 +17,7 @@ import {
   FiExternalLink,
   FiChevronRight,
 } from 'react-icons/fi';
+import { usePage } from '../../context/PageContext';
 
 interface ExactMatchSubject {
   title: string;
@@ -44,6 +43,7 @@ interface RelatedItem {
 }
 
 const Search: React.FC = () => {
+  const { setPageContext, clearPageContext, pageContext } = usePage();
   const [hasExactMatch, setHasExactMatch] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const searchQuery = 'computer vision';
@@ -135,6 +135,71 @@ const Search: React.FC = () => {
     },
   ];
 
+  // Memoize the mapped arrays to prevent recreation on every render
+  const mappedRelatedSubjects = useMemo(
+    () =>
+      relatedSubjects.map((subject) => ({
+        id: subject.id.toString(),
+        name: subject.title,
+        title: subject.title,
+      })),
+    [] // Empty dependency array since relatedSubjects is static
+  );
+
+  const mappedOrganizations = useMemo(
+    () =>
+      organizationResults.map((org) => ({
+        id: org.id.toString(),
+        name: org.title,
+        title: org.title,
+      })),
+    [] // Empty dependency array since organizationResults is static
+  );
+
+  const mappedAnalyses = useMemo(
+    () =>
+      analysisResults.map((analysis) => ({
+        id: analysis.id.toString(),
+        title: analysis.title,
+        name: analysis.title,
+      })),
+    [] // Empty dependency array since analysisResults is static
+  );
+
+  // Memoize the page context object to prevent recreation
+  const searchPageContext = useMemo(
+    () => ({
+      pageType: 'search' as const,
+      pageTitle: `Search Results for "${searchQuery}"`,
+      searchQuery,
+      exactMatch: hasExactMatch
+        ? {
+            type: 'subject' as const,
+            subject: {
+              id: 'computer-vision-123',
+              name: exactMatchSubject.title,
+              title: exactMatchSubject.title,
+            },
+          }
+        : undefined,
+      relatedSubjects: mappedRelatedSubjects,
+      organizations: mappedOrganizations,
+      analyses: mappedAnalyses,
+    }),
+    [
+      searchQuery,
+      hasExactMatch,
+      mappedRelatedSubjects,
+      mappedOrganizations,
+      mappedAnalyses,
+    ]
+  );
+
+  useEffect(() => {
+    setPageContext(searchPageContext);
+    return () => clearPageContext();
+  }, [setPageContext, clearPageContext, searchPageContext]);
+
   const handleCreateSubject = async (): Promise<void> => {
     setIsCreating(true);
     // Simulate API call
@@ -154,8 +219,6 @@ const Search: React.FC = () => {
 
   return (
     <Box bg='black' minHeight='calc(100vh - 64px)'>
-      {' '}
-      {/* FIXME: Delete this line - temporary black background for testing */}
       {/* Header */}
       <Box
         bg='black'
@@ -164,8 +227,6 @@ const Search: React.FC = () => {
         px={6}
         py={4}
       >
-        {' '}
-        {/* FIXME: Delete this line - temporary black background for testing */}
         <Box maxW='7xl' mx='auto'>
           <HStack gap={4}>
             <FiSearch size={24} color='gray.500' />
@@ -188,8 +249,6 @@ const Search: React.FC = () => {
 
           {/* Exact Match Section */}
           <Card.Root bg='black'>
-            {' '}
-            {/* FIXME: Delete this line - temporary black background for testing */}
             <Card.Body p={8}>
               {hasExactMatch ? (
                 <VStack gap={6} align='stretch'>
@@ -265,7 +324,7 @@ const Search: React.FC = () => {
                       {/* Stats */}
                       <SimpleGrid columns={5} gap={4}>
                         <Box
-                          bg='white'
+                          bg='#1a1a1a'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
@@ -278,7 +337,7 @@ const Search: React.FC = () => {
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='#1a1a1a'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
@@ -291,7 +350,7 @@ const Search: React.FC = () => {
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='#1a1a1a'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
@@ -304,7 +363,7 @@ const Search: React.FC = () => {
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='#1a1a1a'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
@@ -317,7 +376,7 @@ const Search: React.FC = () => {
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='#1a1a1a'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
@@ -357,9 +416,18 @@ const Search: React.FC = () => {
                       colorScheme='blue'
                       onClick={handleCreateSubject}
                       disabled={isCreating}
-                      leftIcon={isCreating ? <Spinner size='sm' /> : <FiPlus />}
                     >
-                      {isCreating ? 'Creating Subject...' : 'Create Subject'}
+                      {isCreating ? (
+                        <>
+                          <Spinner size='sm' mr={2} />
+                          Creating Subject...
+                        </>
+                      ) : (
+                        <>
+                          <FiPlus style={{ marginRight: '8px' }} />
+                          Create Subject
+                        </>
+                      )}
                     </Button>
                   </Box>
                 </VStack>
@@ -369,8 +437,6 @@ const Search: React.FC = () => {
 
           {/* Related Subjects */}
           <Card.Root bg='black'>
-            {' '}
-            {/* FIXME: Delete this line - temporary black background for testing */}
             <Card.Body p={6}>
               <Heading as='h2' size='lg' mb={4}>
                 Subjects related to "{searchQuery}"
@@ -381,7 +447,7 @@ const Search: React.FC = () => {
                     key={subject.id}
                     justify='space-between'
                     p={4}
-                    bg='gray.50'
+                    bg='#1a1a1a'
                     borderRadius='lg'
                     cursor='pointer'
                     _hover={{ bg: 'gray.100' }}
@@ -405,8 +471,6 @@ const Search: React.FC = () => {
 
           {/* Analysis Results */}
           <Card.Root bg='black'>
-            {' '}
-            {/* FIXME: Delete this line - temporary black background for testing */}
             <Card.Body p={6}>
               <HStack gap={2} mb={4}>
                 <FiExternalLink size={20} />
@@ -420,7 +484,7 @@ const Search: React.FC = () => {
                     key={analysis.id}
                     justify='space-between'
                     p={4}
-                    bg='gray.50'
+                    bg='#1a1a1a'
                     borderRadius='lg'
                     cursor='pointer'
                     _hover={{ bg: 'gray.100' }}
@@ -444,8 +508,6 @@ const Search: React.FC = () => {
 
           {/* Organization Results */}
           <Card.Root bg='black'>
-            {' '}
-            {/* FIXME: Delete this line - temporary black background for testing */}
             <Card.Body p={6}>
               <HStack gap={2} mb={4}>
                 <Box as='span' fontSize='lg'>
@@ -461,7 +523,7 @@ const Search: React.FC = () => {
                     key={org.id}
                     justify='space-between'
                     p={4}
-                    bg='gray.50'
+                    bg='#1a1a1a'
                     borderRadius='lg'
                     cursor='pointer'
                     _hover={{ bg: 'gray.100' }}
