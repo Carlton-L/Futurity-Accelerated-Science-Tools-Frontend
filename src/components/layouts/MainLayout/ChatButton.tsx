@@ -13,7 +13,7 @@ const ChatButton = ({ onClick }: ChatButtonProps) => {
       bottom='4'
       right='4'
       borderRadius='full'
-      size='lg'
+      size='2xl'
       zIndex={1000}
       onClick={onClick}
       color='white'

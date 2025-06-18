@@ -99,7 +99,7 @@ const ChatDrawer = ({ isOpen, onClose }: ChatDrawerProps) => {
                             Cancel
                           </Button>
                           <Button
-                            colorScheme='red'
+                            colorPalette='red'
                             onClick={handleConfirmClose}
                           >
                             Close Chat

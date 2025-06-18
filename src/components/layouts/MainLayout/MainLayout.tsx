@@ -40,7 +40,8 @@ const MainLayout: React.FC = () => {
             than 740px.
           </Text>
           <Text fontSize='sm' color='gray.500'>
-            Please access this application from a desktop or laptop computer.
+            Please access this application from a desktop or laptop computer, or
+            <b> expand the width of your browser window.</b>
           </Text>
         </VStack>
       </Box>
