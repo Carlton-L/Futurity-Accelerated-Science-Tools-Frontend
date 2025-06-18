@@ -1,6 +1,12 @@
-// Fixed ChatDrawer.tsx with debugging
-import { useState, useEffect } from 'react';
-import { Drawer, CloseButton, Portal } from '@chakra-ui/react';
+import { useState } from 'react';
+import {
+  Drawer,
+  CloseButton,
+  Portal,
+  Dialog,
+  Button,
+  Text,
+} from '@chakra-ui/react';
 import { useChatContext } from '../../../context/PageContext';
 import { ChatPanel } from '../../../features/Chat/ChatPanel';
 
@@ -11,80 +17,81 @@ interface ChatDrawerProps {
 
 const ChatDrawer = ({ isOpen, onClose }: ChatDrawerProps) => {
   const { pageContext } = useChatContext();
-  const [lastPageType, setLastPageType] = useState<string | null>(null);
-  const [chatKey, setChatKey] = useState(0); // Key to force re-mount
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
 
-  // Track page changes and refresh chat when page type changes
-  const handlePageContextChange = (currentPageType: string) => {
-    console.log(
-      '🗂️ ChatDrawer handlePageContextChange called with:',
-      currentPageType
-    );
-    console.log('🗂️ lastPageType:', lastPageType);
-
-    if (lastPageType !== null && lastPageType !== currentPageType) {
-      // Page type changed, refresh the chat component
-      setChatKey((prev) => prev + 1);
-      console.log(
-        `🗂️ Chat refreshed: page changed from ${lastPageType} to ${currentPageType}`
-      );
-    }
-    setLastPageType(currentPageType);
+  const handleCloseAttempt = () => {
+    setShowCloseWarning(true);
   };
 
-  // Initialize lastPageType when drawer opens
-  useEffect(() => {
-    console.log(
-      '🗂️ ChatDrawer useEffect - isOpen:',
-      isOpen,
-      'lastPageType:',
-      lastPageType,
-      'pageContext.pageType:',
-      pageContext.pageType
-    );
+  const handleConfirmClose = () => {
+    setShowCloseWarning(false);
+    onClose();
+  };
 
-    if (isOpen && lastPageType === null) {
-      setLastPageType(pageContext.pageType);
-      console.log(
-        '🗂️ ChatDrawer initialized lastPageType to:',
-        pageContext.pageType
-      );
-    }
-  }, [isOpen, pageContext.pageType, lastPageType]);
-
-  // Debug pageContext changes
-  useEffect(() => {
-    console.log('🗂️ ChatDrawer pageContext changed:', pageContext);
-  }, [pageContext]);
+  const handleCancelClose = () => {
+    setShowCloseWarning(false);
+  };
 
   return (
-    <Drawer.Root
-      placement={'bottom'}
-      open={isOpen}
-      onOpenChange={() => onClose()}
-    >
-      <Portal>
-        <Drawer.Backdrop />
-        <Drawer.Positioner>
-          <Drawer.Content borderTopRadius='2xl' height='33vh' minHeight='460px'>
-            <Drawer.Header borderBottomWidth='1px'>
-              <Drawer.Title>AI Chat - {pageContext.pageTitle}</Drawer.Title>
-            </Drawer.Header>
-            <Drawer.Body p={0} height='100%'>
-              <ChatPanel
-                key={chatKey} // This forces re-mount when chatKey changes
-                onPageContextChange={handlePageContextChange}
-              />
-            </Drawer.Body>
-            <Drawer.Footer borderTopWidth='1px' justifyContent='flex-end'>
-              <Drawer.CloseTrigger asChild>
-                <CloseButton size='sm' />
-              </Drawer.CloseTrigger>
-            </Drawer.Footer>
-          </Drawer.Content>
-        </Drawer.Positioner>
-      </Portal>
-    </Drawer.Root>
+    <>
+      <Drawer.Root
+        placement={'bottom'}
+        open={isOpen}
+        onOpenChange={(details) => {
+          if (!details.open) {
+            handleCloseAttempt();
+          }
+        }}
+      >
+        <Portal>
+          <Drawer.Backdrop />
+          <Drawer.Positioner>
+            <Drawer.Content
+              borderTopRadius='2xl'
+              height='33vh'
+              minHeight='588px'
+            >
+              <Drawer.Header borderBottomWidth='1px'>
+                <Drawer.Title>AI Chat - {pageContext.pageTitle}</Drawer.Title>
+                <CloseButton size='sm' onClick={handleCloseAttempt} />
+              </Drawer.Header>
+              <Drawer.Body p={0} height='100%'>
+                <ChatPanel />
+              </Drawer.Body>
+            </Drawer.Content>
+          </Drawer.Positioner>
+        </Portal>
+      </Drawer.Root>
+
+      {/* Close Warning Dialog */}
+      <Dialog.Root
+        open={showCloseWarning}
+        onOpenChange={(e) => setShowCloseWarning(e.open)}
+      >
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <Dialog.Title>Close Chat</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body>
+              <Text>
+                Closing the chat will stop the current conversation. Your chat
+                history will be lost. Are you sure you want to continue?
+              </Text>
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button variant='outline' onClick={handleCancelClose}>
+                Cancel
+              </Button>
+              <Button colorScheme='red' onClick={handleConfirmClose}>
+                Close Chat
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
+    </>
   );
 };
 
