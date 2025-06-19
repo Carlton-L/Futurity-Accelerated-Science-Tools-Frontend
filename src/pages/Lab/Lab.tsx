@@ -43,7 +43,8 @@ const Lab: React.FC = () => {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
-  const [activeTab, setActiveTab] = useState<LabTab>('dashboard');
+  // const [activeTab, setActiveTab] = useState<LabTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<LabTab>('gather');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
   // Memoize the page context to prevent infinite re-renders
@@ -196,7 +197,7 @@ const Lab: React.FC = () => {
   const handleTabChange = (value: string): void => {
     // Validate that the value is a valid LabTab
     const validTabs: LabTab[] = [
-      'dashboard',
+      // 'dashboard',
       'gather',
       'analyze',
       'forecast',
@@ -296,7 +297,7 @@ const Lab: React.FC = () => {
               onValueChange={(details) => handleTabChange(details.value)}
             >
               <Tabs.List>
-                <Tabs.Trigger value='dashboard'>Dashboard</Tabs.Trigger>
+                {/* <Tabs.Trigger value='dashboard'>Dashboard</Tabs.Trigger> */}
                 <Tabs.Trigger value='gather'>Gather</Tabs.Trigger>
                 <Tabs.Trigger value='analyze'>Analyze</Tabs.Trigger>
                 <Tabs.Trigger value='forecast'>Forecast</Tabs.Trigger>

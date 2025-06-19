@@ -111,6 +111,129 @@ export interface SubjectCategory {
 }
 
 // ============================================================================
+// Analysis Types
+// ============================================================================
+
+/**
+ * Analysis type options
+ */
+export type AnalysisType = 'patent' | 'taxonomy' | 'research' | 'investment';
+
+/**
+ * Analysis status options
+ */
+export type AnalysisStatus = 'Complete' | 'In Progress' | 'Review';
+
+/**
+ * Mock analysis item for the analyses list
+ */
+export interface MockAnalysis {
+  id: string;
+  title: string;
+  description: string;
+  status: AnalysisStatus;
+  imageUrl: string;
+  updatedAt: string;
+}
+
+// ============================================================================
+// Horizon Chart Types
+// ============================================================================
+
+/**
+ * Horizon chart data structure
+ */
+export interface HorizonItem {
+  name: string;
+  horizon: 1 | 2 | 3 | 4;
+  category: 1 | 2 | 3 | 4 | 5;
+  type: 1 | 2 | 3;
+  categoryName?: string; // Optional category name for display
+}
+
+// ============================================================================
+// Knowledgebase Types
+// ============================================================================
+
+/**
+ * Knowledgebase document metadata
+ */
+export interface KnowledgebaseDocument {
+  document_uuid: string;
+  kb_uuid: string;
+  title: string;
+  authors: string[];
+  publication_year: number | null;
+  summary: string;
+  keywords: string[];
+  file_type: 'pdf' | 'image' | 'audio' | 'video' | 'txt' | 'raw_text';
+  original_filename: string | null;
+  classification_format: string;
+  source_classification: string;
+  ingestion_time: string;
+  last_updated_time: string;
+}
+
+/**
+ * Knowledgebase documents API response
+ */
+export interface KnowledgebaseDocumentsResponse {
+  items: KnowledgebaseDocument[];
+  total: number;
+  page: number;
+  size: number;
+  kb_uuid: string;
+  file_type: string;
+}
+
+/**
+ * Query snippet from knowledgebase search
+ */
+export interface QuerySnippet {
+  score: number;
+  document_snippet: string;
+  chunk_id: string;
+}
+
+/**
+ * Query result for a single document
+ */
+export interface QueryResult {
+  library_card: KnowledgebaseDocument;
+  snippets: QuerySnippet[];
+  max_score: number;
+}
+
+/**
+ * Grouped query results by file type
+ */
+export interface QueryGroupedResults {
+  file_type: string;
+  results: QueryResult[];
+}
+
+/**
+ * Knowledgebase query API response
+ */
+export interface KnowledgebaseQueryResponse {
+  query_text: string;
+  kb_uuid: string;
+  grouped_results: QueryGroupedResults[];
+}
+
+// ============================================================================
+// Navigation Types
+// ============================================================================
+
+/**
+ * Navigation item for section scrolling
+ */
+export interface NavigationItem {
+  id: string;
+  label: string;
+}
+
+// ============================================================================
 // API Request/Response Types
 // ============================================================================
 

@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import {
   Box,
   Button,
@@ -10,163 +16,46 @@ import {
   Input,
   Checkbox,
   Flex,
+  createToaster,
 } from '@chakra-ui/react';
 import CardScroller from '../../components/shared/CardScroller';
-import Horizons from './Horizons';
-
-// Import types from Gather
-interface LabSubject {
-  id: string;
-  subjectId: string;
-  subjectName: string;
-  subjectSlug: string;
-  addedAt: string;
-  addedById: string;
-  notes?: string;
-}
-
-interface SubjectCategory {
-  id: string;
-  name: string;
-  type: 'default' | 'exclude' | 'custom';
-  subjects: LabSubject[];
-  description?: string;
-}
-
-// Horizon chart data structure (matches the original Horizons component)
-interface HorizonItem {
-  name: string;
-  horizon: 1 | 2 | 3 | 4;
-  category: 1 | 2 | 3 | 4 | 5;
-  type: 1 | 2 | 3;
-  categoryName?: string; // Optional category name for display
-}
+import StickyNavigation from './StickyNavigation';
+import HorizonChartSection from './Horizons/HorizonChartSection';
+import KnowledgebaseSection from './Knowledgebase';
+import type {
+  LabSubject,
+  HorizonItem,
+  AnalysisType,
+  KnowledgebaseDocument,
+  KnowledgebaseDocumentsResponse,
+  KnowledgebaseQueryResponse,
+} from './types';
+import { mockCategories, mockAnalyses, navigationItems } from './mockData';
+import {
+  convertHorizonValue,
+  getCategoryNumber,
+  generateMockAnalysisResult,
+} from './utils/analyzeUtils';
 
 interface AnalyzeProps {
   labId: string;
 }
 
-// Mock data - same as Gather tab
-const mockSubjects: LabSubject[] = [
-  {
-    id: 'subj-1',
-    subjectId: 'ai-1',
-    subjectName: 'Artificial Intelligence',
-    subjectSlug: 'artificial-intelligence',
-    addedAt: '2024-01-15T10:30:00Z',
-    addedById: 'user-1',
-    notes: 'Core AI technologies and applications',
-  },
-  {
-    id: 'subj-2',
-    subjectId: 'ml-1',
-    subjectName: 'Machine Learning',
-    subjectSlug: 'machine-learning',
-    addedAt: '2024-01-16T14:20:00Z',
-    addedById: 'user-2',
-  },
-  {
-    id: 'subj-3',
-    subjectId: 'cv-1',
-    subjectName: 'Computer Vision',
-    subjectSlug: 'computer-vision',
-    addedAt: '2024-01-17T09:15:00Z',
-    addedById: 'user-1',
-    notes: 'Image processing and visual recognition',
-  },
-  {
-    id: 'subj-4',
-    subjectId: 'nlp-1',
-    subjectName: 'Natural Language Processing',
-    subjectSlug: 'natural-language-processing',
-    addedAt: '2024-01-18T11:45:00Z',
-    addedById: 'user-3',
-  },
-  {
-    id: 'subj-5',
-    subjectId: 'bio-1',
-    subjectName: 'Biotechnology',
-    subjectSlug: 'biotechnology',
-    addedAt: '2024-01-19T16:30:00Z',
-    addedById: 'user-2',
-    notes: 'Genetic engineering and synthetic biology',
-  },
-];
-
-const mockCategories: SubjectCategory[] = [
-  {
-    id: 'uncategorized',
-    name: 'Uncategorized',
-    type: 'default',
-    subjects: mockSubjects.slice(0, 2),
-    description: 'Default category for new subjects',
-  },
-  {
-    id: 'exclude',
-    name: 'Exclude',
-    type: 'exclude',
-    subjects: [mockSubjects[4]], // Biotechnology in exclude
-    description: 'Subjects to exclude from analysis and search results',
-  },
-  {
-    id: 'cat-1',
-    name: 'Core Technologies',
-    type: 'custom',
-    subjects: mockSubjects.slice(2, 4),
-  },
-];
-
-const mockAnalyses = [
-  {
-    id: 'analysis-1',
-    title: 'The Age of Autonomous Commerce',
-    description:
-      'Societal, industrial, and economic impact as autonomous machines and intelligent agents enter the market.',
-    status: 'Complete' as const,
-    imageUrl: 'https://via.placeholder.com/100x100/4A90E2/FFFFFF?text=Auto',
-    updatedAt: '2024-03-01T14:20:00Z',
-  },
-  {
-    id: 'analysis-2',
-    title: 'Digital Identity Revolution',
-    description:
-      'How blockchain and AI are reshaping personal identity verification and privacy in the digital age.',
-    status: 'In Progress' as const,
-    imageUrl: 'https://via.placeholder.com/100x100/FF6B6B/FFFFFF?text=ID',
-    updatedAt: '2024-03-15T11:30:00Z',
-  },
-  {
-    id: 'analysis-3',
-    title: 'Synthetic Biology Markets',
-    description:
-      'Market analysis of engineered biological systems and their potential to disrupt traditional manufacturing.',
-    status: 'Review' as const,
-    imageUrl: 'https://via.placeholder.com/100x100/F39C12/FFFFFF?text=Bio',
-    updatedAt: '2024-03-10T16:45:00Z',
-  },
-];
-
-// Helper functions
-const convertHorizonValue = (horizon: number): 1 | 2 | 3 | 4 => {
-  if (horizon <= 0.25) return 4; // Idea
-  if (horizon <= 0.5) return 3; // Science
-  if (horizon <= 0.75) return 2; // Engineering
-  return 1; // Business
-};
-
-const getCategoryNumber = (
-  categoryName: string,
-  categoryNames: string[]
-): 1 | 2 | 3 | 4 | 5 => {
-  const index = categoryNames.indexOf(categoryName);
-  const categoryNum = index >= 0 ? index + 1 : 1;
-  // Ensure we return a value within the expected range
-  return Math.min(categoryNum, 5) as 1 | 2 | 3 | 4 | 5;
-};
-
 const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
+  // Create toaster instance
+  const toaster = createToaster({});
+
+  // Refs for scrolling to sections
+  const horizonChartRef = useRef<HTMLDivElement>(null);
+  const labAnalysesRef = useRef<HTMLDivElement>(null);
+  const analysisToolsRef = useRef<HTMLDivElement>(null);
+  const knowledgebaseRef = useRef<HTMLDivElement>(null);
+  const additionalToolsRef = useRef<HTMLDivElement>(null);
+
+  // Basic state
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('most-recent');
+  const [activeSection, setActiveSection] = useState<string>('horizon-chart');
 
   // Horizon chart subject selection
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(
@@ -177,22 +66,38 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   const [analysisSelectedSubjects, setAnalysisSelectedSubjects] = useState<
     Set<string>
   >(new Set());
-  const [analysisType, setAnalysisType] = useState<
-    'patent' | 'taxonomy' | 'research' | 'investment'
-  >('patent');
+  const [analysisType, setAnalysisType] = useState<AnalysisType>('patent');
   const [excludeTerms, setExcludeTerms] = useState('');
   const [analysisResult, setAnalysisResult] = useState<string>('');
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [isCopyingAnalysis, setIsCopyingAnalysis] = useState(false);
 
-  // Get all subjects from categories (excluding the exclude category)
+  // Knowledgebase state
+  const [kbDocuments, setKbDocuments] = useState<KnowledgebaseDocument[]>([]);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbError, setKbError] = useState<string>('');
+  const [kbUploadLoading, setKbUploadLoading] = useState(false);
+  const [kbUploadError, setKbUploadError] = useState<string>('');
+  const [kbUploadSuccess, setKbUploadSuccess] = useState(false);
+  const [kbQuery, setKbQuery] = useState('');
+  const [kbQueryResults, setKbQueryResults] =
+    useState<KnowledgebaseQueryResponse | null>(null);
+  const [kbQueryLoading, setKbQueryLoading] = useState(false);
+  const [kbQueryError, setKbQueryError] = useState<string>('');
+  const [selectedFileTypes, setSelectedFileTypes] = useState<Set<string>>(
+    new Set(['pdf', 'image', 'audio', 'video', 'txt', 'raw_text'])
+  );
+  const [deletingDocuments, setDeletingDocuments] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Computed values
   const allSubjects = useMemo(() => {
     return mockCategories
       .filter((cat) => cat.type !== 'exclude')
       .flatMap((cat) => cat.subjects);
   }, []);
 
-  // Get category names used by subjects (excluding exclude category)
   const usedCategoryNames = useMemo(() => {
     const categories = mockCategories
       .filter((cat) => cat.type !== 'exclude')
@@ -200,7 +105,6 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     return Array.from(new Set(categories)).sort();
   }, []);
 
-  // Get excluded subjects from the "Exclude" category
   const excludedSubjects = useMemo(() => {
     const excludeCategory = mockCategories.find(
       (cat) => cat.type === 'exclude'
@@ -208,46 +112,67 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     return excludeCategory?.subjects || [];
   }, []);
 
-  // Load selected subjects from localStorage on mount
-  useEffect(() => {
-    const storageKey = `lab-${labId}-selected-subjects`;
-    const savedSelections = localStorage.getItem(storageKey);
+  const filteredKbDocuments = useMemo(() => {
+    return kbDocuments.filter((doc) => selectedFileTypes.has(doc.file_type));
+  }, [kbDocuments, selectedFileTypes]);
 
-    if (savedSelections) {
-      try {
-        const parsed = JSON.parse(savedSelections);
-        setSelectedSubjects(new Set(parsed));
-      } catch (error) {
-        console.error('Failed to parse saved subject selections:', error);
-        // Default to all subjects
-        setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
+  const horizonData = useMemo((): HorizonItem[] => {
+    return allSubjects
+      .filter((subject) => selectedSubjects.has(subject.id))
+      .map((subject) => {
+        const category = mockCategories.find((cat) =>
+          cat.subjects.some((s) => s.id === subject.id)
+        );
+
+        const nameHash = subject.subjectName.split('').reduce((a, b) => {
+          a = (a << 5) - a + b.charCodeAt(0);
+          return a & a;
+        }, 0);
+        const normalizedHash = Math.abs(nameHash) / 2147483648;
+
+        return {
+          name: subject.subjectName,
+          horizon: convertHorizonValue(normalizedHash),
+          category: getCategoryNumber(
+            category?.name || 'Uncategorized',
+            usedCategoryNames
+          ),
+          type: 1,
+          categoryName: category?.name || 'Uncategorized',
+        };
+      });
+  }, [allSubjects, selectedSubjects, usedCategoryNames]);
+
+  const groupedSubjects = useMemo(() => {
+    const selected: LabSubject[] = [];
+    const unselected: LabSubject[] = [];
+
+    allSubjects.forEach((subject) => {
+      if (selectedSubjects.has(subject.id)) {
+        selected.push(subject);
+      } else {
+        unselected.push(subject);
       }
-    } else {
-      // Default to all subjects selected
-      setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
-    }
-  }, [labId, allSubjects]);
+    });
 
-  // Save selected subjects to localStorage whenever selection changes
-  useEffect(() => {
-    const storageKey = `lab-${labId}-selected-subjects`;
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(Array.from(selectedSubjects))
-    );
-  }, [labId, selectedSubjects]);
+    return { selected, unselected };
+  }, [allSubjects, selectedSubjects]);
 
-  // Initialize analysis selections and exclude terms
-  useEffect(() => {
-    // Default all subjects selected for analysis
-    setAnalysisSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
+  const groupedAnalysisSubjects = useMemo(() => {
+    const selected: LabSubject[] = [];
+    const unselected: LabSubject[] = [];
 
-    // Set default exclude terms from excluded subjects
-    const excludeSubjectNames = excludedSubjects.map((s) => s.subjectName);
-    setExcludeTerms(excludeSubjectNames.join(', '));
-  }, [allSubjects, excludedSubjects]);
+    allSubjects.forEach((subject) => {
+      if (analysisSelectedSubjects.has(subject.id)) {
+        selected.push(subject);
+      } else {
+        unselected.push(subject);
+      }
+    });
 
-  // Filter and sort analyses
+    return { selected, unselected };
+  }, [allSubjects, analysisSelectedSubjects]);
+
   const filteredAndSortedAnalyses = useMemo(() => {
     const filtered = mockAnalyses.filter((analysis) => {
       const matchesSearch =
@@ -277,76 +202,94 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     }
   }, [searchQuery, sortBy]);
 
-  // Convert selected subjects to horizon chart data
-  const horizonData = useMemo((): HorizonItem[] => {
-    return allSubjects
-      .filter((subject) => selectedSubjects.has(subject.id))
-      .map((subject) => {
-        // Find which category this subject belongs to
-        const category = mockCategories.find((cat) =>
-          cat.subjects.some((s) => s.id === subject.id)
-        );
+  // Initialize data
+  useEffect(() => {
+    const storageKey = `lab-${labId}-selected-subjects`;
+    const savedSelections = localStorage.getItem(storageKey);
 
-        // Use a deterministic horizon value based on subject name for consistency
-        // This prevents positions from changing randomly on each render
-        const nameHash = subject.subjectName.split('').reduce((a, b) => {
-          a = (a << 5) - a + b.charCodeAt(0);
-          return a & a;
-        }, 0);
-        const normalizedHash = Math.abs(nameHash) / 2147483648; // Normalize to 0-1
+    if (savedSelections) {
+      try {
+        const parsed = JSON.parse(savedSelections);
+        setSelectedSubjects(new Set(parsed));
+      } catch (error) {
+        console.error('Failed to parse saved subject selections:', error);
+        setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
+      }
+    } else {
+      setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
+    }
+  }, [labId, allSubjects]);
 
-        return {
-          name: subject.subjectName,
-          horizon: convertHorizonValue(normalizedHash),
-          category: getCategoryNumber(
-            category?.name || 'Uncategorized',
-            usedCategoryNames
-          ),
-          type: 1, // All subjects use same type for now
-          categoryName: category?.name || 'Uncategorized', // Add category name for display
-        };
+  useEffect(() => {
+    const storageKey = `lab-${labId}-selected-subjects`;
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(Array.from(selectedSubjects))
+    );
+  }, [labId, selectedSubjects]);
+
+  useEffect(() => {
+    setAnalysisSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
+    const excludeSubjectNames = excludedSubjects.map((s) => s.subjectName);
+    setExcludeTerms(excludeSubjectNames.join(', '));
+  }, [allSubjects, excludedSubjects]);
+
+  useEffect(() => {
+    fetchKnowledgebaseDocuments();
+  }, []);
+
+  // Navigation handlers
+  const scrollToSection = useCallback((sectionId: string) => {
+    const refs = {
+      'horizon-chart': horizonChartRef,
+      'lab-analyses': labAnalysesRef,
+      'analysis-tools': analysisToolsRef,
+      knowledgebase: knowledgebaseRef,
+      'additional-tools': additionalToolsRef,
+    };
+
+    const ref = refs[sectionId as keyof typeof refs];
+    if (ref?.current) {
+      ref.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+        inline: 'nearest',
       });
-  }, [allSubjects, selectedSubjects, usedCategoryNames]);
+      setActiveSection(sectionId);
+    }
+  }, []);
 
-  // Group subjects by selection status and category
-  const groupedSubjects = useMemo(() => {
-    const selected: LabSubject[] = [];
-    const unselected: LabSubject[] = [];
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = [
+        { id: 'horizon-chart', ref: horizonChartRef },
+        { id: 'lab-analyses', ref: labAnalysesRef },
+        { id: 'analysis-tools', ref: analysisToolsRef },
+        { id: 'knowledgebase', ref: knowledgebaseRef },
+        { id: 'additional-tools', ref: additionalToolsRef },
+      ];
 
-    allSubjects.forEach((subject) => {
-      if (selectedSubjects.has(subject.id)) {
-        selected.push(subject);
-      } else {
-        unselected.push(subject);
+      const scrollY = window.scrollY + 100;
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section.ref.current) {
+          const rect = section.ref.current.getBoundingClientRect();
+          const offsetTop = rect.top + window.scrollY;
+
+          if (scrollY >= offsetTop) {
+            setActiveSection(section.id);
+            break;
+          }
+        }
       }
-    });
+    };
 
-    return { selected, unselected };
-  }, [allSubjects, selectedSubjects]);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  // Group analysis subjects by selection status
-  const groupedAnalysisSubjects = useMemo(() => {
-    const selected: LabSubject[] = [];
-    const unselected: LabSubject[] = [];
-
-    allSubjects.forEach((subject) => {
-      if (analysisSelectedSubjects.has(subject.id)) {
-        selected.push(subject);
-      } else {
-        unselected.push(subject);
-      }
-    });
-
-    return { selected, unselected };
-  }, [allSubjects, analysisSelectedSubjects]);
-
-  const handleAnalysisClick = useCallback(
-    (analysisId: string) => {
-      console.log(`Navigate to analysis: /lab/${labId}/analysis/${analysisId}`);
-    },
-    [labId]
-  );
-
+  // Subject handlers
   const handleSubjectToggle = useCallback((subjectId: string) => {
     setSelectedSubjects((prev) => {
       const newSet = new Set(prev);
@@ -367,7 +310,6 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     setSelectedSubjects(new Set());
   }, []);
 
-  // Analysis handlers
   const handleAnalysisSubjectToggle = useCallback((subjectId: string) => {
     setAnalysisSelectedSubjects((prev) => {
       const newSet = new Set(prev);
@@ -388,6 +330,14 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     setAnalysisSelectedSubjects(new Set());
   }, []);
 
+  // Analysis handlers
+  const handleAnalysisClick = useCallback(
+    (analysisId: string) => {
+      console.log(`Navigate to analysis: /lab/${labId}/analysis/${analysisId}`);
+    },
+    [labId]
+  );
+
   const handleGenerateAnalysis = useCallback(async () => {
     if (analysisSelectedSubjects.size === 0) return;
 
@@ -395,322 +345,23 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     setAnalysisResult('');
 
     try {
-      // Get selected subject names for the analysis
       const selectedSubjectNames = allSubjects
         .filter((subject) => analysisSelectedSubjects.has(subject.id))
         .map((subject) => subject.subjectName);
 
-      // Parse exclude terms (only for analyses that support them)
       const excludeTermsList = excludeTerms
         .split(',')
         .map((term) => term.trim())
         .filter((term) => term.length > 0);
 
-      // Simulate API call - in real implementation, this would call your analysis API
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      // Generate different mock results based on analysis type
-      let mockResult = '';
-
-      switch (analysisType) {
-        case 'patent':
-          mockResult = `PATENT LANDSCAPE ANALYSIS REPORT
-Generated: ${new Date().toLocaleString()}
-
-ANALYSIS SCOPE:
-Subjects Analyzed: ${selectedSubjectNames.join(', ')}
-${
-  excludeTermsList.length > 0
-    ? `Excluded Terms: ${excludeTermsList.join(', ')}`
-    : 'No exclusion terms specified'
-}
-
-EXECUTIVE SUMMARY:
-This patent landscape analysis examines ${
-            analysisSelectedSubjects.size
-          } technology area${
-            analysisSelectedSubjects.size !== 1 ? 's' : ''
-          } to identify key patent trends, competitive positioning, and innovation opportunities.
-
-KEY FINDINGS:
-
-1. PATENT VOLUME ANALYSIS
-   - Total relevant patents identified: 2,847
-   - Filing trend: 15% increase over last 3 years
-   - Geographic distribution: 45% US, 32% China, 12% Europe, 11% Other
-
-2. TOP PATENT HOLDERS
-   - Company A: 312 patents (11.0%)
-   - Company B: 287 patents (10.1%)
-   - Company C: 241 patents (8.5%)
-   - Universities: 623 patents (21.9%)
-   - Individual inventors: 178 patents (6.3%)
-
-3. TECHNOLOGY CLUSTERS
-   ${selectedSubjectNames
-     .map(
-       (subject) =>
-         `   - ${subject}: ${Math.floor(Math.random() * 500 + 200)} patents`
-     )
-     .join('\n')}
-
-4. INNOVATION GAPS
-   - Emerging areas with low patent density identified
-   - Potential white space opportunities in cross-technology applications
-   - Recent surge in patents related to integration technologies
-
-5. COMPETITIVE LANDSCAPE
-   - High concentration in core technologies
-   - Fragmented patent ownership in emerging areas
-   - Strong university research presence indicates active R&D
-
-RECOMMENDATIONS:
-1. Monitor patent filings in identified white space areas
-2. Consider strategic partnerships with key patent holders
-3. Focus R&D efforts on underexplored technology intersections
-4. Evaluate patent acquisition opportunities in complementary areas
-
-METHODOLOGY:
-- Search conducted across major patent databases
-- Analysis period: 2019-2024
-- Classification codes: Multiple IPC and CPC codes analyzed
-- Quality filtering applied to exclude low-relevance patents
-${
-  excludeTermsList.length > 0
-    ? `- Exclusion filtering removed patents containing: ${excludeTermsList.join(
-        ', '
-      )}`
-    : ''
-}
-
-This analysis provides a foundation for strategic patent planning and competitive intelligence.
-
----
-Report generated by Patent Landscape Analysis System`;
-          break;
-
-        case 'taxonomy':
-          mockResult = `TAXONOMY ANALYSIS REPORT
-Generated: ${new Date().toLocaleString()}
-
-ANALYSIS SCOPE:
-Subjects Analyzed: ${selectedSubjectNames.join(', ')}
-
-EXECUTIVE SUMMARY:
-This taxonomy analysis provides definitions, related terms, and relationships for ${
-            analysisSelectedSubjects.size
-          } subject${
-            analysisSelectedSubjects.size !== 1 ? 's' : ''
-          } within the FS Taxonomy and other structured classification systems.
-
-SUBJECT DEFINITIONS AND RELATIONSHIPS:
-
-${selectedSubjectNames
-  .map(
-    (subject) =>
-      `${subject.toUpperCase()}:
-   Definition: Advanced technology domain focused on ${subject.toLowerCase()} applications and methodologies
-   Related Terms: [Auto-generated based on taxonomy analysis]
-   Classification: Level 2 Technology Category
-   Parent Categories: Technology, Innovation, Research
-   Child Categories: [Specific subcategories identified]
-   Cross-references: Connected to ${Math.floor(
-     Math.random() * 5 + 2
-   )} related domains`
-  )
-  .join('\n\n')}
-
-TAXONOMY STRUCTURE:
-1. Primary Classifications
-2. Secondary Relationships
-3. Cross-domain Connections
-4. Emerging Category Trends
-
-STRUCTURED SOURCE COMPARISON:
-- FS Taxonomy alignment: 87% coverage
-- Industry standard taxonomies: 92% compatibility
-- Academic classification systems: 78% overlap
-- Government category frameworks: 83% match
-
-RECOMMENDATIONS:
-1. Standardize terminology across identified subjects
-2. Develop clear hierarchical relationships
-3. Monitor emerging classification trends
-4. Maintain taxonomy currency with industry evolution
-
----
-Report generated by Taxonomy Analysis System`;
-          break;
-
-        case 'research':
-          mockResult = `RESEARCH LANDSCAPE ANALYSIS REPORT
-Generated: ${new Date().toLocaleString()}
-
-ANALYSIS SCOPE:
-Subjects Analyzed: ${selectedSubjectNames.join(', ')}
-${
-  excludeTermsList.length > 0
-    ? `Excluded Terms: ${excludeTermsList.join(', ')}`
-    : 'No exclusion terms specified'
-}
-
-EXECUTIVE SUMMARY:
-This research landscape analysis examines scientific publishing trends across ${
-            analysisSelectedSubjects.size
-          } subject area${
-            analysisSelectedSubjects.size !== 1 ? 's' : ''
-          } to identify research patterns, key institutions, and emerging topics.
-
-KEY FINDINGS:
-
-1. PUBLICATION VOLUME ANALYSIS
-   - Total relevant papers identified: 15,423
-   - Publishing trend: 22% increase over last 5 years
-   - Average citations per paper: 12.4
-   - Open access percentage: 67%
-
-2. TOP RESEARCH INSTITUTIONS
-   - MIT: 1,247 papers (8.1%)
-   - Stanford University: 1,156 papers (7.5%)
-   - University of California System: 987 papers (6.4%)
-   - Carnegie Mellon University: 834 papers (5.4%)
-   - International collaborations: 2,341 papers (15.2%)
-
-3. RESEARCH FOCUS AREAS
-   ${selectedSubjectNames
-     .map(
-       (subject) =>
-         `   - ${subject}: ${Math.floor(
-           Math.random() * 3000 + 1000
-         )} papers, avg ${Math.floor(Math.random() * 20 + 5)} citations`
-     )
-     .join('\n')}
-
-4. EMERGING RESEARCH TRENDS
-   - Interdisciplinary approaches showing 35% growth
-   - Industry-academia collaborations increasing
-   - Focus shift toward practical applications
-   - Rise in reproducibility studies
-
-5. PUBLICATION PATTERNS
-   - Peak publishing months: March, September, November
-   - Conference vs journal ratio: 60:40
-   - International collaboration rate: 34%
-   - Average time from submission to publication: 8.2 months
-
-RESEARCH GAPS AND OPPORTUNITIES:
-1. Underexplored intersections between subjects
-2. Limited longitudinal studies identified
-3. Geographic research distribution imbalances
-4. Potential for novel methodology applications
-
-METHODOLOGY:
-- Search conducted across academic databases (PubMed, arXiv, IEEE, ACM)
-- Analysis period: 2019-2024
-- Quality filtering for peer-reviewed publications
-- Citation analysis using multiple metrics
-${
-  excludeTermsList.length > 0
-    ? `- Exclusion filtering removed papers containing: ${excludeTermsList.join(
-        ', '
-      )}`
-    : ''
-}
-
----
-Report generated by Research Landscape Analysis System`;
-          break;
-
-        case 'investment':
-          mockResult = `INVESTMENT ANALYSIS REPORT
-Generated: ${new Date().toLocaleString()}
-
-ANALYSIS SCOPE:
-Subjects Analyzed: ${selectedSubjectNames.join(', ')}
-${
-  excludeTermsList.length > 0
-    ? `Excluded Terms: ${excludeTermsList.join(', ')}`
-    : 'No exclusion terms specified'
-}
-
-EXECUTIVE SUMMARY:
-This investment analysis examines venture capital and funding trends across companies operating in ${
-            analysisSelectedSubjects.size
-          } technology area${analysisSelectedSubjects.size !== 1 ? 's' : ''}.
-
-KEY FINDINGS:
-
-1. INVESTMENT VOLUME ANALYSIS
-   - Total funding identified: $24.7B across 2,156 companies
-   - Average deal size: $11.5M
-   - Year-over-year growth: 18% increase in total funding
-   - Active investors: 1,247 firms
-
-2. TOP INVESTORS BY VOLUME
-   - Andreessen Horowitz: $1.2B across 47 deals
-   - Sequoia Capital: $987M across 34 deals
-   - Google Ventures: $834M across 52 deals
-   - Intel Capital: $723M across 28 deals
-   - Strategic corporate investors: $8.9B (36% of total)
-
-3. INVESTMENT BY SUBJECT AREA
-   ${selectedSubjectNames
-     .map(
-       (subject) =>
-         `   - ${subject}: $${(Math.random() * 5 + 1).toFixed(
-           1
-         )}B across ${Math.floor(Math.random() * 300 + 100)} companies`
-     )
-     .join('\n')}
-
-4. FUNDING STAGE DISTRIBUTION
-   - Seed/Pre-seed: 34% of deals, $892M total
-   - Series A: 28% of deals, $4.2B total
-   - Series B: 18% of deals, $6.1B total
-   - Series C+: 12% of deals, $9.8B total
-   - Late stage/Growth: 8% of deals, $3.7B total
-
-5. GEOGRAPHIC DISTRIBUTION
-   - Silicon Valley: 42% of total funding
-   - New York: 18% of total funding
-   - Boston: 12% of total funding
-   - International: 28% of total funding
-
-MARKET TRENDS:
-1. Increased focus on AI integration across all sectors
-2. Sustainability and ESG considerations gaining importance
-3. Corporate venture capital participation growing
-4. Longer time to exit but higher valuations
-
-INVESTMENT OPPORTUNITIES:
-1. Early-stage companies in emerging intersections
-2. B2B solutions showing strong traction
-3. International expansion opportunities
-4. Acquisition targets for strategic buyers
-
-RISK FACTORS:
-1. Market saturation in core areas
-2. Regulatory uncertainty in emerging technologies
-3. Talent acquisition competition
-4. Economic sensitivity of growth-stage companies
-
-METHODOLOGY:
-- Data sourced from Crunchbase, PitchBook, and public filings
-- Analysis period: 2019-2024
-- Includes venture capital, growth equity, and strategic investments
-- Private company valuations estimated where not disclosed
-${
-  excludeTermsList.length > 0
-    ? `- Exclusion filtering removed companies containing: ${excludeTermsList.join(
-        ', '
-      )}`
-    : ''
-}
-
----
-Report generated by Investment Analysis System`;
-          break;
-      }
+      const mockResult = generateMockAnalysisResult(
+        analysisType,
+        selectedSubjectNames,
+        excludeTermsList,
+        analysisSelectedSubjects.size
+      );
 
       setAnalysisResult(mockResult);
     } catch (error) {
@@ -732,7 +383,6 @@ Report generated by Investment Analysis System`;
       setTimeout(() => setIsCopyingAnalysis(false), 2000);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
-      // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
       textArea.value = analysisResult;
       document.body.appendChild(textArea);
@@ -744,6 +394,199 @@ Report generated by Investment Analysis System`;
     }
   }, [analysisResult]);
 
+  // Knowledgebase handlers
+  const fetchKnowledgebaseDocuments = useCallback(async () => {
+    setKbLoading(true);
+    setKbError('');
+
+    try {
+      const documents: KnowledgebaseDocument[] = [];
+      const fileTypes = ['pdf', 'image', 'audio', 'video', 'txt', 'raw_text'];
+
+      for (const fileType of fileTypes) {
+        try {
+          const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+          const targetUrl = `https://rag.futurity.science/knowledgebases/f2c3354a-bb62-4b5e-aa55-e62d2802e946/items/${fileType}?page=1&size=50`;
+
+          const response = await fetch(proxyUrl + targetUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+
+          if (response.ok) {
+            const data: KnowledgebaseDocumentsResponse = await response.json();
+            documents.push(...data.items);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch ${fileType} documents:`, error);
+        }
+      }
+
+      setKbDocuments(documents);
+    } catch (error) {
+      console.error('Failed to fetch knowledgebase documents:', error);
+      setKbError(
+        'Failed to load documents - CORS issue. Please configure API server with proper CORS headers.'
+      );
+    } finally {
+      setKbLoading(false);
+    }
+  }, []);
+
+  const handleKbFileUpload = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+
+      const file = files[0];
+      setKbUploadLoading(true);
+      setKbUploadError('');
+      setKbUploadSuccess(false);
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const targetUrl =
+          'https://rag.futurity.science/knowledgebases/f2c3354a-bb62-4b5e-aa55-e62d2802e946/ingest_document';
+
+        const response = await fetch(proxyUrl + targetUrl, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(errorData || `Upload failed: ${response.status}`);
+        }
+
+        setKbUploadSuccess(true);
+        await fetchKnowledgebaseDocuments();
+
+        setTimeout(() => setKbUploadSuccess(false), 3000);
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        setKbUploadError(
+          error instanceof Error
+            ? error.message
+            : 'Upload failed - CORS issue. Please configure API server.'
+        );
+      } finally {
+        setKbUploadLoading(false);
+      }
+    },
+    [fetchKnowledgebaseDocuments]
+  );
+
+  const handleKbQuery = useCallback(async () => {
+    if (!kbQuery.trim()) return;
+
+    setKbQueryLoading(true);
+    setKbQueryError('');
+    setKbQueryResults(null);
+
+    try {
+      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      const targetUrl = 'https://rag.futurity.science/knowledgebases/query_kb';
+
+      const response = await fetch(proxyUrl + targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+          query_text: kbQuery.trim(),
+          top_k_documents: 5,
+          kb_uuid: 'f2c3354a-bb62-4b5e-aa55-e62d2802e946',
+          top_k_snippets_per_document: 3,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || `Query failed: ${response.status}`);
+      }
+
+      const data: KnowledgebaseQueryResponse = await response.json();
+      setKbQueryResults(data);
+    } catch (error) {
+      console.error('Failed to query knowledgebase:', error);
+      setKbQueryError(
+        error instanceof Error
+          ? error.message
+          : 'Query failed - CORS issue. Please configure API server.'
+      );
+    } finally {
+      setKbQueryLoading(false);
+    }
+  }, [kbQuery]);
+
+  const handleFileTypeToggle = useCallback((fileType: string) => {
+    setSelectedFileTypes((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileType)) {
+        newSet.delete(fileType);
+      } else {
+        newSet.add(fileType);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleDeleteDocument = useCallback(
+    async (documentId: string, documentTitle: string) => {
+      setDeletingDocuments((prev) => new Set(prev).add(documentId));
+
+      try {
+        const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+        const targetUrl = `https://rag.futurity.science/knowledgebases/f2c3354a-bb62-4b5e-aa55-e62d2802e946/documents/${documentId}`;
+
+        const response = await fetch(proxyUrl + targetUrl, {
+          method: 'DELETE',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(errorData || `Delete failed: ${response.status}`);
+        }
+
+        setKbDocuments((prev) =>
+          prev.filter((doc) => doc.document_uuid !== documentId)
+        );
+
+        toaster.create({
+          title: 'Document deleted',
+          description: `"${documentTitle}" has been successfully deleted.`,
+          type: 'success',
+          duration: 3000,
+        });
+
+        fetchKnowledgebaseDocuments();
+      } catch (error) {
+        console.error('Failed to delete document:', error);
+
+        toaster.create({
+          title: 'Failed to delete document',
+          description:
+            error instanceof Error
+              ? error.message
+              : 'An unknown error occurred',
+          type: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setDeletingDocuments((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(documentId);
+          return newSet;
+        });
+      }
+    },
+    [toaster, fetchKnowledgebaseDocuments]
+  );
+
   return (
     <VStack gap={6} align='stretch'>
       {/* Header */}
@@ -751,188 +594,27 @@ Report generated by Investment Analysis System`;
         Analyses
       </Heading>
 
+      {/* Sticky Navigation Bar */}
+      <StickyNavigation
+        items={navigationItems}
+        activeSection={activeSection}
+        onSectionClick={scrollToSection}
+      />
+
       {/* Horizon Chart with Subject Selection */}
-      <Card.Root>
-        <Card.Body p={6}>
-          <VStack gap={4} align='stretch'>
-            <Heading as='h3' size='md'>
-              Horizon Chart
-            </Heading>
-
-            <Flex gap={6} align='flex-start'>
-              {/* Subject Selection Panel */}
-              <Box minW='300px' maxW='300px'>
-                <VStack gap={4} align='stretch'>
-                  <HStack justify='space-between' align='center'>
-                    <Text fontSize='sm' fontWeight='medium'>
-                      Select Subjects ({selectedSubjects.size}/
-                      {allSubjects.length})
-                    </Text>
-                    <HStack gap={2}>
-                      <Button
-                        size='xs'
-                        variant='ghost'
-                        onClick={handleSelectAll}
-                      >
-                        All
-                      </Button>
-                      <Button
-                        size='xs'
-                        variant='ghost'
-                        onClick={handleDeselectAll}
-                      >
-                        None
-                      </Button>
-                    </HStack>
-                  </HStack>
-
-                  <Box
-                    maxH='500px'
-                    overflowY='auto'
-                    border='1px solid'
-                    borderColor='gray.200'
-                    borderRadius='md'
-                    p={3}
-                  >
-                    <VStack gap={2} align='stretch'>
-                      {/* Selected subjects first */}
-                      {groupedSubjects.selected.length > 0 && (
-                        <>
-                          <Text
-                            fontSize='xs'
-                            fontWeight='bold'
-                            color='green.600'
-                            textTransform='uppercase'
-                          >
-                            Included ({groupedSubjects.selected.length})
-                          </Text>
-                          {groupedSubjects.selected.map((subject) => (
-                            <HStack key={subject.id} gap={2} align='center'>
-                              <Checkbox.Root
-                                checked={selectedSubjects.has(subject.id)}
-                                onCheckedChange={() =>
-                                  handleSubjectToggle(subject.id)
-                                }
-                                size='sm'
-                              >
-                                <Checkbox.HiddenInput />
-                                <Checkbox.Control>
-                                  <Checkbox.Indicator />
-                                </Checkbox.Control>
-                              </Checkbox.Root>
-                              <VStack gap={0} align='stretch' flex='1'>
-                                <Text fontSize='sm' fontWeight='medium'>
-                                  {subject.subjectName}
-                                </Text>
-                                {subject.notes && (
-                                  <Text
-                                    fontSize='xs'
-                                    color='gray.500'
-                                    overflow='hidden'
-                                    textOverflow='ellipsis'
-                                    whiteSpace='nowrap'
-                                  >
-                                    {subject.notes}
-                                  </Text>
-                                )}
-                              </VStack>
-                            </HStack>
-                          ))}
-                        </>
-                      )}
-
-                      {/* Unselected subjects */}
-                      {groupedSubjects.unselected.length > 0 && (
-                        <>
-                          {groupedSubjects.selected.length > 0 && (
-                            <Box height='1px' bg='gray.200' my={2} />
-                          )}
-                          <Text
-                            fontSize='xs'
-                            fontWeight='bold'
-                            color='gray.500'
-                            textTransform='uppercase'
-                          >
-                            Available ({groupedSubjects.unselected.length})
-                          </Text>
-                          {groupedSubjects.unselected.map((subject) => (
-                            <HStack key={subject.id} gap={2} align='center'>
-                              <Checkbox.Root
-                                checked={selectedSubjects.has(subject.id)}
-                                onCheckedChange={() =>
-                                  handleSubjectToggle(subject.id)
-                                }
-                                size='sm'
-                              >
-                                <Checkbox.HiddenInput />
-                                <Checkbox.Control>
-                                  <Checkbox.Indicator />
-                                </Checkbox.Control>
-                              </Checkbox.Root>
-                              <VStack gap={0} align='stretch' flex='1'>
-                                <Text fontSize='sm' fontWeight='medium'>
-                                  {subject.subjectName}
-                                </Text>
-                                {subject.notes && (
-                                  <Text
-                                    fontSize='xs'
-                                    color='gray.500'
-                                    overflow='hidden'
-                                    textOverflow='ellipsis'
-                                    whiteSpace='nowrap'
-                                  >
-                                    {subject.notes}
-                                  </Text>
-                                )}
-                              </VStack>
-                            </HStack>
-                          ))}
-                        </>
-                      )}
-
-                      {allSubjects.length === 0 && (
-                        <Text
-                          fontSize='sm'
-                          color='gray.500'
-                          textAlign='center'
-                          py={4}
-                        >
-                          No subjects available. Add subjects in the Gather tab
-                          first.
-                        </Text>
-                      )}
-                    </VStack>
-                  </Box>
-                </VStack>
-              </Box>
-
-              {/* Horizon Chart */}
-              <Box flex='1'>
-                {horizonData.length > 0 ? (
-                  <Horizons data={horizonData} showLegend={false} />
-                ) : (
-                  <Flex
-                    height='400px'
-                    align='center'
-                    justify='center'
-                    border='2px dashed'
-                    borderColor='gray.300'
-                    borderRadius='md'
-                    bg='gray.50'
-                  >
-                    <Text color='gray.500' fontSize='sm'>
-                      Select subjects to view horizon chart
-                    </Text>
-                  </Flex>
-                )}
-              </Box>
-            </Flex>
-          </VStack>
-        </Card.Body>
-      </Card.Root>
+      <HorizonChartSection
+        ref={horizonChartRef}
+        allSubjects={allSubjects}
+        selectedSubjects={selectedSubjects}
+        horizonData={horizonData}
+        groupedSubjects={groupedSubjects}
+        onSubjectToggle={handleSubjectToggle}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+      />
 
       {/* Lab Analyses List with CardScroller */}
-      <Card.Root>
+      <Card.Root ref={labAnalysesRef}>
         <Card.Body p={4}>
           <VStack gap={3} align='stretch'>
             <Heading as='h3' size='md' flexShrink={0}>
@@ -1080,7 +762,7 @@ Report generated by Investment Analysis System`;
       </Card.Root>
 
       {/* Analysis Tools */}
-      <Card.Root>
+      <Card.Root ref={analysisToolsRef}>
         <Card.Body p={6}>
           <VStack gap={4} align='stretch'>
             <Heading as='h3' size='md'>
@@ -1094,7 +776,9 @@ Report generated by Investment Analysis System`;
               </Text>
               <select
                 value={analysisType}
-                onChange={(e) => setAnalysisType(e.target.value as any)}
+                onChange={(e) =>
+                  setAnalysisType(e.target.value as AnalysisType)
+                }
                 style={{
                   padding: '8px',
                   borderRadius: '4px',
@@ -1415,8 +1099,32 @@ Report generated by Investment Analysis System`;
         </Card.Body>
       </Card.Root>
 
+      {/* Knowledgebase */}
+      <KnowledgebaseSection
+        ref={knowledgebaseRef}
+        kbDocuments={kbDocuments}
+        filteredKbDocuments={filteredKbDocuments}
+        kbLoading={kbLoading}
+        kbError={kbError}
+        kbUploadLoading={kbUploadLoading}
+        kbUploadError={kbUploadError}
+        kbUploadSuccess={kbUploadSuccess}
+        kbQuery={kbQuery}
+        kbQueryResults={kbQueryResults}
+        kbQueryLoading={kbQueryLoading}
+        kbQueryError={kbQueryError}
+        selectedFileTypes={selectedFileTypes}
+        deletingDocuments={deletingDocuments}
+        onKbQueryChange={setKbQuery}
+        onKbQuery={handleKbQuery}
+        onFileUpload={handleKbFileUpload}
+        onFileTypeToggle={handleFileTypeToggle}
+        onDeleteDocument={handleDeleteDocument}
+        onRetryFetch={fetchKnowledgebaseDocuments}
+      />
+
       {/* Additional Analysis Tools */}
-      <Card.Root>
+      <Card.Root ref={additionalToolsRef}>
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
             <Heading as='h3' size='md'>
