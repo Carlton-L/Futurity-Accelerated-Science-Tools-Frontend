@@ -853,7 +853,7 @@ const Subject: React.FC = () => {
       <ForecastChart subjectSlug={subject.slug} />
 
       {/* Related Documents */}
-      <RelatedDocuments />
+      <RelatedDocuments subjectSlug={subject.slug} />
     </Box>
   );
 };

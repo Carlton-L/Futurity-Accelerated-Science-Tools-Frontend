@@ -18,27 +18,30 @@ import {
   LuLogOut,
   LuUserCog,
 } from 'react-icons/lu';
+import { useAuth } from '../../../context/AuthContext';
 
 const ProfileButton: React.FC = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isLogoutOpen, setIsLogoutOpen] = React.useState(false);
 
-  // These would come from your auth context
-  const user = {
-    id: 'user123',
-    name: 'John Doe',
-    email: 'john@example.com',
-    avatar: 'https://via.placeholder.com/40',
-    isOrgAdmin: true,
-  };
-  const orgId = 'org123';
+  if (!user) {
+    return null;
+  }
 
-  const handleLogout = () => {
-    // Implement logout logic
-    console.log('Logging out...');
-    setIsLogoutOpen(false);
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setIsLogoutOpen(false);
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Still navigate to login even if logout fails
+      navigate('/login');
+    }
   };
+
+  const isAdmin = user.role === 'admin';
 
   return (
     <>
@@ -46,18 +49,18 @@ const ProfileButton: React.FC = () => {
         <Menu.Trigger asChild>
           <Box>
             <Avatar.Root _hover={{ opacity: 0.8 }} cursor='pointer'>
-              <Avatar.Fallback name={user.name} />
-              <Avatar.Image src={user.avatar} />
+              <Avatar.Fallback name={user.fullname || user.username} />
+              {user.picture_url && <Avatar.Image src={user.picture_url} />}
             </Avatar.Root>
           </Box>
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
             <Menu.Content>
-              {user.isOrgAdmin && (
+              {isAdmin && (
                 <>
                   <Menu.Item value='org-management' asChild>
-                    <RouterLink to={`/admin/${orgId}`}>
+                    <RouterLink to={`/admin/${user.team_id}`}>
                       <HStack gap={2}>
                         <LuUserCog />
                         <Text>Org Management</Text>
@@ -69,7 +72,7 @@ const ProfileButton: React.FC = () => {
               )}
 
               <Menu.Item value='profile' asChild>
-                <RouterLink to={`/user/${user.id}`}>
+                <RouterLink to={`/user/${user._id}`}>
                   <HStack gap={2}>
                     <LuUser />
                     <Text>My Profile</Text>
@@ -78,7 +81,7 @@ const ProfileButton: React.FC = () => {
               </Menu.Item>
 
               <Menu.Item value='settings' asChild>
-                <RouterLink to={`/user/${user.id}/settings`}>
+                <RouterLink to={`/user/${user._id}/settings`}>
                   <HStack gap={2}>
                     <LuSettings />
                     <Text>Settings</Text>

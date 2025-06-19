@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../../context/AuthContext';
 import {
   Box,
@@ -15,18 +14,12 @@ import {
 } from '@chakra-ui/react';
 
 const Login: React.FC = () => {
-  const [name, setName] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
 
-  const { login } = useAuth();
-
+  const { login, isLoading } = useAuth();
   const navigate = useNavigate();
-
-  const userData = {
-    id: uuidv4(), // Instead of generateId()
-    name: name.trim(),
-  };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -35,29 +28,49 @@ const Login: React.FC = () => {
     setError('');
 
     // Validate form
-    if (!name.trim()) {
-      setError('Please enter your name');
+    if (!username.trim()) {
+      setError('Please enter your username');
       return;
     }
 
-    setIsLoading(true);
+    if (!password.trim()) {
+      setError('Please enter your password');
+      return;
+    }
 
     try {
       // Call login function
-      login(userData);
+      await login({
+        username: username.trim(),
+        password: password.trim(),
+      });
 
       // Navigate to home page
       navigate('/', { replace: true });
     } catch (err) {
-      setError('An error occurred during login. Please try again.');
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'An error occurred during login. Please try again.';
+      setError(errorMessage);
       console.error('Login error:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setName(e.target.value);
+  const handleUsernameChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    setUsername(e.target.value);
+    // Clear error when user starts typing
+    if (error) {
+      setError('');
+    }
+  };
+
+  const handlePasswordChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    setPassword(e.target.value);
     // Clear error when user starts typing
     if (error) {
       setError('');
@@ -83,7 +96,7 @@ const Login: React.FC = () => {
                 <Heading as='h1' size='lg' mb={2}>
                   Welcome Back
                 </Heading>
-                <Text color='gray.600'>Enter your name to continue</Text>
+                <Text color='gray.600'>Sign in to your account</Text>
               </Box>
 
               {/* Error Alert */}
@@ -100,16 +113,32 @@ const Login: React.FC = () => {
                 <VStack gap={4} align='stretch'>
                   <Fieldset.Root>
                     <Fieldset.Content>
-                      <Fieldset.Legend>Name</Fieldset.Legend>
+                      <Fieldset.Legend>Username</Fieldset.Legend>
                       <Input
-                        id='name'
+                        id='username'
                         type='text'
-                        value={name}
-                        onChange={handleNameChange}
-                        placeholder='Enter your name'
+                        value={username}
+                        onChange={handleUsernameChange}
+                        placeholder='Enter your username'
                         size='lg'
-                        autoComplete='name'
+                        autoComplete='username'
                         autoFocus
+                        required
+                      />
+                    </Fieldset.Content>
+                  </Fieldset.Root>
+
+                  <Fieldset.Root>
+                    <Fieldset.Content>
+                      <Fieldset.Legend>Password</Fieldset.Legend>
+                      <Input
+                        id='password'
+                        type='password'
+                        value={password}
+                        onChange={handlePasswordChange}
+                        placeholder='Enter your password'
+                        size='lg'
+                        autoComplete='current-password'
                         required
                       />
                     </Fieldset.Content>
@@ -126,20 +155,6 @@ const Login: React.FC = () => {
                     Sign In
                   </Button>
                 </VStack>
-              </Box>
-
-              {/* Demo Notice */}
-              <Box
-                p={4}
-                bg='blue.50'
-                borderRadius='md'
-                border='1px solid'
-                borderColor='blue.200'
-              >
-                <Text fontSize='sm' color='blue.700' textAlign='center'>
-                  <strong>Demo Mode:</strong> This is a fake login page. Enter
-                  any name to access the application.
-                </Text>
               </Box>
             </VStack>
           </Card.Body>

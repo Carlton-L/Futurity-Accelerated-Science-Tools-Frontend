@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -8,151 +8,134 @@ import {
   Text,
   IconButton,
   Popover,
+  Spinner,
 } from '@chakra-ui/react';
 import { FiInfo } from 'react-icons/fi';
+import Plot from 'react-plotly.js';
+import type { Data, Layout } from 'plotly.js';
+import ChartErrorBoundary from './ChartErrorBoundary';
 
 // TypeScript interfaces
-type TrendType = 'Press' | 'Patents' | 'Papers' | 'Books';
-
-interface TrendPlotData {
-  x: string[];
-  y: number[];
-  name: string;
-  type: string;
-  mode: string;
-  line: {
-    color: string;
-    width: number;
-  };
-}
-
 interface TrendData {
-  plot_data: TrendPlotData[];
-  plot_layout: {
-    title: string;
-    xaxis: { title: string };
-    yaxis: { title: string };
-    margin: { t: number; r: number; b: number; l: number };
-    legend: { orientation: string };
-  };
+  _generated_at: number;
+  plot_data: Partial<Data>[];
+  plot_layout: Partial<Layout>;
+  _generated_finish_at: number;
+  _generated_duration: number;
 }
 
 interface TrendsChartProps {
   subjectSlug: string;
-  initialData?: TrendData;
 }
-
-// TODO: Replace with official brand colors
-const trendColors: Record<TrendType, string> = {
-  Press: '#3182CE', // Blue
-  Patents: '#38A169', // Green
-  Papers: '#D69E2E', // Orange
-  Books: '#9F7AEA', // Purple
-};
-
-// Mock trend data
-const mockTrendData: TrendData = {
-  plot_data: [
-    {
-      x: ['2020', '2021', '2022', '2023', '2024', '2025'],
-      y: [45, 67, 89, 123, 156, 134],
-      name: 'Press',
-      type: 'scatter',
-      mode: 'lines',
-      line: { color: trendColors.Press, width: 3 },
-    },
-    {
-      x: ['2020', '2021', '2022', '2023', '2024', '2025'],
-      y: [23, 34, 45, 67, 78, 89],
-      name: 'Patents',
-      type: 'scatter',
-      mode: 'lines',
-      line: { color: trendColors.Patents, width: 3 },
-    },
-    {
-      x: ['2020', '2021', '2022', '2023', '2024', '2025'],
-      y: [12, 18, 25, 34, 42, 38],
-      name: 'Papers',
-      type: 'scatter',
-      mode: 'lines',
-      line: { color: trendColors.Papers, width: 3 },
-    },
-    {
-      x: ['2020', '2021', '2022', '2023', '2024', '2025'],
-      y: [3, 5, 8, 12, 15, 18],
-      name: 'Books',
-      type: 'scatter',
-      mode: 'lines',
-      line: { color: trendColors.Books, width: 3 },
-    },
-  ],
-  plot_layout: {
-    title: 'Trends Over Time',
-    xaxis: { title: 'Year' },
-    yaxis: { title: 'Count' },
-    margin: { t: 80, r: 40, b: 80, l: 60 },
-    legend: { orientation: 'h' },
-  },
-};
 
 // Info text for the trends chart
 const trendsInfoText =
-  'This chart shows publication and activity trends across different source types over time. Each line represents a different category of content related to the subject, allowing you to compare relative activity levels and identify patterns in the **computer vision** space.';
+  'This chart shows publication and activity trends across different source types over time. Each line represents a different category of content related to the subject, allowing you to compare relative activity levels and identify patterns in the space.';
 
-// Placeholder Graph Component
-const TrendsGraph: React.FC<{ data: TrendData }> = ({ data }) => {
-  return (
-    <Box
-      height='400px'
-      bg='gray.50'
-      border='1px solid'
-      borderColor='gray.200'
-      borderRadius='md'
-      display='flex'
-      flexDirection='column'
-      position='relative'
-    >
-      {/* Graph Area */}
-      <Box flex='1' display='flex' alignItems='center' justifyContent='center'>
-        <VStack gap={2}>
-          <Text color='gray.500' fontSize='lg'>
-            Trends Graph
-          </Text>
-          <Text color='gray.400' fontSize='sm'>
-            D3 Graph Component (Placeholder)
-          </Text>
-          <Text color='gray.400' fontSize='xs'>
-            Multi-line chart with {data.plot_data.length} trend lines
-          </Text>
-        </VStack>
-      </Box>
+const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
+  const [data, setData] = useState<TrendData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-      {/* Legend */}
-      <Box p={4} borderTop='1px solid' borderColor='gray.200' bg='white'>
-        <HStack justify='center' wrap='wrap' gap={6}>
-          {data.plot_data.map((trend) => (
-            <HStack key={trend.name} gap={2}>
-              <Box
-                width='20px'
-                height='3px'
-                bg={trend.line.color}
-                borderRadius='sm'
-              />
-              <Text fontSize='sm' color='gray.700'>
-                {trend.name}
-              </Text>
+  useEffect(() => {
+    const fetchTrendsData = async () => {
+      if (!subjectSlug) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          `https://tools.futurity.science/api/subject/get-ridgeline-plot?slug=${subjectSlug}`,
+          {
+            headers: {
+              Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const trendsData: TrendData = await response.json();
+        setData(trendsData);
+      } catch (err) {
+        console.error('Failed to fetch trends data:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to load trends data'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrendsData();
+  }, [subjectSlug]);
+
+  if (loading) {
+    return (
+      <Card.Root width='100%' mt={6}>
+        <Card.Body p={6}>
+          <VStack gap={6} align='stretch'>
+            <HStack justify='space-between' align='center'>
+              <Heading as='h2' size='lg'>
+                Trends
+              </Heading>
             </HStack>
-          ))}
-        </HStack>
-      </Box>
-    </Box>
-  );
-};
+            <Box
+              height='500px'
+              display='flex'
+              alignItems='center'
+              justifyContent='center'
+            >
+              <VStack gap={2}>
+                <Spinner size='lg' />
+                <Text color='gray.500'>Loading trends data...</Text>
+              </VStack>
+            </Box>
+          </VStack>
+        </Card.Body>
+      </Card.Root>
+    );
+  }
 
-const TrendsChart: React.FC<TrendsChartProps> = ({
-  subjectSlug: _subjectSlug, // eslint-disable-line @typescript-eslint/no-unused-vars
-  initialData = mockTrendData,
-}) => {
+  if (error) {
+    return (
+      <Card.Root width='100%' mt={6}>
+        <Card.Body p={6}>
+          <VStack gap={6} align='stretch'>
+            <HStack justify='space-between' align='center'>
+              <Heading as='h2' size='lg'>
+                Trends
+              </Heading>
+            </HStack>
+            <Box
+              height='400px'
+              display='flex'
+              alignItems='center'
+              justifyContent='center'
+            >
+              <VStack gap={2}>
+                <Text color='red.500' fontSize='lg'>
+                  Error loading trends data
+                </Text>
+                <Text color='gray.500' fontSize='sm'>
+                  {error}
+                </Text>
+              </VStack>
+            </Box>
+          </VStack>
+        </Card.Body>
+      </Card.Root>
+    );
+  }
+
+  if (!data) {
+    return null;
+  }
+
   return (
     <Card.Root width='100%' mt={6}>
       <Card.Body p={6}>
@@ -186,8 +169,32 @@ const TrendsChart: React.FC<TrendsChartProps> = ({
             </Popover.Root>
           </HStack>
 
-          {/* Graph with Built-in Legend */}
-          <TrendsGraph data={initialData} />
+          {/* Plotly Chart */}
+          <ChartErrorBoundary chartName='Trends Chart' fallbackHeight='500px'>
+            <Plot
+              data={data.plot_data as Data[]}
+              layout={
+                {
+                  ...data.plot_layout,
+                  autosize: true,
+                } as Partial<Layout>
+              }
+              style={{ width: '100%', height: '500px' }}
+              config={{
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: [
+                  'pan2d',
+                  'lasso2d',
+                  'select2d',
+                  'autoScale2d',
+                  'hoverClosestCartesian',
+                  'hoverCompareCartesian',
+                  'toggleSpikelines',
+                ],
+              }}
+            />
+          </ChartErrorBoundary>
         </VStack>
       </Card.Body>
     </Card.Root>
