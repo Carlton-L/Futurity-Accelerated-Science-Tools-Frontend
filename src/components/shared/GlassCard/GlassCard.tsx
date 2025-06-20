@@ -6,7 +6,7 @@ interface GlassCardProps extends BoxProps {
   variant?: 'solid' | 'glass' | 'outline' | 'gradient';
 }
 
-export const GlassCard: React.FC<GlassCardProps> = ({
+const GlassCard: React.FC<GlassCardProps> = ({
   variant = 'solid',
   children,
   ...props
@@ -78,3 +78,5 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     </Box>
   );
 };
+
+export default GlassCard;

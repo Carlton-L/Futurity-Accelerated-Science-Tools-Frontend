@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -14,61 +14,28 @@ import {
   Popover,
 } from '@chakra-ui/react';
 import { FiInfo, FiSearch } from 'react-icons/fi';
+import Plot from 'react-plotly.js';
+import type { Data, Layout } from 'plotly.js';
+import ChartErrorBoundary from '../Subject/ChartErrorBoundary';
+import { useTheme } from '../../context/ThemeContext';
 
 // TypeScript interfaces
-type OrganizationForecastType =
-  | 'Organizations'
-  | 'Press'
-  | 'Patents'
-  | 'Papers'
-  | 'Books';
+type ForecastType = 'Organizations' | 'Press' | 'Patents' | 'Papers' | 'Books';
 
-interface OrganizationPlotLayout {
-  legend: { orientation: string };
-  xaxis: unknown[];
-  yaxis: { title: string };
-  margin: { t: number; r: number; b: number; l: number };
-  shapes: Array<{
-    type: string;
-    x0: string;
-    x1: string;
-    y0: number;
-    y1: number;
-    xref: string;
-    yref: string;
-    line: { color: string; width: number };
-  }>;
+interface ForecastData {
+  rows?: any[];
+  count?: number;
+  plot_layout: Partial<Layout>;
+  plot_data: Partial<Data>[];
+  referrer?: any;
 }
 
-interface OrganizationPlotDataItem {
-  mode?: string;
-  type: string;
-  x: string[] | null[];
-  y: number[] | null[];
-  name: string;
-  line?: {
-    color: string;
-    width: number;
-    dash?: string;
-  };
-  showlegend?: boolean;
-  fill?: string;
-  fillcolor?: string;
-}
-
-interface OrganizationForecastData {
-  rows: unknown[];
-  count: number;
-  plot_layout: OrganizationPlotLayout;
-  plot_data: OrganizationPlotDataItem[];
-}
-
-interface OrganizationTableRow {
+interface TableRow {
   ent_fsid: string;
   _id: string;
   ent_name: string;
   ent_summary: string;
-  ent_year: number;
+  ent_year: number | null;
   ent_url: string;
   sentiment_score: null | number;
   mongo_row: {
@@ -76,20 +43,20 @@ interface OrganizationTableRow {
     ent_fsid: string;
     ent_name: string;
     ent_summary: string;
-    ent_year: number;
+    ent_year?: number;
     ent_url: string;
   };
 }
 
-interface OrganizationTableData {
-  rows: OrganizationTableRow[];
+interface TableData {
+  rows: TableRow[];
   count: number;
-  draw: string;
+  draw: string | null;
   data: string[][];
   recordsTotal: number;
   recordsFiltered: number;
   debug: {
-    raw_found: unknown[];
+    raw_found: any[];
     mongo_query_size: number;
     mongo_query_count: number;
     mongo_count: number;
@@ -97,220 +64,179 @@ interface OrganizationTableData {
   };
 }
 
-interface OrganizationPaginationParams {
+interface PaginationParams {
   page: number;
   pageSize: number;
   searchTerm: string;
 }
 
 interface ForecastChartProps {
-  organizationSlug: string;
-  initialData?: Record<OrganizationForecastType, OrganizationForecastData>;
+  subjectSlug: string;
 }
 
-// Mock forecast data structure for organization
-const mockOrganizationForecastData: Record<
-  OrganizationForecastType,
-  OrganizationForecastData
-> = {
-  Press: {
-    rows: [],
-    count: 0,
-    plot_layout: {
-      legend: { orientation: 'h' },
-      xaxis: [],
-      yaxis: { title: 'Number of Press articles mentioning Apple' },
-      margin: { t: 80, r: 40, b: 80, l: 60 },
-      shapes: [
-        {
-          type: 'line',
-          x0: '2020',
-          x1: '2020',
-          y0: 0,
-          y1: 1,
-          xref: 'x',
-          yref: 'paper',
-          line: { color: 'red', width: 1 },
-        },
-      ],
-    },
-    plot_data: [],
-  },
-  Patents: {
-    rows: [],
-    count: 0,
-    plot_layout: {
-      legend: { orientation: 'h' },
-      xaxis: [],
-      yaxis: { title: 'Number of Apple Patents' },
-      margin: { t: 80, r: 40, b: 80, l: 60 },
-      shapes: [
-        {
-          type: 'line',
-          x0: '2017',
-          x1: '2017',
-          y0: 0,
-          y1: 1,
-          xref: 'x',
-          yref: 'paper',
-          line: { color: 'red', width: 1 },
-        },
-      ],
-    },
-    plot_data: [],
-  },
-  Organizations: {
-    rows: [],
-    count: 0,
-    plot_layout: {
-      legend: { orientation: 'h' },
-      xaxis: [],
-      yaxis: { title: 'Number of Organizations related to Apple' },
-      margin: { t: 80, r: 40, b: 80, l: 60 },
-      shapes: [],
-    },
-    plot_data: [],
-  },
-  Papers: {
-    rows: [],
-    count: 0,
-    plot_layout: {
-      legend: { orientation: 'h' },
-      xaxis: [],
-      yaxis: { title: 'Number of Papers mentioning Apple' },
-      margin: { t: 80, r: 40, b: 80, l: 60 },
-      shapes: [],
-    },
-    plot_data: [],
-  },
-  Books: {
-    rows: [],
-    count: 0,
-    plot_layout: {
-      legend: { orientation: 'h' },
-      xaxis: [],
-      yaxis: { title: 'Number of Books about Apple' },
-      margin: { t: 80, r: 40, b: 80, l: 60 },
-      shapes: [],
-    },
-    plot_data: [],
-  },
+// Source type mapping for API calls
+const sourceTypeMapping: Record<ForecastType, string> = {
+  Organizations: 'Organization',
+  Press: 'Press',
+  Patents: 'Patent',
+  Papers: 'Paper',
+  Books: 'Book',
 };
 
-// Info text for each organization forecast type
-const organizationInfoTexts: Record<OrganizationForecastType, string> = {
+// Info text for each forecast type
+const infoTexts: Record<ForecastType, string> = {
   Organizations:
-    "Partner companies, suppliers, competitors, and other organizations in Apple's ecosystem. The graph and table below show details about organizations connected to **Apple Inc.**",
+    'Venture investment in startups, corporate partnerships, and other relationships between the companies in a space are critical to competitive strategy and Open Innovation. The graph and table below show details about organizations in this space.',
   Press:
-    'News articles, press releases, and media coverage about Apple. The graph and table below show press mentions and coverage of **Apple Inc.**',
+    'Press coverage and media attention are indicators of public interest and market momentum. The graph and table below show press articles related to this space.',
   Patents:
-    "Patent applications and grants filed by Apple. The graph and table below show Apple's patent activity and intellectual property development.",
+    'Patent activity indicates innovation and intellectual property development in a technology space. The graph and table below show patent filings in this space.',
   Papers:
-    'Academic papers, research publications, and technical documents mentioning Apple. The graph and table below show research related to **Apple Inc.**',
+    'Academic papers and research publications show the scientific foundation and advancement of a technology. The graph and table below show research papers in this space.',
   Books:
-    'Books, publications, and case studies about Apple. The graph and table below show books and comprehensive resources about **Apple Inc.**',
+    'Books and publications provide comprehensive knowledge and educational resources in a field. The graph and table below show books related to this space.',
 };
 
-// Placeholder Graph Component
-const OrganizationForecastGraph: React.FC<{
-  data: OrganizationForecastData;
-  type: OrganizationForecastType;
-}> = ({ data, type }) => {
-  return (
-    <Box
-      height='400px'
-      bg='gray.50'
-      border='1px solid'
-      borderColor='gray.200'
-      borderRadius='md'
-      display='flex'
-      alignItems='center'
-      justifyContent='center'
-    >
-      <VStack gap={2}>
-        <Text color='gray.500' fontSize='lg'>
-          {type} Forecast Graph
-        </Text>
-        <Text color='gray.400' fontSize='sm'>
-          D3 Graph Component (Placeholder)
-        </Text>
-        <Text color='gray.400' fontSize='xs'>
-          Y-axis: {data.plot_layout.yaxis.title}
-        </Text>
-      </VStack>
-    </Box>
-  );
-};
-
-const ForecastChart: React.FC<ForecastChartProps> = ({
-  organizationSlug: _organizationSlug, // eslint-disable-line @typescript-eslint/no-unused-vars
-  initialData = mockOrganizationForecastData,
-}) => {
+const ForecastChart: React.FC<ForecastChartProps> = ({ subjectSlug }) => {
+  const theme = useTheme();
   const [selectedType, setSelectedType] =
-    useState<OrganizationForecastType>('Press');
-  const [tableData, setTableData] = useState<OrganizationTableData | null>(
-    null
-  );
+    useState<ForecastType>('Organizations');
+  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
+  const [tableData, setTableData] = useState<TableData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [pagination, setPagination] = useState<OrganizationPaginationParams>({
+  const [loadingChart, setLoadingChart] = useState<boolean>(false);
+  const [pagination, setPagination] = useState<PaginationParams>({
     page: 0,
     pageSize: 10,
     searchTerm: '',
   });
   const [searchInput, setSearchInput] = useState<string>('');
 
-  // TODO: Replace with actual API call
+  // Get theme-aware colors for Plotly
+  const getPlotlyColors = () => {
+    if (!theme.isDark) {
+      return {
+        backgroundColor: '#FFFFFF', // Pure white for light background
+        paperColor: '#FFFFFF', // Pure white for light paper
+        textColor: '#000000', // Black text
+        gridColor: '#E0E0E0', // Light grid lines
+        axisColor: '#666666', // Dark gray axis lines
+      };
+    } else {
+      return {
+        backgroundColor: '#000000', // Pure black for dark background
+        paperColor: '#000000', // Pure black for dark paper
+        textColor: '#FFFFFF', // White text
+        gridColor: '#333333', // Dark grid lines
+        axisColor: '#A0A0A0', // Gray axis lines
+      };
+    }
+  };
+
+  // Fetch forecast chart data
+  const fetchForecastData = useCallback(
+    async (type: ForecastType): Promise<void> => {
+      if (!subjectSlug) return;
+
+      setLoadingChart(true);
+
+      try {
+        const sourceType = sourceTypeMapping[type];
+        const response = await fetch(
+          `https://tools.futurity.science/api/subject/get-source-forecast-plot?slug=${subjectSlug}&source_type=${sourceType}`,
+          {
+            headers: {
+              Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data: ForecastData = await response.json();
+        setForecastData(data);
+      } catch (err) {
+        console.error('Failed to fetch forecast data:', err);
+        // Set empty data on error to prevent infinite loading
+        setForecastData({
+          plot_layout: {
+            margin: { t: 80, r: 40, b: 80, l: 60 },
+            yaxis: { title: `Number of ${type}` },
+          } as Partial<Layout>,
+          plot_data: [] as Partial<Data>[],
+        });
+      } finally {
+        setLoadingChart(false);
+      }
+    },
+    [subjectSlug]
+  );
+
+  // Fetch table data
   const fetchTableData = useCallback(
-    async (
-      type: OrganizationForecastType,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      _params: OrganizationPaginationParams
-    ): Promise<void> => {
+    async (type: ForecastType, params: PaginationParams): Promise<void> => {
+      if (!subjectSlug) return;
+
       setLoading(true);
 
-      // Simulate API call
-      setTimeout(() => {
-        // Mock table data based on the provided examples
-        const mockData: OrganizationTableData = {
+      try {
+        const sourceType = sourceTypeMapping[type];
+        const start = params.page * params.pageSize;
+        const searchParam = params.searchTerm
+          ? `&search=${encodeURIComponent(params.searchTerm)}`
+          : '';
+
+        const response = await fetch(
+          `https://tools.futurity.science/api/subject/get-source-table-paginated?slug=${subjectSlug}&source_type=${sourceType}&start=${start}&length=${params.pageSize}${searchParam}`,
+          {
+            headers: {
+              Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data: TableData = await response.json();
+        setTableData(data);
+      } catch (err) {
+        console.error('Failed to fetch table data:', err);
+        // Set empty data on error
+        setTableData({
           rows: [],
           count: 0,
-          draw: '1',
-          data: [
-            [
-              '<div style="width: 55px;">2025</div>',
-              '<div class="name-div"><a href="#" target="_blank">Sample Apple Article</a> <small class="text-muted">Sample description about Apple for demo purposes.</small></div>',
-            ],
-          ],
-          recordsTotal: type === 'Press' ? 1249 : 1658,
-          recordsFiltered: type === 'Press' ? 1249 : 1658,
+          draw: null,
+          data: [],
+          recordsTotal: 0,
+          recordsFiltered: 0,
           debug: {
             raw_found: [],
-            mongo_query_size: 100,
-            mongo_query_count: 1,
-            mongo_count: 10,
-            fields_integrity: {
-              _id: { valid: 10, total: 10 },
-              ent_fsid: { valid: 10, total: 10 },
-              ent_name: { valid: 10, total: 10 },
-              ent_summary: { valid: 10, total: 10 },
-              ent_year: { valid: 10, total: 10 },
-              ent_url: { valid: 10, total: 10 },
-            },
+            mongo_query_size: 0,
+            mongo_query_count: 0,
+            mongo_count: 0,
+            fields_integrity: {},
           },
-        };
-
-        setTableData(mockData);
+        });
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     },
-    []
+    [subjectSlug]
   );
 
   // Handle type selection
-  const handleTypeChange = (type: OrganizationForecastType): void => {
+  const handleTypeChange = (type: ForecastType): void => {
     setSelectedType(type);
-    setPagination((prev) => ({ ...prev, page: 0 }));
-    fetchTableData(type, { ...pagination, page: 0 });
+    const newPagination = { ...pagination, page: 0 };
+    setPagination(newPagination);
+    fetchForecastData(type);
+    fetchTableData(type, newPagination);
   };
 
   // Handle search
@@ -327,10 +253,80 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
     fetchTableData(selectedType, newParams);
   };
 
+  // Handle pagination
+  const handlePageChange = (newPage: number): void => {
+    const newParams = { ...pagination, page: newPage };
+    setPagination(newParams);
+    fetchTableData(selectedType, newParams);
+  };
+
   // Initialize with first load
-  React.useEffect(() => {
-    fetchTableData(selectedType, pagination);
-  }, [fetchTableData, selectedType, pagination]);
+  useEffect(() => {
+    if (subjectSlug) {
+      fetchForecastData(selectedType);
+      fetchTableData(selectedType, pagination);
+    }
+  }, [subjectSlug, fetchForecastData, fetchTableData, selectedType]);
+
+  // Re-render chart when theme changes
+  useEffect(() => {
+    if (forecastData) {
+      // Force a re-render of the chart when theme changes
+      const timer = setTimeout(() => {
+        setForecastData({ ...forecastData });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [theme.isDark]);
+
+  // Calculate pagination info
+  const totalPages = tableData
+    ? Math.ceil(tableData.recordsFiltered / pagination.pageSize)
+    : 0;
+  const currentStart = pagination.page * pagination.pageSize + 1;
+  const currentEnd = Math.min(
+    (pagination.page + 1) * pagination.pageSize,
+    tableData?.recordsFiltered || 0
+  );
+
+  // Get theme colors for the current render
+  const plotlyColors = getPlotlyColors();
+
+  // Create theme-aware layout
+  const createThemedLayout = (
+    originalLayout: Partial<Layout>
+  ): Partial<Layout> => {
+    return {
+      ...originalLayout,
+      autosize: true,
+      height: 400,
+      paper_bgcolor: plotlyColors.paperColor,
+      plot_bgcolor: plotlyColors.backgroundColor,
+      font: {
+        color: plotlyColors.textColor,
+        family: 'JetBrains Mono, monospace', // Use your theme font
+      },
+      xaxis: {
+        ...originalLayout.xaxis,
+        color: plotlyColors.textColor,
+        gridcolor: plotlyColors.gridColor,
+        zerolinecolor: plotlyColors.axisColor,
+      },
+      yaxis: {
+        ...originalLayout.yaxis,
+        color: plotlyColors.textColor,
+        gridcolor: plotlyColors.gridColor,
+        zerolinecolor: plotlyColors.axisColor,
+      },
+      title: {
+        ...originalLayout.title,
+        font: {
+          color: plotlyColors.textColor,
+          family: 'TT Norms Pro, sans-serif', // Use your heading font
+        },
+      },
+    };
+  };
 
   return (
     <Card.Root width='100%' mt={6}>
@@ -343,9 +339,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
 
           {/* Type Selection Buttons */}
           <HStack gap={2} wrap='wrap'>
-            {(
-              Object.keys(organizationInfoTexts) as OrganizationForecastType[]
-            ).map((type) => (
+            {(Object.keys(infoTexts) as ForecastType[]).map((type) => (
               <HStack key={type} gap={1}>
                 <Button
                   size='sm'
@@ -370,7 +364,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
                       <Popover.Arrow />
                       <Popover.Body>
                         <Text fontSize='sm' maxW='300px'>
-                          {organizationInfoTexts[type]}
+                          {infoTexts[type]}
                         </Text>
                       </Popover.Body>
                     </Popover.Content>
@@ -381,10 +375,52 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
           </HStack>
 
           {/* Graph */}
-          <OrganizationForecastGraph
-            data={initialData[selectedType]}
-            type={selectedType}
-          />
+          <ChartErrorBoundary
+            chartName={`${selectedType} Forecast Chart`}
+            fallbackHeight='400px'
+          >
+            {loadingChart ? (
+              <Box
+                height='400px'
+                display='flex'
+                alignItems='center'
+                justifyContent='center'
+              >
+                <VStack gap={2}>
+                  <Spinner size='lg' />
+                  <Text color='gray.500'>Loading chart data...</Text>
+                </VStack>
+              </Box>
+            ) : forecastData ? (
+              <Plot
+                data={forecastData.plot_data as Data[]}
+                layout={createThemedLayout(forecastData.plot_layout)}
+                style={{ width: '100%', height: '400px' }}
+                config={{
+                  displayModeBar: true,
+                  displaylogo: false,
+                  modeBarButtonsToRemove: [
+                    'pan2d',
+                    'lasso2d',
+                    'select2d',
+                    'autoScale2d',
+                    'hoverClosestCartesian',
+                    'hoverCompareCartesian',
+                    'toggleSpikelines',
+                  ],
+                }}
+              />
+            ) : (
+              <Box
+                height='400px'
+                display='flex'
+                alignItems='center'
+                justifyContent='center'
+              >
+                <Text color='gray.500'>No chart data available</Text>
+              </Box>
+            )}
+          </ChartErrorBoundary>
 
           {/* Table Section */}
           <VStack gap={4} align='stretch'>
@@ -464,14 +500,24 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {tableData ? (
+                  {tableData && tableData.data.length > 0 ? (
                     tableData.data.map((row, index) => (
                       <Table.Row key={index}>
                         <Table.Cell>
                           <div dangerouslySetInnerHTML={{ __html: row[0] }} />
                         </Table.Cell>
                         <Table.Cell>
-                          <div dangerouslySetInnerHTML={{ __html: row[1] }} />
+                          <Box
+                            overflow='hidden'
+                            display='-webkit-box'
+                            style={{
+                              WebkitLineClamp: 1, // Limit to 3 lines
+                              WebkitBoxOrient: 'vertical',
+                            }}
+                            title={row[1]?.replace(/<[^>]*>/g, '')} // Show full text on hover (strip HTML)
+                          >
+                            <div dangerouslySetInnerHTML={{ __html: row[1] }} />
+                          </Box>
                         </Table.Cell>
                       </Table.Row>
                     ))
@@ -479,7 +525,7 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
                     <Table.Row>
                       <Table.Cell colSpan={2}>
                         <Text textAlign='center' color='gray.500'>
-                          No data available
+                          {loading ? 'Loading...' : 'No data available'}
                         </Text>
                       </Table.Cell>
                     </Table.Row>
@@ -488,24 +534,38 @@ const ForecastChart: React.FC<ForecastChartProps> = ({
               </Table.Root>
             </Box>
 
-            {/* Table Info */}
+            {/* Table Info and Pagination */}
             {tableData && (
               <HStack justify='space-between'>
                 <Text fontSize='sm' color='gray.600'>
-                  Showing {pagination.page * pagination.pageSize + 1} to{' '}
-                  {Math.min(
-                    (pagination.page + 1) * pagination.pageSize,
-                    tableData.recordsFiltered
-                  )}{' '}
-                  of {tableData.recordsFiltered} entries
+                  Showing {currentStart} to {currentEnd} of{' '}
+                  {tableData.recordsFiltered} entries
                   {pagination.searchTerm &&
                     ` (filtered from ${tableData.recordsTotal} total entries)`}
                 </Text>
 
-                {/* TODO: Add pagination controls */}
-                <Text fontSize='sm' color='gray.400'>
-                  Pagination controls - TODO
-                </Text>
+                {/* Pagination Controls */}
+                <HStack gap={2}>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page === 0}
+                  >
+                    Previous
+                  </Button>
+                  <Text fontSize='sm' color='gray.600'>
+                    Page {pagination.page + 1} of {totalPages}
+                  </Text>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page >= totalPages - 1}
+                  >
+                    Next
+                  </Button>
+                </HStack>
               </HStack>
             )}
           </VStack>

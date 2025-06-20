@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
-  Card,
   Flex,
   Heading,
   Text,
@@ -22,6 +21,8 @@ import TrendsChart from './TrendsChart';
 import ForecastChart from './ForecastChart';
 import RelatedDocuments from '../../components/shared/RelatedDocuments';
 import { usePage } from '../../context/PageContext';
+import GlassCard from '../../components/shared/GlassCard';
+import NetworkGraph from './NetworkGraph/NetworkGraph';
 
 // TypeScript interfaces
 interface RelatedSubject {
@@ -101,29 +102,6 @@ interface ApiRelatedAnalysesResponse {
   }>;
   count: number;
 }
-
-// Placeholder Network Graph Component
-const NetworkGraph: React.FC = () => {
-  return (
-    <Box
-      bg='gray.50'
-      border='1px solid'
-      borderColor='gray.200'
-      borderRadius='md'
-      display='flex'
-      alignItems='center'
-      justifyContent='center'
-      height='100%'
-      minHeight='400px'
-    >
-      <Text color='gray.500' fontSize='lg'>
-        Network Graph Component
-        <br />
-        (Replace with your network graph)
-      </Text>
-    </Box>
-  );
-};
 
 const Subject: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -287,13 +265,13 @@ const Subject: React.FC = () => {
     fetchSubjectData();
   }, [slug]);
 
+  const params = { subject: slug };
+
   const handleAddToWhiteboard = (): void => {
-    // TODO: Replace with actual API call to add subject to whiteboard
     setIsInWhiteboard(true);
   };
 
   const handleAddToLab = (): void => {
-    // TODO: Replace with actual API call to add subject to lab
     console.log('Added to lab');
   };
 
@@ -416,446 +394,518 @@ const Subject: React.FC = () => {
   }
 
   return (
-    <Box p={6} bg='gray.50' minHeight='calc(100vh - 64px)'>
-      {/* Main Subject Card */}
-      <Card.Root maxW='1024px' mb={6}>
-        <Card.Body p={6}>
-          <Flex justify='space-between' align='flex-start' mb={4}>
-            <Heading as='h1' size='xl' flex='1' mr={4}>
-              {subject.ent_name}
-            </Heading>
-            <HStack gap={3}>
-              <Button
-                size='md'
-                colorScheme={isInWhiteboard ? 'gray' : 'blue'}
-                variant={isInWhiteboard ? 'outline' : 'solid'}
-                disabled={isInWhiteboard}
-                onClick={handleAddToWhiteboard}
-              >
-                {isInWhiteboard ? <FiCheck size={16} /> : <FiPlus size={16} />}
-                <BsSticky size={16} />
-                {isInWhiteboard ? 'in Whiteboard' : 'add to whiteboard'}
-              </Button>
-              <Button
-                size='md'
-                colorScheme='green'
-                variant='solid'
-                onClick={handleAddToLab}
-              >
-                <FiPlus size={16} />
-                <TbTestPipe size={16} />
-                add to lab
-              </Button>
-            </HStack>
-          </Flex>
-          <Text color='gray.600' lineHeight='1.6'>
-            {subject.ent_summary}
-          </Text>
-        </Card.Body>
-      </Card.Root>
-
-      {/* Main Content Area */}
-      <Flex gap={6} align='flex-start'>
-        {/* Left Side Stats */}
-        <VStack gap={4} maxW='300px' flex='0 0 300px'>
-          {/* Stats placeholder - API doesn't provide horizon ranking, white space, tech transfer */}
-          <Card.Root w='100%'>
-            <Card.Body p={4}>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h3' size='md' mb={2}>
-                    Subject Info
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText
-                  fontSize='lg'
-                  fontWeight='bold'
-                  color='blue.500'
-                >
-                  {subject.ent_fsid}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-        </VStack>
-
-        {/* Network Graph */}
-        <Box flex='1' height='100vh'>
-          <NetworkGraph />
-        </Box>
-      </Flex>
-
-      {/* Bottom Stats Cards */}
-      <Box mt={6}>
-        <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} gap={4}>
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Organizations
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.organizations.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Press
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.press.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Patents
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.patents.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Papers
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.papers.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Books
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.books.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-
-          <Card.Root>
-            <Card.Body p={4} textAlign='center'>
-              <Stat.Root>
-                <Stat.Label>
-                  <Heading as='h4' size='sm' mb={2}>
-                    Related Docs
-                  </Heading>
-                </Stat.Label>
-                <Stat.ValueText fontSize='xl' fontWeight='bold'>
-                  {subject.stats.relatedDocs.toLocaleString()}
-                </Stat.ValueText>
-              </Stat.Root>
-            </Card.Body>
-          </Card.Root>
-        </SimpleGrid>
+    <Box position='relative' bg='bg' minHeight='calc(100vh - 64px)'>
+      {/* Background Network Graph - Full height background */}
+      <Box
+        position='absolute'
+        top={0}
+        left={0}
+        right={0}
+        height='100vh'
+        zIndex={0}
+      >
+        <NetworkGraph params={params} />
       </Box>
 
-      {/* Related Subjects and Related Analyses */}
-      <HStack gap={6} mt={6} align='flex-start'>
-        {/* Related Subjects Card */}
-        <Card.Root flex='1' height='400px'>
-          <Card.Body p={6} display='flex' flexDirection='column' height='100%'>
-            <VStack gap={4} align='stretch' height='100%'>
-              {/* Header */}
-              <Heading as='h2' size='lg' flexShrink={0}>
-                Related Subjects
+      {/* Top floating cards - positioned above the network graph */}
+      <Box position='relative' zIndex={1} p={6} pointerEvents='none'>
+        {/* Main Subject Card */}
+        <GlassCard
+          variant='glass'
+          maxW='1024px'
+          mb={6}
+          borderWidth='1px'
+          borderStyle='solid'
+          borderColor={{ base: 'white', _light: 'black' }}
+          borderRadius='8px'
+          pointerEvents='auto'
+        >
+          <Box p={6}>
+            <Flex justify='space-between' align='flex-start' mb={4}>
+              <Heading as='h1' size='xl' flex='1' mr={4} color='fg'>
+                {subject.ent_name}
               </Heading>
-
-              {/* Controls */}
-              <HStack gap={4} align='center' flexShrink={0}>
-                <HStack gap={2} align='center'>
-                  <Text
-                    fontSize='sm'
-                    fontWeight='medium'
-                    color='gray.700'
-                    whiteSpace='nowrap'
-                  >
-                    Sort by:
-                  </Text>
-                  <select
-                    value={sortMethod}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                      setSortMethod(e.target.value)
-                    }
-                    style={{
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #E2E8F0',
-                      fontSize: '14px',
-                      minWidth: '200px',
-                    }}
-                  >
-                    <option value='horizon-high'>
-                      Horizon Rank (High to Low)
-                    </option>
-                    <option value='horizon-low'>
-                      Horizon Rank (Low to High)
-                    </option>
-                    <option value='a-z'>A-Z</option>
-                    <option value='z-a'>Z-A</option>
-                  </select>
-                </HStack>
-                <Input
-                  placeholder='Filter subjects...'
-                  value={filterText}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setFilterText(e.target.value)
-                  }
-                  size='sm'
-                  flex='1'
-                />
+              <HStack gap={3} pointerEvents='auto'>
+                <Button
+                  size='md'
+                  colorScheme={isInWhiteboard ? 'gray' : 'blue'}
+                  variant={isInWhiteboard ? 'outline' : 'solid'}
+                  disabled={isInWhiteboard}
+                  onClick={handleAddToWhiteboard}
+                  pointerEvents='auto'
+                >
+                  {isInWhiteboard ? (
+                    <FiCheck size={16} />
+                  ) : (
+                    <FiPlus size={16} />
+                  )}
+                  <BsSticky size={16} />
+                  {isInWhiteboard ? 'in Whiteboard' : 'add to whiteboard'}
+                </Button>
+                <Button
+                  size='md'
+                  colorScheme='green'
+                  variant='solid'
+                  onClick={handleAddToLab}
+                  pointerEvents='auto'
+                >
+                  <FiPlus size={16} />
+                  <TbTestPipe size={16} />
+                  add to lab
+                </Button>
               </HStack>
+            </Flex>
+            <Text color='fg.muted' lineHeight='1.6'>
+              {subject.ent_summary}
+            </Text>
+          </Box>
+        </GlassCard>
 
-              {/* Divider */}
-              <Box height='1px' bg='gray.200' flexShrink={0} />
+        {/* Subject Info Card */}
+        <GlassCard
+          variant='glass'
+          w='300px'
+          mb={6}
+          borderWidth='1px'
+          borderStyle='solid'
+          borderColor={{ base: 'white', _light: 'black' }}
+          borderRadius='8px'
+          pointerEvents='auto'
+        >
+          <Box p={4}>
+            <Stat.Root>
+              <Stat.Label>
+                <Heading as='h3' size='md' mb={2} color='fg'>
+                  Subject Info
+                </Heading>
+              </Stat.Label>
+              <Stat.ValueText fontSize='lg' fontWeight='bold' color='brand.400'>
+                {subject.ent_fsid}
+              </Stat.ValueText>
+            </Stat.Root>
+          </Box>
+        </GlassCard>
+      </Box>
 
-              {/* Subjects List */}
-              <Box
-                flex='1'
-                overflowY='auto'
-                p={2}
-                border='1px solid'
-                borderColor='gray.100'
-                borderRadius='md'
-              >
-                <Flex wrap='wrap' gap={2}>
-                  {getFilteredAndSortedSubjects().map((relatedSubject) => (
-                    <Card.Root
-                      key={relatedSubject.id}
-                      size='sm'
-                      variant='outline'
-                      cursor='pointer'
-                      _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
-                      onClick={() =>
-                        handleSubjectClick(relatedSubject.subjectSlug)
-                      }
-                      transition='all 0.2s'
-                    >
-                      <Card.Body p={3}>
-                        <HStack gap={2} justify='space-between'>
-                          <Text
-                            fontSize='sm'
-                            fontWeight='medium'
-                            color='blue.600'
-                          >
-                            {relatedSubject.name}
-                          </Text>
-                          <Box
-                            bg='white'
-                            color='black'
-                            border='1px solid'
-                            borderColor='gray.300'
-                            fontSize='xs'
-                            px={2}
-                            py={1}
-                            borderRadius='md'
-                          >
-                            {relatedSubject.horizonRanking.toFixed(2)}
-                          </Box>
-                        </HStack>
-                      </Card.Body>
-                    </Card.Root>
-                  ))}
-                </Flex>
+      {/* Spacer to push content below the NetworkGraph */}
+      <Box height='50vh' />
+
+      {/* Main content area - renders after the NetworkGraph */}
+      <Box bg='bg' p={6}>
+        {/* Bottom Stats Cards */}
+        <Box mb={6}>
+          <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} gap={4}>
+            <GlassCard
+              variant='solid'
+              borderWidth='1px'
+              borderStyle='solid'
+              borderColor={{ base: 'white', _light: 'black' }}
+              borderRadius='8px'
+            >
+              <Box p={4} textAlign='center'>
+                <Stat.Root>
+                  <Stat.Label>
+                    <Heading as='h4' size='sm' mb={2} color='fg'>
+                      Organizations
+                    </Heading>
+                  </Stat.Label>
+                  <Stat.ValueText fontSize='xl' fontWeight='bold' color='fg'>
+                    {subject.stats.organizations.toLocaleString()}
+                  </Stat.ValueText>
+                </Stat.Root>
               </Box>
-            </VStack>
-          </Card.Body>
-        </Card.Root>
+            </GlassCard>
 
-        {/* Related Analyses Card */}
-        <Card.Root flex='1' height='400px'>
-          <Card.Body p={6} display='flex' flexDirection='column' height='100%'>
-            <VStack gap={4} align='stretch' height='100%'>
-              {/* Header */}
-              <Heading as='h2' size='lg' flexShrink={0}>
-                Related Analyses
-              </Heading>
+            <GlassCard
+              variant='solid'
+              borderWidth='1px'
+              borderStyle='solid'
+              borderColor={{ base: 'white', _light: 'black' }}
+              borderRadius='8px'
+            >
+              <Box p={4} textAlign='center'>
+                <Stat.Root>
+                  <Stat.Label>
+                    <Heading as='h4' size='sm' mb={2} color='fg'>
+                      Press
+                    </Heading>
+                  </Stat.Label>
+                  <Stat.ValueText fontSize='xl' fontWeight='bold' color='fg'>
+                    {subject.stats.press.toLocaleString()}
+                  </Stat.ValueText>
+                </Stat.Root>
+              </Box>
+            </GlassCard>
 
-              {/* Controls */}
-              <HStack gap={4} align='center' flexShrink={0}>
-                <HStack gap={2} align='center'>
-                  <Text
-                    fontSize='sm'
-                    fontWeight='medium'
-                    color='gray.700'
-                    whiteSpace='nowrap'
-                  >
-                    Sort by:
-                  </Text>
-                  <select
-                    value={analysisSortMethod}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                      setAnalysisSortMethod(e.target.value)
-                    }
-                    style={{
-                      padding: '8px',
-                      borderRadius: '4px',
-                      border: '1px solid #E2E8F0',
-                      fontSize: '14px',
-                      minWidth: '150px',
-                    }}
-                  >
-                    <option value='most-recent'>Most Recent</option>
-                    <option value='oldest'>Oldest</option>
-                    <option value='a-z'>A-Z</option>
-                    <option value='z-a'>Z-A</option>
-                  </select>
-                </HStack>
-                <Input
-                  placeholder='Filter analyses...'
-                  value={analysisFilterText}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setAnalysisFilterText(e.target.value)
-                  }
-                  size='sm'
-                  flex='1'
-                />
-              </HStack>
+            <GlassCard
+              variant='solid'
+              borderWidth='1px'
+              borderStyle='solid'
+              borderColor={{ base: 'white', _light: 'black' }}
+              borderRadius='8px'
+            >
+              <Box p={4} textAlign='center'>
+                <Stat.Root>
+                  <Stat.Label>
+                    <Heading as='h4' size='sm' mb={2} color='fg'>
+                      Patents
+                    </Heading>
+                  </Stat.Label>
+                  <Stat.ValueText fontSize='xl' fontWeight='bold' color='fg'>
+                    {subject.stats.patents.toLocaleString()}
+                  </Stat.ValueText>
+                </Stat.Root>
+              </Box>
+            </GlassCard>
 
-              {/* Divider */}
-              <Box height='1px' bg='gray.200' flexShrink={0} />
+            <GlassCard
+              variant='solid'
+              borderWidth='1px'
+              borderStyle='solid'
+              borderColor={{ base: 'white', _light: 'black' }}
+              borderRadius='8px'
+            >
+              <Box p={4} textAlign='center'>
+                <Stat.Root>
+                  <Stat.Label>
+                    <Heading as='h4' size='sm' mb={2} color='fg'>
+                      Papers
+                    </Heading>
+                  </Stat.Label>
+                  <Stat.ValueText fontSize='xl' fontWeight='bold' color='fg'>
+                    {subject.stats.papers.toLocaleString()}
+                  </Stat.ValueText>
+                </Stat.Root>
+              </Box>
+            </GlassCard>
 
-              {/* Analyses List with CardScroller */}
-              <CardScroller height='100%'>
-                {getFilteredAndSortedAnalyses().map((analysis) => (
-                  <Card.Root
-                    key={analysis._id}
-                    minWidth='280px'
-                    maxWidth='280px'
-                    height='100%'
-                    variant='outline'
-                    cursor='pointer'
-                    _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
-                    onClick={() =>
-                      handleAnalysisClick(analysis.lab_id, analysis._id)
-                    }
-                    transition='all 0.2s'
-                  >
-                    <Card.Body
-                      p={4}
-                      height='100%'
-                      display='flex'
-                      flexDirection='column'
+            <GlassCard
+              variant='solid'
+              borderWidth='1px'
+              borderStyle='solid'
+              borderColor={{ base: 'white', _light: 'black' }}
+              borderRadius='8px'
+            >
+              <Box p={4} textAlign='center'>
+                <Stat.Root>
+                  <Stat.Label>
+                    <Heading as='h4' size='sm' mb={2} color='fg'>
+                      Books
+                    </Heading>
+                  </Stat.Label>
+                  <Stat.ValueText fontSize='xl' fontWeight='bold' color='fg'>
+                    {subject.stats.books.toLocaleString()}
+                  </Stat.ValueText>
+                </Stat.Root>
+              </Box>
+            </GlassCard>
+
+            <GlassCard
+              variant='solid'
+              borderWidth='1px'
+              borderStyle='solid'
+              borderColor={{ base: 'white', _light: 'black' }}
+              borderRadius='8px'
+            >
+              <Box p={4} textAlign='center'>
+                <Stat.Root>
+                  <Stat.Label>
+                    <Heading as='h4' size='sm' mb={2} color='fg'>
+                      Related Docs
+                    </Heading>
+                  </Stat.Label>
+                  <Stat.ValueText fontSize='xl' fontWeight='bold' color='fg'>
+                    {subject.stats.relatedDocs.toLocaleString()}
+                  </Stat.ValueText>
+                </Stat.Root>
+              </Box>
+            </GlassCard>
+          </SimpleGrid>
+        </Box>
+
+        {/* Related Subjects and Related Analyses */}
+        <HStack gap={6} mb={6} align='flex-start'>
+          {/* Related Subjects Card */}
+          <GlassCard
+            variant='solid'
+            flex='1'
+            height='400px'
+            borderWidth='1px'
+            borderStyle='solid'
+            borderColor={{ base: 'white', _light: 'black' }}
+            borderRadius='8px'
+          >
+            <Box p={6} display='flex' flexDirection='column' height='100%'>
+              <VStack gap={4} align='stretch' height='100%'>
+                <Heading as='h2' size='lg' flexShrink={0} color='fg'>
+                  Related Subjects
+                </Heading>
+
+                <HStack gap={4} align='center' flexShrink={0}>
+                  <HStack gap={2} align='center'>
+                    <Text
+                      fontSize='sm'
+                      fontWeight='medium'
+                      color='fg.muted'
+                      whiteSpace='nowrap'
                     >
-                      <VStack gap={3} align='stretch' height='100%'>
-                        {/* Image and Title Row */}
-                        <HStack gap={3} align='flex-start' flexShrink={0}>
-                          <Box
-                            width='100px'
-                            height='100px'
-                            borderRadius='md'
-                            overflow='hidden'
-                            flexShrink={0}
-                          >
-                            <img
-                              src={
-                                analysis.picture_url ||
-                                `https://via.placeholder.com/100x100/4A90E2/FFFFFF?text=${analysis.lab_id.toUpperCase()}`
-                              }
-                              alt={analysis.ent_name}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                              }}
-                            />
-                          </Box>
-                          <VStack gap={2} align='stretch' flex='1'>
+                      Sort by:
+                    </Text>
+                    <select
+                      value={sortMethod}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setSortMethod(e.target.value)
+                      }
+                      style={{
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #E2E8F0',
+                        fontSize: '14px',
+                        minWidth: '200px',
+                      }}
+                    >
+                      <option value='horizon-high'>
+                        Horizon Rank (High to Low)
+                      </option>
+                      <option value='horizon-low'>
+                        Horizon Rank (Low to High)
+                      </option>
+                      <option value='a-z'>A-Z</option>
+                      <option value='z-a'>Z-A</option>
+                    </select>
+                  </HStack>
+                  <Input
+                    placeholder='Filter subjects...'
+                    value={filterText}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setFilterText(e.target.value)
+                    }
+                    size='sm'
+                    flex='1'
+                  />
+                </HStack>
+
+                <Box height='1px' bg='border' flexShrink={0} />
+
+                <Box
+                  flex='1'
+                  overflowY='auto'
+                  p={2}
+                  border='1px solid'
+                  borderColor='border.muted'
+                  borderRadius='md'
+                >
+                  <Flex wrap='wrap' gap={2}>
+                    {getFilteredAndSortedSubjects().map((relatedSubject) => (
+                      <GlassCard
+                        key={relatedSubject.id}
+                        variant='outline'
+                        cursor='pointer'
+                        _hover={{ bg: 'bg.subtle', borderColor: 'brand.400' }}
+                        onClick={() =>
+                          handleSubjectClick(relatedSubject.subjectSlug)
+                        }
+                        transition='all 0.2s'
+                        borderWidth='1px'
+                        borderStyle='solid'
+                        borderColor={{ base: 'white', _light: 'black' }}
+                        borderRadius='8px'
+                      >
+                        <Box p={3}>
+                          <HStack gap={2} justify='space-between'>
                             <Text
                               fontSize='sm'
-                              fontWeight='bold'
-                              color='blue.600'
-                              lineHeight='1.3'
+                              fontWeight='medium'
+                              color='brand.400'
                             >
-                              {analysis.ent_name}
+                              {relatedSubject.name}
                             </Text>
                             <Box
-                              bg={
-                                analysis.status === 'Ready'
-                                  ? 'green.100'
-                                  : 'blue.100'
-                              }
-                              color={
-                                analysis.status === 'Ready'
-                                  ? 'green.800'
-                                  : 'blue.800'
-                              }
+                              bg='bg.canvas'
+                              color='fg'
+                              border='1px solid'
+                              borderColor='border'
+                              fontSize='xs'
                               px={2}
                               py={1}
                               borderRadius='md'
-                              fontSize='xs'
-                              fontWeight='medium'
-                              width='fit-content'
                             >
-                              {analysis.status}
+                              {relatedSubject.horizonRanking.toFixed(2)}
                             </Box>
-                          </VStack>
-                        </HStack>
+                          </HStack>
+                        </Box>
+                      </GlassCard>
+                    ))}
+                  </Flex>
+                </Box>
+              </VStack>
+            </Box>
+          </GlassCard>
 
-                        {/* Description */}
-                        <Text
-                          fontSize='xs'
-                          color='gray.600'
-                          lineHeight='1.4'
-                          overflow='hidden'
-                          textOverflow='ellipsis'
-                          display='-webkit-box'
-                          flex='1'
-                          style={{
-                            WebkitLineClamp: 3,
-                            WebkitBoxOrient: 'vertical',
-                          }}
-                        >
-                          {analysis.ent_summary}
-                        </Text>
-                      </VStack>
-                    </Card.Body>
-                  </Card.Root>
-                ))}
-              </CardScroller>
-            </VStack>
-          </Card.Body>
-        </Card.Root>
-      </HStack>
+          {/* Related Analyses Card */}
+          <GlassCard
+            variant='solid'
+            flex='1'
+            height='400px'
+            borderWidth='1px'
+            borderStyle='solid'
+            borderColor={{ base: 'white', _light: 'black' }}
+            borderRadius='8px'
+          >
+            <Box p={6} display='flex' flexDirection='column' height='100%'>
+              <VStack gap={4} align='stretch' height='100%'>
+                <Heading as='h2' size='lg' flexShrink={0} color='fg'>
+                  Related Analyses
+                </Heading>
 
-      {/* Trends Chart - Now using the actual subject slug */}
-      <TrendsChart subjectSlug={subject.slug} />
+                <HStack gap={4} align='center' flexShrink={0}>
+                  <HStack gap={2} align='center'>
+                    <Text
+                      fontSize='sm'
+                      fontWeight='medium'
+                      color='fg.muted'
+                      whiteSpace='nowrap'
+                    >
+                      Sort by:
+                    </Text>
+                    <select
+                      value={analysisSortMethod}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                        setAnalysisSortMethod(e.target.value)
+                      }
+                      style={{
+                        padding: '8px',
+                        borderRadius: '4px',
+                        border: '1px solid #E2E8F0',
+                        fontSize: '14px',
+                        minWidth: '150px',
+                      }}
+                    >
+                      <option value='most-recent'>Most Recent</option>
+                      <option value='oldest'>Oldest</option>
+                      <option value='a-z'>A-Z</option>
+                      <option value='z-a'>Z-A</option>
+                    </select>
+                  </HStack>
+                  <Input
+                    placeholder='Filter analyses...'
+                    value={analysisFilterText}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setAnalysisFilterText(e.target.value)
+                    }
+                    size='sm'
+                    flex='1'
+                  />
+                </HStack>
 
-      {/* Forecast Analysis Chart - Now using the actual subject slug */}
-      <ForecastChart subjectSlug={subject.slug} />
+                <Box height='1px' bg='border' flexShrink={0} />
 
-      {/* Related Documents */}
-      <RelatedDocuments subjectSlug={subject.slug} />
+                <CardScroller height='100%'>
+                  {getFilteredAndSortedAnalyses().map((analysis) => (
+                    <GlassCard
+                      key={analysis._id}
+                      variant='outline'
+                      minWidth='280px'
+                      maxWidth='280px'
+                      height='100%'
+                      cursor='pointer'
+                      _hover={{ bg: 'bg.subtle', borderColor: 'brand.400' }}
+                      onClick={() =>
+                        handleAnalysisClick(analysis.lab_id, analysis._id)
+                      }
+                      transition='all 0.2s'
+                      borderWidth='1px'
+                      borderStyle='solid'
+                      borderColor={{ base: 'white', _light: 'black' }}
+                      borderRadius='8px'
+                    >
+                      <Box
+                        p={4}
+                        height='100%'
+                        display='flex'
+                        flexDirection='column'
+                      >
+                        <VStack gap={3} align='stretch' height='100%'>
+                          <HStack gap={3} align='flex-start' flexShrink={0}>
+                            <Box
+                              width='100px'
+                              height='100px'
+                              borderRadius='md'
+                              overflow='hidden'
+                              flexShrink={0}
+                            >
+                              <img
+                                src={
+                                  analysis.picture_url ||
+                                  `https://via.placeholder.com/100x100/4A90E2/FFFFFF?text=${analysis.lab_id.toUpperCase()}`
+                                }
+                                alt={analysis.ent_name}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            </Box>
+                            <VStack gap={2} align='stretch' flex='1'>
+                              <Text
+                                fontSize='sm'
+                                fontWeight='bold'
+                                color='brand.400'
+                                lineHeight='1.3'
+                              >
+                                {analysis.ent_name}
+                              </Text>
+                              <Box
+                                bg={
+                                  analysis.status === 'Ready'
+                                    ? 'status.success'
+                                    : 'brand.400'
+                                }
+                                color='white'
+                                px={2}
+                                py={1}
+                                borderRadius='md'
+                                fontSize='xs'
+                                fontWeight='medium'
+                                width='fit-content'
+                              >
+                                {analysis.status}
+                              </Box>
+                            </VStack>
+                          </HStack>
+
+                          <Text
+                            fontSize='xs'
+                            color='fg.muted'
+                            lineHeight='1.4'
+                            overflow='hidden'
+                            textOverflow='ellipsis'
+                            display='-webkit-box'
+                            flex='1'
+                            style={{
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical',
+                            }}
+                          >
+                            {analysis.ent_summary}
+                          </Text>
+                        </VStack>
+                      </Box>
+                    </GlassCard>
+                  ))}
+                </CardScroller>
+              </VStack>
+            </Box>
+          </GlassCard>
+        </HStack>
+
+        <TrendsChart subjectSlug={subject.slug} />
+
+        <ForecastChart subjectSlug={subject.slug} />
+
+        <RelatedDocuments subjectSlug={subject.slug} />
+      </Box>
     </Box>
   );
 };

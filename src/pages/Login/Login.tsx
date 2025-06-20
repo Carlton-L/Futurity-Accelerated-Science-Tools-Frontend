@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { GlassCard } from '../../components/shared/GlassCard/GlassCard';
+import GlassCard from '../../components/shared/GlassCard/GlassCard';
 import ColorModeToggle from '../../components/shared/ColorModeToggle';
 import FastLogo from '../../assets/fast_logo.svg';
 import {
