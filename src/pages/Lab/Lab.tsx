@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
-  Card,
   Flex,
   Heading,
   Text,
@@ -18,6 +17,7 @@ import { FiEdit, FiSave, FiX, FiSettings } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePage } from '../../context/PageContext';
+import GlassCard from '../../components/shared/GlassCard';
 import type { Lab as LabType, LabUpdateRequest } from './types';
 import type { LabTab } from '../../context/PageContext/pageTypes';
 import Gather from './Gather';
@@ -43,7 +43,6 @@ const Lab: React.FC = () => {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
-  // const [activeTab, setActiveTab] = useState<LabTab>('dashboard');
   const [activeTab, setActiveTab] = useState<LabTab>('gather');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
@@ -75,16 +74,12 @@ const Lab: React.FC = () => {
   // TODO: Replace with actual API call to fetch lab data
   useEffect(() => {
     const fetchLabData = async (): Promise<void> => {
-      console.log('Starting to fetch lab data for id:', id); // Debug log
+      console.log('Starting to fetch lab data for id:', id);
       setLoading(true);
 
       try {
-        // TODO: Replace setTimeout with actual API call
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-        console.log('Creating mock lab data'); // Debug log
-
-        // TODO: Replace mock data with actual API response
         const mockLab: LabType = {
           id: id || 'lab-1',
           name: 'Beyond Luxury',
@@ -93,28 +88,24 @@ const Lab: React.FC = () => {
           createdAt: '2024-01-15T10:30:00Z',
           updatedAt: '2024-03-10T14:20:00Z',
           ownerId: 'user-1',
-          adminIds: ['user-1', 'user-2'], // Mock admin IDs
+          adminIds: ['user-1', 'user-2'],
           memberIds: ['user-1', 'user-2', 'user-3', 'user-4'],
           subjects: [],
           analyses: [],
         };
 
-        console.log('Setting lab data:', mockLab); // Debug log
         setLab(mockLab);
         setEditForm({
           name: mockLab.name,
           description: mockLab.description,
         });
         setLoading(false);
-        console.log('Lab data loaded successfully'); // Debug log
       } catch (error) {
-        // TODO: Add proper error handling
         console.error('Failed to fetch lab:', error);
         setLoading(false);
       }
     };
 
-    // Always fetch data regardless of id to test
     fetchLabData();
   }, [id]);
 
@@ -127,7 +118,6 @@ const Lab: React.FC = () => {
   // Handle edit mode toggle
   const handleEditToggle = (): void => {
     if (isEditing) {
-      // Cancel editing - reset form
       setEditForm({
         name: lab?.name || '',
         description: lab?.description || '',
@@ -135,7 +125,6 @@ const Lab: React.FC = () => {
       setIsEditing(false);
       setIsEditDialogOpen(false);
     } else {
-      // Start editing
       setIsEditing(true);
       setIsEditDialogOpen(true);
     }
@@ -158,17 +147,14 @@ const Lab: React.FC = () => {
 
     setSaving(true);
 
-    // TODO: Replace with actual API call to update lab
     const updateRequest: LabUpdateRequest = {
       name: editForm.name.trim(),
       description: editForm.description.trim(),
     };
 
     try {
-      // TODO: Replace setTimeout with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // TODO: Replace mock response with actual API response
       const updatedLab: LabType = {
         ...lab,
         name: updateRequest.name,
@@ -181,7 +167,6 @@ const Lab: React.FC = () => {
       setSaving(false);
       setIsEditDialogOpen(false);
     } catch (error) {
-      // TODO: Add proper error handling
       console.error('Failed to update lab:', error);
       setSaving(false);
     }
@@ -189,56 +174,50 @@ const Lab: React.FC = () => {
 
   // Handle navigation to lab admin settings
   const handleNavigateToSettings = (): void => {
-    // TODO: Replace with actual navigation using useNavigate hook
     navigate(`/lab/${id}/admin`);
   };
 
   // Handle tab change with proper typing
   const handleTabChange = (value: string): void => {
-    // Validate that the value is a valid LabTab
-    const validTabs: LabTab[] = [
-      // 'dashboard',
-      'gather',
-      'analyze',
-      'forecast',
-      'invent',
-    ];
+    const validTabs: LabTab[] = ['gather', 'analyze', 'forecast', 'invent'];
     if (validTabs.includes(value as LabTab)) {
       setActiveTab(value as LabTab);
     }
   };
 
-  // TODO: Add error handling for failed API calls
   if (loading) {
     return (
-      <Box p={6}>
-        {/* TODO: Replace with proper loading component/skeleton */}
-        <Text>Loading lab...</Text>
+      <Box p={6} bg='bg' minHeight='calc(100vh - 64px)' color='fg'>
+        <GlassCard variant='glass' p={6}>
+          <Text>Loading lab...</Text>
+        </GlassCard>
       </Box>
     );
   }
 
   if (!lab) {
     return (
-      <Box p={6}>
-        <Text>Lab not found</Text>
+      <Box p={6} bg='bg' minHeight='calc(100vh - 64px)' color='fg'>
+        <GlassCard variant='glass' p={6}>
+          <Text>Lab not found</Text>
+        </GlassCard>
       </Box>
     );
   }
 
   return (
-    <Box p={6} bg='gray.50' minHeight='calc(100vh - 64px)'>
+    <Box p={6} bg='bg' minHeight='calc(100vh - 64px)' color='fg'>
       {/* Main Lab Card */}
-      <Card.Root w='100%' mb={6}>
-        <Card.Body p={6}>
+      <GlassCard variant='solid' w='100%' mb={6}>
+        <Box p={6}>
           <VStack gap={4} align='stretch'>
             {/* Header with Title and Actions */}
             <Flex justify='space-between' align='flex-start'>
               <VStack gap={2} align='stretch' flex='1' mr={4}>
-                <Heading as='h1' size='xl'>
+                <Heading as='h1' size='xl' fontFamily='heading' color='fg'>
                   {lab.name}
                 </Heading>
-                <Text color='gray.600' lineHeight='1.6'>
+                <Text color='fg.muted' lineHeight='1.6' fontFamily='body'>
                   {lab.description}
                 </Text>
               </VStack>
@@ -248,7 +227,6 @@ const Lab: React.FC = () => {
                 {isLabAdmin() && (
                   <Button
                     size='md'
-                    colorScheme='blue'
                     variant='outline'
                     onClick={handleEditToggle}
                   >
@@ -261,8 +239,7 @@ const Lab: React.FC = () => {
                 {isLabAdmin() && (
                   <IconButton
                     size='md'
-                    colorScheme='gray'
-                    variant='outline'
+                    variant='ghost'
                     onClick={handleNavigateToSettings}
                     aria-label='Lab Settings'
                   >
@@ -273,66 +250,50 @@ const Lab: React.FC = () => {
             </Flex>
 
             {/* Lab Metadata */}
-            <HStack gap={6} pt={2} borderTop='1px solid' borderColor='gray.200'>
-              <Text fontSize='sm' color='gray.500'>
+            <HStack
+              gap={6}
+              pt={2}
+              borderTop='1px solid'
+              borderColor='border.muted'
+            >
+              <Text fontSize='sm' color='fg.subtle' fontFamily='body'>
                 Members: {lab.memberIds.length}
               </Text>
-              <Text fontSize='sm' color='gray.500'>
+              <Text fontSize='sm' color='fg.subtle' fontFamily='body'>
                 Subjects: {lab.subjects.length}
               </Text>
-              <Text fontSize='sm' color='gray.500'>
+              <Text fontSize='sm' color='fg.subtle' fontFamily='body'>
                 Analyses: {lab.analyses.length}
               </Text>
             </HStack>
           </VStack>
-        </Card.Body>
-      </Card.Root>
+        </Box>
+      </GlassCard>
 
       {/* Sticky Tab Navigation */}
       <Box position='sticky' top='64px' zIndex='10' mb={6}>
-        <Card.Root w='100%' boxShadow='lg'>
-          <Card.Body p={4}>
+        <GlassCard variant='glass' w='100%'>
+          <Box p={4}>
             <Tabs.Root
               value={activeTab}
               onValueChange={(details) => handleTabChange(details.value)}
             >
               <Tabs.List>
-                {/* <Tabs.Trigger value='dashboard'>Dashboard</Tabs.Trigger> */}
                 <Tabs.Trigger value='gather'>Gather</Tabs.Trigger>
                 <Tabs.Trigger value='analyze'>Analyze</Tabs.Trigger>
                 <Tabs.Trigger value='forecast'>Forecast</Tabs.Trigger>
                 <Tabs.Trigger value='invent'>Invent</Tabs.Trigger>
               </Tabs.List>
             </Tabs.Root>
-          </Card.Body>
-        </Card.Root>
+          </Box>
+        </GlassCard>
       </Box>
 
       {/* Tab Content */}
       <Box>
-        {activeTab === 'dashboard' && (
-          <Box>
-            {/* TODO: Create Dashboard component */}
-            <Card.Root>
-              <Card.Body p={6}>
-                <Heading as='h2' size='lg' mb={4}>
-                  Dashboard
-                </Heading>
-                <Text color='gray.600'>
-                  Dashboard content will go here. This should show lab overview,
-                  recent activity, and key metrics.
-                </Text>
-              </Card.Body>
-            </Card.Root>
-          </Box>
-        )}
-
         {activeTab === 'gather' && <Gather labId={lab.id} />}
-
         {activeTab === 'analyze' && <Analyze labId={lab.id} />}
-
         {activeTab === 'forecast' && <Forecast labId={lab.id} />}
-
         {activeTab === 'invent' && <Invent labId={lab.id} />}
       </Box>
 
@@ -345,7 +306,7 @@ const Lab: React.FC = () => {
         <Dialog.Positioner>
           <Dialog.Content>
             <Dialog.Header>
-              <Dialog.Title>Edit Lab Details</Dialog.Title>
+              <Dialog.Title fontFamily='heading'>Edit Lab Details</Dialog.Title>
               <Dialog.CloseTrigger asChild>
                 <IconButton size='sm' variant='ghost'>
                   <FiX />
@@ -356,18 +317,34 @@ const Lab: React.FC = () => {
             <Dialog.Body>
               <VStack gap={4} align='stretch'>
                 <Box>
-                  <Text fontSize='sm' fontWeight='medium' mb={2}>
+                  <Text
+                    fontSize='sm'
+                    fontWeight='medium'
+                    mb={2}
+                    fontFamily='heading'
+                    color='fg'
+                  >
                     Lab Name
                   </Text>
                   <Input
                     value={editForm.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder='Enter lab name...'
+                    bg='bg.canvas'
+                    borderColor='border'
+                    color='fg'
+                    _placeholder={{ color: 'fg.subtle' }}
                   />
                 </Box>
 
                 <Box>
-                  <Text fontSize='sm' fontWeight='medium' mb={2}>
+                  <Text
+                    fontSize='sm'
+                    fontWeight='medium'
+                    mb={2}
+                    fontFamily='heading'
+                    color='fg'
+                  >
                     Lab Description
                   </Text>
                   <Textarea
@@ -378,6 +355,10 @@ const Lab: React.FC = () => {
                     placeholder='Enter lab description...'
                     rows={6}
                     resize='vertical'
+                    bg='bg.canvas'
+                    borderColor='border'
+                    color='fg'
+                    _placeholder={{ color: 'fg.subtle' }}
                   />
                 </Box>
               </VStack>
@@ -392,11 +373,7 @@ const Lab: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  colorScheme='blue'
-                  onClick={handleSave}
-                  loading={saving}
-                >
+                <Button variant='solid' onClick={handleSave} loading={saving}>
                   <FiSave size={16} />
                   Save Changes
                 </Button>

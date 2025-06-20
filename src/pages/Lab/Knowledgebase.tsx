@@ -76,14 +76,14 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
     ref
   ) => {
     return (
-      <Card.Root ref={ref}>
+      <Card.Root ref={ref} borderWidth='1px' borderColor='border.emphasized'>
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
-            <Heading as='h3' size='md'>
+            <Heading as='h3' size='md' fontFamily='heading' color='fg'>
               Knowledgebase
             </Heading>
 
-            <Text color='gray.600' fontSize='sm'>
+            <Text color='fg.muted' fontSize='sm' fontFamily='body'>
               Upload documents to build your knowledge base, then query across
               all documents to find relevant information. The system uses
               semantic search to find the most relevant passages from your
@@ -92,7 +92,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
 
             {/* Query Section */}
             <Box>
-              <Heading as='h4' size='sm' mb={3}>
+              <Heading as='h4' size='sm' mb={3} fontFamily='heading' color='fg'>
                 Query Knowledgebase
               </Heading>
 
@@ -108,9 +108,17 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                         onKbQuery();
                       }
                     }}
+                    bg='bg'
+                    borderColor='border.emphasized'
+                    color='fg'
+                    _placeholder={{ color: 'fg.subtle' }}
+                    _focus={{
+                      borderColor: 'brand.400',
+                      boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)',
+                    }}
                   />
                   <Button
-                    colorScheme='blue'
+                    variant='solid'
                     onClick={onKbQuery}
                     loading={kbQueryLoading}
                     disabled={!kbQuery.trim() || kbQueryLoading}
@@ -128,7 +136,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                     border='1px solid'
                     borderColor='red.200'
                   >
-                    <Text fontSize='sm' color='red.700'>
+                    <Text fontSize='sm' color='red.700' fontFamily='body'>
                       Query failed: {kbQueryError}
                     </Text>
                   </Box>
@@ -138,24 +146,29 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                 {kbQueryResults && (
                   <Box
                     border='1px solid'
-                    borderColor='gray.200'
+                    borderColor='border.emphasized'
                     borderRadius='md'
                     p={4}
-                    bg='white'
                     maxH='500px'
                     overflowY='auto'
                   >
                     <VStack gap={4} align='stretch'>
-                      <Text fontSize='sm' fontWeight='medium' color='blue.600'>
+                      <Text
+                        fontSize='sm'
+                        fontWeight='medium'
+                        color='brand.500'
+                        fontFamily='heading'
+                      >
                         Query: "{kbQueryResults.query_text}"
                       </Text>
 
                       {kbQueryResults.grouped_results.length === 0 ? (
                         <Text
                           fontSize='sm'
-                          color='gray.500'
+                          color='fg.muted'
                           textAlign='center'
                           py={4}
+                          fontFamily='body'
                         >
                           No results found for your query.
                         </Text>
@@ -165,9 +178,10 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                             <Text
                               fontSize='sm'
                               fontWeight='bold'
-                              color='gray.700'
+                              color='fg'
                               mb={2}
                               textTransform='uppercase'
+                              fontFamily='heading'
                             >
                               {group.file_type.replace('_', ' ')} Results (
                               {group.results.length})
@@ -179,9 +193,9 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                   key={result.library_card.document_uuid}
                                   p={3}
                                   border='1px solid'
-                                  borderColor='gray.100'
+                                  borderColor='border.emphasized'
                                   borderRadius='md'
-                                  bg='gray.50'
+                                  bg={{ base: '#1a1a1a', _light: '#f8f8f8' }}
                                 >
                                   <VStack gap={2} align='stretch'>
                                     <HStack
@@ -191,13 +205,14 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                       <Text
                                         fontSize='sm'
                                         fontWeight='medium'
-                                        color='blue.700'
+                                        color='brand.500'
+                                        fontFamily='heading'
                                       >
                                         {result.library_card.title}
                                       </Text>
                                       <Text
                                         fontSize='xs'
-                                        color='gray.500'
+                                        color='fg.muted'
                                         fontFamily='mono'
                                       >
                                         Score: {result.max_score.toFixed(3)}
@@ -209,7 +224,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                         key={snippet.chunk_id}
                                         pl={3}
                                         borderLeft='2px solid'
-                                        borderColor='blue.200'
+                                        borderColor='brand.400'
                                       >
                                         <HStack
                                           justify='space-between'
@@ -218,14 +233,15 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                         >
                                           <Text
                                             fontSize='xs'
-                                            color='gray.600'
+                                            color='fg.muted'
                                             fontWeight='medium'
+                                            fontFamily='heading'
                                           >
                                             Snippet {index + 1}
                                           </Text>
                                           <Text
                                             fontSize='xs'
-                                            color='gray.500'
+                                            color='fg.subtle'
                                             fontFamily='mono'
                                           >
                                             {snippet.score.toFixed(3)}
@@ -233,8 +249,9 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                         </HStack>
                                         <Text
                                           fontSize='xs'
-                                          color='gray.700'
+                                          color='fg'
                                           lineHeight='1.4'
+                                          fontFamily='body'
                                         >
                                           {snippet.document_snippet}
                                         </Text>
@@ -255,13 +272,19 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
 
             {/* Documents List Section */}
             <Box>
-              <Heading as='h4' size='sm' mb={3}>
+              <Heading as='h4' size='sm' mb={3} fontFamily='heading' color='fg'>
                 Documents Library
               </Heading>
 
               {/* File Type Filters */}
               <Box mb={4}>
-                <Text fontSize='sm' fontWeight='medium' mb={2}>
+                <Text
+                  fontSize='sm'
+                  fontWeight='medium'
+                  mb={2}
+                  fontFamily='heading'
+                  color='fg'
+                >
                   Filter by File Type
                 </Text>
                 <HStack gap={3} wrap='wrap'>
@@ -280,6 +303,8 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                         <Checkbox.Label
                           fontSize='sm'
                           textTransform='capitalize'
+                          fontFamily='body'
+                          color='fg'
                         >
                           {fileType.replace('_', ' ')} (
                           {
@@ -297,7 +322,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
 
               {kbLoading ? (
                 <Flex height='200px' align='center' justify='center'>
-                  <Text color='gray.500' fontSize='sm'>
+                  <Text color='fg.muted' fontSize='sm' fontFamily='body'>
                     Loading documents...
                   </Text>
                 </Flex>
@@ -309,7 +334,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   border='1px solid'
                   borderColor='red.200'
                 >
-                  <Text fontSize='sm' color='red.700'>
+                  <Text fontSize='sm' color='red.700' fontFamily='body'>
                     {kbError}
                   </Text>
                   <Button
@@ -328,13 +353,21 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   align='center'
                   justify='center'
                   border='2px dashed'
-                  borderColor='gray.300'
+                  borderColor='border.muted'
                   borderRadius='md'
-                  bg='gray.50'
+                  bg='bg.subtle'
                 >
                   <VStack gap={2}>
-                    <HiDocument size={48} color='#A0AEC0' />
-                    <Text color='gray.500' fontSize='sm' textAlign='center'>
+                    <HiDocument
+                      size={48}
+                      color='var(--chakra-colors-fg-muted)'
+                    />
+                    <Text
+                      color='fg.muted'
+                      fontSize='sm'
+                      textAlign='center'
+                      fontFamily='body'
+                    >
                       {selectedFileTypes.size === 0
                         ? 'Select file types to view documents'
                         : 'No documents found for selected file types'}
@@ -346,7 +379,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   maxH='400px'
                   overflowY='auto'
                   border='1px solid'
-                  borderColor='gray.200'
+                  borderColor='border.emphasized'
                   borderRadius='md'
                   p={3}
                 >
@@ -361,10 +394,12 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                           key={doc.document_uuid}
                           p={3}
                           border='1px solid'
-                          borderColor='gray.100'
+                          borderColor='border.emphasized'
                           borderRadius='md'
-                          bg='white'
-                          _hover={{ bg: 'gray.50' }}
+                          bg={{ base: '#1a1a1a', _light: 'white' }}
+                          _hover={{
+                            bg: { base: '#222222', _light: '#f8f8f8' },
+                          }}
                           opacity={isDeleting ? 0.6 : 1}
                           position='relative'
                         >
@@ -376,7 +411,11 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                               transform='translate(-50%, -50%)'
                               zIndex={1}
                             >
-                              <Text fontSize='sm' color='gray.500'>
+                              <Text
+                                fontSize='sm'
+                                color='fg.muted'
+                                fontFamily='body'
+                              >
                                 Deleting...
                               </Text>
                             </Box>
@@ -388,19 +427,21 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                 <Text
                                   fontSize='sm'
                                   fontWeight='medium'
-                                  color='blue.700'
+                                  color='brand.500'
+                                  fontFamily='heading'
                                 >
                                   {doc.title}
                                 </Text>
                                 <Box
-                                  bg='blue.100'
-                                  color='blue.800'
+                                  bg='brand.100'
+                                  color='brand.800'
                                   px={2}
                                   py={1}
                                   borderRadius='sm'
                                   fontSize='xs'
                                   fontWeight='medium'
                                   textTransform='uppercase'
+                                  fontFamily='heading'
                                 >
                                   {doc.file_type.replace('_', ' ')}
                                 </Box>
@@ -409,11 +450,12 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                               {doc.summary && (
                                 <Text
                                   fontSize='xs'
-                                  color='gray.600'
+                                  color='fg.muted'
                                   lineHeight='1.4'
                                   overflow='hidden'
                                   textOverflow='ellipsis'
                                   display='-webkit-box'
+                                  fontFamily='body'
                                   style={{
                                     WebkitLineClamp: 2,
                                     WebkitBoxOrient: 'vertical',
@@ -423,7 +465,11 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                 </Text>
                               )}
 
-                              <Text fontSize='xs' color='gray.500'>
+                              <Text
+                                fontSize='xs'
+                                color='fg.subtle'
+                                fontFamily='body'
+                              >
                                 Uploaded:{' '}
                                 {new Date(
                                   doc.ingestion_time
@@ -456,7 +502,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
 
             {/* File Upload Section */}
             <Box>
-              <Heading as='h4' size='sm' mb={3}>
+              <Heading as='h4' size='sm' mb={3} fontFamily='heading' color='fg'>
                 Upload Document
               </Heading>
 
@@ -466,11 +512,20 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                 disabled={kbUploadLoading}
                 width='100%'
               >
-                <FileUpload.Dropzone width='100%' minH='120px'>
+                <FileUpload.Dropzone
+                  width='100%'
+                  minH='120px'
+                  borderColor='border.emphasized'
+                  border='2px dashed'
+                  borderRadius='md'
+                  _hover={{
+                    borderColor: 'brand.400',
+                    bg: 'bg.subtle',
+                  }}
+                >
                   <VStack gap={2} py={4}>
                     <FileUpload.Trigger asChild>
                       <Button
-                        colorScheme='blue'
                         variant='outline'
                         loading={kbUploadLoading}
                         disabled={kbUploadLoading}
@@ -482,7 +537,12 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                           : 'Choose File or Drop Here'}
                       </Button>
                     </FileUpload.Trigger>
-                    <Text fontSize='sm' color='gray.500' textAlign='center'>
+                    <Text
+                      fontSize='sm'
+                      color='fg.muted'
+                      textAlign='center'
+                      fontFamily='body'
+                    >
                       Supported formats: PDF, Images (JPG, PNG, GIF, BMP), Text
                       files, Audio (MP3, WAV), Video (MP4, AVI, MOV)
                     </Text>
@@ -500,7 +560,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   border='1px solid'
                   borderColor='green.200'
                 >
-                  <Text fontSize='sm' color='green.700'>
+                  <Text fontSize='sm' color='green.700' fontFamily='body'>
                     Document uploaded successfully! Ingestion started.
                   </Text>
                 </Box>
@@ -515,7 +575,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   border='1px solid'
                   borderColor='red.200'
                 >
-                  <Text fontSize='sm' color='red.700'>
+                  <Text fontSize='sm' color='red.700' fontFamily='body'>
                     Upload failed: {kbUploadError}
                   </Text>
                 </Box>

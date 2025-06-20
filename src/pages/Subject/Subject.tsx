@@ -104,13 +104,18 @@ interface ApiRelatedAnalysesResponse {
 }
 
 const Subject: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  // FIXME assign const and remove if statement
+  let { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { setPageContext, clearPageContext } = usePage();
   const [subject, setSubject] = useState<Subject | null>(null);
   const [isInWhiteboard, setIsInWhiteboard] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  if (!slug || slug === '') {
+    slug = 'metaverse';
+  }
 
   // Related subjects state
   const [sortMethod, setSortMethod] = useState<string>('horizon-high');
@@ -462,29 +467,88 @@ const Subject: React.FC = () => {
         </GlassCard>
 
         {/* Subject Info Card */}
-        <GlassCard
-          variant='glass'
-          w='300px'
-          mb={6}
-          borderWidth='1px'
-          borderStyle='solid'
-          borderColor={{ base: 'white', _light: 'black' }}
-          borderRadius='8px'
-          pointerEvents='auto'
-        >
-          <Box p={4}>
-            <Stat.Root>
-              <Stat.Label>
-                <Heading as='h3' size='md' mb={2} color='fg'>
-                  Subject Info
-                </Heading>
-              </Stat.Label>
-              <Stat.ValueText fontSize='lg' fontWeight='bold' color='brand.400'>
-                {subject.ent_fsid}
-              </Stat.ValueText>
-            </Stat.Root>
-          </Box>
-        </GlassCard>
+        <VStack gap={4} w='300px' mb={6} pointerEvents='auto'>
+          {/* Horizon Rank Card */}
+          <GlassCard
+            variant='glass'
+            w='100%'
+            borderWidth='1px'
+            borderStyle='solid'
+            borderColor={{ base: 'white', _light: 'black' }}
+            borderRadius='8px'
+          >
+            <Box p={4} textAlign='center'>
+              <Stat.Root>
+                <Stat.Label>
+                  <Text as='h4' mb={2} color='fg'>
+                    Horizon Rank
+                  </Text>
+                </Stat.Label>
+                <Stat.ValueText
+                  fontSize='xl'
+                  fontWeight='bold'
+                  color='brand.400'
+                >
+                  {(Math.random() * 0.5 + 0.5).toFixed(2)}
+                </Stat.ValueText>
+              </Stat.Root>
+            </Box>
+          </GlassCard>
+
+          {/* White Space Card */}
+          <GlassCard
+            variant='glass'
+            w='100%'
+            borderWidth='1px'
+            borderStyle='solid'
+            borderColor={{ base: 'white', _light: 'black' }}
+            borderRadius='8px'
+          >
+            <Box p={4} textAlign='center'>
+              <Stat.Root>
+                <Stat.Label>
+                  <Text as='h4' mb={2} color='fg'>
+                    White Space
+                  </Text>
+                </Stat.Label>
+                <Stat.ValueText
+                  fontSize='xl'
+                  fontWeight='bold'
+                  color='brand.400'
+                >
+                  {Math.floor(Math.random() * 100)}
+                </Stat.ValueText>
+              </Stat.Root>
+            </Box>
+          </GlassCard>
+
+          {/* Tech Transfer Card */}
+          <GlassCard
+            variant='glass'
+            w='100%'
+            borderWidth='1px'
+            borderStyle='solid'
+            borderColor={{ base: 'white', _light: 'black' }}
+            borderRadius='8px'
+          >
+            <Box p={4} textAlign='center'>
+              <Stat.Root>
+                <Stat.Label>
+                  <Text as='h4' mb={2} color='fg'>
+                    Tech Transfer
+                  </Text>
+                </Stat.Label>
+                <Stat.ValueText
+                  fontSize='xl'
+                  fontWeight='bold'
+                  color='brand.400'
+                >
+                  {Math.floor(Math.random() * 100)}
+                </Stat.ValueText>
+              </Stat.Root>
+            </Box>
+          </GlassCard>
+        </VStack>
       </Box>
 
       {/* Spacer to push content below the NetworkGraph */}

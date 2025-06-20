@@ -246,13 +246,24 @@ const DraggableSubjectCard: React.FC<{
       mb={3}
       opacity={isDragging ? 0.5 : 1}
       cursor='grab'
-      _hover={{ shadow: 'md', borderColor: 'blue.300' }}
+      _hover={{
+        shadow: 'md',
+        borderColor: { base: '#8285FF', _light: 'blue.300' },
+      }}
       transition='all 0.2s'
+      bg={{ base: '#1a1a1a', _light: 'white' }}
+      border='1px solid'
+      borderColor={{ base: 'white', _light: 'gray.200' }}
     >
       <Card.Body p={3}>
         <VStack gap={2} align='stretch'>
           <HStack justify='space-between' align='flex-start'>
-            <Text fontSize='sm' fontWeight='medium' color='blue.600' flex='1'>
+            <Text
+              fontSize='sm'
+              fontWeight='medium'
+              color={{ base: '#8285FF', _light: 'blue.600' }}
+              flex='1'
+            >
               {subject.name}
             </Text>
             <Menu.Root>
@@ -307,7 +318,10 @@ const DraggableSubjectCard: React.FC<{
           {/* Metrics */}
           <VStack gap={1} align='stretch'>
             <HStack justify='space-between'>
-              <Text fontSize='xs' color='gray.500'>
+              <Text
+                fontSize='xs'
+                color={{ base: 'gray.400', _light: 'gray.500' }}
+              >
                 HR:
               </Text>
               <HStack gap={1}>
@@ -321,13 +335,21 @@ const DraggableSubjectCard: React.FC<{
                     <Progress.Range />
                   </Progress.Track>
                 </Progress.Root>
-                <Text fontSize='xs' fontWeight='medium' minW='30px'>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  minW='30px'
+                  color={{ base: 'white', _light: 'black' }}
+                >
                   {subject.horizonRank.toFixed(2)}
                 </Text>
               </HStack>
             </HStack>
             <HStack justify='space-between'>
-              <Text fontSize='xs' color='gray.500'>
+              <Text
+                fontSize='xs'
+                color={{ base: 'gray.400', _light: 'gray.500' }}
+              >
                 TT:
               </Text>
               <HStack gap={1}>
@@ -344,13 +366,21 @@ const DraggableSubjectCard: React.FC<{
                     <Progress.Range />
                   </Progress.Track>
                 </Progress.Root>
-                <Text fontSize='xs' fontWeight='medium' minW='30px'>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  minW='30px'
+                  color={{ base: 'white', _light: 'black' }}
+                >
                   {subject.techTransfer}
                 </Text>
               </HStack>
             </HStack>
             <HStack justify='space-between'>
-              <Text fontSize='xs' color='gray.500'>
+              <Text
+                fontSize='xs'
+                color={{ base: 'gray.400', _light: 'gray.500' }}
+              >
                 WS:
               </Text>
               <HStack gap={1}>
@@ -367,14 +397,24 @@ const DraggableSubjectCard: React.FC<{
                     <Progress.Range />
                   </Progress.Track>
                 </Progress.Root>
-                <Text fontSize='xs' fontWeight='medium' minW='30px'>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  minW='30px'
+                  color={{ base: 'white', _light: 'black' }}
+                >
                   {subject.whiteSpace}
                 </Text>
               </HStack>
             </HStack>
           </VStack>
 
-          <Text fontSize='xs' color='gray.500' lineHeight='1.3' lineClamp={2}>
+          <Text
+            fontSize='xs'
+            color={{ base: 'gray.400', _light: 'gray.500' }}
+            lineHeight='1.3'
+            lineClamp={2}
+          >
             {subject.description}
           </Text>
 
@@ -426,7 +466,13 @@ const DroppableDraftArea: React.FC<{
   return (
     <Box
       ref={drop}
-      bg={isOver ? (canDrop ? 'blue.50' : 'red.50') : 'transparent'}
+      bg={
+        isOver
+          ? canDrop
+            ? 'rgba(130, 133, 255, 0.1)'
+            : 'rgba(224, 123, 145, 0.1)'
+          : 'transparent'
+      }
       borderRadius='md'
       transition='background-color 0.2s'
       minH='200px'
@@ -875,7 +921,14 @@ const Whiteboard: React.FC = () => {
     const currentViz = selectedVisualization[draft.id] || 'list';
 
     return (
-      <Card.Root size='lg' variant='outline' minH='450px'>
+      <Card.Root
+        size='lg'
+        variant='outline'
+        minH='450px'
+        bg={{ base: '#1a1a1a', _light: 'white' }}
+        border='1px solid'
+        borderColor={{ base: 'white', _light: 'gray.200' }}
+      >
         <Card.Body p={4}>
           <DroppableDraftArea
             draftId={draft.id}
@@ -895,13 +948,13 @@ const Whiteboard: React.FC = () => {
                     </Badge>
                   </HStack>
                   {draft.description && (
-                    <Text fontSize='xs' color='gray.600'>
+                    <Text fontSize='xs' color='fg.muted'>
                       {draft.description}
                     </Text>
                   )}
                   {draft.aiTaxonomy && (
                     <HStack gap={1}>
-                      <Text fontSize='xs' color='purple.600'>
+                      <Text fontSize='xs' color='purple.400'>
                         🤖
                       </Text>
                       <Text fontSize='xs' fontWeight='medium'>
@@ -954,29 +1007,55 @@ const Whiteboard: React.FC = () => {
               </HStack>
 
               {/* Metrics Summary */}
-              <Box p={2} bg='black' borderRadius='md'>
+              <Box
+                p={2}
+                bg={{ base: '#111111', _light: 'gray.50' }}
+                borderRadius='md'
+                border='1px solid'
+                borderColor={{ base: 'white', _light: 'gray.200' }}
+              >
                 <Grid templateColumns='repeat(4, 1fr)' gap={3} fontSize='xs'>
                   <VStack gap={0}>
-                    <Text color='gray.400'>Avg HR</Text>
-                    <Text fontWeight='bold' color='white'>
+                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
+                      Avg HR
+                    </Text>
+                    <Text
+                      fontWeight='bold'
+                      color={{ base: 'white', _light: 'black' }}
+                    >
                       {draft.metrics.avgHorizonRank.toFixed(2)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
-                    <Text color='gray.400'>Avg TT</Text>
-                    <Text fontWeight='bold' color='white'>
+                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
+                      Avg TT
+                    </Text>
+                    <Text
+                      fontWeight='bold'
+                      color={{ base: 'white', _light: 'black' }}
+                    >
                       {Math.round(draft.metrics.avgTechTransfer)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
-                    <Text color='gray.400'>Avg WS</Text>
-                    <Text fontWeight='bold' color='white'>
+                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
+                      Avg WS
+                    </Text>
+                    <Text
+                      fontWeight='bold'
+                      color={{ base: 'white', _light: 'black' }}
+                    >
                       {Math.round(draft.metrics.avgWhiteSpace)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
-                    <Text color='gray.400'>Innovation</Text>
-                    <Text fontWeight='bold' color='white'>
+                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
+                      Innovation
+                    </Text>
+                    <Text
+                      fontWeight='bold'
+                      color={{ base: 'white', _light: 'black' }}
+                    >
                       {Math.round(draft.metrics.innovationPotential)}
                     </Text>
                   </VStack>
@@ -987,7 +1066,7 @@ const Whiteboard: React.FC = () => {
               <HStack
                 gap={1}
                 borderBottom='1px solid'
-                borderColor='gray.200'
+                borderColor={{ base: 'white', _light: 'gray.200' }}
                 pb={2}
               >
                 {[
@@ -1028,7 +1107,7 @@ const Whiteboard: React.FC = () => {
                     align='center'
                     justify='center'
                     minH='200px'
-                    color='gray.500'
+                    color={{ base: 'gray.400', _light: 'gray.600' }}
                   >
                     <VStack gap={2}>
                       <FiTarget size={24} />
@@ -1048,10 +1127,12 @@ const Whiteboard: React.FC = () => {
                   fontSize='xs'
                   pt={2}
                   borderTop='1px solid'
-                  borderColor='gray.200'
+                  borderColor={{ base: 'white', _light: 'gray.200' }}
                 >
                   <HStack gap={2}>
-                    <Text color='gray.500'>Coherence:</Text>
+                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
+                      Coherence:
+                    </Text>
                     <HStack gap={1}>
                       <Progress.Root
                         value={draft.metrics.coherenceScore}
@@ -1076,7 +1157,9 @@ const Whiteboard: React.FC = () => {
                   </HStack>
 
                   <HStack gap={2}>
-                    <Text color='gray.500'>Risk:</Text>
+                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
+                      Risk:
+                    </Text>
                     <Badge
                       size='sm'
                       colorScheme={
@@ -1101,16 +1184,24 @@ const Whiteboard: React.FC = () => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <Box p={6} bg='gray.50' minHeight='calc(100vh - 64px)'>
+      <Box
+        p={6}
+        bg={{ base: '#111111', _light: 'gray.50' }}
+        minHeight='calc(100vh - 64px)'
+      >
         <VStack gap={6} align='stretch'>
           {/* Header */}
-          <Card.Root>
+          <Card.Root
+            bg={{ base: '#1a1a1a', _light: 'white' }}
+            border='1px solid'
+            borderColor={{ base: 'white', _light: 'gray.200' }}
+          >
             <Card.Body p={6}>
               <VStack gap={1} align='start'>
                 <Heading as='h1' size='xl'>
                   Whiteboard
                 </Heading>
-                <Text color='gray.600'>
+                <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
                   Collect snapshots, organize into drafts, and publish to labs
                 </Text>
               </VStack>
@@ -1118,7 +1209,11 @@ const Whiteboard: React.FC = () => {
           </Card.Root>
 
           {/* Metrics Overview */}
-          <Card.Root>
+          <Card.Root
+            bg={{ base: '#1a1a1a', _light: 'white' }}
+            border='1px solid'
+            borderColor={{ base: 'white', _light: 'gray.200' }}
+          >
             <Card.Body p={4}>
               <VStack gap={4} align='stretch'>
                 <HStack justify='space-between' align='center'>
@@ -1130,7 +1225,10 @@ const Whiteboard: React.FC = () => {
                     maxW='600px'
                   >
                     <VStack gap={0}>
-                      <Text fontSize='xs' color='gray.500'>
+                      <Text
+                        fontSize='xs'
+                        color={{ base: 'gray.400', _light: 'gray.600' }}
+                      >
                         Total Subjects
                       </Text>
                       <Text fontWeight='bold'>
@@ -1138,7 +1236,10 @@ const Whiteboard: React.FC = () => {
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text fontSize='xs' color='gray.500'>
+                      <Text
+                        fontSize='xs'
+                        color={{ base: 'gray.400', _light: 'gray.600' }}
+                      >
                         Avg Horizon Rank
                       </Text>
                       <Text fontWeight='bold'>
@@ -1146,7 +1247,10 @@ const Whiteboard: React.FC = () => {
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text fontSize='xs' color='gray.500'>
+                      <Text
+                        fontSize='xs'
+                        color={{ base: 'gray.400', _light: 'gray.600' }}
+                      >
                         Avg Tech Transfer
                       </Text>
                       <Text fontWeight='bold'>
@@ -1154,7 +1258,10 @@ const Whiteboard: React.FC = () => {
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text fontSize='xs' color='gray.500'>
+                      <Text
+                        fontSize='xs'
+                        color={{ base: 'gray.400', _light: 'gray.600' }}
+                      >
                         Avg White Space
                       </Text>
                       <Text fontWeight='bold'>
@@ -1162,7 +1269,10 @@ const Whiteboard: React.FC = () => {
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text fontSize='xs' color='gray.500'>
+                      <Text
+                        fontSize='xs'
+                        color={{ base: 'gray.400', _light: 'gray.600' }}
+                      >
                         Innovation Potential
                       </Text>
                       <Text fontWeight='bold'>
@@ -1195,9 +1305,9 @@ const Whiteboard: React.FC = () => {
                         left='0'
                         right='0'
                         mt={1}
-                        bg='white'
+                        bg={{ base: '#1a1a1a', _light: 'white' }}
                         border='1px solid'
-                        borderColor='gray.200'
+                        borderColor={{ base: 'white', _light: 'gray.200' }}
                         borderRadius='md'
                         boxShadow='lg'
                         zIndex='20'
@@ -1219,7 +1329,7 @@ const Whiteboard: React.FC = () => {
                               <HStack
                                 key={result.id}
                                 p={3}
-                                _hover={{ bg: 'gray.50' }}
+                                _hover={{ bg: 'bg.subtle' }}
                                 justify='space-between'
                                 cursor='pointer'
                                 onClick={() =>
@@ -1232,7 +1342,10 @@ const Whiteboard: React.FC = () => {
                                   </Text>
                                   <Text
                                     fontSize='xs'
-                                    color='gray.500'
+                                    color={{
+                                      base: 'gray.400',
+                                      _light: 'gray.500',
+                                    }}
                                     lineClamp={1}
                                   >
                                     {result.description}
@@ -1265,7 +1378,10 @@ const Whiteboard: React.FC = () => {
                           searchResults.length === 0 &&
                           searchQuery && (
                             <Flex align='center' justify='center' py={4}>
-                              <Text fontSize='sm' color='gray.500'>
+                              <Text
+                                fontSize='sm'
+                                color={{ base: 'gray.400', _light: 'gray.500' }}
+                              >
                                 No subjects found for "{searchQuery}"
                               </Text>
                             </Flex>
@@ -1291,7 +1407,11 @@ const Whiteboard: React.FC = () => {
           <HStack gap={6} align='flex-start'>
             {/* Available Subjects Sidebar */}
             <Box minW='280px' maxW='320px'>
-              <Card.Root>
+              <Card.Root
+                bg={{ base: '#1a1a1a', _light: 'white' }}
+                border='1px solid'
+                borderColor={{ base: 'white', _light: 'gray.200' }}
+              >
                 <Card.Body p={4}>
                   <VStack gap={3} align='stretch'>
                     <HStack justify='space-between' align='center'>
@@ -1307,7 +1427,7 @@ const Whiteboard: React.FC = () => {
                         <Text
                           fontSize='sm'
                           fontWeight='medium'
-                          color='gray.700'
+                          color={{ base: 'white', _light: 'gray.700' }}
                           whiteSpace='nowrap'
                         >
                           Sort by:
@@ -1320,31 +1440,85 @@ const Whiteboard: React.FC = () => {
                           style={{
                             padding: '4px',
                             borderRadius: '4px',
-                            border: '1px solid #E2E8F0',
+                            border: '1px solid #FFFFFF',
                             fontSize: '12px',
                             width: '100%',
+                            backgroundColor: '#1a1a1a',
+                            color: '#FFFFFF',
                           }}
                         >
-                          <option value='horizon-high'>
+                          <option
+                            value='horizon-high'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
                             Horizon Rank (High to Low)
                           </option>
-                          <option value='horizon-low'>
+                          <option
+                            value='horizon-low'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
                             Horizon Rank (Low to High)
                           </option>
-                          <option value='techTransfer-high'>
+                          <option
+                            value='techTransfer-high'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
                             Tech Transfer (High to Low)
                           </option>
-                          <option value='techTransfer-low'>
+                          <option
+                            value='techTransfer-low'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
                             Tech Transfer (Low to High)
                           </option>
-                          <option value='whiteSpace-high'>
+                          <option
+                            value='whiteSpace-high'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
                             White Space (High to Low)
                           </option>
-                          <option value='whiteSpace-low'>
+                          <option
+                            value='whiteSpace-low'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
                             White Space (Low to High)
                           </option>
-                          <option value='a-z'>A-Z</option>
-                          <option value='z-a'>Z-A</option>
+                          <option
+                            value='a-z'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            A-Z
+                          </option>
+                          <option
+                            value='z-a'
+                            style={{
+                              backgroundColor: '#1a1a1a',
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            Z-A
+                          </option>
                         </select>
                       </HStack>
                       <Input
@@ -1363,7 +1537,7 @@ const Whiteboard: React.FC = () => {
                           align='center'
                           justify='center'
                           minH='200px'
-                          color='gray.500'
+                          color={{ base: 'gray.400', _light: 'gray.500' }}
                         >
                           <VStack gap={2}>
                             <FiSearch size={24} />
@@ -1398,20 +1572,26 @@ const Whiteboard: React.FC = () => {
             {/* Drafts Area */}
             <Box flex='1'>
               {drafts.length === 0 ? (
-                <Card.Root>
+                <Card.Root
+                  bg={{ base: '#1a1a1a', _light: 'white' }}
+                  border='1px solid'
+                  borderColor={{ base: 'white', _light: 'gray.200' }}
+                >
                   <Card.Body p={8}>
                     <Flex align='center' justify='center' minH='400px'>
                       <VStack gap={4} textAlign='center'>
-                        <FiTarget size={48} color='gray.400' />
+                        <FiTarget size={48} color='#A0A0A0' />
                         <VStack gap={2}>
                           <Text
                             fontSize='lg'
                             fontWeight='medium'
-                            color='gray.600'
+                            color={{ base: 'gray.400', _light: 'gray.600' }}
                           >
                             No drafts yet
                           </Text>
-                          <Text color='gray.500'>
+                          <Text
+                            color={{ base: 'gray.400', _light: 'gray.500' }}
+                          >
                             Create your first draft to start organizing subjects
                           </Text>
                         </VStack>
@@ -1446,7 +1626,11 @@ const Whiteboard: React.FC = () => {
           >
             <Dialog.Backdrop />
             <Dialog.Positioner>
-              <Dialog.Content>
+              <Dialog.Content
+                bg={{ base: '#1a1a1a', _light: 'white' }}
+                border='1px solid'
+                borderColor={{ base: 'white', _light: 'gray.200' }}
+              >
                 <Dialog.Header>
                   <Dialog.Title>Create New Draft</Dialog.Title>
                   <Dialog.CloseTrigger asChild>
@@ -1499,6 +1683,7 @@ const Whiteboard: React.FC = () => {
               </Dialog.Content>
             </Dialog.Positioner>
           </Dialog.Root>
+
           {/* Delete Confirmation Dialog */}
           <Dialog.Root
             open={isDeleteConfirmOpen}
@@ -1512,7 +1697,11 @@ const Whiteboard: React.FC = () => {
           >
             <Dialog.Backdrop />
             <Dialog.Positioner>
-              <Dialog.Content>
+              <Dialog.Content
+                bg={{ base: '#1a1a1a', _light: 'white' }}
+                border='1px solid'
+                borderColor={{ base: 'white', _light: 'gray.200' }}
+              >
                 <Dialog.Header>
                   <Dialog.Title>Confirm Delete from Whiteboard</Dialog.Title>
                   <Dialog.CloseTrigger asChild>
@@ -1532,14 +1721,17 @@ const Whiteboard: React.FC = () => {
                     {draftsContainingSubject.length > 0 && (
                       <Box
                         p={3}
-                        bg='red.50'
+                        bg={{
+                          base: 'rgba(224, 123, 145, 0.1)',
+                          _light: 'red.50',
+                        }}
                         borderRadius='md'
                         border='1px solid'
-                        borderColor='red.200'
+                        borderColor={{ base: '#E07B91', _light: 'red.200' }}
                       >
                         <Text
                           fontSize='sm'
-                          color='red.800'
+                          color={{ base: '#E07B91', _light: 'red.800' }}
                           fontWeight='medium'
                           mb={2}
                         >
@@ -1548,12 +1740,20 @@ const Whiteboard: React.FC = () => {
                         </Text>
                         <VStack gap={1} align='start'>
                           {draftsContainingSubject.map((draft) => (
-                            <Text key={draft.id} fontSize='sm' color='red.700'>
+                            <Text
+                              key={draft.id}
+                              fontSize='sm'
+                              color={{ base: '#E07B91', _light: 'red.700' }}
+                            >
                               • {draft.name}
                             </Text>
                           ))}
                         </VStack>
-                        <Text fontSize='sm' color='red.800' mt={2}>
+                        <Text
+                          fontSize='sm'
+                          color={{ base: '#E07B91', _light: 'red.800' }}
+                          mt={2}
+                        >
                           Removing it from the whiteboard will also remove it
                           from these drafts.
                         </Text>

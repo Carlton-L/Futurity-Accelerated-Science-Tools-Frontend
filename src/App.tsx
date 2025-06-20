@@ -5,7 +5,7 @@ import { PrivateRoute } from './context/AuthContext';
 import { theme } from './theme';
 import Layout from './components/layouts/MainLayout/MainLayout';
 import Subject from './pages/Subject';
-// import Search from './pages/Search';
+import Search from './pages/Search';
 import Organization from './pages/Organization';
 import Login from './pages/Login/Login';
 import Lab from './pages/Lab';
@@ -24,8 +24,10 @@ function App() {
             <Route element={<PrivateRoute />}>
               {/* Layout */}
               <Route element={<Layout />}>
-                <Route path='/' element={<Lab />} />
+                <Route path='/' element={<Search />} />
                 <Route path='/lab/1' element={<Lab />} />
+
+                <Route path='/search' element={<Search />} />
 
                 {/* Dynamic Subject Route */}
                 <Route path='/subject/:slug' element={<Subject />} />

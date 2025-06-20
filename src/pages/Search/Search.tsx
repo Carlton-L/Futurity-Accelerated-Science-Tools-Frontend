@@ -48,6 +48,25 @@ const Search: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const searchQuery = 'computer vision';
 
+  // Helper function to convert title to URL-friendly slug
+  const createSlug = (title: string): string => {
+    return title
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '') // Remove special characters
+      .replace(/[\s_-]+/g, '_') // Replace spaces and hyphens with underscores
+      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+  };
+
+  // Navigation helper function
+  const navigateToSubject = (title: string): void => {
+    const slug = createSlug(title);
+    const url = `/subject/${slug}`;
+    console.log(`Navigating to: ${url}`);
+    // In a real app, you would use your router here:
+    // navigate(url) or window.location.href = url
+    window.location.href = url;
+  };
+
   const exactMatchSubject: ExactMatchSubject = {
     title: 'Computer Vision',
     description:
@@ -142,6 +161,7 @@ const Search: React.FC = () => {
         id: subject.id.toString(),
         name: subject.title,
         title: subject.title,
+        slug: createSlug(subject.title),
       })),
     [] // Empty dependency array since relatedSubjects is static
   );
@@ -179,6 +199,7 @@ const Search: React.FC = () => {
               id: 'computer-vision-123',
               name: exactMatchSubject.title,
               title: exactMatchSubject.title,
+              slug: createSlug(exactMatchSubject.title),
             },
           }
         : undefined,
@@ -205,16 +226,25 @@ const Search: React.FC = () => {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsCreating(false);
-    // In real app: redirect to /subject/computer-vision
-    alert('Would redirect to /subject/computer-vision');
+    // Navigate to the new subject page
+    navigateToSubject(searchQuery);
   };
 
   const toggleExactMatch = (): void => {
     setHasExactMatch(!hasExactMatch);
   };
 
+  const handleSubjectClick = (title: string): void => {
+    navigateToSubject(title);
+  };
+
   const handleItemClick = (type: string, item: RelatedItem): void => {
-    console.log(`Navigate to ${type}:`, item.title);
+    if (type === 'subject') {
+      navigateToSubject(item.title);
+    } else {
+      console.log(`Navigate to ${type}:`, item.title);
+      // Handle other item types (analysis, organization) as needed
+    }
   };
 
   return (
@@ -261,15 +291,32 @@ const Search: React.FC = () => {
                     borderRadius='lg'
                     border='2px solid'
                     borderColor='blue.200'
+                    cursor='pointer'
+                    _hover={{
+                      transform: 'translateY(-2px)',
+                      boxShadow: 'lg',
+                      borderColor: 'blue.300',
+                    }}
+                    transition='all 0.2s'
+                    onClick={() => handleSubjectClick(exactMatchSubject.title)}
                   >
                     <VStack gap={6} align='stretch'>
                       <Box>
-                        <Heading as='h3' size='xl' mb={3}>
-                          {exactMatchSubject.title}
-                        </Heading>
-                        <Text color='gray.700' fontSize='lg' lineHeight='1.6'>
-                          {exactMatchSubject.description}
-                        </Text>
+                        <HStack justify='space-between' align='start'>
+                          <Box flex='1'>
+                            <Heading as='h3' size='xl' mb={3} color='white'>
+                              {exactMatchSubject.title}
+                            </Heading>
+                            <Text
+                              color='gray.700'
+                              fontSize='lg'
+                              lineHeight='1.6'
+                            >
+                              {exactMatchSubject.description}
+                            </Text>
+                          </Box>
+                          <FiChevronRight size={24} color='blue.400' />
+                        </HStack>
                       </Box>
 
                       {/* Indices */}
@@ -389,6 +436,16 @@ const Search: React.FC = () => {
                           </Text>
                         </Box>
                       </SimpleGrid>
+
+                      {/* Click hint */}
+                      <Text
+                        fontSize='sm'
+                        color='gray.500'
+                        textAlign='center'
+                        fontStyle='italic'
+                      >
+                        Click to view subject details
+                      </Text>
                     </VStack>
                   </Box>
                 </VStack>
@@ -450,19 +507,25 @@ const Search: React.FC = () => {
                     bg='#1a1a1a'
                     borderRadius='lg'
                     cursor='pointer'
-                    _hover={{ bg: 'gray.100' }}
+                    _hover={{
+                      bg: '#2a2a2a',
+                      transform: 'translateX(4px)',
+                    }}
                     transition='all 0.2s'
-                    onClick={() => handleItemClick('subject', subject)}
+                    onClick={() => handleSubjectClick(subject.title)}
                   >
                     <Box flex='1'>
-                      <Text fontWeight='semibold' mb={1}>
+                      <Text fontWeight='semibold' mb={1} color='white'>
                         {subject.title}
                       </Text>
-                      <Text fontSize='sm' color='gray.600'>
+                      <Text fontSize='sm' color='gray.400'>
                         {subject.summary}
                       </Text>
+                      <Text fontSize='xs' color='gray.500' mt={1}>
+                        Click to view → /subject/{createSlug(subject.title)}
+                      </Text>
                     </Box>
-                    <FiChevronRight size={20} color='gray.400' />
+                    <FiChevronRight size={20} color='blue.400' />
                   </HStack>
                 ))}
               </VStack>
@@ -487,15 +550,15 @@ const Search: React.FC = () => {
                     bg='#1a1a1a'
                     borderRadius='lg'
                     cursor='pointer'
-                    _hover={{ bg: 'gray.100' }}
+                    _hover={{ bg: '#2a2a2a' }}
                     transition='all 0.2s'
                     onClick={() => handleItemClick('analysis', analysis)}
                   >
                     <Box flex='1'>
-                      <Text fontWeight='semibold' mb={1}>
+                      <Text fontWeight='semibold' mb={1} color='white'>
                         {analysis.title}
                       </Text>
-                      <Text fontSize='sm' color='gray.600'>
+                      <Text fontSize='sm' color='gray.400'>
                         {analysis.summary}
                       </Text>
                     </Box>
@@ -526,15 +589,15 @@ const Search: React.FC = () => {
                     bg='#1a1a1a'
                     borderRadius='lg'
                     cursor='pointer'
-                    _hover={{ bg: 'gray.100' }}
+                    _hover={{ bg: '#2a2a2a' }}
                     transition='all 0.2s'
                     onClick={() => handleItemClick('organization', org)}
                   >
                     <Box flex='1'>
-                      <Text fontWeight='semibold' mb={1}>
+                      <Text fontWeight='semibold' mb={1} color='white'>
                         {org.title}
                       </Text>
-                      <Text fontSize='sm' color='gray.600'>
+                      <Text fontSize='sm' color='gray.400'>
                         {org.summary}
                       </Text>
                     </Box>

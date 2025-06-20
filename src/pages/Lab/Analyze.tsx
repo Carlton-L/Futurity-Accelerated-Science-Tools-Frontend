@@ -18,6 +18,7 @@ import {
   Flex,
   createToaster,
 } from '@chakra-ui/react';
+import GlassCard from '../../components/shared/GlassCard';
 import CardScroller from '../../components/shared/CardScroller';
 import StickyNavigation from './StickyNavigation';
 import HorizonChartSection from './Horizons/HorizonChartSection';
@@ -590,16 +591,20 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   return (
     <VStack gap={6} align='stretch'>
       {/* Header */}
-      <Heading as='h2' size='lg'>
+      <Heading as='h2' size='lg' fontFamily='heading' color='fg'>
         Analyses
       </Heading>
 
       {/* Sticky Navigation Bar */}
-      <StickyNavigation
-        items={navigationItems}
-        activeSection={activeSection}
-        onSectionClick={scrollToSection}
-      />
+      <Box position='sticky' top='114px' zIndex='10' mb={6}>
+        <GlassCard variant='glass' w='100%'>
+          <StickyNavigation
+            items={navigationItems}
+            activeSection={activeSection}
+            onSectionClick={scrollToSection}
+          />
+        </GlassCard>
+      </Box>
 
       {/* Horizon Chart with Subject Selection */}
       <HorizonChartSection
@@ -614,10 +619,20 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
       />
 
       {/* Lab Analyses List with CardScroller */}
-      <Card.Root ref={labAnalysesRef}>
+      <Card.Root
+        ref={labAnalysesRef}
+        borderWidth='1px'
+        borderColor='border.emphasized'
+      >
         <Card.Body p={4}>
           <VStack gap={3} align='stretch'>
-            <Heading as='h3' size='md' flexShrink={0}>
+            <Heading
+              as='h3'
+              size='md'
+              flexShrink={0}
+              fontFamily='heading'
+              color='fg'
+            >
               Lab Analyses
             </Heading>
 
@@ -626,8 +641,9 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 <Text
                   fontSize='sm'
                   fontWeight='medium'
-                  color='gray.700'
+                  color='fg.muted'
                   whiteSpace='nowrap'
+                  fontFamily='heading'
                 >
                   Sort by:
                 </Text>
@@ -635,18 +651,53 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   style={{
-                    padding: '8px',
-                    borderRadius: '4px',
-                    border: '1px solid #E2E8F0',
+                    backgroundColor: 'var(--chakra-colors-bg)',
+                    borderColor: 'var(--chakra-colors-border-emphasized)',
+                    color: 'var(--chakra-colors-fg)',
                     fontSize: '14px',
                     minWidth: '150px',
-                    backgroundColor: 'white',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid var(--chakra-colors-border-emphasized)',
+                    fontFamily: 'var(--chakra-fonts-body)',
                   }}
                 >
-                  <option value='most-recent'>Most Recent</option>
-                  <option value='oldest'>Oldest</option>
-                  <option value='a-z'>A-Z</option>
-                  <option value='z-a'>Z-A</option>
+                  <option
+                    value='most-recent'
+                    style={{
+                      backgroundColor: 'var(--chakra-colors-bg)',
+                      color: 'var(--chakra-colors-fg)',
+                    }}
+                  >
+                    Most Recent
+                  </option>
+                  <option
+                    value='oldest'
+                    style={{
+                      backgroundColor: 'var(--chakra-colors-bg)',
+                      color: 'var(--chakra-colors-fg)',
+                    }}
+                  >
+                    Oldest
+                  </option>
+                  <option
+                    value='a-z'
+                    style={{
+                      backgroundColor: 'var(--chakra-colors-bg)',
+                      color: 'var(--chakra-colors-fg)',
+                    }}
+                  >
+                    A-Z
+                  </option>
+                  <option
+                    value='z-a'
+                    style={{
+                      backgroundColor: 'var(--chakra-colors-bg)',
+                      color: 'var(--chakra-colors-fg)',
+                    }}
+                  >
+                    Z-A
+                  </option>
                 </select>
               </HStack>
               <Input
@@ -655,28 +706,36 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 size='sm'
                 flex='1'
+                bg='bg'
+                borderColor='border.emphasized'
+                color='fg'
+                _placeholder={{ color: 'fg.subtle' }}
+                _focus={{
+                  borderColor: 'brand.400',
+                  boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)',
+                }}
               />
             </HStack>
 
-            <Box height='1px' bg='gray.200' flexShrink={0} />
+            <Box height='1px' bg='border.muted' flexShrink={0} />
 
             <CardScroller
               height='250px'
               emptyMessage='No analyses found. Create your first analysis to get started!'
             >
               {filteredAndSortedAnalyses.map((analysis) => (
-                <Card.Root
+                <GlassCard
                   key={analysis.id}
+                  variant='outline'
                   minWidth='280px'
                   maxWidth='280px'
                   height='100%'
-                  variant='outline'
                   cursor='pointer'
-                  _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
+                  _hover={{ bg: 'bg.subtle', borderColor: 'brand.400' }}
                   onClick={() => handleAnalysisClick(analysis.id)}
                   transition='all 0.2s'
                 >
-                  <Card.Body
+                  <Box
                     p={4}
                     height='100%'
                     display='flex'
@@ -705,26 +764,21 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                           <Text
                             fontSize='sm'
                             fontWeight='bold'
-                            color='blue.600'
+                            color='brand.500'
                             lineHeight='1.3'
+                            fontFamily='heading'
                           >
                             {analysis.title}
                           </Text>
                           <Box
                             bg={
                               analysis.status === 'Complete'
-                                ? 'green.100'
+                                ? 'success'
                                 : analysis.status === 'In Progress'
-                                ? 'blue.100'
-                                : 'orange.100'
+                                ? 'info'
+                                : 'warning'
                             }
-                            color={
-                              analysis.status === 'Complete'
-                                ? 'green.800'
-                                : analysis.status === 'In Progress'
-                                ? 'blue.800'
-                                : 'orange.800'
-                            }
+                            color='white'
                             px={2}
                             py={1}
                             borderRadius='md'
@@ -739,12 +793,13 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
                       <Text
                         fontSize='xs'
-                        color='gray.600'
+                        color='fg.muted'
                         lineHeight='1.4'
                         overflow='hidden'
                         textOverflow='ellipsis'
                         display='-webkit-box'
                         flex='1'
+                        fontFamily='body'
                         style={{
                           WebkitLineClamp: 3,
                           WebkitBoxOrient: 'vertical',
@@ -753,8 +808,8 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         {analysis.description}
                       </Text>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
               ))}
             </CardScroller>
           </VStack>
@@ -762,16 +817,26 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
       </Card.Root>
 
       {/* Analysis Tools */}
-      <Card.Root ref={analysisToolsRef}>
+      <Card.Root
+        ref={analysisToolsRef}
+        borderWidth='1px'
+        borderColor='border.emphasized'
+      >
         <Card.Body p={6}>
           <VStack gap={4} align='stretch'>
-            <Heading as='h3' size='md'>
+            <Heading as='h3' size='md' fontFamily='heading' color='fg'>
               Analysis Tools
             </Heading>
 
             {/* Analysis Type Selector */}
             <Box>
-              <Text fontSize='sm' fontWeight='medium' mb={2}>
+              <Text
+                fontSize='sm'
+                fontWeight='medium'
+                mb={2}
+                fontFamily='heading'
+                color='fg'
+              >
                 Analysis Type
               </Text>
               <select
@@ -780,30 +845,64 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                   setAnalysisType(e.target.value as AnalysisType)
                 }
                 style={{
-                  padding: '8px',
-                  borderRadius: '4px',
-                  border: '1px solid #E2E8F0',
+                  backgroundColor: 'var(--chakra-colors-bg)',
+                  borderColor: 'var(--chakra-colors-border-emphasized)',
+                  color: 'var(--chakra-colors-fg)',
                   fontSize: '14px',
                   minWidth: '200px',
-                  backgroundColor: 'white',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid var(--chakra-colors-border-emphasized)',
+                  fontFamily: 'var(--chakra-fonts-body)',
                 }}
               >
-                <option value='patent'>Patent Landscape</option>
-                <option value='taxonomy'>Taxonomy</option>
-                <option value='research'>Research Analysis</option>
-                <option value='investment'>Venture Investment</option>
+                <option
+                  value='patent'
+                  style={{
+                    backgroundColor: 'var(--chakra-colors-bg)',
+                    color: 'var(--chakra-colors-fg)',
+                  }}
+                >
+                  Patent Landscape
+                </option>
+                <option
+                  value='taxonomy'
+                  style={{
+                    backgroundColor: 'var(--chakra-colors-bg)',
+                    color: 'var(--chakra-colors-fg)',
+                  }}
+                >
+                  Taxonomy
+                </option>
+                <option
+                  value='research'
+                  style={{
+                    backgroundColor: 'var(--chakra-colors-bg)',
+                    color: 'var(--chakra-colors-fg)',
+                  }}
+                >
+                  Research Analysis
+                </option>
+                <option
+                  value='investment'
+                  style={{
+                    backgroundColor: 'var(--chakra-colors-bg)',
+                    color: 'var(--chakra-colors-fg)',
+                  }}
+                >
+                  Venture Investment
+                </option>
               </select>
             </Box>
 
             {/* Analysis Type Description */}
-            <Box
+            <GlassCard
+              variant='glass'
+              bg='brand.50'
+              borderColor='brand.200'
               p={3}
-              bg='blue.50'
-              borderRadius='md'
-              border='1px solid'
-              borderColor='blue.200'
             >
-              <Text fontSize='sm' color='blue.800'>
+              <Text fontSize='sm' color='brand.800' fontFamily='body'>
                 {analysisType === 'patent' &&
                   'This report provides a patent landscape of the space.'}
                 {analysisType === 'taxonomy' &&
@@ -813,7 +912,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 {analysisType === 'investment' &&
                   'This report looks at the companies in each of the taxonomy categories explained in the Taxonomy report, showing their investment history and trends.'}
               </Text>
-            </Box>
+            </GlassCard>
 
             <Flex gap={6} align='flex-start'>
               {/* Controls Panel */}
@@ -822,7 +921,12 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                   {/* Subject Selection for Analysis */}
                   <Box>
                     <HStack justify='space-between' align='center' mb={2}>
-                      <Text fontSize='sm' fontWeight='medium'>
+                      <Text
+                        fontSize='sm'
+                        fontWeight='medium'
+                        fontFamily='heading'
+                        color='fg'
+                      >
                         Select Subjects ({analysisSelectedSubjects.size}/
                         {allSubjects.length})
                       </Text>
@@ -848,7 +952,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                       maxH='300px'
                       overflowY='auto'
                       border='1px solid'
-                      borderColor='gray.200'
+                      borderColor='border.emphasized'
                       borderRadius='md'
                       p={3}
                     >
@@ -859,8 +963,9 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                             <Text
                               fontSize='xs'
                               fontWeight='bold'
-                              color='green.600'
+                              color='success'
                               textTransform='uppercase'
+                              fontFamily='heading'
                             >
                               Included (
                               {groupedAnalysisSubjects.selected.length})
@@ -882,16 +987,22 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                                   </Checkbox.Control>
                                 </Checkbox.Root>
                                 <VStack gap={0} align='stretch' flex='1'>
-                                  <Text fontSize='sm' fontWeight='medium'>
+                                  <Text
+                                    fontSize='sm'
+                                    fontWeight='medium'
+                                    color='fg'
+                                    fontFamily='heading'
+                                  >
                                     {subject.subjectName}
                                   </Text>
                                   {subject.notes && (
                                     <Text
                                       fontSize='xs'
-                                      color='gray.500'
+                                      color='fg.muted'
                                       overflow='hidden'
                                       textOverflow='ellipsis'
                                       whiteSpace='nowrap'
+                                      fontFamily='body'
                                     >
                                       {subject.notes}
                                     </Text>
@@ -906,13 +1017,14 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         {groupedAnalysisSubjects.unselected.length > 0 && (
                           <>
                             {groupedAnalysisSubjects.selected.length > 0 && (
-                              <Box height='1px' bg='gray.200' my={2} />
+                              <Box height='1px' bg='border.muted' my={2} />
                             )}
                             <Text
                               fontSize='xs'
                               fontWeight='bold'
-                              color='gray.500'
+                              color='fg.muted'
                               textTransform='uppercase'
+                              fontFamily='heading'
                             >
                               Available (
                               {groupedAnalysisSubjects.unselected.length})
@@ -935,16 +1047,22 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                                     </Checkbox.Control>
                                   </Checkbox.Root>
                                   <VStack gap={0} align='stretch' flex='1'>
-                                    <Text fontSize='sm' fontWeight='medium'>
+                                    <Text
+                                      fontSize='sm'
+                                      fontWeight='medium'
+                                      color='fg'
+                                      fontFamily='heading'
+                                    >
                                       {subject.subjectName}
                                     </Text>
                                     {subject.notes && (
                                       <Text
                                         fontSize='xs'
-                                        color='gray.500'
+                                        color='fg.muted'
                                         overflow='hidden'
                                         textOverflow='ellipsis'
                                         whiteSpace='nowrap'
+                                        fontFamily='body'
                                       >
                                         {subject.notes}
                                       </Text>
@@ -959,9 +1077,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         {allSubjects.length === 0 && (
                           <Text
                             fontSize='sm'
-                            color='gray.500'
+                            color='fg.muted'
                             textAlign='center'
                             py={4}
+                            fontFamily='body'
                           >
                             No subjects available. Add subjects in the Gather
                             tab first.
@@ -973,7 +1092,13 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
                   {/* Exclude Terms */}
                   <Box>
-                    <Text fontSize='sm' fontWeight='medium' mb={2}>
+                    <Text
+                      fontSize='sm'
+                      fontWeight='medium'
+                      mb={2}
+                      fontFamily='heading'
+                      color='fg'
+                    >
                       Exclude Terms
                     </Text>
                     <Input
@@ -986,17 +1111,33 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                       onChange={(e) => setExcludeTerms(e.target.value)}
                       size='sm'
                       disabled={analysisType === 'taxonomy'}
-                      bg={analysisType === 'taxonomy' ? 'gray.100' : 'white'}
-                      color={analysisType === 'taxonomy' ? 'gray.500' : 'black'}
+                      bg={analysisType === 'taxonomy' ? 'bg.muted' : 'bg'}
+                      color={analysisType === 'taxonomy' ? 'fg.muted' : 'fg'}
+                      borderColor='border.emphasized'
+                      _placeholder={{ color: 'fg.subtle' }}
+                      _focus={{
+                        borderColor: 'brand.400',
+                        boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)',
+                      }}
                     />
-                    <Text fontSize='xs' color='gray.500' mt={1}>
+                    <Text
+                      fontSize='xs'
+                      color='fg.muted'
+                      mt={1}
+                      fontFamily='body'
+                    >
                       {analysisType === 'taxonomy'
                         ? 'Taxonomy analysis does not use exclusion terms'
                         : 'Results matching these terms will be excluded from analysis'}
                     </Text>
                     {excludedSubjects.length > 0 &&
                       analysisType !== 'taxonomy' && (
-                        <Text fontSize='xs' color='blue.600' mt={1}>
+                        <Text
+                          fontSize='xs'
+                          color='brand.500'
+                          mt={1}
+                          fontFamily='body'
+                        >
                           Auto-included:{' '}
                           {excludedSubjects
                             .map((s) => s.subjectName)
@@ -1007,7 +1148,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
                   {/* Generate Button */}
                   <Button
-                    colorScheme='blue'
+                    variant='solid'
                     onClick={handleGenerateAnalysis}
                     disabled={
                       analysisSelectedSubjects.size === 0 ||
@@ -1015,6 +1156,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                     }
                     size='md'
                     width='100%'
+                    loading={isGeneratingAnalysis}
                   >
                     {isGeneratingAnalysis
                       ? 'Generating...'
@@ -1028,7 +1170,12 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 {analysisResult ? (
                   <VStack gap={3} align='stretch'>
                     <HStack justify='space-between' align='center'>
-                      <Text fontSize='sm' fontWeight='medium'>
+                      <Text
+                        fontSize='sm'
+                        fontWeight='medium'
+                        fontFamily='heading'
+                        color='fg'
+                      >
                         {analysisType === 'patent' &&
                           'Patent Landscape Analysis Report'}
                         {analysisType === 'taxonomy' &&
@@ -1048,24 +1195,22 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                       </Button>
                     </HStack>
 
-                    <Box
-                      border='1px solid'
-                      borderColor='gray.200'
-                      borderRadius='md'
-                      p={4}
-                      bg='white'
+                    <GlassCard
+                      variant='outline'
                       maxH='500px'
                       overflowY='auto'
+                      p={4}
                     >
                       <Text
                         fontSize='sm'
                         lineHeight='1.6'
                         whiteSpace='pre-wrap'
-                        fontFamily='monospace'
+                        fontFamily='mono'
+                        color='fg'
                       >
                         {analysisResult}
                       </Text>
-                    </Box>
+                    </GlassCard>
                   </VStack>
                 ) : (
                   <Flex
@@ -1073,18 +1218,28 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                     align='center'
                     justify='center'
                     border='2px dashed'
-                    borderColor='gray.300'
+                    borderColor='border.muted'
                     borderRadius='md'
-                    bg='gray.50'
+                    bg='bg.subtle'
                   >
                     <VStack gap={2}>
-                      <Text color='gray.500' fontSize='sm' textAlign='center'>
+                      <Text
+                        color='fg.muted'
+                        fontSize='sm'
+                        textAlign='center'
+                        fontFamily='body'
+                      >
                         {analysisSelectedSubjects.size === 0
                           ? 'Select subjects above to generate analysis'
                           : `Click "Generate Analysis" to create ${analysisType} report`}
                       </Text>
                       {analysisSelectedSubjects.size > 0 && (
-                        <Text color='gray.400' fontSize='xs' textAlign='center'>
+                        <Text
+                          color='fg.subtle'
+                          fontSize='xs'
+                          textAlign='center'
+                          fontFamily='body'
+                        >
                           Analysis will cover {analysisSelectedSubjects.size}{' '}
                           subject
                           {analysisSelectedSubjects.size !== 1 ? 's' : ''}
@@ -1124,37 +1279,57 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
       />
 
       {/* Additional Analysis Tools */}
-      <Card.Root ref={additionalToolsRef}>
+      <Card.Root
+        ref={additionalToolsRef}
+        borderWidth='1px'
+        borderColor='border.emphasized'
+      >
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
-            <Heading as='h3' size='md'>
+            <Heading as='h3' size='md' fontFamily='heading' color='fg'>
               Additional Analysis Tools
             </Heading>
 
-            <Text color='gray.600' fontSize='sm'>
+            <Text color='fg.muted' fontSize='sm' fontFamily='body'>
               Specialized analysis tools and templates for advanced research and
               strategic planning.
             </Text>
 
             {/* Strategy & Planning Tools */}
             <Box>
-              <Heading as='h4' size='sm' mb={3} color='purple.600'>
+              <Heading
+                as='h4'
+                size='sm'
+                mb={3}
+                color='brand.500'
+                fontFamily='heading'
+              >
                 Strategy & Planning Tools
               </Heading>
               <HStack gap={3} wrap='wrap'>
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
-                  bg='purple.50'
-                  borderColor='purple.200'
+                  bg='brand.50'
+                  borderColor='brand.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='purple.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='brand.700'
+                        fontFamily='heading'
+                      >
                         Innovation Strategies Maker
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Use innovation strategies based on management books and
                         literature to expand and frame your ideas.
                       </Text>
@@ -1162,27 +1337,37 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         size='sm'
                         variant='outline'
                         disabled
-                        colorScheme='purple'
+                        colorScheme='brand'
                       >
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
 
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
-                  bg='purple.50'
-                  borderColor='purple.200'
+                  bg='brand.50'
+                  borderColor='brand.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='purple.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='brand.700'
+                        fontFamily='heading'
+                      >
                         Strategic Recommendations
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Freeform report drawing highlights from previous reports
                         into recommendations for target audiences (industries,
                         cities, governments).
@@ -1191,39 +1376,60 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         size='sm'
                         variant='outline'
                         disabled
-                        colorScheme='purple'
+                        colorScheme='brand'
                       >
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
               </HStack>
             </Box>
 
             {/* Data Collection & Search Tools */}
             <Box>
-              <Heading as='h4' size='sm' mb={3} color='blue.600'>
+              <Heading
+                as='h4'
+                size='sm'
+                mb={3}
+                color='info'
+                fontFamily='heading'
+              >
                 Data Collection & Search Tools
               </Heading>
               <HStack gap={3} wrap='wrap'>
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
                   bg='blue.50'
                   borderColor='blue.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='blue.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='blue.700'
+                        fontFamily='heading'
+                      >
                         Survey Tool
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Create survey forms from CSV templates, distribute to
                         respondents, and generate analysis reports.
                       </Text>
-                      <Text fontSize='xs' color='blue.600' fontWeight='medium'>
+                      <Text
+                        fontSize='xs'
+                        color='info'
+                        fontWeight='medium'
+                        fontFamily='body'
+                      >
                         Input: Survey template CSV, target respondents
                       </Text>
                       <Button
@@ -1235,27 +1441,42 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
 
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
                   bg='blue.50'
                   borderColor='blue.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='blue.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='blue.700'
+                        fontFamily='heading'
+                      >
                         Unstructured Search
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Search the web for multiple terms, collect and summarize
                         the first X hits for each term with URLs and content
                         summaries.
                       </Text>
-                      <Text fontSize='xs' color='blue.600' fontWeight='medium'>
+                      <Text
+                        fontSize='xs'
+                        color='info'
+                        fontWeight='medium'
+                        fontFamily='body'
+                      >
                         Input: Search terms, number of hits
                       </Text>
                       <Button
@@ -1267,26 +1488,41 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
 
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
                   bg='blue.50'
                   borderColor='blue.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='blue.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='blue.700'
+                        fontFamily='heading'
+                      >
                         Document Upload & Storage
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Upload documents (PDF, text, URLs, images, audio, video)
                         to FAST and store in organized buckets.
                       </Text>
-                      <Text fontSize='xs' color='blue.600' fontWeight='medium'>
+                      <Text
+                        fontSize='xs'
+                        color='info'
+                        fontWeight='medium'
+                        fontFamily='body'
+                      >
                         Storage: User, team, org, lab, or snapshot buckets
                       </Text>
                       <Button
@@ -1298,38 +1534,59 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
               </HStack>
             </Box>
 
             {/* Content Analysis & Visualization Tools */}
             <Box>
-              <Heading as='h4' size='sm' mb={3} color='green.600'>
+              <Heading
+                as='h4'
+                size='sm'
+                mb={3}
+                color='success'
+                fontFamily='heading'
+              >
                 Content Analysis & Visualization Tools
               </Heading>
-              <Text fontSize='xs' color='gray.600' mb={3}>
+              <Text fontSize='xs' color='fg.muted' mb={3} fontFamily='body'>
                 These tools work with keyword tables from document analysis to
                 create visualizations and insights.
               </Text>
               <HStack gap={3} wrap='wrap'>
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
                   bg='green.50'
                   borderColor='green.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='green.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='green.700'
+                        fontFamily='heading'
+                      >
                         Keyword Heatmapper
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Create interactive heatmaps showing keyword frequency
                         across documents. Download as SVG or view statistics.
                       </Text>
-                      <Text fontSize='xs' color='green.600' fontWeight='medium'>
+                      <Text
+                        fontSize='xs'
+                        color='success'
+                        fontWeight='medium'
+                        fontFamily='body'
+                      >
                         Input: Keyword appearance table (fst-labdata)
                       </Text>
                       <Button
@@ -1341,26 +1598,41 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
 
-                <Card.Root
+                <GlassCard
+                  variant='outline'
                   minW='280px'
                   maxW='320px'
-                  variant='outline'
                   bg='green.50'
                   borderColor='green.200'
                 >
-                  <Card.Body p={4}>
+                  <Box p={4}>
                     <VStack gap={2} align='stretch'>
-                      <Heading as='h5' size='xs' color='green.700'>
+                      <Heading
+                        as='h5'
+                        size='xs'
+                        color='green.700'
+                        fontFamily='heading'
+                      >
                         Word Cloud Generator
                       </Heading>
-                      <Text fontSize='xs' color='gray.600' lineHeight='1.4'>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        lineHeight='1.4'
+                        fontFamily='body'
+                      >
                         Generate word clouds from document content analysis.
                         Save to lab bucket or download directly.
                       </Text>
-                      <Text fontSize='xs' color='green.600' fontWeight='medium'>
+                      <Text
+                        fontSize='xs'
+                        color='success'
+                        fontWeight='medium'
+                        fontFamily='body'
+                      >
                         Input: Keyword appearance table (fst-labdata)
                       </Text>
                       <Button
@@ -1372,14 +1644,20 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         Coming Soon
                       </Button>
                     </VStack>
-                  </Card.Body>
-                </Card.Root>
+                  </Box>
+                </GlassCard>
               </HStack>
             </Box>
 
             {/* Legacy Tools */}
             <Box>
-              <Heading as='h4' size='sm' mb={3} color='gray.600'>
+              <Heading
+                as='h4'
+                size='sm'
+                mb={3}
+                color='fg.muted'
+                fontFamily='heading'
+              >
                 Legacy Tools
               </Heading>
               <HStack gap={3} wrap='wrap'>

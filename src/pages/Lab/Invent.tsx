@@ -714,15 +714,17 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                   <HStack
                     key={goal.id}
                     p={3}
-                    bg='gray.50'
+                    bg={{ base: '#1a1a1a', _light: '#f8f8f8' }}
                     borderRadius='md'
                     justify='space-between'
+                    border='1px solid'
+                    borderColor='border.emphasized'
                   >
                     <VStack gap={1} align='start' flex='1'>
-                      <Text fontSize='sm' fontWeight='medium'>
+                      <Text fontSize='sm' fontWeight='medium' color='fg'>
                         {goal.problem}
                       </Text>
-                      <Text fontSize='xs' color='gray.600'>
+                      <Text fontSize='xs' color='fg.muted'>
                         Target: {goal.userGroup} • Impact Score: {goal.impact}
                         /100
                       </Text>
@@ -986,12 +988,14 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                               cursor='pointer'
                               _hover={{ shadow: 'md' }}
                               onClick={() => navigateToIdeaSeed(idea.id)}
+                              bg={{ base: '#1a1a1a', _light: 'white' }}
+                              borderColor='border.emphasized'
                             >
                               <Card.Body p={4}>
                                 <HStack justify='space-between' align='start'>
                                   <VStack gap={1} align='start' flex='1'>
                                     <HStack>
-                                      <Text fontWeight='medium'>
+                                      <Text fontWeight='medium' color='fg'>
                                         {idea.name}
                                       </Text>
                                       <Button
@@ -1015,10 +1019,10 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                                           : 'Select'}
                                       </Button>
                                     </HStack>
-                                    <Text fontSize='sm' color='gray.600'>
+                                    <Text fontSize='sm' color='fg.muted'>
                                       {idea.description}
                                     </Text>
-                                    <Text fontSize='xs' color='gray.500'>
+                                    <Text fontSize='xs' color='fg.subtle'>
                                       Created:{' '}
                                       {new Date(
                                         idea.createdAt
@@ -1026,7 +1030,10 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                                       •{idea.relatedSubjects.length} subjects
                                     </Text>
                                   </VStack>
-                                  <FiExternalLink size={16} color='gray.400' />
+                                  <FiExternalLink
+                                    size={16}
+                                    color='var(--chakra-colors-fg-muted)'
+                                  />
                                 </HStack>
                               </Card.Body>
                             </Card.Root>
