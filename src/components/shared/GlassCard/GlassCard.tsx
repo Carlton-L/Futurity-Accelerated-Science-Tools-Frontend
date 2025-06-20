@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Box, BoxProps } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
+import type { BoxProps } from '@chakra-ui/react';
 
 interface GlassCardProps extends BoxProps {
   variant?: 'solid' | 'glass' | 'outline' | 'gradient';
@@ -11,25 +12,32 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   ...props
 }) => {
   const getCardStyles = () => {
+    const baseBorderStyles = {
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: { base: '#FFFFFF', _light: '#000000' }, // Explicit white/black borders
+    };
+
     switch (variant) {
       case 'glass':
         return {
-          bg: 'glass',
+          ...baseBorderStyles,
+          bg: {
+            base: 'rgba(26, 26, 26, 0.5)',
+            _light: 'rgba(255, 255, 255, 0.8)',
+          },
           backdropFilter: 'blur(10px)',
-          borderColor: 'border.emphasized',
-          borderWidth: '1px',
           boxShadow: 'none',
         };
       case 'outline':
         return {
+          ...baseBorderStyles,
           bg: 'transparent',
-          borderColor: 'border.DEFAULT',
-          borderWidth: '1px',
         };
       case 'gradient':
         return {
           position: 'relative' as const,
-          bg: 'bg.canvas',
+          bg: { base: '#1a1a1a', _light: '#FFFFFF' }, // Explicit backgrounds
           borderColor: 'transparent',
           _before: {
             content: '""',
@@ -47,9 +55,8 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         };
       default: // solid
         return {
-          bg: 'bg.canvas',
-          borderColor: 'border.DEFAULT',
-          borderWidth: '1px',
+          ...baseBorderStyles,
+          bg: { base: '#1a1a1a', _light: '#FFFFFF' }, // Explicit card backgrounds
           boxShadow: { base: 'none', _light: 'sm' },
         };
     }
@@ -57,32 +64,17 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 
   const cardStyles = getCardStyles();
 
-  if (variant === 'gradient') {
-    return (
-      <Box {...cardStyles} borderRadius='8px' {...props}>
-        <Card.Root
-          position='relative'
-          zIndex={1}
-          bg='transparent'
-          borderColor='transparent'
-          fontFamily='body'
-          color='fg'
-        >
-          {children}
-        </Card.Root>
-      </Box>
-    );
-  }
-
   return (
-    <Card.Root
+    <Box
       {...cardStyles}
       borderRadius='8px'
       fontFamily='body'
-      color='fg'
+      color={{ base: '#FFFFFF', _light: '#000000' }} // Explicit text colors
+      position='relative'
+      overflow='hidden' // Prevent content from spilling out of rounded corners
       {...props}
     >
       {children}
-    </Card.Root>
+    </Box>
   );
 };

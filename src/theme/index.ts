@@ -123,9 +123,16 @@ const config = defineConfig({
     },
   },
   globalCss: {
-    'html, body': {
+    html: {
       bg: 'bg',
       color: 'fg',
+      minHeight: '100vh',
+    },
+    body: {
+      bg: 'bg',
+      color: 'fg',
+      minHeight: '100vh',
+      fontFamily: 'body', // JetBrains Mono
       transition: 'background-color 0.2s, color 0.2s',
     },
     // Ensure glassmorphism works properly
@@ -134,6 +141,13 @@ const config = defineConfig({
       backdropFilter: 'blur(10px)',
       border: '1px solid',
       borderColor: 'border.emphasized',
+    },
+    // Dark mode by default
+    ':root': {
+      colorScheme: 'dark',
+    },
+    ':root.light': {
+      colorScheme: 'light',
     },
   },
 });

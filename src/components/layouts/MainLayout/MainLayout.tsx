@@ -27,21 +27,33 @@ const MainLayout: React.FC = () => {
         display='flex'
         alignItems='center'
         justifyContent='center'
-        bg='gray.50'
+        bg='bg' // Uses semantic token that switches between dark/light
         p={6}
       >
         <VStack gap={4} textAlign='center' maxW='400px'>
-          <Text fontSize='xl' fontWeight='bold' color='gray.700'>
+          <Text
+            fontSize='xl'
+            fontWeight='bold'
+            color='fg'
+            fontFamily='heading' // TT Norms Pro
+          >
             Desktop Only Application
           </Text>
-          <Text color='gray.600' lineHeight='1.6'>
+          <Text
+            color='fg.muted'
+            lineHeight='1.6'
+            fontFamily='body' // JetBrains Mono
+          >
             This application is designed for desktop screens and is not
             optimized for use on mobile devices or tablets with a width of less
             than 740px.
           </Text>
-          <Text fontSize='sm' color='gray.500'>
+          <Text fontSize='sm' color='fg.subtle' fontFamily='body'>
             Please access this application from a desktop or laptop computer, or
-            <b> expand the width of your browser window.</b>
+            <Text as='span' fontWeight='bold'>
+              {' '}
+              expand the width of your browser window.
+            </Text>
           </Text>
         </VStack>
       </Box>
@@ -50,14 +62,21 @@ const MainLayout: React.FC = () => {
 
   return (
     <PageProvider>
-      <Box minH='100vh' width='100%' bg='gray.50'>
+      <Box
+        minH='100vh'
+        width='100%'
+        bg='bg' // Main app background - your #111111 in dark mode
+      >
         {/* Sticky Navbar */}
         <Navbar />
 
         {/* Main Content */}
-        <Box pt='64px' maxWidth='1440px' mx='auto'>
-          {' '}
-          {/* Account for navbar height */}
+        <Box
+          pt='64px' // Account for navbar height
+          maxWidth='1440px'
+          mx='auto'
+          bg='bg' // Ensure content area also uses semantic background
+        >
           <Outlet />
         </Box>
 

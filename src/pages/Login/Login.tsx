@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { GlassCard } from '../../components/shared/GlassCard/GlassCard';
+import ColorModeToggle from '../../components/shared/ColorModeToggle';
+import FastLogo from '../../assets/fast_logo.svg';
 import {
   Box,
   Button,
-  Card,
   Fieldset,
-  Heading,
   Input,
   Text,
   VStack,
@@ -83,28 +84,60 @@ const Login: React.FC = () => {
       display='flex'
       alignItems='center'
       justifyContent='center'
-      bg='gray.50'
+      bg='bg' // Uses your dark background (#111111) in dark mode
       p={6}
       width='100%'
+      position='relative'
     >
+      {/* Color Mode Toggle in top right */}
+      <Box position='absolute' top={4} right={4}>
+        <ColorModeToggle />
+      </Box>
+
       <Box maxW='400px' mx='auto'>
-        <Card.Root w='full'>
-          <Card.Body p={8}>
+        <GlassCard variant='solid' w='full'>
+          <Box p={8}>
             <VStack gap={6} align='stretch'>
-              {/* Header */}
-              <Box textAlign='center'>
-                <Heading as='h1' size='lg' mb={2}>
-                  Welcome Back
-                </Heading>
-                <Text color='gray.600'>Sign in to your account</Text>
-              </Box>
+              {/* Header with Logo */}
+              <VStack gap={4} textAlign='center'>
+                <Box
+                  height='48px'
+                  width='auto'
+                  filter={{ base: 'none', _light: 'invert(1)' }} // Invert colors in light mode (white -> black)
+                >
+                  <img
+                    src={FastLogo}
+                    alt='FAST Logo'
+                    style={{ height: '100%', width: 'auto' }}
+                  />
+                </Box>
+                <Box>
+                  <Text
+                    fontSize='xl'
+                    fontWeight='normal'
+                    mb={2}
+                    color={{ base: '#FFFFFF', _light: '#000000' }} // Explicit colors
+                    fontFamily='body' // JetBrains Mono instead of heading
+                  >
+                    Welcome! 👋
+                  </Text>
+                  <Text
+                    color={{ base: '#A0A0A0', _light: '#666666' }} // Explicit muted colors
+                    fontFamily='body' // JetBrains Mono
+                  >
+                    Sign in to your account to continue
+                  </Text>
+                </Box>
+              </VStack>
 
               {/* Error Alert */}
               {error && (
                 <Alert.Root status='error' borderRadius='md'>
                   <Alert.Indicator />
-                  <Alert.Title>Error</Alert.Title>
-                  <Alert.Description>{error}</Alert.Description>
+                  <Alert.Title fontFamily='heading'>Error</Alert.Title>
+                  <Alert.Description fontFamily='body'>
+                    {error}
+                  </Alert.Description>
                 </Alert.Root>
               )}
 
@@ -113,7 +146,12 @@ const Login: React.FC = () => {
                 <VStack gap={4} align='stretch'>
                   <Fieldset.Root>
                     <Fieldset.Content>
-                      <Fieldset.Legend>Username</Fieldset.Legend>
+                      <Fieldset.Legend
+                        color={{ base: '#FFFFFF', _light: '#000000' }}
+                        fontFamily='body'
+                      >
+                        Username
+                      </Fieldset.Legend>
                       <Input
                         id='username'
                         type='text'
@@ -124,13 +162,29 @@ const Login: React.FC = () => {
                         autoComplete='username'
                         autoFocus
                         required
+                        bg={{ base: '#1a1a1a', _light: '#FFFFFF' }}
+                        borderColor={{ base: '#333333', _light: '#E0E0E0' }}
+                        color={{ base: '#FFFFFF', _light: '#000000' }}
+                        fontFamily='body'
+                        _placeholder={{
+                          color: { base: '#707070', _light: '#888888' },
+                        }}
+                        _focus={{
+                          borderColor: '#0005E9',
+                          boxShadow: '0 0 0 1px #0005E9',
+                        }}
                       />
                     </Fieldset.Content>
                   </Fieldset.Root>
 
                   <Fieldset.Root>
                     <Fieldset.Content>
-                      <Fieldset.Legend>Password</Fieldset.Legend>
+                      <Fieldset.Legend
+                        color={{ base: '#FFFFFF', _light: '#000000' }}
+                        fontFamily='body'
+                      >
+                        Password
+                      </Fieldset.Legend>
                       <Input
                         id='password'
                         type='password'
@@ -140,6 +194,17 @@ const Login: React.FC = () => {
                         size='lg'
                         autoComplete='current-password'
                         required
+                        bg={{ base: '#1a1a1a', _light: '#FFFFFF' }}
+                        borderColor={{ base: '#333333', _light: '#E0E0E0' }}
+                        color={{ base: '#FFFFFF', _light: '#000000' }}
+                        fontFamily='body'
+                        _placeholder={{
+                          color: { base: '#707070', _light: '#888888' },
+                        }}
+                        _focus={{
+                          borderColor: '#0005E9',
+                          boxShadow: '0 0 0 1px #0005E9',
+                        }}
                       />
                     </Fieldset.Content>
                   </Fieldset.Root>
@@ -151,14 +216,23 @@ const Login: React.FC = () => {
                     width='full'
                     loading={isLoading}
                     loadingText='Signing in...'
+                    bg='brand.500' // Your brand color
+                    color='white'
+                    fontFamily='heading' // TT Norms Pro
+                    _hover={{
+                      bg: 'brand.600',
+                    }}
+                    _active={{
+                      bg: 'brand.700',
+                    }}
                   >
                     Sign In
                   </Button>
                 </VStack>
               </Box>
             </VStack>
-          </Card.Body>
-        </Card.Root>
+          </Box>
+        </GlassCard>
       </Box>
     </Box>
   );

@@ -49,8 +49,8 @@ const colors = defineTokens.colors({
   // Border colors
   border: {
     primary: {
-      light: { value: '#000000' },
-      dark: { value: '#FFFFFF' },
+      light: { value: '#000000' }, // Black borders in light mode
+      dark: { value: '#FFFFFF' }, // White borders in dark mode
     },
     secondary: {
       light: { value: '#E0E0E0' },
