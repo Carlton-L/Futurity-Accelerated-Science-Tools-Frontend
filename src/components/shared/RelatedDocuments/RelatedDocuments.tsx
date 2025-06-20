@@ -1,251 +1,296 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
   Heading,
-  HStack,
   VStack,
   Text,
-  Input,
-  IconButton,
+  Spinner,
+  Button,
+  HStack,
+  Badge,
+  Link,
 } from '@chakra-ui/react';
-import { FiDownload } from 'react-icons/fi';
-import type {
-  RelatedDocumentsProps,
-  RelatedDocument,
-} from './relatedDocumentsTypes';
+import { FiDownload, FiEye, FiFile } from 'react-icons/fi';
 
-// Mock documents for demo
-const mockDocuments: RelatedDocument[] = [
-  {
-    id: 'doc-1',
-    filename: 'AI_Market_Analysis_2024.pdf',
-    type: 'PDF',
-    fileExtension: 'pdf',
-    size: '2.4 MB',
-    uploadDate: '2024-03-15T10:30:00Z',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-2',
-    filename: 'Computer_Vision_Architecture_Diagram.png',
-    type: 'Image',
-    fileExtension: 'png',
-    size: '1.8 MB',
-    uploadDate: '2024-02-28T14:45:00Z',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-3',
-    filename: 'Neural_Network_Research_Paper.pdf',
-    type: 'PDF',
-    fileExtension: 'pdf',
-    size: '5.2 MB',
-    uploadDate: '2024-01-20T09:15:00Z',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-4',
-    filename: 'AI_Technology_Roadmap.jpg',
-    type: 'Image',
-    fileExtension: 'jpg',
-    size: '3.1 MB',
-    uploadDate: '2024-03-10T16:20:00Z',
-    downloadUrl: '#',
-  },
-  {
-    id: 'doc-5',
-    filename: 'Machine_Learning_Best_Practices.docx',
-    type: 'Document',
-    fileExtension: 'docx',
-    size: '890 KB',
-    uploadDate: '2024-02-15T11:00:00Z',
-    downloadUrl: '#',
-  },
-];
+// TypeScript interfaces
+interface DocumentItem {
+  name: string;
+  url: string;
+  download_url: string;
+  size: string;
+  object: {
+    Key: string;
+    LastModified: string;
+    ETag: string;
+    Size: string;
+    StorageClass: string;
+  };
+}
 
-const RelatedDocuments: React.FC<RelatedDocumentsProps> = ({
-  documents = mockDocuments,
-  height = '400px',
-}) => {
-  const [sortMethod, setSortMethod] = useState<string>('most-recent');
-  const [filterText, setFilterText] = useState<string>('');
+interface RelatedDocumentsResponse {
+  rows: DocumentItem[];
+  count: number;
+}
 
-  const handleDocumentDownload = (
-    documentId: string,
-    filename: string
-  ): void => {
-    // TODO: Replace with actual download functionality
-    // Example: window.open(downloadUrl, '_blank');
-    console.log(`Download document: ${filename} (ID: ${documentId})`);
+interface RelatedDocumentsProps {
+  subjectSlug?: string;
+}
+
+const RelatedDocuments: React.FC<RelatedDocumentsProps> = ({ subjectSlug }) => {
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!subjectSlug) {
+        console.log('No subjectSlug provided to RelatedDocuments');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching documents for subjectSlug:', subjectSlug);
+      setLoading(true);
+      setError(null);
+
+      try {
+        const url = `https://tools.futurity.science/api/subject/related-documents?slug=${subjectSlug}`;
+        console.log('Making request to:', url);
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data: RelatedDocumentsResponse = await response.json();
+        console.log('Documents data received:', data);
+        setDocuments(data.rows);
+      } catch (err) {
+        console.error('Failed to fetch related documents:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to load documents'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [subjectSlug]);
+
+  // Helper function to format file size
+  const formatFileSize = (bytes: string): string => {
+    const size = parseInt(bytes, 10);
+    if (size === 0) return '0 Bytes';
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(size) / Math.log(k));
+
+    return parseFloat((size / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Filter and sort documents
-  const getFilteredAndSortedDocuments = (): RelatedDocument[] => {
-    // Filter by search text
-    const filtered = documents.filter(
-      (document) =>
-        document.filename.toLowerCase().includes(filterText.toLowerCase()) ||
-        document.type.toLowerCase().includes(filterText.toLowerCase())
+  // Helper function to get file extension
+  const getFileExtension = (filename: string): string => {
+    return filename.split('.').pop()?.toUpperCase() || 'FILE';
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  if (loading) {
+    return (
+      <Card.Root width='100%' mt={6}>
+        <Card.Body p={6}>
+          <VStack gap={4} align='stretch'>
+            <Heading as='h2' size='lg'>
+              Related Documents
+            </Heading>
+            <Box
+              height='200px'
+              display='flex'
+              alignItems='center'
+              justifyContent='center'
+            >
+              <VStack gap={2}>
+                <Spinner size='lg' />
+                <Text color='gray.500'>Loading documents...</Text>
+              </VStack>
+            </Box>
+          </VStack>
+        </Card.Body>
+      </Card.Root>
     );
+  }
 
-    // Sort based on selected method
-    switch (sortMethod) {
-      case 'most-recent':
-        return filtered.sort(
-          (a, b) =>
-            new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
-        );
-      case 'oldest':
-        return filtered.sort(
-          (a, b) =>
-            new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime()
-        );
-      case 'a-z':
-        return filtered.sort((a, b) => a.filename.localeCompare(b.filename));
-      case 'z-a':
-        return filtered.sort((a, b) => b.filename.localeCompare(a.filename));
-      case 'type':
-        return filtered.sort((a, b) => a.type.localeCompare(b.type));
-      default:
-        return filtered;
-    }
-  };
+  if (error) {
+    return (
+      <Card.Root width='100%' mt={6}>
+        <Card.Body p={6}>
+          <VStack gap={4} align='stretch'>
+            <Heading as='h2' size='lg'>
+              Related Documents
+            </Heading>
+            <Box
+              height='200px'
+              display='flex'
+              alignItems='center'
+              justifyContent='center'
+            >
+              <VStack gap={2}>
+                <Text color='red.500' fontSize='lg'>
+                  Error loading documents
+                </Text>
+                <Text color='gray.500' fontSize='sm'>
+                  {error}
+                </Text>
+              </VStack>
+            </Box>
+          </VStack>
+        </Card.Body>
+      </Card.Root>
+    );
+  }
+
+  if (!documents.length) {
+    return (
+      <Card.Root width='100%' mt={6}>
+        <Card.Body p={6}>
+          <VStack gap={4} align='stretch'>
+            <Heading as='h2' size='lg'>
+              Related Documents
+            </Heading>
+            <Box
+              height='200px'
+              display='flex'
+              alignItems='center'
+              justifyContent='center'
+            >
+              <Text color='gray.500'>No documents found for this subject</Text>
+            </Box>
+          </VStack>
+        </Card.Body>
+      </Card.Root>
+    );
+  }
 
   return (
-    <Card.Root width='100%' height={height} mt={6}>
-      <Card.Body p={6} display='flex' flexDirection='column' height='100%'>
-        <VStack gap={4} align='stretch' height='100%'>
+    <Card.Root width='100%' mt={6}>
+      <Card.Body p={6}>
+        <VStack gap={6} align='stretch'>
           {/* Header */}
-          <Heading as='h2' size='lg' flexShrink={0}>
-            Related Documents
-          </Heading>
-
-          {/* Controls */}
-          <HStack gap={4} align='center' flexShrink={0}>
-            <HStack gap={2} align='center'>
-              <Text
-                fontSize='sm'
-                fontWeight='medium'
-                color='gray.700'
-                whiteSpace='nowrap'
-              >
-                Sort by:
-              </Text>
-              <select
-                value={sortMethod}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  setSortMethod(e.target.value)
-                }
-                style={{
-                  padding: '8px',
-                  borderRadius: '4px',
-                  border: '1px solid #E2E8F0',
-                  fontSize: '14px',
-                  minWidth: '150px',
-                }}
-              >
-                <option value='most-recent'>Most Recent</option>
-                <option value='oldest'>Oldest</option>
-                <option value='a-z'>A-Z</option>
-                <option value='z-a'>Z-A</option>
-                <option value='type'>Type</option>
-              </select>
-            </HStack>
-            <Input
-              placeholder='Filter documents...'
-              value={filterText}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setFilterText(e.target.value)
-              }
-              size='sm'
-              flex='1'
-            />
+          <HStack justify='space-between' align='center'>
+            <Heading as='h2' size='lg'>
+              Related Documents{' '}
+              {subjectSlug && (
+                <Text as='span' fontSize='sm' color='gray.500'>
+                  ({subjectSlug})
+                </Text>
+              )}
+            </Heading>
+            <Badge colorScheme='blue' size='lg'>
+              {documents.length} documents
+            </Badge>
           </HStack>
 
-          {/* Divider */}
-          <Box height='1px' bg='gray.200' flexShrink={0} />
-
-          {/* Documents List */}
+          {/* Documents Grid */}
           <Box
-            flex='1'
+            maxHeight='400px'
             overflowY='auto'
-            p={2}
             border='1px solid'
-            borderColor='gray.100'
+            borderColor='gray.200'
             borderRadius='md'
+            p={4}
           >
-            <VStack gap={2} align='stretch'>
-              {getFilteredAndSortedDocuments().map((document) => (
+            <VStack gap={3} align='stretch'>
+              {documents.map((doc, index) => (
                 <Card.Root
-                  key={document.id}
-                  size='sm'
+                  key={index}
                   variant='outline'
-                  cursor='pointer'
+                  size='sm'
                   _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
                   transition='all 0.2s'
                 >
-                  <Card.Body p={3}>
-                    <HStack justify='space-between' align='center'>
-                      <VStack align='stretch' gap={1} flex='1'>
-                        <HStack gap={2} align='center'>
+                  <Card.Body p={4}>
+                    <HStack justify='space-between' align='flex-start'>
+                      {/* Document Info */}
+                      <HStack gap={3} flex='1'>
+                        <Box
+                          bg='blue.100'
+                          color='blue.700'
+                          borderRadius='md'
+                          p={2}
+                          minWidth='40px'
+                          textAlign='center'
+                        >
+                          <FiFile size={20} />
+                        </Box>
+
+                        <VStack gap={1} align='flex-start' flex='1'>
                           <Text
                             fontSize='sm'
                             fontWeight='medium'
-                            color='blue.600'
+                            color='gray.800'
+                            lineHeight='1.3'
+                            truncate
                           >
-                            {document.filename}
+                            {doc.name}
                           </Text>
-                          <Box
-                            bg='gray.100'
-                            color='gray.700'
-                            px={2}
-                            py={1}
-                            borderRadius='sm'
-                            fontSize='xs'
-                            fontWeight='medium'
-                          >
-                            {document.type}
-                          </Box>
-                        </HStack>
-                        <HStack gap={4}>
-                          <Text fontSize='xs' color='gray.500'>
-                            {document.fileExtension.toUpperCase()}
-                          </Text>
-                          <Text fontSize='xs' color='gray.500'>
-                            {document.size}
-                          </Text>
-                          <Text fontSize='xs' color='gray.500'>
-                            {new Date(document.uploadDate).toLocaleDateString()}
-                          </Text>
-                        </HStack>
-                      </VStack>
 
-                      <IconButton
-                        size='sm'
-                        variant='outline'
-                        colorScheme='blue'
-                        onClick={() =>
-                          handleDocumentDownload(document.id, document.filename)
-                        }
-                        aria-label={`Download ${document.filename}`}
-                      >
-                        <FiDownload size={14} />
-                      </IconButton>
+                          <HStack gap={3} fontSize='xs' color='gray.500'>
+                            <Text>{formatFileSize(doc.size)}</Text>
+                            <Text>•</Text>
+                            <Text>{getFileExtension(doc.name)}</Text>
+                            <Text>•</Text>
+                            <Text>{formatDate(doc.object.LastModified)}</Text>
+                          </HStack>
+                        </VStack>
+                      </HStack>
+
+                      {/* Action Buttons */}
+                      <HStack gap={2} flexShrink={0}>
+                        <Button
+                          size='sm'
+                          variant='outline'
+                          colorScheme='blue'
+                          asChild
+                        >
+                          <Link href={doc.url} target='_blank'>
+                            <FiEye size={14} />
+                            View
+                          </Link>
+                        </Button>
+
+                        <Button size='sm' colorScheme='green' asChild>
+                          <Link href={doc.download_url} download={doc.name}>
+                            <FiDownload size={14} />
+                            Download
+                          </Link>
+                        </Button>
+                      </HStack>
                     </HStack>
                   </Card.Body>
                 </Card.Root>
               ))}
-
-              {getFilteredAndSortedDocuments().length === 0 && (
-                <Box p={4} textAlign='center'>
-                  <Text color='gray.500'>
-                    No documents found matching your filter.
-                  </Text>
-                </Box>
-              )}
             </VStack>
           </Box>
+
+          {/* Summary */}
+          <Text fontSize='sm' color='gray.600' textAlign='center'>
+            {documents.length} document{documents.length !== 1 ? 's' : ''}{' '}
+            related to this subject
+          </Text>
         </VStack>
       </Card.Body>
     </Card.Root>

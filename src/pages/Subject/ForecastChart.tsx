@@ -439,7 +439,17 @@ const ForecastChart: React.FC<ForecastChartProps> = ({ subjectSlug }) => {
                           <div dangerouslySetInnerHTML={{ __html: row[0] }} />
                         </Table.Cell>
                         <Table.Cell>
-                          <div dangerouslySetInnerHTML={{ __html: row[1] }} />
+                          <Box
+                            overflow='hidden'
+                            display='-webkit-box'
+                            style={{
+                              WebkitLineClamp: 1, // Limit to 3 lines
+                              WebkitBoxOrient: 'vertical',
+                            }}
+                            title={row[1]?.replace(/<[^>]*>/g, '')} // Show full text on hover (strip HTML)
+                          >
+                            <div dangerouslySetInnerHTML={{ __html: row[1] }} />
+                          </Box>
                         </Table.Cell>
                       </Table.Row>
                     ))

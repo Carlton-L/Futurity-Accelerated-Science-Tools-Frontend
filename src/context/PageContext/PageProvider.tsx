@@ -71,7 +71,7 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
 
     // Global context
     if (user) {
-      contextString += `User: ${user.name} (ID: ${user.id})\n`;
+      contextString += `User: ${user.username} (ID: ${user._id})\n`;
       // Note: Only add these if they exist in your User type
       // if (user.organizationName) {
       //   contextString += `Organization: ${user.organizationName} (ID: ${user.organizationId})\n`;

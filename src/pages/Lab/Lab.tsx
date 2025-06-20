@@ -121,7 +121,7 @@ const Lab: React.FC = () => {
   // Check if current user is admin of this lab
   const isLabAdmin = (): boolean => {
     if (!user || !lab) return false;
-    return lab.adminIds.includes(user.id);
+    return lab.adminIds.includes(user._id);
   };
 
   // Handle edit mode toggle

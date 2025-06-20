@@ -28,7 +28,7 @@ interface RelatedSubject {
   id: string;
   name: string;
   horizonRanking: number;
-  slug: string;
+  subjectSlug: string;
 }
 
 interface RelatedAnalysis {
@@ -234,7 +234,7 @@ const Subject: React.FC = () => {
             id: item.ent_fsid,
             name: item.ent_name,
             horizonRanking: Math.random() * 0.5 + 0.5, // Random between 0.5-1.0 for now
-            slug: item.ent_fsid.replace('fsid_', ''),
+            subjectSlug: item.ent_fsid.replace('fsid_', ''),
           })
         );
 
@@ -656,7 +656,9 @@ const Subject: React.FC = () => {
                       variant='outline'
                       cursor='pointer'
                       _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
-                      onClick={() => handleSubjectClick(relatedSubject.slug)}
+                      onClick={() =>
+                        handleSubjectClick(relatedSubject.subjectSlug)
+                      }
                       transition='all 0.2s'
                     >
                       <Card.Body p={3}>
@@ -853,7 +855,7 @@ const Subject: React.FC = () => {
       <ForecastChart subjectSlug={subject.slug} />
 
       {/* Related Documents */}
-      <RelatedDocuments />
+      <RelatedDocuments subjectSlug={subject.slug} />
     </Box>
   );
 };
