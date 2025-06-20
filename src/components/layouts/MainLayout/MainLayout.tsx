@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Box, VStack, Text } from '@chakra-ui/react';
 import { PageProvider } from '../../../context/PageContext/PageProvider';
+import { ThemeProvider } from '../../../context/ThemeContext';
 import Navbar from './Navbar';
 import ChatDrawer from './ChatDrawer';
 import ChatButton from './ChatButton';
@@ -61,34 +62,39 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <PageProvider>
-      <Box
-        minH='100vh'
-        width='100%'
-        bg='bg' // Main app background - your #111111 in dark mode
-      >
-        {/* Sticky Navbar */}
-        <Navbar />
-
-        {/* Main Content */}
+    <ThemeProvider>
+      <PageProvider>
         <Box
-          pt='64px' // Account for navbar height
-          maxWidth='1440px'
-          mx='auto'
-          bg='bg' // Ensure content area also uses semantic background
+          minH='100vh'
+          width='100%'
+          bg='bg' // Main app background - your #111111 in dark mode
         >
-          <Outlet />
-        </Box>
+          {/* Sticky Navbar */}
+          <Navbar />
 
-        {/* Chat Button - Fixed position */}
-        <Box position='fixed' bottom='20px' right='20px' zIndex={1000}>
-          <ChatButton onClick={() => setIsChatOpen(true)} />
-        </Box>
+          {/* Main Content */}
+          <Box
+            pt='64px' // Account for navbar height
+            maxWidth='1440px'
+            mx='auto'
+            bg='bg' // Ensure content area also uses semantic background
+          >
+            <Outlet />
+          </Box>
 
-        {/* Chat Drawer */}
-        <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-      </Box>
-    </PageProvider>
+          {/* Chat Button - Fixed position */}
+          <Box position='fixed' bottom='20px' right='20px' zIndex={1000}>
+            <ChatButton onClick={() => setIsChatOpen(true)} />
+          </Box>
+
+          {/* Chat Drawer */}
+          <ChatDrawer
+            isOpen={isChatOpen}
+            onClose={() => setIsChatOpen(false)}
+          />
+        </Box>
+      </PageProvider>
+    </ThemeProvider>
   );
 };
 
