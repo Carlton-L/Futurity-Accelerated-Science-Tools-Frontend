@@ -1,4 +1,4 @@
-# React + TypeScript + Vite
+# FAST frontend
 
 This is the `demo` branch of the FAST frontend repo.
 
