@@ -1,6 +1,6 @@
 # FAST frontend
 
-This is the `demo` branch of the FAST frontend repo.
+This is the `dev` branch of the FAST frontend repo.
 
 To get this running locally, follow these steps:
 
