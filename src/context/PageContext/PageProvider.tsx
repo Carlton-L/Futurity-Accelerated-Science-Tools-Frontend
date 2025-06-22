@@ -1,5 +1,5 @@
 // src/contexts/PageContext/PageProvider.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { ReactNode } from 'react';
 import PageContext from './PageContext';
 import type {
@@ -35,50 +35,30 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
     useState<PageContextData>(defaultPageContext);
   const { user } = useAuth();
 
-  // Add debugging to setPageContext
   const setPageContext = (context: PageContextData) => {
-    console.log('📦 PageProvider setPageContext called with:', context);
     setPageContextState(context);
-    console.log('📦 PageProvider state updated');
   };
 
-  // Add debugging to updatePageContext
   const updatePageContext = (newContext: Partial<PageContextData>) => {
-    console.log('📦 PageProvider updatePageContext called with:', newContext);
-    setPageContextState((prev) => {
-      const merged = { ...prev, ...newContext };
-      console.log('📦 PageProvider merged context:', merged);
-      return merged as PageContextData;
-    });
+    setPageContextState(
+      (prev) => ({ ...prev, ...newContext } as PageContextData)
+    );
   };
 
-  // Add debugging to clearPageContext
   const clearPageContext = () => {
-    console.log('📦 PageProvider clearPageContext called');
     setPageContextState(defaultPageContext);
-    console.log('📦 PageProvider context cleared to:', defaultPageContext);
   };
 
   const getContextMessage = (): string => {
     return pageContext.pageTitle;
   };
 
-  // Add debugging to getContextForChat
   const getContextForChat = (): string => {
-    console.log('📦 getContextForChat called with pageContext:', pageContext);
-
     let contextString = '';
 
     // Global context
     if (user) {
       contextString += `User: ${user.username} (ID: ${user._id})\n`;
-      // Note: Only add these if they exist in your User type
-      // if (user.organizationName) {
-      //   contextString += `Organization: ${user.organizationName} (ID: ${user.organizationId})\n`;
-      // }
-      // if (user.currentTeamName) {
-      //   contextString += `Current Team: ${user.currentTeamName} (ID: ${user.currentTeamId})\n`;
-      // }
     }
 
     // Page-specific context
@@ -149,18 +129,9 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
         contextString += `Viewing Own Profile\n`;
       }
     }
-    // For simple pages (create-lab, org-admin, tutorials, team-creation, user-settings, unknown)
-    // Page type and title already included above
 
-    const result = contextString.trim();
-    console.log('📦 getContextForChat returning:', result);
-    return result;
+    return contextString.trim();
   };
-
-  // Add a useEffect to monitor state changes
-  useEffect(() => {
-    console.log('📦 PageProvider pageContext state changed:', pageContext);
-  }, [pageContext]);
 
   const value: PageContextType = {
     pageContext,

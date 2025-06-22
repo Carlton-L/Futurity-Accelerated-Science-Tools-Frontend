@@ -52,12 +52,35 @@ const ChatDrawer = ({ isOpen, onClose }: ChatDrawerProps) => {
               height='33vh'
               minHeight='588px'
               position='relative'
+              bg='bg.canvas'
+              borderColor='border.emphasized'
+              borderWidth='1px'
+              borderBottomWidth='0'
             >
-              <Drawer.Header borderBottomWidth='1px'>
-                <Drawer.Title>AI Chat - {pageContext.pageTitle}</Drawer.Title>
-                <CloseButton size='sm' onClick={handleCloseAttempt} />
+              <Drawer.Header
+                borderBottomWidth='1px'
+                borderBottomColor='border.muted'
+                bg='bg.canvas'
+              >
+                <Drawer.Title color='fg' fontFamily='heading'>
+                  AI Chat - {pageContext.pageTitle}
+                </Drawer.Title>
+                <CloseButton
+                  size='sm'
+                  onClick={handleCloseAttempt}
+                  color='fg'
+                  bg='bg.canvas'
+                  _hover={{
+                    bg: 'bg.hover',
+                  }}
+                />
               </Drawer.Header>
-              <Drawer.Body p={0} height='100%' position='relative'>
+              <Drawer.Body
+                p={0}
+                height='100%'
+                position='relative'
+                bg='bg.canvas'
+              >
                 <ChatPanel />
 
                 {/* Close Warning Dialog - Positioned within the drawer */}
@@ -70,7 +93,7 @@ const ChatDrawer = ({ isOpen, onClose }: ChatDrawerProps) => {
                       left={0}
                       right={0}
                       bottom={0}
-                      bg='blackAlpha.600'
+                      bg='rgba(0, 0, 0, 0.6)'
                       zIndex={1000}
                       display='flex'
                       alignItems='center'
@@ -78,29 +101,55 @@ const ChatDrawer = ({ isOpen, onClose }: ChatDrawerProps) => {
                     >
                       {/* Dialog content */}
                       <Box
-                        bg='white'
+                        bg='bg.canvas'
                         borderRadius='lg'
                         boxShadow='xl'
                         maxW='md'
                         w='90%'
                         p={6}
                         mx={4}
+                        borderWidth='1px'
+                        borderColor='border.emphasized'
                       >
-                        <Text fontSize='lg' fontWeight='semibold' mb={4}>
+                        <Text
+                          fontSize='lg'
+                          fontWeight='semibold'
+                          mb={4}
+                          color='fg'
+                          fontFamily='heading'
+                        >
                           Close Chat
                         </Text>
-                        <Text mb={6} color='gray.600'>
+                        <Text
+                          mb={6}
+                          color='fg.secondary'
+                          fontFamily='body'
+                          lineHeight='1.6'
+                        >
                           Closing the chat will stop the current conversation.
                           Your chat history will be lost. Are you sure you want
                           to continue?
                         </Text>
                         <Flex gap={3} justifyContent='flex-end'>
-                          <Button variant='outline' onClick={handleCancelClose}>
+                          <Button
+                            variant='outline'
+                            onClick={handleCancelClose}
+                            borderColor='border.emphasized'
+                            color='fg'
+                            bg='bg.canvas'
+                            _hover={{
+                              bg: 'bg.hover',
+                            }}
+                          >
                             Cancel
                           </Button>
                           <Button
-                            colorPalette='red'
+                            bg='error'
+                            color='white'
                             onClick={handleConfirmClose}
+                            _hover={{
+                              opacity: 0.9,
+                            }}
                           >
                             Close Chat
                           </Button>

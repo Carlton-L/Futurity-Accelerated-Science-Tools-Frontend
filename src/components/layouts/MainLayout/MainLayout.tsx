@@ -20,6 +20,7 @@ const MainLayout: React.FC = () => {
   }, []);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const isCompact = windowWidth <= 1100;
 
   if (windowWidth < 740) {
     return (
@@ -41,7 +42,7 @@ const MainLayout: React.FC = () => {
             Desktop Only Application
           </Text>
           <Text
-            color='fg.muted'
+            color='fg.secondary'
             lineHeight='1.6'
             fontFamily='body' // JetBrains Mono
           >
@@ -49,9 +50,9 @@ const MainLayout: React.FC = () => {
             optimized for use on mobile devices or tablets with a width of less
             than 740px.
           </Text>
-          <Text fontSize='sm' color='fg.subtle' fontFamily='body'>
+          <Text fontSize='sm' color='fg.muted' fontFamily='body'>
             Please access this application from a desktop or laptop computer, or
-            <Text as='span' fontWeight='bold'>
+            <Text as='span' fontWeight='bold' color='fg'>
               {' '}
               expand the width of your browser window.
             </Text>
@@ -67,14 +68,14 @@ const MainLayout: React.FC = () => {
         <Box
           minH='100vh'
           width='100%'
-          bg='bg' // Main app background - your #111111 in dark mode
+          bg='bg' // Main app background - your #111111 in dark mode, #FAFAFA in light mode
         >
           {/* Sticky Navbar */}
           <Navbar />
 
           {/* Main Content */}
           <Box
-            pt='64px' // Account for navbar height
+            pt={isCompact ? '74px' : '80px'} // Account for navbar height + top padding (58px/64px + 16px)
             maxWidth='1440px'
             mx='auto'
             bg='bg' // Ensure content area also uses semantic background
