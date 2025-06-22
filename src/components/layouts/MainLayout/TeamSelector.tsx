@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Button, Text, VStack, HStack } from '@chakra-ui/react';
+import { Button, Text, HStack, Box } from '@chakra-ui/react';
 import { Menu } from '@chakra-ui/react';
 import { LuChevronDown, LuUsers, LuSettings } from 'react-icons/lu';
 
@@ -9,63 +9,140 @@ interface Team {
   name: string;
 }
 
-const TeamSelector: React.FC = () => {
-  // These would come from your context/state management
-  const currentTeam = { id: '1', name: 'Current Team' };
-  const teams: Team[] = [
-    { id: '1', name: 'Current Team' },
-    { id: '2', name: 'Another Team' },
-    { id: '3', name: 'Third Team' },
-  ];
-  const isAdmin = true; // This would come from user permissions
+interface TeamSelectorProps {
+  currentTeam: Team;
+  teams: Team[];
+  isAdmin: boolean;
+  onTeamChange: (teamId: string) => void;
+}
+
+const TeamSelector: React.FC<TeamSelectorProps> = ({
+  currentTeam,
+  teams,
+  isAdmin,
+  onTeamChange,
+}) => {
+  // Filter out the current team from the switch options
+  const otherTeams = teams.filter((team) => team.id !== currentTeam.id);
 
   return (
     <Menu.Root>
       <Menu.Trigger asChild>
-        <Button variant='ghost' size='sm'>
+        <Button variant='ghost' size='sm' color='fg' fontFamily='body'>
           {currentTeam.name}
           <LuChevronDown />
         </Button>
       </Menu.Trigger>
       <Menu.Positioner>
-        <Menu.Content>
-          <Menu.Item value='manage-team' asChild>
-            <RouterLink to={`/team/${currentTeam.id}`}>
-              <HStack>
-                <LuUsers />
+        <Menu.Content
+          bg='bg.canvas'
+          borderColor='border.emphasized'
+          borderWidth='1px'
+          borderRadius='8px'
+          minW='280px'
+        >
+          {/* Admin Controls Section */}
+          <Box p={3}>
+            {isAdmin ? (
+              <HStack gap={2} align='stretch'>
+                {/* View Team Button */}
+                <Button
+                  asChild
+                  flex='1'
+                  size='sm'
+                  bg='brand'
+                  color='white'
+                  borderWidth='1px'
+                  borderColor='border.emphasized'
+                  _hover={{
+                    bg: 'brand.hover',
+                  }}
+                  fontFamily='body'
+                >
+                  <RouterLink to={`/team/${currentTeam.id}`}>
+                    <LuUsers size={16} />
+                    View Team
+                  </RouterLink>
+                </Button>
 
-                <Text>View Team</Text>
+                {/* Manage Button */}
+                <Button
+                  asChild
+                  flex='1'
+                  size='sm'
+                  bg='secondary'
+                  color='white'
+                  borderWidth='1px'
+                  borderColor='border.emphasized'
+                  _hover={{
+                    bg: 'secondary.hover',
+                  }}
+                  fontFamily='body'
+                >
+                  <RouterLink to={`/team/${currentTeam.id}/admin`}>
+                    <LuSettings size={16} />
+                    Manage
+                  </RouterLink>
+                </Button>
               </HStack>
-            </RouterLink>
-          </Menu.Item>
-
-          {isAdmin && (
-            <Menu.Item value='manage' asChild>
-              <RouterLink to={`/team/${currentTeam.id}/manage`}>
-                <HStack>
-                  <LuSettings />
-                  <Text>Manage</Text>
-                </HStack>
-              </RouterLink>
-            </Menu.Item>
-          )}
-
-          <Menu.Separator />
-
-          <VStack align='start' px={3} py={2} gap={2}>
-            <Text fontSize='sm' fontWeight='semibold' color='gray.500'>
-              Switch to
-            </Text>
-            {teams.map((team) => (
-              <Menu.Item value={team.id} key={team.id} asChild>
-                <RouterLink to={`/team/${team.id}`}>
-                  <Text fontSize='sm' py={1}>
-                    {team.name}
-                  </Text>
+            ) : (
+              // Single View Team Button for non-admin users
+              <Button
+                asChild
+                width='100%'
+                size='sm'
+                bg='brand'
+                color='white'
+                borderWidth='1px'
+                borderColor='border.emphasized'
+                _hover={{
+                  bg: 'brand.hover',
+                }}
+                fontFamily='body'
+              >
+                <RouterLink to={`/team/${currentTeam.id}`}>
+                  <LuUsers size={16} />
+                  View Team
                 </RouterLink>
-              </Menu.Item>
-            ))}
-          </VStack>
+              </Button>
+            )}
+          </Box>
+
+          {/* Switch Teams Section - only show if there are other teams */}
+          {otherTeams.length > 0 && (
+            <>
+              <Menu.Separator borderColor='border.muted' />
+
+              <Menu.ItemGroup>
+                <Box textAlign='center' py={2}>
+                  <Text
+                    fontSize='sm'
+                    fontWeight='medium'
+                    color='fg.muted'
+                    fontFamily='body'
+                  >
+                    switch to:
+                  </Text>
+                </Box>
+              </Menu.ItemGroup>
+
+              {otherTeams.map((team) => (
+                <Menu.Item
+                  key={team.id}
+                  value={team.id}
+                  onClick={() => onTeamChange(team.id)}
+                  color='fg'
+                  fontFamily='body'
+                  fontSize='sm'
+                  _hover={{
+                    bg: 'bg.hover',
+                  }}
+                >
+                  {team.name}
+                </Menu.Item>
+              ))}
+            </>
+          )}
         </Menu.Content>
       </Menu.Positioner>
     </Menu.Root>

@@ -289,7 +289,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
   // const iframeUrl = getIframeUrlWithHash(); // Option 2
   const iframeUrl = 'https://agents.futurity.science/'; // Option 3 (use postMessage)
 
-  // Render loading state
+  // Render loading state - FIXED to use theme tokens
   const renderLoadingState = () => (
     <Flex
       height='100%'
@@ -297,25 +297,35 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
       direction='column'
       align='center'
       justify='center'
-      bg='gray.50'
+      bg='bg.canvas' // Use theme background
       gap={4}
     >
-      <Spinner size='lg' color='blue.500' />
+      <Spinner size='lg' color='brand' />
       <VStack gap={2}>
-        <Text fontSize='lg' fontWeight='semibold' color='gray.700'>
+        <Text
+          fontSize='lg'
+          fontWeight='semibold'
+          color='fg'
+          fontFamily='heading'
+        >
           Loading AI Chat
         </Text>
-        <Text fontSize='sm' color='gray.500' textAlign='center'>
+        <Text
+          fontSize='sm'
+          color='fg.secondary'
+          textAlign='center'
+          fontFamily='body'
+        >
           Connecting to chat service...
         </Text>
-        <Text fontSize='xs' color='gray.400'>
+        <Text fontSize='xs' color='fg.muted' fontFamily='body'>
           {elapsedTime}s elapsed
         </Text>
       </VStack>
     </Flex>
   );
 
-  // Render error state
+  // Render error state - FIXED to use theme tokens
   const renderErrorState = () => (
     <Flex
       height='100%'
@@ -323,23 +333,33 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
       direction='column'
       align='center'
       justify='center'
-      bg='red.50'
+      bg='bg.canvas' // Use theme background instead of red.50
       gap={4}
       p={6}
     >
-      <Icon as={MdError} boxSize={12} color='red.500' />
+      <Icon as={MdError} boxSize={12} color='error' />
       <VStack gap={3} textAlign='center'>
-        <Text fontSize='lg' fontWeight='semibold' color='red.700'>
+        <Text
+          fontSize='lg'
+          fontWeight='semibold'
+          color='error'
+          fontFamily='heading'
+        >
           Chat Unavailable
         </Text>
-        <Text fontSize='sm' color='red.600' maxW='400px'>
+        <Text fontSize='sm' color='fg.secondary' maxW='400px' fontFamily='body'>
           {errorMessage}
         </Text>
         <Button
-          colorScheme='red'
           variant='outline'
           onClick={retryLoad}
           size='sm'
+          borderColor='border.emphasized'
+          color='fg'
+          bg='bg.canvas'
+          _hover={{
+            bg: 'bg.hover',
+          }}
         >
           <MdRefresh style={{ marginRight: '8px' }} />
           Retry
@@ -348,7 +368,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     </Flex>
   );
 
-  // Render timeout state
+  // Render timeout state - FIXED to use theme tokens
   const renderTimeoutState = () => (
     <Flex
       height='100%'
@@ -356,23 +376,33 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
       direction='column'
       align='center'
       justify='center'
-      bg='orange.50'
+      bg='bg.canvas' // Use theme background instead of orange.50
       gap={4}
       p={6}
     >
-      <Icon as={MdWifi} boxSize={12} color='orange.500' />
+      <Icon as={MdWifi} boxSize={12} color='warning' />
       <VStack gap={3} textAlign='center'>
-        <Text fontSize='lg' fontWeight='semibold' color='orange.700'>
+        <Text
+          fontSize='lg'
+          fontWeight='semibold'
+          color='warning'
+          fontFamily='heading'
+        >
           Connection Timeout
         </Text>
-        <Text fontSize='sm' color='orange.600' maxW='400px'>
+        <Text fontSize='sm' color='fg.secondary' maxW='400px' fontFamily='body'>
           {errorMessage}
         </Text>
         <Button
-          colorScheme='orange'
           variant='outline'
           onClick={retryLoad}
           size='sm'
+          borderColor='border.emphasized'
+          color='fg'
+          bg='bg.canvas'
+          _hover={{
+            bg: 'bg.hover',
+          }}
         >
           <MdRefresh style={{ marginRight: '8px' }} />
           Try Again

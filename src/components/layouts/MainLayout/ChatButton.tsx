@@ -1,13 +1,11 @@
 import { IconButton } from '@chakra-ui/react';
 import { RiChatAiFill } from 'react-icons/ri';
-import { useTheme } from '../../../context/ThemeContext';
 
 interface ChatButtonProps {
   onClick: () => void;
 }
 
 const ChatButton = ({ onClick }: ChatButtonProps) => {
-  const { isDark } = useTheme();
   return (
     <IconButton
       aria-label='Open chat'
@@ -16,12 +14,19 @@ const ChatButton = ({ onClick }: ChatButtonProps) => {
       right='4'
       borderRadius='full'
       borderWidth='1px'
-      borderColor={isDark ? '#ffffff' : '#000000'}
+      borderColor='border.emphasized'
       size='2xl'
       zIndex={1000}
       onClick={onClick}
-      color={isDark ? 'white' : 'black'}
-      backgroundColor={isDark ? '#1a1a1a' : '#fafafa'}
+      color='fg'
+      bg='bg.canvas'
+      _hover={{
+        bg: 'bg.hover',
+      }}
+      _active={{
+        bg: 'bg.active',
+      }}
+      transition='all 0.2s'
     >
       <RiChatAiFill />
     </IconButton>

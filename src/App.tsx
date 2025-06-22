@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { PrivateRoute } from './context/AuthContext';
 import { theme } from './theme';
 import Layout from './components/layouts/MainLayout/MainLayout';
+import Home from './pages/Home';
 import Subject from './pages/Subject';
 import Search from './pages/Search';
 import Organization from './pages/Organization';
@@ -22,20 +23,12 @@ function App() {
 
             {/* Protected Routes */}
             <Route element={<PrivateRoute />}>
-              {/* Layout */}
               <Route element={<Layout />}>
-                <Route path='/' element={<Search />} />
+                <Route path='/' element={<Home />} />
                 <Route path='/lab/1' element={<Lab />} />
-
                 <Route path='/search' element={<Search />} />
-
-                {/* Dynamic Subject Route */}
+                <Route path='/search/:query' element={<Search />} />
                 <Route path='/subject/:slug' element={<Subject />} />
-
-                {/* Fallback Subject Route (for backwards compatibility) */}
-                <Route path='/subject/' element={<Subject />} />
-
-                {/* <Route path='/search/:query' element={<Search />} /> */}
                 <Route path='/organization/' element={<Organization />} />
                 <Route path='/whiteboard/' element={<Whiteboard />} />
               </Route>
@@ -48,7 +41,6 @@ function App() {
               </Route>
             </Route>
 
-            {/* 404 and other routes */}
             <Route path='/unauthorized' element={<div>Unauthorized</div>} />
             <Route path='*' element={<div>Page Not Found</div>} />
           </Routes>
