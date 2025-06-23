@@ -9,8 +9,6 @@ import {
   Text,
   Menu,
   Portal,
-  // Float,
-  // Circle,
 } from '@chakra-ui/react';
 import {
   LuSun,
@@ -72,7 +70,7 @@ interface TeamSelectorProps {
   isAdmin: boolean;
   onTeamChange: (teamId: string) => void;
   isCompact: boolean;
-  navigate: (path: string) => void; // Add navigate prop
+  navigate: (path: string) => void;
 }
 
 const TeamSelector: React.FC<TeamSelectorProps> = ({
@@ -81,7 +79,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
   isAdmin,
   onTeamChange,
   isCompact,
-  navigate, // Add navigate parameter
+  navigate,
 }) => {
   // Filter out the current team from the switch options
   const otherTeams = teams.filter((team) => team.id !== currentTeam.id);
@@ -148,15 +146,27 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
             <Box p={3}>
               {isAdmin ? (
                 <HStack gap={2} align='stretch'>
-                  {/* View Team Button */}
+                  {/* View Team Button - FIXED */}
                   <Button
                     onClick={() => navigate(`/team/${currentTeam.id}`)}
                     flex='1'
                     size='sm'
-                    bg='brand'
+                    bg='#0005E9'
                     color='white'
+                    borderWidth='1px'
+                    borderColor={{
+                      _light: '#111111',
+                      _dark: '#FFFFFF',
+                    }}
                     _hover={{
-                      bg: 'brand.hover',
+                      bg: '#000383',
+                      borderColor: {
+                        _light: '#111111',
+                        _dark: '#FFFFFF',
+                      },
+                    }}
+                    _active={{
+                      bg: '#000266',
                     }}
                     fontFamily='body'
                   >
@@ -181,15 +191,27 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
                   </Button>
                 </HStack>
               ) : (
-                // Single View Team Button for non-admin users
+                // Single View Team Button for non-admin users - FIXED
                 <Button
                   onClick={() => navigate(`/team/${currentTeam.id}`)}
                   width='100%'
                   size='sm'
-                  bg='brand'
+                  bg='#0005E9'
                   color='white'
+                  borderWidth='1px'
+                  borderColor={{
+                    _light: '#111111',
+                    _dark: '#FFFFFF',
+                  }}
                   _hover={{
-                    bg: 'brand.hover',
+                    bg: '#000383',
+                    borderColor: {
+                      _light: '#111111',
+                      _dark: '#FFFFFF',
+                    },
+                  }}
+                  _active={{
+                    bg: '#000266',
                   }}
                   fontFamily='body'
                 >
@@ -244,7 +266,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
 const Navbar: React.FC = () => {
   const { isDark, toggleColorMode } = useTheme();
   const { user, logout } = useAuth();
-  const navigate = useNavigate(); // Add this line to actually call useNavigate
+  const navigate = useNavigate();
 
   // State for team and labs management
   const [userTeams, setUserTeams] = useState<Team[]>([]);
@@ -440,7 +462,7 @@ const Navbar: React.FC = () => {
             isAdmin={user?.role === 'admin'}
             onTeamChange={handleTeamChange}
             isCompact={isCompact}
-            navigate={navigate} // Pass navigate function
+            navigate={navigate}
           />
         ) : (
           // No team button for when there's no current team
@@ -679,15 +701,6 @@ const Navbar: React.FC = () => {
                   fontSize='lg'
                   fontFamily='body'
                 />
-                {/* TODO: Implement Notification code */}
-                {/* <Float placement='top-end' offsetX='2' offsetY='2'>
-                  <Circle
-                    bg='red.500'
-                    size='12px'
-                    outline='0.2em solid'
-                    outlineColor='bg'
-                  />
-                </Float> */}
                 {user?.picture_url && <Avatar.Image src={user.picture_url} />}
               </Avatar.Root>
             </Box>
