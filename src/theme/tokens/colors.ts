@@ -71,6 +71,10 @@ const colors = defineTokens.colors({
       light: { value: '#F0F0F0' },
       dark: { value: '#2A2A2A' },
     },
+    emphasized: {
+      light: { value: '#111111' },
+      dark: { value: '#FFFFFF' },
+    },
   },
 
   // Subtle grays for better contrast

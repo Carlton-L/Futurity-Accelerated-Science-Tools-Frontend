@@ -1,6 +1,5 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import { ThemeProvider } from 'next-themes';
 import { ApolloProvider } from '@apollo/client';
 import { RecoilRoot } from 'recoil';
@@ -13,17 +12,15 @@ const CHAINLIT_SERVER_URL = 'http://localhost:8000';
 
 const apiClient = new ChainlitAPI(CHAINLIT_SERVER_URL, 'webapp');
 
-// Infrastructure Providers only
+// Infrastructure Providers only - ChakraProvider is now in App.tsx with custom theme
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ChainlitContext.Provider value={apiClient}>
       <RecoilRoot>
         <ApolloProvider client={client}>
-          <ChakraProvider value={defaultSystem}>
-            <ThemeProvider attribute='class' disableTransitionOnChange>
-              <App />
-            </ThemeProvider>
-          </ChakraProvider>
+          <ThemeProvider attribute='class' disableTransitionOnChange>
+            <App />
+          </ThemeProvider>
         </ApolloProvider>
       </RecoilRoot>
     </ChainlitContext.Provider>

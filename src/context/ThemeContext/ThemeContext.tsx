@@ -34,13 +34,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const updateColorMode = (dark: boolean) => {
     const root = document.documentElement;
+
     if (dark) {
       root.classList.remove('light');
       root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
     } else {
       root.classList.remove('dark');
       root.classList.add('light');
+      root.setAttribute('data-theme', 'light');
     }
+
+    // Set the color scheme for the browser
+    root.style.colorScheme = dark ? 'dark' : 'light';
   };
 
   const toggleColorMode = () => {

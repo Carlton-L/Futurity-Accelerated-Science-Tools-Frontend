@@ -76,11 +76,11 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
 
   if (loading) {
     return (
-      <Card.Root width='100%' mt={6}>
+      <Card.Root width='100%' mt={6} bg='bg.canvas'>
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
-            <HStack justify='space-between' align='center'>
-              <Heading as='h2' size='lg'>
+            <HStack gap={2} align='center'>
+              <Heading as='h2' size='lg' color='fg'>
                 Trends
               </Heading>
             </HStack>
@@ -92,7 +92,7 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
             >
               <VStack gap={2}>
                 <Spinner size='lg' />
-                <Text color='gray.500'>Loading trends data...</Text>
+                <Text color='fg.muted'>Loading trends data...</Text>
               </VStack>
             </Box>
           </VStack>
@@ -103,11 +103,11 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
 
   if (error) {
     return (
-      <Card.Root width='100%' mt={6}>
+      <Card.Root width='100%' mt={6} bg='bg.canvas'>
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
-            <HStack justify='space-between' align='center'>
-              <Heading as='h2' size='lg'>
+            <HStack gap={2} align='center'>
+              <Heading as='h2' size='lg' color='fg'>
                 Trends
               </Heading>
             </HStack>
@@ -118,10 +118,10 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
               justifyContent='center'
             >
               <VStack gap={2}>
-                <Text color='red.500' fontSize='lg'>
+                <Text color='error' fontSize='lg'>
                   Error loading trends data
                 </Text>
-                <Text color='gray.500' fontSize='sm'>
+                <Text color='fg.muted' fontSize='sm'>
                   {error}
                 </Text>
               </VStack>
@@ -137,12 +137,12 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
   }
 
   return (
-    <Card.Root width='100%' mt={6}>
+    <Card.Root width='100%' mt={6} bg='bg.canvas'>
       <Card.Body p={6}>
         <VStack gap={6} align='stretch'>
           {/* Header */}
-          <HStack justify='space-between' align='center'>
-            <Heading as='h2' size='lg'>
+          <HStack gap={2} align='center'>
+            <Heading as='h2' size='lg' color='fg'>
               Trends
             </Heading>
 

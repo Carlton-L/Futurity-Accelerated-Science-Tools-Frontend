@@ -2,8 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
 import { AuthProvider } from './context/AuthContext';
 import { PrivateRoute } from './context/AuthContext';
-import { PageProvider } from './context/PageContext'; // ADDED
-import { theme } from './theme';
+import { PageProvider } from './context/PageContext';
+import { theme } from './theme'; // Import your custom theme
 import Layout from './components/layouts/MainLayout/MainLayout';
 import Home from './pages/Home';
 import Subject from './pages/Subject';
@@ -16,11 +16,11 @@ import Whiteboard from './pages/Whiteboard';
 function App() {
   return (
     <ChakraProvider value={theme}>
+      {' '}
+      {/* Use your custom theme instead of defaultSystem */}
       <BrowserRouter>
         <AuthProvider>
           <PageProvider>
-            {' '}
-            {/* ADDED PageProvider wrapper */}
             <Routes>
               {/* Public Routes */}
               <Route path='/login' element={<Login />} />
@@ -51,8 +51,7 @@ function App() {
               <Route path='/unauthorized' element={<div>Unauthorized</div>} />
               <Route path='*' element={<div>Page Not Found</div>} />
             </Routes>
-          </PageProvider>{' '}
-          {/* CLOSE PageProvider wrapper */}
+          </PageProvider>
         </AuthProvider>
       </BrowserRouter>
     </ChakraProvider>

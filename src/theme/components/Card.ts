@@ -8,7 +8,8 @@ const Card = defineSlotRecipe({
       borderRadius: '8px',
       borderWidth: '1px',
       borderStyle: 'solid',
-      borderColor: 'border.emphasized', // White in dark mode, #111111 in light mode
+      // Use the semantic token that should work
+      borderColor: 'border.emphasized',
       overflow: 'hidden',
       transition: 'all 0.2s',
       _hover: {
@@ -34,24 +35,39 @@ const Card = defineSlotRecipe({
   },
   variants: {
     variant: {
-      solid: {
-        root: {
-          bg: 'bg.canvas',
-          borderColor: 'border.emphasized', // Emphasized border for stats cards
-        },
-      },
       outline: {
         root: {
-          bg: 'transparent',
-          borderColor: 'border.emphasized',
+          bg: 'bg.canvas',
+          borderColor: {
+            _light: '#111111', // Dark border in light mode
+            _dark: '#FFFFFF', // White border in dark mode
+          },
         },
       },
-      ghost: {
+      // Add a new 'default' variant that explicitly uses the emphasized border
+      default: {
+        root: {
+          bg: 'bg.canvas',
+          borderColor: {
+            _light: '#111111', // Dark border in light mode
+            _dark: '#FFFFFF', // White border in dark mode
+          },
+        },
+      },
+      elevated: {
+        root: {
+          bg: 'bg.canvas',
+          borderColor: 'border.emphasized',
+          boxShadow: 'md',
+        },
+      },
+      subtle: {
         root: {
           bg: 'transparent',
-          borderColor: 'transparent',
+          borderColor: 'border.muted',
         },
       },
+      // Keep your custom glass variant
       glass: {
         root: {
           bg: 'glass',
@@ -59,12 +75,12 @@ const Card = defineSlotRecipe({
           borderColor: 'border.emphasized',
         },
       },
-      // Metric variants
+      // Metric variants with colored borders
       horizonRank: {
         root: {
           bg: 'bg.canvas',
           borderColor: 'horizonRank',
-          borderWidth: '2px',
+          borderWidth: '2px', // Thicker border for metric cards
         },
       },
       whiteSpace: {
@@ -81,7 +97,7 @@ const Card = defineSlotRecipe({
           borderWidth: '2px',
         },
       },
-      // FS Color variants
+      // FS Color variants with colored borders
       fsColor1: {
         root: {
           bg: 'bg.canvas',
@@ -161,7 +177,7 @@ const Card = defineSlotRecipe({
     },
   },
   defaultVariants: {
-    variant: 'solid',
+    variant: 'outline',
     size: 'md',
   },
 });
