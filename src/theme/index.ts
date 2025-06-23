@@ -119,8 +119,8 @@ const config = defineConfig({
           },
           emphasized: {
             value: {
-              _dark: '{colors.border.primary.dark}',
-              _light: '{colors.border.primary.light}',
+              _dark: '{colors.border.primary.dark}', // White in dark mode
+              _light: '{colors.border.primary.light}', // #111111 in light mode
             },
           },
           muted: {
@@ -161,6 +161,9 @@ const config = defineConfig({
           },
           subtle: { value: '{colors.brand.400}' },
           contrast: { value: '#FFFFFF' }, // Always white text on brand colors
+          400: { value: '{colors.brand.400}' },
+          500: { value: '{colors.brand.500}' },
+          600: { value: '{colors.brand.600}' },
         },
 
         // Secondary brand semantic tokens
@@ -295,12 +298,19 @@ const config = defineConfig({
       border: '1px solid',
       borderColor: 'border.emphasized',
     },
-    // Dark mode by default
+    // Support both systems for theme switching
     ':root': {
       colorScheme: 'dark',
     },
     ':root[data-theme="light"]': {
       colorScheme: 'light',
+    },
+    // Fallback for class-based system
+    '.light': {
+      colorScheme: 'light',
+    },
+    '.dark': {
+      colorScheme: 'dark',
     },
   },
 });

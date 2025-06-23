@@ -34,12 +34,18 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const updateColorMode = (dark: boolean) => {
     const root = document.documentElement;
+
+    // Update both old and new systems for compatibility
     if (dark) {
       root.classList.remove('light');
       root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
     } else {
       root.classList.remove('dark');
       root.classList.add('light');
+      root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
     }
   };
 

@@ -452,6 +452,10 @@ const Subject: React.FC = () => {
                     disabled={isInWhiteboard}
                     onClick={handleAddToWhiteboard}
                     pointerEvents='auto'
+                    bg='bg.canvas'
+                    color='fg'
+                    borderColor='border.emphasized'
+                    borderWidth='1px'
                   >
                     {isInWhiteboard ? (
                       <FiCheck size={16} />
@@ -466,6 +470,10 @@ const Subject: React.FC = () => {
                     variant='solid'
                     onClick={handleAddToLab}
                     pointerEvents='auto'
+                    bg='bg.canvas'
+                    color='fg'
+                    borderColor='border.emphasized'
+                    borderWidth='1px'
                   >
                     <FiPlus size={16} />
                     <TbTestPipe size={16} />
