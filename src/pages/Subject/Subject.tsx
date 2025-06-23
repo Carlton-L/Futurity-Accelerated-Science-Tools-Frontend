@@ -1249,16 +1249,16 @@ const Subject: React.FC = () => {
         </div>
 
         {/* Related Subjects and Related Analyses - MOVED HERE with added margin */}
-        <HStack gap={6} my={6} align='flex-start'>
+        <HStack gap={6} my={6} align='flex-start' height='400px'>
           {/* Related Subjects Card */}
           <Card.Root
             variant='outline'
             flex='1'
-            height='400px'
+            height='100%'
             borderRadius='8px'
             bg='bg.canvas' // Ensure proper background in dark mode
           >
-            <Card.Body>
+            <Card.Body height='100%'>
               <VStack gap={4} align='stretch' height='100%'>
                 <Heading as='h2' size='lg' flexShrink={0} color='fg'>
                   Related Subjects
@@ -1499,7 +1499,7 @@ const Subject: React.FC = () => {
           <Card.Root
             variant='outline'
             flex='1'
-            height='400px'
+            height='100%'
             borderRadius='8px'
             bg='bg.canvas' // Ensure proper background in dark mode
           >
