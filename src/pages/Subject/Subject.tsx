@@ -13,6 +13,7 @@ import {
   Input,
   Skeleton,
   SkeletonText,
+  Card,
 } from '@chakra-ui/react';
 import { FiPlus, FiCheck } from 'react-icons/fi';
 import { BsSticky } from 'react-icons/bs';
@@ -20,7 +21,7 @@ import { TbTestPipe } from 'react-icons/tb';
 import CardScroller from '../../components/shared/CardScroller';
 import TrendsChart from './TrendsChart';
 import ForecastChart from './ForecastChart';
-import RelatedDocuments from '../../components/shared/RelatedDocuments';
+import RelatedDocuments from './RelatedDocuments';
 import { usePage } from '../../context/PageContext';
 import { useTheme } from '../../context/ThemeContext';
 import GlassCard from '../../components/shared/GlassCard';
@@ -623,173 +624,144 @@ const Subject: React.FC = () => {
                   'Books',
                   'Related Docs',
                 ].map((label) => (
-                  <GlassCard
-                    key={label}
-                    variant='solid'
-                    borderWidth='1px'
-                    borderStyle='solid'
-                    borderColor='border'
-                    borderRadius='8px'
-                  >
-                    <Box p={4} textAlign='center'>
-                      <Skeleton height='16px' width='80px' mx='auto' mb={2} />
-                      <Skeleton height='24px' width='40px' mx='auto' />
-                    </Box>
-                  </GlassCard>
+                  <Card.Root key={label} variant='outline' size='sm'>
+                    <Card.Body>
+                      <Box textAlign='center'>
+                        <Skeleton height='16px' width='80px' mx='auto' mb={2} />
+                        <Skeleton height='24px' width='40px' mx='auto' />
+                      </Box>
+                    </Card.Body>
+                  </Card.Root>
                 ))}
               </>
             ) : (
               // Actual stats cards
               <>
-                <GlassCard
-                  variant='solid'
-                  borderWidth='1px'
-                  borderStyle='solid'
-                  borderColor='border'
-                  borderRadius='8px'
-                >
-                  <Box p={4} textAlign='center'>
-                    <Stat.Root>
-                      <Stat.Label>
-                        <Heading as='h4' size='sm' mb={2} color='fg'>
-                          Organizations
-                        </Heading>
-                      </Stat.Label>
-                      <Stat.ValueText
-                        fontSize='xl'
-                        fontWeight='bold'
-                        color='fg'
-                      >
-                        {subject?.stats.organizations.toLocaleString()}
-                      </Stat.ValueText>
-                    </Stat.Root>
-                  </Box>
-                </GlassCard>
+                <Card.Root variant='outline' size='sm'>
+                  <Card.Body>
+                    <Box textAlign='center'>
+                      <Stat.Root>
+                        <Stat.Label>
+                          <Heading as='h4' size='sm' mb={2} color='fg'>
+                            Organizations
+                          </Heading>
+                        </Stat.Label>
+                        <Stat.ValueText
+                          fontSize='xl'
+                          fontWeight='bold'
+                          color='fg'
+                        >
+                          {subject?.stats.organizations.toLocaleString()}
+                        </Stat.ValueText>
+                      </Stat.Root>
+                    </Box>
+                  </Card.Body>
+                </Card.Root>
 
-                <GlassCard
-                  variant='solid'
-                  borderWidth='1px'
-                  borderStyle='solid'
-                  borderColor='border'
-                  borderRadius='8px'
-                >
-                  <Box p={4} textAlign='center'>
-                    <Stat.Root>
-                      <Stat.Label>
-                        <Heading as='h4' size='sm' mb={2} color='fg'>
-                          Press
-                        </Heading>
-                      </Stat.Label>
-                      <Stat.ValueText
-                        fontSize='xl'
-                        fontWeight='bold'
-                        color='fg'
-                      >
-                        {subject?.stats.press.toLocaleString()}
-                      </Stat.ValueText>
-                    </Stat.Root>
-                  </Box>
-                </GlassCard>
+                <Card.Root variant='outline' size='sm'>
+                  <Card.Body>
+                    <Box textAlign='center'>
+                      <Stat.Root>
+                        <Stat.Label>
+                          <Heading as='h4' size='sm' mb={2} color='fg'>
+                            Press
+                          </Heading>
+                        </Stat.Label>
+                        <Stat.ValueText
+                          fontSize='xl'
+                          fontWeight='bold'
+                          color='fg'
+                        >
+                          {subject?.stats.press.toLocaleString()}
+                        </Stat.ValueText>
+                      </Stat.Root>
+                    </Box>
+                  </Card.Body>
+                </Card.Root>
 
-                <GlassCard
-                  variant='solid'
-                  borderWidth='1px'
-                  borderStyle='solid'
-                  borderColor='border'
-                  borderRadius='8px'
-                >
-                  <Box p={4} textAlign='center'>
-                    <Stat.Root>
-                      <Stat.Label>
-                        <Heading as='h4' size='sm' mb={2} color='fg'>
-                          Patents
-                        </Heading>
-                      </Stat.Label>
-                      <Stat.ValueText
-                        fontSize='xl'
-                        fontWeight='bold'
-                        color='fg'
-                      >
-                        {subject?.stats.patents.toLocaleString()}
-                      </Stat.ValueText>
-                    </Stat.Root>
-                  </Box>
-                </GlassCard>
+                <Card.Root variant='outline' size='sm'>
+                  <Card.Body>
+                    <Box textAlign='center'>
+                      <Stat.Root>
+                        <Stat.Label>
+                          <Heading as='h4' size='sm' mb={2} color='fg'>
+                            Patents
+                          </Heading>
+                        </Stat.Label>
+                        <Stat.ValueText
+                          fontSize='xl'
+                          fontWeight='bold'
+                          color='fg'
+                        >
+                          {subject?.stats.patents.toLocaleString()}
+                        </Stat.ValueText>
+                      </Stat.Root>
+                    </Box>
+                  </Card.Body>
+                </Card.Root>
 
-                <GlassCard
-                  variant='solid'
-                  borderWidth='1px'
-                  borderStyle='solid'
-                  borderColor='border'
-                  borderRadius='8px'
-                >
-                  <Box p={4} textAlign='center'>
-                    <Stat.Root>
-                      <Stat.Label>
-                        <Heading as='h4' size='sm' mb={2} color='fg'>
-                          Papers
-                        </Heading>
-                      </Stat.Label>
-                      <Stat.ValueText
-                        fontSize='xl'
-                        fontWeight='bold'
-                        color='fg'
-                      >
-                        {subject?.stats.papers.toLocaleString()}
-                      </Stat.ValueText>
-                    </Stat.Root>
-                  </Box>
-                </GlassCard>
+                <Card.Root variant='outline' size='sm'>
+                  <Card.Body>
+                    <Box textAlign='center'>
+                      <Stat.Root>
+                        <Stat.Label>
+                          <Heading as='h4' size='sm' mb={2} color='fg'>
+                            Papers
+                          </Heading>
+                        </Stat.Label>
+                        <Stat.ValueText
+                          fontSize='xl'
+                          fontWeight='bold'
+                          color='fg'
+                        >
+                          {subject?.stats.papers.toLocaleString()}
+                        </Stat.ValueText>
+                      </Stat.Root>
+                    </Box>
+                  </Card.Body>
+                </Card.Root>
 
-                <GlassCard
-                  variant='solid'
-                  borderWidth='1px'
-                  borderStyle='solid'
-                  borderColor='border'
-                  borderRadius='8px'
-                >
-                  <Box p={4} textAlign='center'>
-                    <Stat.Root>
-                      <Stat.Label>
-                        <Heading as='h4' size='sm' mb={2} color='fg'>
-                          Books
-                        </Heading>
-                      </Stat.Label>
-                      <Stat.ValueText
-                        fontSize='xl'
-                        fontWeight='bold'
-                        color='fg'
-                      >
-                        {subject?.stats.books.toLocaleString()}
-                      </Stat.ValueText>
-                    </Stat.Root>
-                  </Box>
-                </GlassCard>
+                <Card.Root variant='outline' size='sm'>
+                  <Card.Body>
+                    <Box textAlign='center'>
+                      <Stat.Root>
+                        <Stat.Label>
+                          <Heading as='h4' size='sm' mb={2} color='fg'>
+                            Books
+                          </Heading>
+                        </Stat.Label>
+                        <Stat.ValueText
+                          fontSize='xl'
+                          fontWeight='bold'
+                          color='fg'
+                        >
+                          {subject?.stats.books.toLocaleString()}
+                        </Stat.ValueText>
+                      </Stat.Root>
+                    </Box>
+                  </Card.Body>
+                </Card.Root>
 
-                <GlassCard
-                  variant='solid'
-                  borderWidth='1px'
-                  borderStyle='solid'
-                  borderColor='border'
-                  borderRadius='8px'
-                >
-                  <Box p={4} textAlign='center'>
-                    <Stat.Root>
-                      <Stat.Label>
-                        <Heading as='h4' size='sm' mb={2} color='fg'>
-                          Related Docs
-                        </Heading>
-                      </Stat.Label>
-                      <Stat.ValueText
-                        fontSize='xl'
-                        fontWeight='bold'
-                        color='fg'
-                      >
-                        {subject?.stats.relatedDocs.toLocaleString()}
-                      </Stat.ValueText>
-                    </Stat.Root>
-                  </Box>
-                </GlassCard>
+                <Card.Root variant='outline' size='sm'>
+                  <Card.Body>
+                    <Box textAlign='center'>
+                      <Stat.Root>
+                        <Stat.Label>
+                          <Heading as='h4' size='sm' mb={2} color='fg'>
+                            Related Docs
+                          </Heading>
+                        </Stat.Label>
+                        <Stat.ValueText
+                          fontSize='xl'
+                          fontWeight='bold'
+                          color='fg'
+                        >
+                          {subject?.stats.relatedDocs.toLocaleString()}
+                        </Stat.ValueText>
+                      </Stat.Root>
+                    </Box>
+                  </Card.Body>
+                </Card.Root>
               </>
             )}
           </SimpleGrid>
@@ -798,16 +770,13 @@ const Subject: React.FC = () => {
         {/* Related Subjects and Related Analyses - Add skeleton loading */}
         <HStack gap={6} mb={6} align='flex-start'>
           {/* Related Subjects Card */}
-          <GlassCard
-            variant='solid'
+          <Card.Root
+            variant='outline'
             flex='1'
             height='400px'
-            borderWidth='1px'
-            borderStyle='solid'
-            borderColor='border'
             borderRadius='8px'
           >
-            <Box p={6} display='flex' flexDirection='column' height='100%'>
+            <Card.Body>
               <VStack gap={4} align='stretch' height='100%'>
                 <Heading as='h2' size='lg' flexShrink={0} color='fg'>
                   Related Subjects
@@ -901,7 +870,7 @@ const Subject: React.FC = () => {
                       <Flex wrap='wrap' gap={2}>
                         {getFilteredAndSortedSubjects().map(
                           (relatedSubject) => (
-                            <GlassCard
+                            <Card.Root
                               key={relatedSubject.id}
                               variant='outline'
                               cursor='pointer'
@@ -913,12 +882,9 @@ const Subject: React.FC = () => {
                                 handleSubjectClick(relatedSubject.subjectSlug)
                               }
                               transition='all 0.2s'
-                              borderWidth='1px'
-                              borderStyle='solid'
-                              borderColor='border'
                               borderRadius='8px'
                             >
-                              <Box p={3}>
+                              <Card.Body p={3}>
                                 <HStack gap={2} justify='space-between'>
                                   <Text
                                     fontSize='sm'
@@ -940,8 +906,8 @@ const Subject: React.FC = () => {
                                     {relatedSubject.horizonRanking.toFixed(2)}
                                   </Box>
                                 </HStack>
-                              </Box>
-                            </GlassCard>
+                              </Card.Body>
+                            </Card.Root>
                           )
                         )}
                       </Flex>
@@ -949,20 +915,17 @@ const Subject: React.FC = () => {
                   </>
                 )}
               </VStack>
-            </Box>
-          </GlassCard>
+            </Card.Body>
+          </Card.Root>
 
           {/* Related Analyses Card */}
-          <GlassCard
-            variant='solid'
+          <Card.Root
+            variant='outline'
             flex='1'
             height='400px'
-            borderWidth='1px'
-            borderStyle='solid'
-            borderColor='border'
             borderRadius='8px'
           >
-            <Box p={6} display='flex' flexDirection='column' height='100%'>
+            <Card.Body>
               <VStack gap={4} align='stretch' height='100%'>
                 <Heading as='h2' size='lg' flexShrink={0} color='fg'>
                   Related Analyses
@@ -1056,7 +1019,7 @@ const Subject: React.FC = () => {
 
                     <CardScroller height='100%'>
                       {getFilteredAndSortedAnalyses().map((analysis) => (
-                        <GlassCard
+                        <Card.Root
                           key={analysis._id}
                           variant='outline'
                           minWidth='280px'
@@ -1068,12 +1031,9 @@ const Subject: React.FC = () => {
                             handleAnalysisClick(analysis.lab_id, analysis._id)
                           }
                           transition='all 0.2s'
-                          borderWidth='1px'
-                          borderStyle='solid'
-                          borderColor='border'
                           borderRadius='8px'
                         >
-                          <Box
+                          <Card.Body
                             p={4}
                             height='100%'
                             display='flex'
@@ -1149,21 +1109,21 @@ const Subject: React.FC = () => {
                                 {analysis.ent_summary}
                               </Text>
                             </VStack>
-                          </Box>
-                        </GlassCard>
+                          </Card.Body>
+                        </Card.Root>
                       ))}
                     </CardScroller>
                   </>
                 ) : null}
               </VStack>
-            </Box>
-          </GlassCard>
+            </Card.Body>
+          </Card.Root>
         </HStack>
 
         {loading ? (
           // Skeleton for TrendsChart
-          <GlassCard variant='solid' width='100%' mt={6} borderRadius='8px'>
-            <Box p={6}>
+          <Card.Root variant='outline' width='100%' mt={6} borderRadius='8px'>
+            <Card.Body p={6}>
               <VStack gap={6} align='stretch'>
                 <HStack justify='space-between' align='center'>
                   <Skeleton height='24px' width='120px' />
@@ -1171,16 +1131,16 @@ const Subject: React.FC = () => {
                 </HStack>
                 <Skeleton height='500px' width='100%' borderRadius='md' />
               </VStack>
-            </Box>
-          </GlassCard>
+            </Card.Body>
+          </Card.Root>
         ) : subject ? (
           <TrendsChart subjectSlug={subject.slug} />
         ) : null}
 
         {loading ? (
           // Skeleton for ForecastChart
-          <GlassCard variant='solid' width='100%' mt={6} borderRadius='8px'>
-            <Box p={6}>
+          <Card.Root variant='outline' width='100%' mt={6} borderRadius='8px'>
+            <Card.Body p={6}>
               <VStack gap={6} align='stretch'>
                 <Skeleton height='24px' width='180px' />
                 <HStack gap={2} wrap='wrap' mb={4}>
@@ -1218,16 +1178,16 @@ const Subject: React.FC = () => {
                   <Skeleton height='200px' width='100%' borderRadius='md' />
                 </Box>
               </VStack>
-            </Box>
-          </GlassCard>
+            </Card.Body>
+          </Card.Root>
         ) : subject ? (
           <ForecastChart subjectSlug={subject.slug} />
         ) : null}
 
         {loading ? (
           // Skeleton for RelatedDocuments
-          <GlassCard variant='solid' width='100%' mt={6} borderRadius='8px'>
-            <Box p={6}>
+          <Card.Root variant='outline' width='100%' mt={6} borderRadius='8px'>
+            <Card.Body p={6}>
               <VStack gap={6} align='stretch'>
                 <HStack justify='space-between' align='center'>
                   <Skeleton height='24px' width='180px' />
@@ -1275,8 +1235,8 @@ const Subject: React.FC = () => {
                   </VStack>
                 </Box>
               </VStack>
-            </Box>
-          </GlassCard>
+            </Card.Body>
+          </Card.Root>
         ) : subject ? (
           <RelatedDocuments subjectSlug={subject.slug} />
         ) : null}

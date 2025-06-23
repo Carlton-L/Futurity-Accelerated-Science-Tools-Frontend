@@ -26,21 +26,46 @@ const Button = defineRecipe({
         },
       },
       outline: {
-        bg: 'transparent',
-        color: 'brand',
+        bg: {
+          _dark: 'transparent',
+          _light: 'bg.canvas', // White background in light mode
+        },
+        color: {
+          _dark: 'brand',
+          _light: 'fg', // Dark text in light mode
+        },
         borderWidth: '1px',
-        borderColor: 'brand',
+        borderColor: {
+          _dark: 'brand',
+          _light: 'border.emphasized', // Dark border (#111111) in light mode
+        },
         _hover: {
-          bg: 'brand',
-          color: 'brand.contrast',
+          bg: {
+            _dark: 'brand',
+            _light: 'bg.hover', // Light hover background in light mode
+          },
+          color: {
+            _dark: 'brand.contrast',
+            _light: 'fg', // Keep dark text in light mode
+          },
+          borderColor: {
+            _dark: 'brand',
+            _light: 'border.emphasized',
+          },
           _disabled: {
             bg: 'transparent',
             color: 'brand',
           },
         },
         _active: {
-          bg: 'brand.active',
-          color: 'brand.contrast',
+          bg: {
+            _dark: 'brand.active',
+            _light: 'bg.active',
+          },
+          color: {
+            _dark: 'brand.contrast',
+            _light: 'fg',
+          },
         },
       },
       ghost: {

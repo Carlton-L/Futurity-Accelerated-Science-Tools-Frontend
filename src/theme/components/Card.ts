@@ -8,7 +8,7 @@ const Card = defineSlotRecipe({
       borderRadius: '8px',
       borderWidth: '1px',
       borderStyle: 'solid',
-      borderColor: 'border',
+      borderColor: 'border.emphasized', // White in dark mode, #111111 in light mode
       overflow: 'hidden',
       transition: 'all 0.2s',
       _hover: {
@@ -37,7 +37,7 @@ const Card = defineSlotRecipe({
       solid: {
         root: {
           bg: 'bg.canvas',
-          borderColor: 'border',
+          borderColor: 'border.emphasized', // Emphasized border for stats cards
         },
       },
       outline: {
