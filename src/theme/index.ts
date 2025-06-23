@@ -1,5 +1,6 @@
 import { createSystem, defaultConfig, defineConfig } from '@chakra-ui/react';
 import Button from './components/Button';
+import Card from './components/Card';
 import colors from './tokens/colors';
 import fonts from './tokens/fonts';
 
@@ -7,6 +8,7 @@ const config = defineConfig({
   theme: {
     recipes: {
       button: Button,
+      card: Card,
     },
     breakpoints: {
       base: '0px',
@@ -24,85 +26,239 @@ const config = defineConfig({
         bg: {
           DEFAULT: {
             value: {
-              base: '{colors.background.app.dark}',
               _light: '{colors.background.app.light}',
+              _dark: '{colors.background.app.dark}',
             },
           },
           canvas: {
             value: {
-              base: '{colors.background.card.dark}',
               _light: '{colors.background.card.light}',
+              _dark: '{colors.background.card.dark}',
             },
           },
           subtle: {
             value: {
-              base: '{colors.gray.dark.100}',
-              _light: '{colors.gray.light.100}',
+              _light: 'rgba(250, 250, 250, 0.6)', // Subtle overlay in light mode
+              _dark: 'rgba(26, 26, 26, 0.6)', // Subtle overlay in dark mode
             },
           },
           muted: {
             value: {
-              base: '{colors.gray.dark.200}',
-              _light: '{colors.gray.light.200}',
+              _light: 'rgba(255, 255, 255, 0.8)', // More prominent overlay in light mode
+              _dark: 'rgba(26, 26, 26, 0.8)', // More prominent overlay in dark mode
+            },
+          },
+          // Interactive background states
+          hover: {
+            value: {
+              _light: '#f5f5f5', // Slightly darker than card background in light mode
+              _dark: '#2a2a2a', // Slightly lighter than card background in dark mode
+            },
+          },
+          active: {
+            value: {
+              _light: '#e0e0e0', // Even darker for active states in light mode
+              _dark: '#333333', // Even lighter for active states in dark mode
             },
           },
         },
+
         fg: {
           DEFAULT: {
             value: {
-              base: '{colors.text.primary.dark}',
               _light: '{colors.text.primary.light}',
+              _dark: '{colors.text.primary.dark}',
+            },
+          },
+          secondary: {
+            value: {
+              _light: '{colors.text.secondary.light}',
+              _dark: '{colors.text.secondary.dark}',
             },
           },
           muted: {
             value: {
-              base: '{colors.text.secondary.dark}',
-              _light: '{colors.text.secondary.light}',
+              _light: '{colors.text.muted.light}',
+              _dark: '{colors.text.muted.dark}',
             },
           },
-          subtle: {
+          // Interactive text states
+          hover: {
             value: {
-              base: '{colors.text.muted.dark}',
-              _light: '{colors.text.muted.light}',
+              _light: '{colors.brand.600}', // Darker brand color on hover in light mode
+              _dark: '{colors.brand.400}', // Lighter brand color on hover
+            },
+          },
+          link: {
+            value: {
+              _light: '{colors.brand.500}',
+              _dark: '{colors.brand.400}',
+            },
+          },
+          // Status text colors
+          success: {
+            value: {
+              _light: '{colors.status.success.light}',
+              _dark: '{colors.status.success.dark}',
+            },
+          },
+          error: {
+            value: {
+              _light: '{colors.status.error.light}',
+              _dark: '{colors.status.error.dark}',
             },
           },
         },
+
         border: {
           DEFAULT: {
             value: {
-              base: '{colors.border.secondary.dark}',
-              _light: '{colors.border.secondary.light}',
+              _light: '{colors.border.primary.light}', // #111111 - CHANGED from secondary to primary
+              _dark: '{colors.border.primary.dark}', // #FFFFFF - CHANGED from secondary to primary
             },
           },
           emphasized: {
             value: {
-              base: '{colors.border.primary.dark}',
               _light: '{colors.border.primary.light}',
+              _dark: '{colors.border.primary.dark}',
             },
           },
           muted: {
             value: {
-              base: '{colors.border.muted.dark}',
-              _light: '{colors.border.muted.light}',
+              _light: '{colors.border.secondary.light}', // Keep the gray borders as "muted"
+              _dark: '{colors.border.secondary.dark}',
+            },
+          },
+          // Interactive border states
+          hover: {
+            value: {
+              _light: '{colors.brand.500}',
+              _dark: '{colors.brand.400}',
+            },
+          },
+          focus: {
+            value: {
+              _light: '{colors.brand.500}',
+              _dark: '{colors.brand.400}',
             },
           },
         },
-        // Brand semantic tokens
+
+        // Brand semantic tokens with interaction states
         brand: {
           DEFAULT: { value: '{colors.brand.500}' },
-          emphasized: { value: '{colors.brand.600}' },
+          hover: {
+            value: {
+              _light: '{colors.brand.600}', // Darker on hover in light mode
+              _dark: '{colors.brand.400}', // Lighter on hover in dark mode
+            },
+          },
+          active: {
+            value: {
+              _light: '{colors.brand.700}', // Even darker when active in light mode
+              _dark: '{colors.brand.300}', // Even lighter when active in dark mode
+            },
+          },
           subtle: { value: '{colors.brand.400}' },
+          contrast: { value: '#FFFFFF' }, // Always white text on brand colors
+          400: { value: '{colors.brand.400}' },
+          500: { value: '{colors.brand.500}' },
+          600: { value: '{colors.brand.600}' },
         },
-        // Status semantic tokens
-        success: { value: '{colors.status.success}' },
+
+        // Secondary brand semantic tokens
+        secondary: {
+          DEFAULT: { value: '{colors.secondary.500}' },
+          hover: {
+            value: {
+              _light: '{colors.secondary.600}',
+              _dark: '{colors.secondary.400}',
+            },
+          },
+          active: {
+            value: {
+              _light: '{colors.secondary.700}',
+              _dark: '{colors.secondary.300}',
+            },
+          },
+          contrast: { value: '#FFFFFF' },
+        },
+
+        // Status semantic tokens with opacity variants
+        success: {
+          value: {
+            _light: '{colors.status.success.light}',
+            _dark: '{colors.status.success.dark}',
+          },
+        },
+        successSubtle: {
+          value: {
+            _light: '{colors.statusOpacity.success.light}',
+            _dark: '{colors.statusOpacity.success.dark}',
+          },
+        },
+        error: {
+          value: {
+            _light: '{colors.status.error.light}',
+            _dark: '{colors.status.error.dark}',
+          },
+        },
+        errorSubtle: {
+          value: {
+            _light: '{colors.statusOpacity.error.light}',
+            _dark: '{colors.statusOpacity.error.dark}',
+          },
+        },
+        // Keep existing warning and info
         warning: { value: '{colors.status.warning}' },
-        error: { value: '{colors.status.error}' },
         info: { value: '{colors.status.info}' },
+
+        // Metric colors for your three indices
+        horizonRank: { value: '{colors.horizonRank.primary}' },
+        horizonRankContrast: { value: '{colors.horizonRank.contrast}' },
+        whiteSpace: { value: '{colors.whiteSpace.primary}' },
+        whiteSpaceContrast: { value: '{colors.whiteSpace.contrast}' },
+        techTransfer: { value: '{colors.techTransfer.primary}' },
+        techTransferContrast: { value: '{colors.techTransfer.contrast}' },
+
+        // FS colors as semantic tokens
+        fsColor1: { value: '{colors.fs.color1}' },
+        fsColor1Contrast: { value: '{colors.fsContrast.color1}' },
+        fsColor1Subtle: { value: '{colors.fsOpacity.color1}' },
+
+        fsColor2: { value: '{colors.fs.color2}' },
+        fsColor2Contrast: { value: '{colors.fsContrast.color2}' },
+        fsColor2Subtle: { value: '{colors.fsOpacity.color2}' },
+
+        fsColor3: { value: '{colors.fs.color3}' },
+        fsColor3Contrast: { value: '{colors.fsContrast.color3}' },
+        fsColor3Subtle: { value: '{colors.fsOpacity.color3}' },
+
+        fsColor4: { value: '{colors.fs.color4}' },
+        fsColor4Contrast: { value: '{colors.fsContrast.color4}' },
+        fsColor4Subtle: { value: '{colors.fsOpacity.color4}' },
+
+        fsColor5: { value: '{colors.fs.color5}' },
+        fsColor5Contrast: { value: '{colors.fsContrast.color5}' },
+        fsColor5Subtle: { value: '{colors.fsOpacity.color5}' },
+
+        fsColor6: { value: '{colors.fs.color6}' },
+        fsColor6Contrast: { value: '{colors.fsContrast.color6}' },
+        fsColor6Subtle: { value: '{colors.fsOpacity.color6}' },
+
+        fsColor7: { value: '{colors.fs.color7}' },
+        fsColor7Contrast: { value: '{colors.fsContrast.color7}' },
+        fsColor7Subtle: { value: '{colors.fsOpacity.color7}' },
+
+        fsColor8: { value: '{colors.fs.color8}' },
+        fsColor8Contrast: { value: '{colors.fsContrast.color8}' },
+        fsColor8Subtle: { value: '{colors.fsOpacity.color8}' },
+
         // Glass effect
         glass: {
           value: {
-            base: '{colors.glass.dark}',
             _light: '{colors.glass.light}',
+            _dark: '{colors.glass.dark}',
           },
         },
       },
@@ -142,13 +298,10 @@ const config = defineConfig({
       border: '1px solid',
       borderColor: 'border.emphasized',
     },
-    // Dark mode by default
-    ':root': {
-      colorScheme: 'dark',
-    },
-    ':root.light': {
-      colorScheme: 'light',
-    },
+  },
+  conditions: {
+    light: '[data-theme=light] &, .light &',
+    dark: '[data-theme=dark] &, .dark &',
   },
 });
 

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
   Button,
   Card,
-  Flex,
   Heading,
   Text,
   SimpleGrid,
@@ -18,234 +18,245 @@ import {
   FiChevronRight,
 } from 'react-icons/fi';
 import { usePage } from '../../context/PageContext';
-
-interface ExactMatchSubject {
-  title: string;
-  description: string;
-  indices: {
-    horizon: number;
-    techTransfer: number;
-    whiteSpace: number;
-  };
-  stats: {
-    books: number;
-    papers: number;
-    patents: number;
-    press: number;
-    organizations: number;
-  };
-}
-
-interface RelatedItem {
-  id: number;
-  title: string;
-  summary: string;
-}
+import { searchService } from '../../services/searchService';
+import type {
+  CombinedSearchResults,
+  SearchAnalysisResult,
+  SearchOrgResult,
+} from '../../services/searchService';
 
 const Search: React.FC = () => {
-  const { setPageContext, clearPageContext, pageContext } = usePage();
-  const [hasExactMatch, setHasExactMatch] = useState(true);
+  const { query } = useParams<{ query: string }>();
+  const navigate = useNavigate();
+  const { setPageContext, clearPageContext } = usePage();
+
+  const [searchResults, setSearchResults] =
+    useState<CombinedSearchResults | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const searchQuery = 'computer vision';
+  const [error, setError] = useState<string | null>(null);
+
+  const searchQuery = query || 'computer vision';
 
   // Helper function to convert title to URL-friendly slug
   const createSlug = (title: string): string => {
-    return title
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '') // Remove special characters
-      .replace(/[\s_-]+/g, '_') // Replace spaces and hyphens with underscores
-      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+    return searchService.createSlug(title);
   };
 
   // Navigation helper function
   const navigateToSubject = (title: string): void => {
     const slug = createSlug(title);
     const url = `/subject/${slug}`;
-    console.log(`Navigating to: ${url}`);
-    // In a real app, you would use your router here:
-    // navigate(url) or window.location.href = url
-    window.location.href = url;
+    navigate(url);
   };
 
-  const exactMatchSubject: ExactMatchSubject = {
-    title: 'Computer Vision',
-    description:
-      'The field of computer science that focuses on enabling computers to identify and understand objects and people in images and videos.',
-    indices: {
-      horizon: 0.85,
-      techTransfer: 72,
-      whiteSpace: 23,
-    },
-    stats: {
-      books: 1247,
-      papers: 45892,
-      patents: 2834,
-      press: 8921,
-      organizations: 456,
-    },
-  };
+  // Perform search when query changes
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!query) return;
 
-  const relatedSubjects: RelatedItem[] = [
-    {
-      id: 1,
-      title: 'Computer Science',
-      summary:
-        'The study of computational methods and data structures, and the design of computer systems and their applications.',
-    },
-    {
-      id: 2,
-      title: '3D Computer Graphics',
-      summary:
-        'The generation of digital images from three-dimensional models using specialized software and hardware.',
-    },
-    {
-      id: 3,
-      title: 'Biocomputer',
-      summary:
-        'A biological computing device that uses biological materials and processes to perform computational functions.',
-    },
-    {
-      id: 4,
-      title: 'Computer',
-      summary:
-        'An electronic device that manipulates information, or data, and has the ability to store, retrieve, and process data.',
-    },
-  ];
+      setIsLoading(true);
+      setError(null);
 
-  const analysisResults: RelatedItem[] = [
-    {
-      id: 1,
-      title: 'Brain-Computer Interfaces: Current State and Future Prospects',
-      summary:
-        'Comprehensive analysis of BCI technology development, market potential, and regulatory landscape.',
-    },
-    {
-      id: 2,
-      title: 'Computer Vision in Healthcare: Market Analysis 2024',
-      summary:
-        'Deep dive into computer vision applications in medical imaging, diagnostics, and treatment planning.',
-    },
-    {
-      id: 3,
-      title: 'Quantum Computer Development Timeline',
-      summary:
-        'Strategic analysis of quantum computing milestones and commercial viability forecasts.',
-    },
-  ];
+      try {
+        const results = await searchService.performCombinedSearch(query);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Search failed:', err);
+        setError('Search failed. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const organizationResults: RelatedItem[] = [
-    {
-      id: 1,
-      title: 'Computer Accessories Corp',
-      summary:
-        'Leading manufacturer of computer peripherals and accessories, specializing in ergonomic input devices.',
-    },
-    {
-      id: 2,
-      title: 'Computer Assisted Engineering Solutions',
-      summary:
-        'Software company providing CAE tools for simulation, modeling, and design optimization across industries.',
-    },
-    {
-      id: 3,
-      title: 'Vision Computer Systems Inc',
-      summary:
-        'Enterprise solutions provider focused on computer vision systems for industrial automation and quality control.',
-    },
-  ];
+    performSearch();
+  }, [query]);
 
-  // Memoize the mapped arrays to prevent recreation on every render
-  const mappedRelatedSubjects = useMemo(
-    () =>
-      relatedSubjects.map((subject) => ({
-        id: subject.id.toString(),
-        name: subject.title,
-        title: subject.title,
-        slug: createSlug(subject.title),
-      })),
-    [] // Empty dependency array since relatedSubjects is static
-  );
+  // Update page context when search results change
+  useEffect(() => {
+    if (!searchResults || !query) return;
 
-  const mappedOrganizations = useMemo(
-    () =>
-      organizationResults.map((org) => ({
-        id: org.id.toString(),
-        name: org.title,
-        title: org.title,
-      })),
-    [] // Empty dependency array since organizationResults is static
-  );
+    const mappedRelatedSubjects = searchResults.subjects.map((subject) => ({
+      id: subject._id.$oid,
+      name: subject.ent_name,
+      title: subject.ent_name,
+      slug: createSlug(subject.ent_name),
+    }));
 
-  const mappedAnalyses = useMemo(
-    () =>
-      analysisResults.map((analysis) => ({
-        id: analysis.id.toString(),
-        title: analysis.title,
-        name: analysis.title,
-      })),
-    [] // Empty dependency array since analysisResults is static
-  );
+    const mappedOrganizations = searchResults.organizations.map((org) => ({
+      id: org._id.$oid,
+      name: org.ent_name,
+      title: org.ent_name,
+    }));
 
-  // Memoize the page context object to prevent recreation
-  const searchPageContext = useMemo(
-    () => ({
+    const mappedAnalyses = searchResults.analyses.map((analysis) => ({
+      id: analysis._id.$oid,
+      title: analysis.ent_name,
+      name: analysis.ent_name,
+    }));
+
+    const searchPageContext = {
       pageType: 'search' as const,
       pageTitle: `Search Results for "${searchQuery}"`,
       searchQuery,
-      exactMatch: hasExactMatch
+      exactMatch: searchResults.exactMatch
         ? {
             type: 'subject' as const,
             subject: {
-              id: 'computer-vision-123',
-              name: exactMatchSubject.title,
-              title: exactMatchSubject.title,
-              slug: createSlug(exactMatchSubject.title),
+              id: searchResults.exactMatch._id.$oid,
+              name: searchResults.exactMatch.ent_name,
+              title: searchResults.exactMatch.ent_name,
+              slug: createSlug(searchResults.exactMatch.ent_name),
             },
           }
         : undefined,
       relatedSubjects: mappedRelatedSubjects,
       organizations: mappedOrganizations,
       analyses: mappedAnalyses,
-    }),
-    [
-      searchQuery,
-      hasExactMatch,
-      mappedRelatedSubjects,
-      mappedOrganizations,
-      mappedAnalyses,
-    ]
-  );
+    };
 
-  useEffect(() => {
     setPageContext(searchPageContext);
+  }, [searchResults, query]); // Removed searchQuery, setPageContext, and clearPageContext from dependencies
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => clearPageContext();
-  }, [setPageContext, clearPageContext, searchPageContext]);
+  }, []); // Empty dependency array for cleanup only
 
   const handleCreateSubject = async (): Promise<void> => {
     setIsCreating(true);
-    // Simulate API call
+    // Simulate API call for creating subject
     await new Promise((resolve) => setTimeout(resolve, 2000));
     setIsCreating(false);
     // Navigate to the new subject page
     navigateToSubject(searchQuery);
   };
 
-  const toggleExactMatch = (): void => {
-    setHasExactMatch(!hasExactMatch);
-  };
-
   const handleSubjectClick = (title: string): void => {
     navigateToSubject(title);
   };
 
-  const handleItemClick = (type: string, item: RelatedItem): void => {
-    if (type === 'subject') {
-      navigateToSubject(item.title);
-    } else {
-      console.log(`Navigate to ${type}:`, item.title);
-      // Handle other item types (analysis, organization) as needed
-    }
+  const handleAnalysisClick = (analysis: SearchAnalysisResult): void => {
+    console.log('Navigate to analysis:', analysis.ent_name);
+    // TODO: Implement navigation to analysis page when ready
   };
+
+  const handleOrganizationClick = (org: SearchOrgResult): void => {
+    console.log('Navigate to organization:', org.ent_name);
+    // TODO: Implement navigation to organization page when ready
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Box bg='black' minHeight='calc(100vh - 64px)'>
+        <Box maxW='7xl' mx='auto' px={6} py={8}>
+          <VStack gap={8} align='center' justify='center' minH='400px'>
+            <Spinner size='xl' color='blue.500' />
+            <Text color='gray.400'>Searching for "{searchQuery}"...</Text>
+          </VStack>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <Box bg='black' minHeight='calc(100vh - 64px)'>
+        <Box maxW='7xl' mx='auto' px={6} py={8}>
+          <VStack gap={8} align='center' justify='center' minH='400px'>
+            <Text color='red.400' fontSize='lg'>
+              {error}
+            </Text>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </VStack>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Show default state if no query
+  if (!searchQuery.trim()) {
+    return (
+      <Box bg='black' minHeight='calc(100vh - 64px)'>
+        {/* Header */}
+        <Box
+          bg='black'
+          borderBottom='1px solid'
+          borderColor='gray.200'
+          px={6}
+          py={4}
+        >
+          <Box maxW='7xl' mx='auto'>
+            <HStack gap={4}>
+              <FiSearch size={24} color='gray.500' />
+              <Heading as='h1' size='xl' color='white'>
+                Search
+              </Heading>
+            </HStack>
+          </Box>
+        </Box>
+
+        <Box maxW='7xl' mx='auto' px={6} py={8}>
+          <VStack gap={8} align='center' justify='center' minH='400px'>
+            <FiSearch size={48} color='gray.500' />
+            <VStack gap={2} textAlign='center'>
+              <Text color='white' fontSize='lg' fontWeight='semibold'>
+                Enter a search term to get started
+              </Text>
+              <Text color='gray.400' fontSize='md'>
+                Use the search bar above to find subjects, analyses, and
+                organizations
+              </Text>
+            </VStack>
+          </VStack>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Show no results message if search completed but no results found
+  if (!searchResults && searchQuery.trim() && !isLoading && !error) {
+    return (
+      <Box bg='black' minHeight='calc(100vh - 64px)'>
+        {/* Header */}
+        <Box
+          bg='black'
+          borderBottom='1px solid'
+          borderColor='gray.200'
+          px={6}
+          py={4}
+        >
+          <Box maxW='7xl' mx='auto'>
+            <HStack gap={4}>
+              <FiSearch size={24} color='gray.500' />
+              <Heading as='h1' size='xl' color='white'>
+                Search Results
+              </Heading>
+              <Text color='gray.500'>for "{searchQuery}"</Text>
+            </HStack>
+          </Box>
+        </Box>
+
+        <Box maxW='7xl' mx='auto' px={6} py={8}>
+          <VStack gap={8} align='center' justify='center' minH='400px'>
+            <Text color='gray.400' fontSize='lg'>
+              No search results found for "{searchQuery}"
+            </Text>
+            <Button onClick={() => window.location.reload()}>
+              Search Again
+            </Button>
+          </VStack>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (!searchResults) return null; // This should not happen due to the checks above
+
+  const { exactMatch, subjects, similarSubjects, analyses, organizations } =
+    searchResults;
 
   return (
     <Box bg='black' minHeight='calc(100vh - 64px)'>
@@ -260,29 +271,22 @@ const Search: React.FC = () => {
         <Box maxW='7xl' mx='auto'>
           <HStack gap={4}>
             <FiSearch size={24} color='gray.500' />
-            <Heading as='h1' size='xl'>
+            <Heading as='h1' size='xl' color='white'>
               Search Results
             </Heading>
             <Text color='gray.500'>for "{searchQuery}"</Text>
           </HStack>
         </Box>
       </Box>
+
       <Box maxW='7xl' mx='auto' px={6} py={8}>
         <VStack gap={8} align='stretch'>
-          {/* Demo Toggle Button */}
-          <Flex justify='center'>
-            <Button colorScheme='blue' onClick={toggleExactMatch}>
-              Demo Toggle:{' '}
-              {hasExactMatch ? 'Show No Match State' : 'Show Exact Match State'}
-            </Button>
-          </Flex>
-
           {/* Exact Match Section */}
           <Card.Root bg='black'>
             <Card.Body p={8}>
-              {hasExactMatch ? (
+              {exactMatch ? (
                 <VStack gap={6} align='stretch'>
-                  <Heading as='h2' size='lg'>
+                  <Heading as='h2' size='lg' color='white'>
                     Exact Match
                   </Heading>
                   <Box
@@ -298,141 +302,112 @@ const Search: React.FC = () => {
                       borderColor: 'blue.300',
                     }}
                     transition='all 0.2s'
-                    onClick={() => handleSubjectClick(exactMatchSubject.title)}
+                    onClick={() => handleSubjectClick(exactMatch.ent_name)}
                   >
                     <VStack gap={6} align='stretch'>
                       <Box>
                         <HStack justify='space-between' align='start'>
                           <Box flex='1'>
-                            <Heading as='h3' size='xl' mb={3} color='white'>
-                              {exactMatchSubject.title}
+                            <Heading as='h3' size='xl' mb={3} color='gray.800'>
+                              {exactMatch.ent_name}
                             </Heading>
                             <Text
                               color='gray.700'
                               fontSize='lg'
                               lineHeight='1.6'
                             >
-                              {exactMatchSubject.description}
+                              {exactMatch.ent_summary ||
+                                (exactMatch.wikipedia_definition &&
+                                  exactMatch.wikipedia_definition.substring(
+                                    0,
+                                    200
+                                  ) + '...') ||
+                                'No description available'}
                             </Text>
                           </Box>
                           <FiChevronRight size={24} color='blue.400' />
                         </HStack>
                       </Box>
 
-                      {/* Indices */}
-                      <SimpleGrid columns={3} gap={6}>
-                        <Box textAlign='center'>
-                          <Text
-                            fontSize='2xl'
-                            fontWeight='bold'
-                            color='blue.600'
-                          >
-                            {exactMatchSubject.indices.horizon}
-                          </Text>
-                          <Text fontSize='sm' color='gray.600'>
-                            Horizon Rank
-                          </Text>
-                          <Text fontSize='xs' color='gray.500'>
-                            (0-1 scale)
-                          </Text>
-                        </Box>
-                        <Box textAlign='center'>
-                          <Text
-                            fontSize='2xl'
-                            fontWeight='bold'
-                            color='green.600'
-                          >
-                            {exactMatchSubject.indices.techTransfer}
-                          </Text>
-                          <Text fontSize='sm' color='gray.600'>
-                            Tech Transfer
-                          </Text>
-                          <Text fontSize='xs' color='gray.500'>
-                            (0-100 scale)
-                          </Text>
-                        </Box>
-                        <Box textAlign='center'>
-                          <Text
-                            fontSize='2xl'
-                            fontWeight='bold'
-                            color='purple.600'
-                          >
-                            {exactMatchSubject.indices.whiteSpace}
-                          </Text>
-                          <Text fontSize='sm' color='gray.600'>
-                            White Space
-                          </Text>
-                          <Text fontSize='xs' color='gray.500'>
-                            (0-100 scale)
-                          </Text>
-                        </Box>
-                      </SimpleGrid>
-
                       {/* Stats */}
-                      <SimpleGrid columns={5} gap={4}>
+                      <SimpleGrid columns={4} gap={4}>
                         <Box
-                          bg='#1a1a1a'
+                          bg='white'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
+                          border='1px solid'
+                          borderColor='gray.200'
                         >
-                          <Text fontSize='xl' fontWeight='bold'>
-                            {exactMatchSubject.stats.books.toLocaleString()}
+                          <Text
+                            fontSize='xl'
+                            fontWeight='bold'
+                            color='gray.800'
+                          >
+                            {exactMatch.Books_hitcounts?.toLocaleString() ||
+                              '0'}
                           </Text>
                           <Text fontSize='sm' color='gray.600'>
                             Books
                           </Text>
                         </Box>
                         <Box
-                          bg='#1a1a1a'
+                          bg='white'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
+                          border='1px solid'
+                          borderColor='gray.200'
                         >
-                          <Text fontSize='xl' fontWeight='bold'>
-                            {exactMatchSubject.stats.papers.toLocaleString()}
+                          <Text
+                            fontSize='xl'
+                            fontWeight='bold'
+                            color='gray.800'
+                          >
+                            {exactMatch.Papers_hitcounts?.toLocaleString() ||
+                              '0'}
                           </Text>
                           <Text fontSize='sm' color='gray.600'>
                             Papers
                           </Text>
                         </Box>
                         <Box
-                          bg='#1a1a1a'
+                          bg='white'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
+                          border='1px solid'
+                          borderColor='gray.200'
                         >
-                          <Text fontSize='xl' fontWeight='bold'>
-                            {exactMatchSubject.stats.patents.toLocaleString()}
+                          <Text
+                            fontSize='xl'
+                            fontWeight='bold'
+                            color='gray.800'
+                          >
+                            {exactMatch.Gnews_hitcounts?.toLocaleString() ||
+                              '0'}
                           </Text>
                           <Text fontSize='sm' color='gray.600'>
-                            Patents
+                            News
                           </Text>
                         </Box>
                         <Box
-                          bg='#1a1a1a'
+                          bg='white'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
+                          border='1px solid'
+                          borderColor='gray.200'
                         >
-                          <Text fontSize='xl' fontWeight='bold'>
-                            {exactMatchSubject.stats.press.toLocaleString()}
+                          <Text
+                            fontSize='xl'
+                            fontWeight='bold'
+                            color='gray.800'
+                          >
+                            {exactMatch.ent_year || 'N/A'}
                           </Text>
                           <Text fontSize='sm' color='gray.600'>
-                            Press
-                          </Text>
-                        </Box>
-                        <Box
-                          bg='#1a1a1a'
-                          p={3}
-                          borderRadius='lg'
-                          textAlign='center'
-                        >
-                          <Text fontSize='xl' fontWeight='bold'>
-                            {exactMatchSubject.stats.organizations.toLocaleString()}
-                          </Text>
-                          <Text fontSize='sm' color='gray.600'>
-                            Organizations
+                            Year
                           </Text>
                         </Box>
                       </SimpleGrid>
@@ -451,20 +426,20 @@ const Search: React.FC = () => {
                 </VStack>
               ) : (
                 <VStack gap={6} align='stretch'>
-                  <Heading as='h2' size='lg'>
+                  <Heading as='h2' size='lg' color='white'>
                     Subject Search
                   </Heading>
                   <Box
-                    bg='gray.50'
+                    bg='gray.800'
                     p={8}
                     borderRadius='lg'
                     border='2px dashed'
-                    borderColor='gray.300'
+                    borderColor='gray.600'
                     textAlign='center'
                   >
-                    <Text color='gray.600' mb={4}>
-                      No match for "
-                      <Text as='span' fontWeight='semibold'>
+                    <Text color='gray.400' mb={4}>
+                      No exact match for "
+                      <Text as='span' fontWeight='semibold' color='white'>
                         {searchQuery}
                       </Text>
                       ", create a new subject?
@@ -493,120 +468,200 @@ const Search: React.FC = () => {
           </Card.Root>
 
           {/* Related Subjects */}
-          <Card.Root bg='black'>
-            <Card.Body p={6}>
-              <Heading as='h2' size='lg' mb={4}>
-                Subjects related to "{searchQuery}"
-              </Heading>
-              <VStack gap={3} align='stretch'>
-                {relatedSubjects.map((subject) => (
-                  <HStack
-                    key={subject.id}
-                    justify='space-between'
-                    p={4}
-                    bg='#1a1a1a'
-                    borderRadius='lg'
-                    cursor='pointer'
-                    _hover={{
-                      bg: '#2a2a2a',
-                      transform: 'translateX(4px)',
-                    }}
-                    transition='all 0.2s'
-                    onClick={() => handleSubjectClick(subject.title)}
-                  >
-                    <Box flex='1'>
-                      <Text fontWeight='semibold' mb={1} color='white'>
-                        {subject.title}
-                      </Text>
-                      <Text fontSize='sm' color='gray.400'>
-                        {subject.summary}
-                      </Text>
-                      <Text fontSize='xs' color='gray.500' mt={1}>
-                        Click to view → /subject/{createSlug(subject.title)}
-                      </Text>
-                    </Box>
-                    <FiChevronRight size={20} color='blue.400' />
-                  </HStack>
-                ))}
-              </VStack>
-            </Card.Body>
-          </Card.Root>
+          {subjects.length > 0 && (
+            <Card.Root bg='black'>
+              <Card.Body p={6}>
+                <Heading as='h2' size='lg' mb={4} color='white'>
+                  Subjects related to "{searchQuery}" ({subjects.length})
+                </Heading>
+                <VStack gap={3} align='stretch'>
+                  {subjects.slice(0, 10).map((subject) => (
+                    <HStack
+                      key={subject._id.$oid}
+                      justify='space-between'
+                      p={4}
+                      bg='#1a1a1a'
+                      borderRadius='lg'
+                      cursor='pointer'
+                      _hover={{
+                        bg: '#2a2a2a',
+                        transform: 'translateX(4px)',
+                      }}
+                      transition='all 0.2s'
+                      onClick={() => handleSubjectClick(subject.ent_name)}
+                    >
+                      <Box flex='1'>
+                        <Text fontWeight='semibold' mb={1} color='white'>
+                          {subject.ent_name}
+                        </Text>
+                        <Text fontSize='sm' color='gray.400'>
+                          {(subject.ent_summary &&
+                            subject.ent_summary.substring(0, 150) + '...') ||
+                            'No description available'}
+                        </Text>
+                        <Text fontSize='xs' color='gray.500' mt={1}>
+                          Click to view → /subject/
+                          {createSlug(subject.ent_name)}
+                        </Text>
+                      </Box>
+                      <FiChevronRight size={20} color='blue.400' />
+                    </HStack>
+                  ))}
+                </VStack>
+              </Card.Body>
+            </Card.Root>
+          )}
+
+          {/* Similar Subjects */}
+          {similarSubjects.length > 0 && (
+            <Card.Root bg='black'>
+              <Card.Body p={6}>
+                <Heading as='h2' size='lg' mb={4} color='white'>
+                  Similar Subjects ({similarSubjects.length})
+                </Heading>
+                <VStack gap={3} align='stretch'>
+                  {similarSubjects.map((subject) => (
+                    <HStack
+                      key={subject._id.$oid}
+                      justify='space-between'
+                      p={4}
+                      bg='#1a1a1a'
+                      borderRadius='lg'
+                      cursor='pointer'
+                      _hover={{
+                        bg: '#2a2a2a',
+                        transform: 'translateX(4px)',
+                      }}
+                      transition='all 0.2s'
+                      onClick={() => handleSubjectClick(subject.ent_name)}
+                    >
+                      <Box flex='1'>
+                        <HStack justify='space-between' align='center'>
+                          <Text fontWeight='semibold' color='white'>
+                            {subject.ent_name}
+                          </Text>
+                          <Text
+                            fontSize='sm'
+                            color='green.400'
+                            fontWeight='bold'
+                          >
+                            {subject.percent.toFixed(1)}% match
+                          </Text>
+                        </HStack>
+                        <Text fontSize='xs' color='gray.500' mt={1}>
+                          Click to view → /subject/
+                          {createSlug(subject.ent_name)}
+                        </Text>
+                      </Box>
+                      <FiChevronRight size={20} color='blue.400' />
+                    </HStack>
+                  ))}
+                </VStack>
+              </Card.Body>
+            </Card.Root>
+          )}
 
           {/* Analysis Results */}
-          <Card.Root bg='black'>
-            <Card.Body p={6}>
-              <HStack gap={2} mb={4}>
-                <FiExternalLink size={20} />
-                <Heading as='h2' size='lg'>
-                  Analysis Results
-                </Heading>
-              </HStack>
-              <VStack gap={3} align='stretch'>
-                {analysisResults.map((analysis) => (
-                  <HStack
-                    key={analysis.id}
-                    justify='space-between'
-                    p={4}
-                    bg='#1a1a1a'
-                    borderRadius='lg'
-                    cursor='pointer'
-                    _hover={{ bg: '#2a2a2a' }}
-                    transition='all 0.2s'
-                    onClick={() => handleItemClick('analysis', analysis)}
-                  >
-                    <Box flex='1'>
-                      <Text fontWeight='semibold' mb={1} color='white'>
-                        {analysis.title}
-                      </Text>
-                      <Text fontSize='sm' color='gray.400'>
-                        {analysis.summary}
-                      </Text>
-                    </Box>
-                    <FiChevronRight size={20} color='gray.400' />
-                  </HStack>
-                ))}
-              </VStack>
-            </Card.Body>
-          </Card.Root>
+          {analyses.length > 0 && (
+            <Card.Root bg='black'>
+              <Card.Body p={6}>
+                <HStack gap={2} mb={4}>
+                  <FiExternalLink size={20} color='white' />
+                  <Heading as='h2' size='lg' color='white'>
+                    Analysis Results ({analyses.length})
+                  </Heading>
+                </HStack>
+                <VStack gap={3} align='stretch'>
+                  {analyses.map((analysis) => (
+                    <HStack
+                      key={analysis._id.$oid}
+                      justify='space-between'
+                      p={4}
+                      bg='#1a1a1a'
+                      borderRadius='lg'
+                      cursor='pointer'
+                      _hover={{ bg: '#2a2a2a' }}
+                      transition='all 0.2s'
+                      onClick={() => handleAnalysisClick(analysis)}
+                    >
+                      <Box flex='1'>
+                        <HStack justify='space-between' align='start' mb={2}>
+                          <Text fontWeight='semibold' color='white'>
+                            {analysis.ent_name}
+                          </Text>
+                          <Text
+                            fontSize='xs'
+                            color='gray.500'
+                            textTransform='uppercase'
+                          >
+                            {analysis.status}
+                          </Text>
+                        </HStack>
+                        <Text fontSize='sm' color='gray.400' mb={2}>
+                          {analysis.ent_summary}
+                        </Text>
+                        <HStack gap={4}>
+                          <Text fontSize='xs' color='gray.500'>
+                            Lab: {analysis.lab_id.toUpperCase()}
+                          </Text>
+                          <Text fontSize='xs' color='gray.500'>
+                            Start: {analysis.ent_start}
+                          </Text>
+                          {analysis.ent_inventors && (
+                            <Text fontSize='xs' color='gray.500'>
+                              By: {analysis.ent_inventors}
+                            </Text>
+                          )}
+                        </HStack>
+                      </Box>
+                      <FiChevronRight size={20} color='gray.400' />
+                    </HStack>
+                  ))}
+                </VStack>
+              </Card.Body>
+            </Card.Root>
+          )}
 
           {/* Organization Results */}
-          <Card.Root bg='black'>
-            <Card.Body p={6}>
-              <HStack gap={2} mb={4}>
-                <Box as='span' fontSize='lg'>
-                  🏢
-                </Box>
-                <Heading as='h2' size='lg'>
-                  Organizations
-                </Heading>
-              </HStack>
-              <VStack gap={3} align='stretch'>
-                {organizationResults.map((org) => (
-                  <HStack
-                    key={org.id}
-                    justify='space-between'
-                    p={4}
-                    bg='#1a1a1a'
-                    borderRadius='lg'
-                    cursor='pointer'
-                    _hover={{ bg: '#2a2a2a' }}
-                    transition='all 0.2s'
-                    onClick={() => handleItemClick('organization', org)}
-                  >
-                    <Box flex='1'>
-                      <Text fontWeight='semibold' mb={1} color='white'>
-                        {org.title}
-                      </Text>
-                      <Text fontSize='sm' color='gray.400'>
-                        {org.summary}
-                      </Text>
-                    </Box>
-                    <FiChevronRight size={20} color='gray.400' />
-                  </HStack>
-                ))}
-              </VStack>
-            </Card.Body>
-          </Card.Root>
+          {organizations.length > 0 && (
+            <Card.Root bg='black'>
+              <Card.Body p={6}>
+                <HStack gap={2} mb={4}>
+                  <Box as='span' fontSize='lg'>
+                    🏢
+                  </Box>
+                  <Heading as='h2' size='lg' color='white'>
+                    Organizations ({organizations.length})
+                  </Heading>
+                </HStack>
+                <VStack gap={3} align='stretch'>
+                  {organizations.map((org) => (
+                    <HStack
+                      key={org._id.$oid}
+                      justify='space-between'
+                      p={4}
+                      bg='#1a1a1a'
+                      borderRadius='lg'
+                      cursor='pointer'
+                      _hover={{ bg: '#2a2a2a' }}
+                      transition='all 0.2s'
+                      onClick={() => handleOrganizationClick(org)}
+                    >
+                      <Box flex='1'>
+                        <Text fontWeight='semibold' mb={1} color='white'>
+                          {org.ent_name}
+                        </Text>
+                        <Text fontSize='xs' color='gray.500'>
+                          ID: {org.ent_fsid}
+                        </Text>
+                      </Box>
+                      <FiChevronRight size={20} color='gray.400' />
+                    </HStack>
+                  ))}
+                </VStack>
+              </Card.Body>
+            </Card.Root>
+          )}
         </VStack>
       </Box>
     </Box>

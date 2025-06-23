@@ -285,28 +285,30 @@
   position: absolute;
   bottom: 10px;
   right: 10px;
-  z-index: 100;
-  padding: 8px;
-  border-radius: 4px;
+  z-index: 300;
+  padding: 12px;
+  border-radius: 6px;
   backdrop-filter: blur(3px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   max-width: 200px;
+  max-height: 50vh;
+  overflow-y: auto;
 }
 
 .network-graph-container .fullscreen-legend.dark {
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.8);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .network-graph-container .fullscreen-legend.light {
-  background-color: rgba(240, 240, 240, 0.8);
+  background-color: rgba(255, 255, 255, 0.9);
   color: black;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .network-graph-container .legend-item {
@@ -314,9 +316,10 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.2s;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
 }
 
 .network-graph-container .legend-item:hover.dark {
@@ -328,62 +331,77 @@
 }
 
 .network-graph-container .legend-color-box {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .network-graph-container .legend-label {
   font-size: 0.85rem;
+  font-weight: 500;
 }
 
 .network-graph-container .legend-item-unselected {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
+.network-graph-container .legend-item-unselected:hover {
+  opacity: 0.7;
+}
+
+/* Node info display styles */
 .network-graph-container .node-info-display {
   position: absolute;
   bottom: 10px;
   left: 10px;
-  z-index: 100;
-  padding: 8px;
-  border-radius: 4px;
+  z-index: 300;
+  padding: 12px;
+  border-radius: 6px;
   backdrop-filter: blur(3px);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 200px;
-  height: 110px;
+  width: 250px;
+  min-height: 120px;
+  max-height: 200px;
   overflow: hidden;
 }
 
 .network-graph-container .node-info-display.dark {
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.8);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .network-graph-container .node-info-display.light {
-  background-color: rgba(240, 240, 240, 0.8);
+  background-color: rgba(255, 255, 255, 0.9);
   color: black;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .network-graph-container .node-info-display .node-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 4px;
 }
 
 .network-graph-container .node-info-display .node-type {
   font-weight: bold;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .network-graph-container .node-info-display .node-name {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -391,26 +409,53 @@
   box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
-  max-height: 2.7rem;
 }
 
 .network-graph-container .node-info-display .node-date {
   font-size: 0.75rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
 }
 
-.network-graph-container .node-info-display .snapshot-link {
+.network-graph-container .node-info-display .node-hint {
   font-size: 0.75rem;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  opacity: 0.7;
+  font-style: italic;
 }
 
-.network-graph-container .node-info-display .snapshot-link.dark {
-  color: #8ac926;
+/* Scroll control indicators */
+.network-graph-container .scroll-control-indicator,
+.network-graph-container .scroll-hint {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
-.network-graph-container .node-info-display .snapshot-link.light {
-  color: #067a46;
+.network-graph-container .scroll-hint {
+  animation: fadeIn 0.5s ease-in-out, pulse 2s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 0.8;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.network-graph-container .scroll-control-indicator button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
 }

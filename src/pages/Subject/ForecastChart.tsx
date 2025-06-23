@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import {
+  useState,
+  useCallback,
+  useEffect,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   Box,
   Button,
@@ -7,26 +13,26 @@ import {
   HStack,
   VStack,
   Text,
-  Input,
   Table,
   Spinner,
   IconButton,
   Popover,
 } from '@chakra-ui/react';
-import { FiInfo, FiSearch } from 'react-icons/fi';
+import { FiInfo } from 'react-icons/fi';
 import Plot from 'react-plotly.js';
 import type { Data, Layout } from 'plotly.js';
 import ChartErrorBoundary from './ChartErrorBoundary';
+import { useTheme } from '../../context/ThemeContext';
 
 // TypeScript interfaces
 type ForecastType = 'Organizations' | 'Press' | 'Patents' | 'Papers' | 'Books';
 
 interface ForecastData {
-  rows?: any[];
+  rows?: unknown[];
   count?: number;
   plot_layout: Partial<Layout>;
   plot_data: Partial<Data>[];
-  referrer?: any;
+  referrer?: unknown;
 }
 
 interface TableRow {
@@ -55,7 +61,7 @@ interface TableData {
   recordsTotal: number;
   recordsFiltered: number;
   debug: {
-    raw_found: any[];
+    raw_found: unknown[];
     mongo_query_size: number;
     mongo_query_count: number;
     mongo_count: number;
@@ -71,6 +77,12 @@ interface PaginationParams {
 
 interface ForecastChartProps {
   subjectSlug: string;
+  initialSelectedType?: ForecastType; // NEW: Allow setting initial tab
+}
+
+// Define the ref interface for external control
+export interface ForecastChartRef {
+  setSelectedType: (type: ForecastType) => void;
 }
 
 // Source type mapping for API calls
@@ -96,415 +108,490 @@ const infoTexts: Record<ForecastType, string> = {
     'Books and publications provide comprehensive knowledge and educational resources in a field. The graph and table below show books related to this space.',
 };
 
-const ForecastChart: React.FC<ForecastChartProps> = ({ subjectSlug }) => {
-  const [selectedType, setSelectedType] = useState<ForecastType>('Press');
-  const [forecastData, setForecastData] = useState<ForecastData | null>(null);
-  const [tableData, setTableData] = useState<TableData | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [loadingChart, setLoadingChart] = useState<boolean>(false);
-  const [pagination, setPagination] = useState<PaginationParams>({
-    page: 0,
-    pageSize: 10,
-    searchTerm: '',
-  });
-  const [searchInput, setSearchInput] = useState<string>('');
+const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
+  ({ subjectSlug, initialSelectedType }, ref) => {
+    const theme = useTheme();
+    const [selectedType, setSelectedType] = useState<ForecastType>(
+      initialSelectedType || 'Organizations'
+    );
+    const [forecastData, setForecastData] = useState<ForecastData | null>(null);
+    const [tableData, setTableData] = useState<TableData | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [loadingChart, setLoadingChart] = useState<boolean>(false);
+    const [pagination, setPagination] = useState<PaginationParams>({
+      page: 0,
+      pageSize: 10,
+      searchTerm: '',
+    });
 
-  // Fetch forecast chart data
-  const fetchForecastData = useCallback(
-    async (type: ForecastType): Promise<void> => {
-      if (!subjectSlug) return;
+    // Expose methods via ref for external control
+    useImperativeHandle(ref, () => ({
+      setSelectedType: (type: ForecastType) => {
+        handleTypeChange(type);
+      },
+    }));
 
-      setLoadingChart(true);
-
-      try {
-        const sourceType = sourceTypeMapping[type];
-        const response = await fetch(
-          `https://tools.futurity.science/api/subject/get-source-forecast-plot?slug=${subjectSlug}&source_type=${sourceType}`,
-          {
-            headers: {
-              Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data: ForecastData = await response.json();
-        setForecastData(data);
-      } catch (err) {
-        console.error('Failed to fetch forecast data:', err);
-        // Set empty data on error to prevent infinite loading
-        setForecastData({
-          plot_layout: {
-            margin: { t: 80, r: 40, b: 80, l: 60 },
-            yaxis: { title: `Number of ${type}` },
-          } as Partial<Layout>,
-          plot_data: [] as Partial<Data>[],
-        });
-      } finally {
-        setLoadingChart(false);
+    // Update selected type when initialSelectedType prop changes
+    useEffect(() => {
+      if (initialSelectedType && initialSelectedType !== selectedType) {
+        setSelectedType(initialSelectedType);
+        const newPagination = { ...pagination, page: 0 };
+        setPagination(newPagination);
+        fetchForecastData(initialSelectedType);
+        fetchTableData(initialSelectedType, newPagination);
       }
-    },
-    [subjectSlug]
-  );
+    }, [initialSelectedType]);
 
-  // Fetch table data
-  const fetchTableData = useCallback(
-    async (type: ForecastType, params: PaginationParams): Promise<void> => {
-      if (!subjectSlug) return;
+    // Fetch forecast chart data
+    const fetchForecastData = useCallback(
+      async (type: ForecastType): Promise<void> => {
+        if (!subjectSlug) return;
 
-      setLoading(true);
+        setLoadingChart(true);
 
-      try {
-        const sourceType = sourceTypeMapping[type];
-        const start = params.page * params.pageSize;
-        const searchParam = params.searchTerm
-          ? `&search=${encodeURIComponent(params.searchTerm)}`
-          : '';
+        try {
+          const sourceType = sourceTypeMapping[type];
+          const response = await fetch(
+            `https://tools.futurity.science/api/subject/get-source-forecast-plot?slug=${subjectSlug}&source_type=${sourceType}`,
+            {
+              headers: {
+                Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+                'Content-Type': 'application/json',
+              },
+            }
+          );
 
-        const response = await fetch(
-          `https://tools.futurity.science/api/subject/get-source-table-paginated?slug=${subjectSlug}&source_type=${sourceType}&start=${start}&length=${params.pageSize}${searchParam}`,
-          {
-            headers: {
-              Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
-              'Content-Type': 'application/json',
-            },
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
-        );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const data: ForecastData = await response.json();
+          setForecastData(data);
+        } catch (err) {
+          console.error('Failed to fetch forecast data:', err);
+          // Set empty data on error to prevent infinite loading
+          setForecastData({
+            plot_layout: {
+              margin: { t: 80, r: 40, b: 80, l: 60 },
+              yaxis: { title: `Number of ${type}` },
+            } as Partial<Layout>,
+            plot_data: [] as Partial<Data>[],
+          });
+        } finally {
+          setLoadingChart(false);
         }
+      },
+      [subjectSlug]
+    );
 
-        const data: TableData = await response.json();
-        setTableData(data);
-      } catch (err) {
-        console.error('Failed to fetch table data:', err);
-        // Set empty data on error
-        setTableData({
-          rows: [],
-          count: 0,
-          draw: null,
-          data: [],
-          recordsTotal: 0,
-          recordsFiltered: 0,
-          debug: {
-            raw_found: [],
-            mongo_query_size: 0,
-            mongo_query_count: 0,
-            mongo_count: 0,
-            fields_integrity: {},
-          },
-        });
-      } finally {
-        setLoading(false);
+    // Fetch table data
+    const fetchTableData = useCallback(
+      async (type: ForecastType, params: PaginationParams): Promise<void> => {
+        if (!subjectSlug) return;
+
+        setLoading(true);
+
+        try {
+          const sourceType = sourceTypeMapping[type];
+          const start = params.page * params.pageSize;
+          const searchParam = params.searchTerm
+            ? `&search=${encodeURIComponent(params.searchTerm)}`
+            : '';
+
+          const response = await fetch(
+            `https://tools.futurity.science/api/subject/get-source-table-paginated?slug=${subjectSlug}&source_type=${sourceType}&start=${start}&length=${params.pageSize}${searchParam}`,
+            {
+              headers: {
+                Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data: TableData = await response.json();
+          setTableData(data);
+        } catch (err) {
+          console.error('Failed to fetch table data:', err);
+          // Set empty data on error
+          setTableData({
+            rows: [],
+            count: 0,
+            draw: null,
+            data: [],
+            recordsTotal: 0,
+            recordsFiltered: 0,
+            debug: {
+              raw_found: [],
+              mongo_query_size: 0,
+              mongo_query_count: 0,
+              mongo_count: 0,
+              fields_integrity: {},
+            },
+          });
+        } finally {
+          setLoading(false);
+        }
+      },
+      [subjectSlug]
+    );
+
+    // Handle type selection
+    const handleTypeChange = (type: ForecastType): void => {
+      setSelectedType(type);
+      const newPagination = { ...pagination, page: 0 };
+      setPagination(newPagination);
+      fetchForecastData(type);
+      fetchTableData(type, newPagination);
+    };
+
+    // Handle search - keeping function but not using it
+    // const handleSearch = (): void => {
+    //   const newParams = { ...pagination, page: 0, searchTerm: searchInput };
+    //   setPagination(newParams);
+    //   fetchTableData(selectedType, newParams);
+    // };
+
+    // Handle page size change
+    const handlePageSizeChange = (newSize: number): void => {
+      const newParams = { ...pagination, pageSize: newSize, page: 0 };
+      setPagination(newParams);
+      fetchTableData(selectedType, newParams);
+    };
+
+    // Handle pagination
+    const handlePageChange = (newPage: number): void => {
+      const newParams = { ...pagination, page: newPage };
+      setPagination(newParams);
+      fetchTableData(selectedType, newParams);
+    };
+
+    // Initialize with first load
+    useEffect(() => {
+      if (subjectSlug) {
+        fetchForecastData(selectedType);
+        fetchTableData(selectedType, pagination);
       }
-    },
-    [subjectSlug]
-  );
+    }, [subjectSlug, fetchForecastData, fetchTableData]);
 
-  // Handle type selection
-  const handleTypeChange = (type: ForecastType): void => {
-    setSelectedType(type);
-    const newPagination = { ...pagination, page: 0 };
-    setPagination(newPagination);
-    fetchForecastData(type);
-    fetchTableData(type, newPagination);
-  };
+    // Calculate pagination info
+    const totalPages = tableData
+      ? Math.ceil(tableData.recordsFiltered / pagination.pageSize)
+      : 0;
+    const currentStart = pagination.page * pagination.pageSize + 1;
+    const currentEnd = Math.min(
+      (pagination.page + 1) * pagination.pageSize,
+      tableData?.recordsFiltered || 0
+    );
 
-  // Handle search
-  const handleSearch = (): void => {
-    const newParams = { ...pagination, page: 0, searchTerm: searchInput };
-    setPagination(newParams);
-    fetchTableData(selectedType, newParams);
-  };
+    // Theme-aware plot layout
+    const getThemedPlotLayout = (layout: Partial<Layout>): Partial<Layout> => ({
+      ...layout,
+      paper_bgcolor: theme.isDark ? '#111111' : '#FAFAFA',
+      plot_bgcolor: theme.isDark ? '#1a1a1a' : '#FFFFFF',
+      font: {
+        color: theme.isDark ? '#FFFFFF' : '#1B1B1D',
+      },
+      xaxis: {
+        ...layout.xaxis,
+        gridcolor: theme.isDark ? '#333333' : '#E0E0E0',
+        linecolor: theme.isDark ? '#333333' : '#E0E0E0',
+        tickcolor: theme.isDark ? '#333333' : '#E0E0E0',
+        title: {
+          ...layout.xaxis?.title,
+          font: { color: theme.isDark ? '#FFFFFF' : '#1B1B1D' },
+        },
+        tickfont: { color: theme.isDark ? '#FFFFFF' : '#1B1B1D' },
+      },
+      yaxis: {
+        ...layout.yaxis,
+        gridcolor: theme.isDark ? '#333333' : '#E0E0E0',
+        linecolor: theme.isDark ? '#333333' : '#E0E0E0',
+        tickcolor: theme.isDark ? '#333333' : '#E0E0E0',
+        title: {
+          ...layout.yaxis?.title,
+          font: { color: theme.isDark ? '#FFFFFF' : '#1B1B1D' },
+        },
+        tickfont: { color: theme.isDark ? '#FFFFFF' : '#1B1B1D' },
+      },
+    });
 
-  // Handle page size change
-  const handlePageSizeChange = (newSize: number): void => {
-    const newParams = { ...pagination, pageSize: newSize, page: 0 };
-    setPagination(newParams);
-    fetchTableData(selectedType, newParams);
-  };
+    return (
+      <Card.Root width='100%' mt={6} bg='bg.canvas'>
+        <Card.Body p={6}>
+          <VStack gap={6} align='stretch'>
+            {/* Header */}
+            <Heading as='h2' size='lg' color='fg'>
+              Source Plot
+            </Heading>
 
-  // Handle pagination
-  const handlePageChange = (newPage: number): void => {
-    const newParams = { ...pagination, page: newPage };
-    setPagination(newParams);
-    fetchTableData(selectedType, newParams);
-  };
-
-  // Initialize with first load
-  useEffect(() => {
-    if (subjectSlug) {
-      fetchForecastData(selectedType);
-      fetchTableData(selectedType, pagination);
-    }
-  }, [subjectSlug, fetchForecastData, fetchTableData, selectedType]);
-
-  // Calculate pagination info
-  const totalPages = tableData
-    ? Math.ceil(tableData.recordsFiltered / pagination.pageSize)
-    : 0;
-  const currentStart = pagination.page * pagination.pageSize + 1;
-  const currentEnd = Math.min(
-    (pagination.page + 1) * pagination.pageSize,
-    tableData?.recordsFiltered || 0
-  );
-
-  return (
-    <Card.Root width='100%' mt={6}>
-      <Card.Body p={6}>
-        <VStack gap={6} align='stretch'>
-          {/* Header */}
-          <Heading as='h2' size='lg'>
-            Forecast Analysis
-          </Heading>
-
-          {/* Type Selection Buttons */}
-          <HStack gap={2} wrap='wrap'>
-            {(Object.keys(infoTexts) as ForecastType[]).map((type) => (
-              <HStack key={type} gap={1}>
-                <Button
-                  size='sm'
-                  variant={selectedType === type ? 'solid' : 'outline'}
-                  colorScheme={selectedType === type ? 'blue' : 'gray'}
-                  onClick={() => handleTypeChange(type)}
-                >
-                  {type}
-                </Button>
-                <Popover.Root>
-                  <Popover.Trigger asChild>
-                    <IconButton
-                      size='sm'
-                      variant='ghost'
-                      aria-label={`Info about ${type}`}
-                    >
-                      <FiInfo size={14} />
-                    </IconButton>
-                  </Popover.Trigger>
-                  <Popover.Positioner>
-                    <Popover.Content>
-                      <Popover.Arrow />
-                      <Popover.Body>
-                        <Text fontSize='sm' maxW='300px'>
-                          {infoTexts[type]}
-                        </Text>
-                      </Popover.Body>
-                    </Popover.Content>
-                  </Popover.Positioner>
-                </Popover.Root>
-              </HStack>
-            ))}
-          </HStack>
-
-          {/* Graph */}
-          <ChartErrorBoundary
-            chartName={`${selectedType} Forecast Chart`}
-            fallbackHeight='400px'
-          >
-            {loadingChart ? (
-              <Box
-                height='400px'
-                display='flex'
-                alignItems='center'
-                justifyContent='center'
-              >
-                <VStack gap={2}>
-                  <Spinner size='lg' />
-                  <Text color='gray.500'>Loading chart data...</Text>
-                </VStack>
-              </Box>
-            ) : forecastData ? (
-              <Plot
-                data={forecastData.plot_data as Data[]}
-                layout={
-                  {
-                    ...forecastData.plot_layout,
-                    autosize: true,
-                    height: 400,
-                  } as Partial<Layout>
-                }
-                style={{ width: '100%', height: '400px' }}
-                config={{
-                  displayModeBar: true,
-                  displaylogo: false,
-                  modeBarButtonsToRemove: [
-                    'pan2d',
-                    'lasso2d',
-                    'select2d',
-                    'autoScale2d',
-                    'hoverClosestCartesian',
-                    'hoverCompareCartesian',
-                    'toggleSpikelines',
-                  ],
-                }}
-              />
-            ) : (
-              <Box
-                height='400px'
-                display='flex'
-                alignItems='center'
-                justifyContent='center'
-              >
-                <Text color='gray.500'>No chart data available</Text>
-              </Box>
-            )}
-          </ChartErrorBoundary>
-
-          {/* Table Section */}
-          <VStack gap={4} align='stretch'>
-            {/* Table Controls */}
-            <HStack justify='space-between' wrap='wrap'>
-              <HStack gap={2}>
-                <Text fontSize='sm' color='gray.600'>
-                  Show:
-                </Text>
-                <select
-                  value={pagination.pageSize}
-                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    border: '1px solid #E2E8F0',
-                    fontSize: '14px',
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <Text fontSize='sm' color='gray.600'>
-                  entries
-                </Text>
-              </HStack>
-
-              <HStack gap={2}>
-                <Text fontSize='sm' color='gray.600'>
-                  Search:
-                </Text>
-                <Input
-                  size='sm'
-                  placeholder='Enter search term...'
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  maxW='200px'
-                />
-                <IconButton
-                  size='sm'
-                  variant='outline'
-                  onClick={handleSearch}
-                  aria-label='Search'
-                >
-                  <FiSearch size={14} />
-                </IconButton>
-              </HStack>
+            {/* Type Selection Buttons */}
+            <HStack gap={2} wrap='wrap'>
+              {(Object.keys(infoTexts) as ForecastType[]).map((type) => (
+                <HStack key={type} gap={1}>
+                  <Button
+                    size='sm'
+                    onClick={() => handleTypeChange(type)}
+                    bg={selectedType === type ? 'fg' : 'bg.canvas'}
+                    color={selectedType === type ? 'bg.canvas' : 'fg'}
+                    borderWidth='1px'
+                    borderStyle='solid'
+                    borderColor={
+                      selectedType === type ? 'fg' : 'border.emphasized'
+                    }
+                    _hover={{
+                      bg: selectedType === type ? 'fg' : 'bg.hover',
+                      color: selectedType === type ? 'bg.canvas' : 'fg',
+                      opacity: selectedType === type ? 0.9 : 1,
+                    }}
+                  >
+                    {type}
+                  </Button>
+                  <Popover.Root>
+                    <Popover.Trigger asChild>
+                      <IconButton
+                        size='sm'
+                        variant='ghost'
+                        aria-label={`Info about ${type}`}
+                      >
+                        <FiInfo size={14} />
+                      </IconButton>
+                    </Popover.Trigger>
+                    <Popover.Positioner>
+                      <Popover.Content>
+                        <Popover.Arrow />
+                        <Popover.Body>
+                          <Text fontSize='sm' maxW='300px'>
+                            {infoTexts[type]}
+                          </Text>
+                        </Popover.Body>
+                      </Popover.Content>
+                    </Popover.Positioner>
+                  </Popover.Root>
+                </HStack>
+              ))}
             </HStack>
 
-            {/* Table */}
-            <Box position='relative'>
-              {loading && (
+            {/* Graph */}
+            <ChartErrorBoundary
+              chartName={`${selectedType} Forecast Chart`}
+              fallbackHeight='400px'
+            >
+              {loadingChart ? (
                 <Box
-                  position='absolute'
-                  top='0'
-                  left='0'
-                  right='0'
-                  bottom='0'
-                  bg='rgba(255,255,255,0.8)'
+                  height='400px'
                   display='flex'
                   alignItems='center'
                   justifyContent='center'
-                  zIndex='1'
                 >
-                  <Spinner size='lg' />
+                  <VStack gap={2}>
+                    <Spinner size='lg' />
+                    <Text color='gray.500'>Loading chart data...</Text>
+                  </VStack>
+                </Box>
+              ) : forecastData ? (
+                <Plot
+                  data={forecastData.plot_data as Data[]}
+                  layout={
+                    getThemedPlotLayout({
+                      ...forecastData.plot_layout,
+                      autosize: true,
+                      height: 400,
+                    }) as Partial<Layout>
+                  }
+                  style={{ width: '100%', height: '400px' }}
+                  config={{
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: [
+                      'pan2d',
+                      'lasso2d',
+                      'select2d',
+                      'autoScale2d',
+                      'hoverClosestCartesian',
+                      'hoverCompareCartesian',
+                      'toggleSpikelines',
+                    ],
+                  }}
+                />
+              ) : (
+                <Box
+                  height='400px'
+                  display='flex'
+                  alignItems='center'
+                  justifyContent='center'
+                >
+                  <Text color='gray.500'>No chart data available</Text>
                 </Box>
               )}
+            </ChartErrorBoundary>
 
-              <Table.Root size='sm'>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.ColumnHeader width='80px'>Year</Table.ColumnHeader>
-                    <Table.ColumnHeader>Name & Description</Table.ColumnHeader>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {tableData && tableData.data.length > 0 ? (
-                    tableData.data.map((row, index) => (
-                      <Table.Row key={index}>
-                        <Table.Cell>
-                          <div dangerouslySetInnerHTML={{ __html: row[0] }} />
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Box
-                            overflow='hidden'
-                            display='-webkit-box'
-                            style={{
-                              WebkitLineClamp: 1, // Limit to 3 lines
-                              WebkitBoxOrient: 'vertical',
-                            }}
-                            title={row[1]?.replace(/<[^>]*>/g, '')} // Show full text on hover (strip HTML)
-                          >
-                            <div dangerouslySetInnerHTML={{ __html: row[1] }} />
-                          </Box>
+            {/* Table Section */}
+            <VStack gap={4} align='stretch'>
+              {/* Table Controls */}
+              <HStack justify='space-between' wrap='wrap'>
+                <HStack gap={2}>
+                  <Text fontSize='sm' color='gray.600'>
+                    Show:
+                  </Text>
+                  <select
+                    value={pagination.pageSize}
+                    onChange={(e) =>
+                      handlePageSizeChange(Number(e.target.value))
+                    }
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <Text fontSize='sm' color='gray.600'>
+                    entries
+                  </Text>
+                </HStack>
+
+                {/* COMMENTED OUT SEARCH FUNCTIONALITY */}
+                {/*
+                <HStack gap={2}>
+                  <Text fontSize='sm' color='gray.600'>
+                    Search:
+                  </Text>
+                  <Input
+                    size='sm'
+                    placeholder='Enter search term...'
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    maxW='200px'
+                  />
+                  <IconButton
+                    size='sm'
+                    variant='outline'
+                    onClick={handleSearch}
+                    aria-label='Search'
+                  >
+                    <FiSearch size={14} />
+                  </IconButton>
+                </HStack>
+                */}
+              </HStack>
+
+              {/* Table */}
+              <Box position='relative'>
+                {loading && (
+                  <Box
+                    position='absolute'
+                    top='0'
+                    left='0'
+                    right='0'
+                    bottom='0'
+                    bg='rgba(255,255,255,0.8)'
+                    display='flex'
+                    alignItems='center'
+                    justifyContent='center'
+                    zIndex='1'
+                  >
+                    <Spinner size='lg' />
+                  </Box>
+                )}
+
+                <Table.Root size='sm'>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.ColumnHeader width='80px'>Year</Table.ColumnHeader>
+                      <Table.ColumnHeader>
+                        Name & Description
+                      </Table.ColumnHeader>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {tableData && tableData.data.length > 0 ? (
+                      tableData.data.map((row, index) => (
+                        <Table.Row key={index}>
+                          <Table.Cell>
+                            <div dangerouslySetInnerHTML={{ __html: row[0] }} />
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Box
+                              overflow='hidden'
+                              display='-webkit-box'
+                              style={{
+                                WebkitLineClamp: 1, // Limit to 3 lines
+                                WebkitBoxOrient: 'vertical',
+                              }}
+                              title={row[1]?.replace(/<[^>]*>/g, '')} // Show full text on hover (strip HTML)
+                            >
+                              <div
+                                dangerouslySetInnerHTML={{ __html: row[1] }}
+                              />
+                            </Box>
+                          </Table.Cell>
+                        </Table.Row>
+                      ))
+                    ) : (
+                      <Table.Row>
+                        <Table.Cell colSpan={2}>
+                          <Text textAlign='center' color='gray.500'>
+                            {loading ? 'Loading...' : 'No data available'}
+                          </Text>
                         </Table.Cell>
                       </Table.Row>
-                    ))
-                  ) : (
-                    <Table.Row>
-                      <Table.Cell colSpan={2}>
-                        <Text textAlign='center' color='gray.500'>
-                          {loading ? 'Loading...' : 'No data available'}
-                        </Text>
-                      </Table.Cell>
-                    </Table.Row>
-                  )}
-                </Table.Body>
-              </Table.Root>
-            </Box>
+                    )}
+                  </Table.Body>
+                </Table.Root>
+              </Box>
 
-            {/* Table Info and Pagination */}
-            {tableData && (
-              <HStack justify='space-between'>
-                <Text fontSize='sm' color='gray.600'>
-                  Showing {currentStart} to {currentEnd} of{' '}
-                  {tableData.recordsFiltered} entries
-                  {pagination.searchTerm &&
-                    ` (filtered from ${tableData.recordsTotal} total entries)`}
-                </Text>
-
-                {/* Pagination Controls */}
-                <HStack gap={2}>
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={pagination.page === 0}
-                  >
-                    Previous
-                  </Button>
+              {/* Table Info and Pagination */}
+              {tableData && (
+                <HStack justify='space-between'>
                   <Text fontSize='sm' color='gray.600'>
-                    Page {pagination.page + 1} of {totalPages}
+                    Showing {currentStart} to {currentEnd} of{' '}
+                    {tableData.recordsFiltered} entries
+                    {pagination.searchTerm &&
+                      ` (filtered from ${tableData.recordsTotal} total entries)`}
                   </Text>
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={pagination.page >= totalPages - 1}
-                  >
-                    Next
-                  </Button>
+
+                  {/* Pagination Controls */}
+                  <HStack gap={2}>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page === 0}
+                    >
+                      Previous
+                    </Button>
+                    <Text fontSize='sm' color='gray.600'>
+                      Page {pagination.page + 1} of {totalPages}
+                    </Text>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page >= totalPages - 1}
+                    >
+                      Next
+                    </Button>
+                  </HStack>
                 </HStack>
-              </HStack>
-            )}
+              )}
+            </VStack>
           </VStack>
-        </VStack>
-      </Card.Body>
-    </Card.Root>
-  );
-};
+        </Card.Body>
+      </Card.Root>
+    );
+  }
+);
+
+ForecastChart.displayName = 'ForecastChart';
 
 export default ForecastChart;

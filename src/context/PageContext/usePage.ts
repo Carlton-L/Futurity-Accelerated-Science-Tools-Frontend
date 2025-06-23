@@ -11,15 +11,10 @@ export const usePage = (): PageContextType => {
   return context;
 };
 
-// Hook for easy context access in chat components with debugging
+// Hook for easy context access in chat components
 export const useChatContext = () => {
   const { pageContext, getContextForChat } = usePage();
-
-  console.log('🎯 useChatContext called');
-  console.log('🎯 pageContext from usePage:', pageContext);
-
   const contextString = getContextForChat();
-  console.log('🎯 contextString generated:', contextString);
 
   return {
     pageContext,

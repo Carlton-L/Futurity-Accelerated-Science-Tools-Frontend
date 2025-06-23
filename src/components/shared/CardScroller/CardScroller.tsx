@@ -67,28 +67,29 @@ const CardScroller: React.FC<CardScrollerProps> = ({
     <Box
       position='relative'
       border='1px solid'
-      borderColor='gray.100'
+      borderColor='border.muted' // Use semantic token instead of gray.100
       borderRadius='md'
       overflow='hidden'
       height={height}
+      bg='bg' // Use semantic app background
     >
       {isEmpty ? (
-        // Empty state
+        // Empty state - now uses theme-aware colors
         <Box
           height='100%'
           display='flex'
           alignItems='center'
           justifyContent='center'
-          bg='gray.50'
+          bg='bg.canvas' // Use semantic card background
         >
-          <Text color='gray.400' fontSize='sm' fontStyle='italic'>
+          <Text color='fg.muted' fontSize='sm' fontStyle='italic'>
             {emptyMessage}
           </Text>
         </Box>
       ) : (
         // Content with scroll controls
         <HStack height='100%' gap={0}>
-          {/* Left Scroll Button */}
+          {/* Left Scroll Button - now theme-aware */}
           <Button
             height='100%'
             width={`${buttonWidth}px`}
@@ -96,11 +97,14 @@ const CardScroller: React.FC<CardScrollerProps> = ({
             variant='ghost'
             onClick={() => scroll('left')}
             aria-label='Scroll left'
-            bg='rgba(255,255,255,0.9)'
-            _hover={{ bg: 'rgba(255,255,255,1)' }}
+            bg='bg.canvas' // Use semantic background
+            color='fg' // Use semantic text color
+            _hover={{
+              bg: 'bg.hover', // Use semantic hover background
+            }}
             _disabled={{
-              bg: 'gray.200',
-              color: 'gray.400',
+              bg: 'bg.canvas',
+              color: 'fg.muted',
               cursor: 'not-allowed',
               opacity: 0.6,
             }}
@@ -119,6 +123,7 @@ const CardScroller: React.FC<CardScrollerProps> = ({
             overflowY='hidden'
             p={padding}
             onScroll={updateScrollButtons}
+            bg='bg' // Use semantic app background for scroll area
             css={{
               '&::-webkit-scrollbar': {
                 display: 'none',
@@ -137,7 +142,7 @@ const CardScroller: React.FC<CardScrollerProps> = ({
             </HStack>
           </Box>
 
-          {/* Right Scroll Button */}
+          {/* Right Scroll Button - now theme-aware */}
           <Button
             height='100%'
             width={`${buttonWidth}px`}
@@ -145,11 +150,14 @@ const CardScroller: React.FC<CardScrollerProps> = ({
             variant='ghost'
             onClick={() => scroll('right')}
             aria-label='Scroll right'
-            bg='rgba(255,255,255,0.9)'
-            _hover={{ bg: 'rgba(255,255,255,1)' }}
+            bg='bg.canvas' // Use semantic background
+            color='fg' // Use semantic text color
+            _hover={{
+              bg: 'bg.hover', // Use semantic hover background
+            }}
             _disabled={{
-              bg: 'gray.200',
-              color: 'gray.400',
+              bg: 'bg.canvas',
+              color: 'fg.muted',
               cursor: 'not-allowed',
               opacity: 0.6,
             }}

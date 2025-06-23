@@ -1,14 +1,25 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import * as THREE from 'three';
 import * as d3 from 'd3';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - d3-force-3d doesn't have types
 import { forceX, forceY, forceZ, forceManyBody } from 'd3-force-3d';
 
-import ForceGraph3D from 'react-force-graph-3d'; //reference: https://github.com/vasturiano/react-force-graph?tab=readme-ov-file
+import ForceGraph3D from 'react-force-graph-3d';
 
 import './NetworkGraph.css';
 
-// Type for our nodes - you may need to adjust this based on your data structure
+// Type for our nodes
 interface NodeObject {
   id: number;
   name: string;
@@ -16,15 +27,15 @@ interface NodeObject {
   type: string;
   color: string;
   val: number;
-  // These will be added by the component:
   x?: number;
   y?: number;
   z?: number;
   layerPosition?: number;
   datePosition?: number;
+  slug?: string;
 }
 
-// Type for our links - you may need to adjust this based on your data structure
+// Type for our links
 interface LinkObject {
   source: number | NodeObject;
   target: number | NodeObject;
@@ -39,24 +50,42 @@ interface GraphData {
   links: LinkObject[];
 }
 
-// Define node colors
+interface NetworkGraphProps {
+  params: {
+    subject?: string;
+    subjects?: string;
+  };
+  backgroundColor?: string;
+  hoveredNodeType?: string; // Type of nodes to highlight
+}
+
+// Define the ref interface for external control
+export interface NetworkGraphRef {
+  highlightNodesByType: (nodeType: string | null) => void;
+  pulseNodesByType: (nodeType: string | null) => void;
+}
+
+// Updated node colors to match your theme
 const nodeColors: { [key: string]: string } = {
-  Book: '#FF595E',
-  Press: '#FF924C',
-  Paper: '#FFCA3A',
-  Subject: '#8AC926',
-  Patent: '#4C95C7',
+  Organization: '#E07B91',
+  Press: '#E69500',
+  Website: '#F2CD5D',
+  Patent: '#C3DE6D',
+  Paper: '#7CCBA2',
+  Book: '#46ACC8',
+  Challenge: '#3366FF',
+  'Sci-Fi': '#6A35D4',
+  Subject: '#0005E9',
   Product: '#6E3E99',
-  Organization: '#33F995',
   Taxonomy: '#FF6F61',
   People: '#6A0572',
-  // Default color for undefined types will be #999999
 };
 
 // Helper functions for grid and text visualization
 function makeText(
   text: string,
   position: [number, number, number],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   opts?: any
 ): THREE.Sprite {
   const parameters = opts || {};
@@ -65,25 +94,21 @@ function makeText(
   const spriteSize = parameters.spriteSize || 30;
   const fontColor = parameters.fontcolor || 'rgba(100, 100, 100, 0.8)';
 
-  // Create canvas
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d')!;
 
-  // Set font and measure text
   context.font = `${fontSize}px ${fontFace}`;
   const metrics = context.measureText(text);
   const textWidth = metrics.width;
   canvas.width = textWidth;
   canvas.height = textWidth;
 
-  // Draw text
   context.font = `${fontSize}px ${fontFace}`;
   context.fillStyle = fontColor;
   context.textAlign = 'center';
   context.textBaseline = 'top';
   context.fillText(text, canvas.width / 2, canvas.height / 2);
 
-  // Create texture and sprite
   const texture = new THREE.Texture(canvas);
   texture.minFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
@@ -109,781 +134,1340 @@ function makeDot(position: [number, number, number]): THREE.Mesh {
   return mesh;
 }
 
-function NetworkGraph(props: any) {
-  const params = props.params;
+const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
+  ({ params, backgroundColor, hoveredNodeType }, ref) => {
+    const navigate = useNavigate();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fgRef = useRef<any>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  // Using any type for the ref to avoid TS errors with the ForceGraph methods
-  const fgRef = useRef<any>(null);
-  const [mode, setMode] = useState<'Free' | 'Layers' | 'Time'>('Free');
-  const [timeScale, setTimeScale] = useState(1000);
-  const [linkWidth, setLinkWidth] = useState(0);
-  const [chargeStrength, setChargeStrength] = useState(-50);
-  const [linkStrength, setLinkStrength] = useState(0.3);
-  const [linkDistance, setLinkDistance] = useState(2);
-  const [centerStrength, setCenterStrength] = useState(0.08);
-  const [dimensions, setDimensions] = useState<1 | 2 | 3>(3);
-  const [showModeOptions, setShowModeOptions] = useState(false);
-  const [showControlsPanel, setShowControlsPanel] = useState(false);
-  const [graphData, setGraphData] = useState<GraphData>({
-    nodes: [],
-    links: [],
-  });
-  const [filteredGraphData, setFilteredGraphData] = useState<GraphData>({
-    nodes: [],
-    links: [],
-  });
-  const [selectedTypes, setSelectedTypes] = useState<{
-    [key: string]: boolean;
-  }>({});
-  const [selectedNode, setSelectedNode] = useState<NodeObject | null>(null);
-  const theme = useTheme();
-  const [bgColor, setBgColor] = useState('#1A1A1A');
-  const [containerDimensions, setContainerDimensions] = useState({
-    width: 0,
-    height: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [requestedModeChange, setRequestedModeChange] = useState(false);
+    // PERFORMANCE FIX: Add abort controller and caches
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const geometryCache = useRef<Map<string, THREE.SphereGeometry>>(new Map());
+    const materialCache = useRef<Map<string, THREE.MeshBasicMaterial>>(
+      new Map()
+    );
+    const throttledHover = useRef<NodeJS.Timeout | null>(null);
+    const pulseAnimationRef = useRef<NodeJS.Timeout | null>(null);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+    // State variables
+    const [mode, setMode] = useState<'Free' | 'Layers' | 'Time'>('Free');
+    const [timeScale, setTimeScale] = useState(1000);
+    const [linkWidth, setLinkWidth] = useState(0);
+    const [chargeStrength, setChargeStrength] = useState(-50);
+    const [linkStrength, setLinkStrength] = useState(0.3);
+    const [linkDistance, setLinkDistance] = useState(2);
+    const [centerStrength, setCenterStrength] = useState(0.08);
+    const [dimensions, setDimensions] = useState<1 | 2 | 3>(3);
+    const [showModeOptions, setShowModeOptions] = useState(false);
+    const [showControlsPanel, setShowControlsPanel] = useState(false);
+    const [graphData, setGraphData] = useState<GraphData>({
+      nodes: [],
+      links: [],
+    });
+    const [filteredGraphData, setFilteredGraphData] = useState<GraphData>({
+      nodes: [],
+      links: [],
+    });
+    const [selectedTypes, setSelectedTypes] = useState<{
+      [key: string]: boolean;
+    }>({});
+    const [selectedNode, setSelectedNode] = useState<NodeObject | null>(null);
+    const [hoveredNode, setHoveredNode] = useState<NodeObject | null>(null);
+    const [bgColor, setBgColor] = useState('#1A1A1A');
+    const [containerDimensions, setContainerDimensions] = useState({
+      width: 0,
+      height: 0,
+    });
+    const [isLoading, setIsLoading] = useState(true);
+    const [requestedModeChange, setRequestedModeChange] = useState(false);
+    const [isScrollCaptured, setIsScrollCaptured] = useState(false);
+    const [showTemporaryOverlay, setShowTemporaryOverlay] = useState(true);
+    const [layerPositions, setLayerPositions] = useState<{
+      [key: string]: number;
+    }>({});
+    const [highlightedNodeType, setHighlightedNodeType] = useState<
+      string | null
+    >(null);
+    const [pulsingNodes, setPulsingNodes] = useState<Set<number>>(new Set());
 
-  // Update container dimensions when the container size changes
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setContainerDimensions({
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-    };
+    const theme = useTheme();
 
-    // Initial measurement
-    updateDimensions();
+    // Parameters
+    const minX = -500;
+    const maxX = 500;
 
-    // Set up ResizeObserver to watch for container size changes
-    const resizeObserver = new ResizeObserver(updateDimensions);
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
+    // Expose methods via ref for external control
+    useImperativeHandle(ref, () => ({
+      highlightNodesByType: (nodeType: string | null) => {
+        setHighlightedNodeType(nodeType);
+      },
+      pulseNodesByType: (nodeType: string | null) => {
+        if (nodeType) {
+          const nodesToPulse = filteredGraphData.nodes
+            .filter((node) => node.type === nodeType)
+            .map((node) => node.id);
+          setPulsingNodes(new Set(nodesToPulse));
 
-    // Also listen for window resize as backup
-    window.addEventListener('resize', updateDimensions);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateDimensions);
-    };
-  }, []);
-
-  // Update background color based on theme
-  useEffect(() => {
-    const isDarkMode = theme.isDark;
-    setBgColor(isDarkMode ? '#1A1A1A' : '#FFFFFF');
-  }, [theme]);
-
-  useEffect(() => {
-    async function fetchGraphData() {
-      try {
-        const limit = '1000';
-        const subjects = params.subjects || params.subject || 'metaverse';
-
-        const response = await fetch(
-          `https://api.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-
-        // Apply colors to nodes based on their type
-        data.nodes.forEach((node: NodeObject) => {
-          node.color = nodeColors[node.type] || '#999999';
-        });
-
-        // Create a mapping of node IDs to their colors for quick lookup
-        const nodeColorMap = new Map();
-        data.nodes.forEach((node: NodeObject) => {
-          nodeColorMap.set(node.id, node.color);
-        });
-
-        // Apply colors to links based on their source node type
-        data.links.forEach((link: LinkObject) => {
-          const sourceId =
-            typeof link.source === 'object'
-              ? (link.source as NodeObject).id
-              : link.source;
-          link.color = nodeColorMap.get(sourceId) || '#AAAAAA';
-
-          if (typeof link.source === 'object') {
-            link.sourceType = (link.source as NodeObject).type;
-          } else {
-            const sourceNode = data.nodes.find(
-              (node: NodeObject) => node.id === sourceId
-            );
-            if (sourceNode) {
-              link.sourceType = sourceNode.type;
-            }
+          // Clear pulse after 3 seconds
+          if (pulseAnimationRef.current) {
+            clearTimeout(pulseAnimationRef.current);
           }
-        });
+          pulseAnimationRef.current = setTimeout(() => {
+            setPulsingNodes(new Set());
+          }, 3000);
+        } else {
+          setPulsingNodes(new Set());
+          if (pulseAnimationRef.current) {
+            clearTimeout(pulseAnimationRef.current);
+          }
+        }
+      },
+    }));
 
-        setGraphData(data);
+    // Update highlighted nodes when hoveredNodeType prop changes
+    useEffect(() => {
+      setHighlightedNodeType(hoveredNodeType || null);
+    }, [hoveredNodeType]);
 
-        // Initialize selectedTypes with all node types set to true
-        const initialSelectedTypes: { [key: string]: boolean } = {};
-        const nodeTypes = Array.from(
-          new Set(data.nodes.map((node: NodeObject) => node.type))
-        );
-        nodeTypes.forEach((type) => {
-          initialSelectedTypes[type as string] = true;
-        });
-        setSelectedTypes(initialSelectedTypes);
+    // Update container dimensions when the container size changes
+    useEffect(() => {
+      const updateDimensions = () => {
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          setContainerDimensions({ width: rect.width, height: rect.height });
+        }
+      };
 
-        setFilteredGraphData(data);
-      } catch (error) {
-        console.error('Failed to fetch graph data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+      updateDimensions();
 
-    fetchGraphData();
-  }, []);
-
-  // Add this useEffect to filter graph data based on selected types
-  useEffect(() => {
-    if (Object.keys(selectedTypes).length === 0 || graphData.nodes.length === 0)
-      return;
-
-    // Filter nodes based on selected types
-    const filteredNodes = graphData.nodes.filter(
-      (node) => selectedTypes[node.type]
-    );
-
-    // Get IDs of all filtered nodes for link filtering
-    const filteredNodeIds = new Set(filteredNodes.map((node) => node.id));
-
-    // Filter links - only keep links where both source and target nodes are in the filtered set
-    const filteredLinks = graphData.links.filter((link) => {
-      const sourceId =
-        typeof link.source === 'object' ? link.source.id : link.source;
-      const targetId =
-        typeof link.target === 'object' ? link.target.id : link.target;
-      return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId);
-    });
-
-    // Update filtered graph data
-    setFilteredGraphData({
-      nodes: filteredNodes,
-      links: filteredLinks,
-    });
-  }, [selectedTypes, graphData]);
-
-  // Parameters
-  const minX = -500;
-  const maxX = 500;
-
-  // Layer scale - Dynamic assignment based on available data
-  const [layerPositions, setLayerPositions] = useState<{
-    [key: string]: number;
-  }>({});
-
-  // Set up layer positions dynamically based on available node types
-  useEffect(() => {
-    if (graphData.nodes.length === 0) return;
-
-    // Extract unique node types from the data
-    const nodeTypes = Array.from(
-      new Set(graphData.nodes.map((node) => node.type))
-    );
-
-    // Calculate positions for each type, centered around 0
-    const newLayerPositions: { [key: string]: number } = {};
-    const totalLayers = nodeTypes.length;
-
-    // Calculate spacing between layers
-    const newLayerGap = (maxX - minX) / Math.max(totalLayers - 1, 1);
-
-    // Position layers evenly, centered around 0
-    nodeTypes.forEach((type, index) => {
-      const position = minX + index * newLayerGap;
-      newLayerPositions[type] = position;
-    });
-
-    setLayerPositions(newLayerPositions);
-  }, [graphData.nodes, minX, maxX]);
-
-  // Show Layer grid with type labels and axis - moved up before it's used in other functions
-  const showLayerGrid = useCallback(
-    (show = true) => {
-      if (!fgRef.current || !fgRef.current.scene) return;
-
-      const scene = fgRef.current.scene();
-
-      // Remove existing grid if any
-      const existingGrid = scene.getObjectByName('layer_grid');
-      if (existingGrid) {
-        scene.remove(existingGrid);
+      const resizeObserver = new ResizeObserver(updateDimensions);
+      if (containerRef.current) {
+        resizeObserver.observe(containerRef.current);
       }
 
-      if (!show) return;
+      window.addEventListener('resize', updateDimensions);
 
-      const turn90deg = 0.5 * Math.PI;
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener('resize', updateDimensions);
+      };
+    }, []);
 
-      // Create container for grid and labels
-      const gridObject = new THREE.Object3D();
-      gridObject.name = 'layer_grid';
+    // Update background color based on theme or prop
+    useEffect(() => {
+      if (backgroundColor) {
+        setBgColor(backgroundColor);
+      } else {
+        const isDarkMode = theme.isDark;
+        setBgColor(isDarkMode ? '#111111' : '#FAFAFA');
+      }
+    }, [theme, backgroundColor]);
 
-      // Get layer types and positions
-      const layerTypes = Object.keys(layerPositions);
-      const ticksPos: number[] = [];
+    // Handle temporary overlay to prevent initial scroll hijacking
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setShowTemporaryOverlay(false);
+      }, 2000);
 
-      // Add tick marks and labels for each layer
-      for (const layerType of layerTypes) {
-        const tickPos = layerPositions[layerType];
-        ticksPos.push(tickPos);
+      return () => clearTimeout(timer);
+    }, []);
 
-        // Add tick dot
-        const dot = makeDot([tickPos, 0, 0]);
-        gridObject.add(dot);
+    // Simple scroll capture handling
+    useEffect(() => {
+      const handleClick = (e: MouseEvent) => {
+        if (
+          containerRef.current?.contains(e.target as Node) &&
+          !isScrollCaptured
+        ) {
+          const target = e.target as HTMLElement;
+          if (
+            !target.closest('.controls-toggle-container') &&
+            !target.closest('.controls-panel') &&
+            !target.closest('.fullscreen-legend') &&
+            !target.closest('.node-info-display') &&
+            !target.closest('.scroll-overlay') &&
+            !showTemporaryOverlay
+          ) {
+            setIsScrollCaptured(true);
+          }
+        }
+      };
 
-        // Add layer type label
-        const text = makeText(layerType, [tickPos, 0, 0]);
-        gridObject.add(text);
+      const handleKeyPress = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && isScrollCaptured) {
+          setIsScrollCaptured(false);
+        }
+      };
+
+      document.addEventListener('click', handleClick);
+      document.addEventListener('keydown', handleKeyPress);
+
+      return () => {
+        document.removeEventListener('click', handleClick);
+        document.removeEventListener('keydown', handleKeyPress);
+      };
+    }, [isScrollCaptured, showTemporaryOverlay]);
+
+    // PERFORMANCE FIX: Enhanced fetch with request cancellation
+    useEffect(() => {
+      async function fetchGraphData() {
+        // Cancel previous request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+
+        // Create new abort controller
+        abortControllerRef.current = new AbortController();
+
+        try {
+          const limit = '1000';
+          const subjects = params.subjects || params.subject || 'metaverse';
+
+          const response = await fetch(
+            `https://api.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`,
+            { signal: abortControllerRef.current.signal }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+
+          // Apply colors to nodes based on their type
+          data.nodes.forEach((node: NodeObject) => {
+            node.color = nodeColors[node.type] || '#999999';
+
+            // Add slug for Subject nodes for navigation
+            if (node.type === 'Subject') {
+              node.slug = node.name
+                .toLowerCase()
+                .replace(/\s+/g, '_')
+                .replace(/\./g, '-')
+                .replace(/[^a-z0-9_-]/g, '');
+            }
+          });
+
+          const nodeColorMap = new Map();
+          data.nodes.forEach((node: NodeObject) => {
+            nodeColorMap.set(node.id, node.color);
+          });
+
+          data.links.forEach((link: LinkObject) => {
+            const sourceId =
+              typeof link.source === 'object'
+                ? (link.source as NodeObject).id
+                : link.source;
+            link.color = nodeColorMap.get(sourceId) || '#AAAAAA';
+
+            if (typeof link.source === 'object') {
+              link.sourceType = (link.source as NodeObject).type;
+            } else {
+              const sourceNode = data.nodes.find(
+                (node: NodeObject) => node.id === sourceId
+              );
+              if (sourceNode) {
+                link.sourceType = sourceNode.type;
+              }
+            }
+          });
+
+          setGraphData(data);
+
+          // Initialize selectedTypes with all node types set to true
+          const initialSelectedTypes: { [key: string]: boolean } = {};
+          const nodeTypes = Array.from(
+            new Set(data.nodes.map((node: NodeObject) => node.type))
+          );
+          nodeTypes.forEach((type) => {
+            initialSelectedTypes[type as string] = true;
+          });
+          setSelectedTypes(initialSelectedTypes);
+
+          setFilteredGraphData(data);
+        } catch (error) {
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.error('Failed to fetch graph data:', error);
+          }
+        } finally {
+          setIsLoading(false);
+        }
       }
 
-      // Create axis line only (no grid)
-      const axisPoints = [];
-      axisPoints.push(new THREE.Vector3(minX, 0, 0));
-      axisPoints.push(new THREE.Vector3(maxX, 0, 0));
+      fetchGraphData();
 
-      const axisMaterial = new THREE.LineBasicMaterial({
-        color: 0xaaaaaa,
-        opacity: 0.5,
-      });
-      const axisGeo = new THREE.BufferGeometry().setFromPoints(axisPoints);
-      const axisLine = new THREE.LineSegments(axisGeo, axisMaterial);
+      // Cleanup function
+      return () => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      };
+    }, [params.subject, params.subjects]);
 
-      gridObject.add(axisLine);
-      gridObject.rotation.set(0, -turn90deg, 0);
+    // PERFORMANCE FIX: Memoize filtered graph data calculation
+    const memoizedFilteredData = useMemo(() => {
+      if (
+        Object.keys(selectedTypes).length === 0 ||
+        graphData.nodes.length === 0
+      ) {
+        return { nodes: [], links: [] };
+      }
 
-      // Add grid to scene
-      scene.add(gridObject);
-    },
-    [layerPositions, minX, maxX]
-  );
-
-  // Apply layer-based positioning to nodes
-  const applyLayerPositioning = useCallback(() => {
-    if (!fgRef.current) return;
-
-    const fg = fgRef.current;
-
-    // Apply positions to both the original data and filtered data
-    const updateNodePositions = (nodes: NodeObject[]) => {
-      nodes.forEach((node: NodeObject) => {
-        const layerPosition =
-          typeof layerPositions[node.type] !== 'undefined'
-            ? layerPositions[node.type]
-            : 0;
-        // Directly assign position in z-axis to match the axis visualization
-        node.z = layerPosition;
-        // Store the position for reference
-        node.layerPosition = layerPosition;
-      });
-    };
-
-    // Update positions in both the original and filtered datasets
-    updateNodePositions([...graphData.nodes]);
-    updateNodePositions([...filteredGraphData.nodes]);
-
-    // Update the graph with our modified data
-    fg.__data = {
-      nodes: [...filteredGraphData.nodes],
-      links: [...filteredGraphData.links],
-    };
-
-    // Ensure visualization is aligned
-    showLayerGrid(true);
-  }, [mode, graphData, filteredGraphData, layerPositions, showLayerGrid]);
-
-  // Date scale setup
-  const nodeWithDates = graphData.nodes.filter((node) => node.date);
-  const dateExtent = d3.extent(
-    nodeWithDates
-      .map((node) => (node.date ? new Date(node.date) : null))
-      .filter(Boolean) as Date[]
-  );
-  const today = new Date();
-  const startDate = dateExtent[0]
-    ? new Date(Math.floor(dateExtent[0].getFullYear() / 10) * 10, 0, 1)
-    : new Date(today.getFullYear() - 10, 0, 1);
-  const endDate = dateExtent[1] || today;
-  const scaleDate = d3
-    .scaleTime()
-    .domain([startDate, endDate])
-    .range([minX, maxX]);
-
-  // Set initial camera after component mounts
-  useEffect(() => {
-    const stepDuration = 3000;
-    if (fgRef.current) {
-      const cameraDist = 2 * maxX;
-      fgRef.current.cameraPosition(
-        { x: cameraDist, y: -cameraDist, z: -cameraDist },
-        { x: 0, y: 0, z: 0 },
-        stepDuration
+      const filteredNodes = graphData.nodes.filter(
+        (node) => selectedTypes[node.type]
       );
+      const filteredNodeIds = new Set(filteredNodes.map((node) => node.id));
 
-      //after the 3000s zoom to fit
-      setTimeout(() => {
-        fgRef.current.zoomToFit(stepDuration, 30);
-      }, stepDuration + 100);
-    }
-  }, []);
+      const filteredLinks = graphData.links.filter((link) => {
+        const sourceId =
+          typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId =
+          typeof link.target === 'object' ? link.target.id : link.target;
+        return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId);
+      });
 
-  // Update forces when dependencies change
-  useEffect(() => {
-    if (fgRef.current) {
-      // Make sure to wait for the force graph to be fully initialized
-      setTimeout(() => {
-        updateForces();
-      }, 100);
-    }
-  }, [
-    mode,
-    chargeStrength,
-    linkStrength,
-    linkDistance,
-    centerStrength,
-    timeScale,
-  ]);
+      return { nodes: filteredNodes, links: filteredLinks };
+    }, [selectedTypes, graphData]);
 
-  // Function to update all forces
-  const updateForces = useCallback(
-    (newMode?: 'Free' | 'Layers' | 'Time') => {
-      if (newMode !== 'Free' && newMode !== 'Layers' && newMode !== 'Time')
-        newMode = mode;
+    // Update filtered data when memoized calculation changes
+    useEffect(() => {
+      setFilteredGraphData(memoizedFilteredData);
+    }, [memoizedFilteredData]);
 
-      console.log('Updating forces...', newMode);
+    // Update layer positions
+    useEffect(() => {
+      if (graphData.nodes.length === 0) return;
+
+      const nodeTypes = Array.from(
+        new Set(graphData.nodes.map((node) => node.type))
+      );
+      const newLayerPositions: { [key: string]: number } = {};
+      const totalLayers = nodeTypes.length;
+      const newLayerGap = (maxX - minX) / Math.max(totalLayers - 1, 1);
+
+      nodeTypes.forEach((type, index) => {
+        const position = minX + index * newLayerGap;
+        newLayerPositions[type] = position;
+      });
+
+      setLayerPositions(newLayerPositions);
+    }, [graphData.nodes, minX, maxX]);
+
+    // Grid and positioning functions
+    const showLayerGrid = useCallback(
+      (show = true) => {
+        if (!fgRef.current || !fgRef.current.scene) return;
+
+        const scene = fgRef.current.scene();
+        const existingGrid = scene.getObjectByName('layer_grid');
+        if (existingGrid) {
+          scene.remove(existingGrid);
+        }
+
+        if (!show) return;
+
+        const turn90deg = 0.5 * Math.PI;
+        const gridObject = new THREE.Object3D();
+        gridObject.name = 'layer_grid';
+
+        const layerTypes = Object.keys(layerPositions);
+
+        for (const layerType of layerTypes) {
+          const tickPos = layerPositions[layerType];
+
+          const dot = makeDot([tickPos, 0, 0]);
+          gridObject.add(dot);
+
+          const text = makeText(layerType, [tickPos, 0, 0]);
+          gridObject.add(text);
+        }
+
+        const axisPoints = [];
+        axisPoints.push(new THREE.Vector3(minX, 0, 0));
+        axisPoints.push(new THREE.Vector3(maxX, 0, 0));
+
+        const axisMaterial = new THREE.LineBasicMaterial({
+          color: 0xaaaaaa,
+          opacity: 0.5,
+        });
+        const axisGeo = new THREE.BufferGeometry().setFromPoints(axisPoints);
+        const axisLine = new THREE.LineSegments(axisGeo, axisMaterial);
+
+        gridObject.add(axisLine);
+        gridObject.rotation.set(0, -turn90deg, 0);
+        scene.add(gridObject);
+      },
+      [layerPositions, minX, maxX]
+    );
+
+    const applyLayerPositioning = useCallback(() => {
       if (!fgRef.current) return;
 
       const fg = fgRef.current;
 
-      // Position forces based on mode
-      if (newMode === 'Layers') {
-        // For Layers mode, we use 2D forces for X and Y, but fixed Z positions
-        setDimensions(2);
+      const updateNodePositions = (nodes: NodeObject[]) => {
+        nodes.forEach((node: NodeObject) => {
+          const layerPosition =
+            typeof layerPositions[node.type] !== 'undefined'
+              ? layerPositions[node.type]
+              : 0;
+          node.z = layerPosition;
+          node.layerPosition = layerPosition;
+        });
+      };
 
-        fg.d3Force('charge', forceManyBody().strength(chargeStrength));
-        fg.d3Force('link').distance(linkDistance).strength(linkStrength);
-        fg.d3Force('positionX', forceX(0).strength(centerStrength))
-          .d3Force('positionY', forceY(0).strength(centerStrength))
-          .d3Force('positionZ', null);
+      updateNodePositions([...graphData.nodes]);
+      updateNodePositions([...filteredGraphData.nodes]);
 
-        applyLayerPositioning();
-      } else if (newMode === 'Time') {
-        // For Time mode, we use 2D forces for X and Y, but fixed Z positions
-        setDimensions(2);
+      fg.__data = {
+        nodes: [...filteredGraphData.nodes],
+        links: [...filteredGraphData.links],
+      };
 
-        fg.d3Force('charge', forceManyBody().strength(chargeStrength));
-        fg.d3Force('link').distance(linkDistance).strength(linkStrength);
-        fg.d3Force('positionX', forceX(0).strength(centerStrength))
-          .d3Force('positionY', forceY(0).strength(centerStrength))
-          .d3Force('positionZ', null);
+      showLayerGrid(true);
+    }, [graphData, filteredGraphData, layerPositions, showLayerGrid]);
 
-        applyTimePositioning();
-      } else {
-        // Free mode - use all 3D forces
-        setDimensions(3);
+    // Date scale setup
+    const nodeWithDates = graphData.nodes.filter((node) => node.date);
+    const dateExtent = d3.extent(
+      nodeWithDates
+        .map((node) => (node.date ? new Date(node.date) : null))
+        .filter(Boolean) as Date[]
+    );
+    const today = new Date();
+    const startDate = dateExtent[0]
+      ? new Date(Math.floor(dateExtent[0].getFullYear() / 10) * 10, 0, 1)
+      : new Date(today.getFullYear() - 10, 0, 1);
+    const endDate = dateExtent[1] || today;
+    const scaleDate = d3
+      .scaleTime()
+      .domain([startDate, endDate])
+      .range([minX, maxX]);
 
-        fg.d3Force('charge', forceManyBody().strength(chargeStrength));
-        fg.d3Force('link').distance(linkDistance).strength(linkStrength);
-        fg.d3Force('positionX', forceX(0).strength(centerStrength))
-          .d3Force('positionY', forceY(0).strength(centerStrength))
-          .d3Force('positionZ', forceZ(0).strength(centerStrength));
+    const applyTimePositioning = useCallback(() => {
+      if (!fgRef.current) return;
+
+      const scaledDate = scaleDate.copy().range([minX, timeScale + minX]);
+      const fg = fgRef.current;
+      const nodesData = graphData.nodes;
+      const todayDate = new Date();
+
+      nodesData.forEach((node) => {
+        const timePosition = node.date
+          ? scaledDate(new Date(node.date))
+          : scaledDate(todayDate);
+        node.datePosition = timePosition;
+        node.z = timePosition;
+      });
+
+      fg.__data = { ...graphData };
+    }, [graphData, scaleDate, minX, timeScale]);
+
+    const showTimeGrid = useCallback(
+      (show = true) => {
+        if (!fgRef.current || !fgRef.current.scene) return;
+
+        const scene = fgRef.current.scene();
+        const existingGrid = scene.getObjectByName('time_grid');
+        if (existingGrid) {
+          scene.remove(existingGrid);
+        }
+
+        if (!show) return;
+
+        const turn90deg = 0.5 * Math.PI;
+        const gridObject = new THREE.Object3D();
+        gridObject.name = 'time_grid';
+
+        if (!scaleDate.domain()[0] || !scaleDate.domain()[1]) {
+          return;
+        }
+
+        const years =
+          scaleDate.domain()[1].getFullYear() -
+          scaleDate.domain()[0].getFullYear();
+        let nTicks = years;
+        if (years > 20) {
+          nTicks = Math.floor(years / 10);
+        }
+
+        const ticks = scaleDate.ticks(nTicks);
+
+        for (const tick of ticks) {
+          const tickPos = scaleDate(tick);
+
+          const dot = makeDot([tickPos, 0, 0]);
+          gridObject.add(dot);
+
+          const year = tick.getFullYear();
+          const text = makeText(year.toString(), [tickPos, 0, 0]);
+          gridObject.add(text);
+        }
+
+        gridObject.rotation.set(0, -turn90deg, 0);
+        scene.add(gridObject);
+      },
+      [scaleDate]
+    );
+
+    // Force update functions
+    const updateForces = useCallback(
+      (newMode?: 'Free' | 'Layers' | 'Time') => {
+        if (newMode !== 'Free' && newMode !== 'Layers' && newMode !== 'Time')
+          newMode = mode;
+
+        if (!fgRef.current) return;
+
+        const fg = fgRef.current;
+
+        if (newMode === 'Layers') {
+          setDimensions(2);
+          fg.d3Force('charge', forceManyBody().strength(chargeStrength));
+          fg.d3Force('link').distance(linkDistance).strength(linkStrength);
+          fg.d3Force('positionX', forceX(0).strength(centerStrength))
+            .d3Force('positionY', forceY(0).strength(centerStrength))
+            .d3Force('positionZ', null);
+          applyLayerPositioning();
+        } else if (newMode === 'Time') {
+          setDimensions(2);
+          fg.d3Force('charge', forceManyBody().strength(chargeStrength));
+          fg.d3Force('link').distance(linkDistance).strength(linkStrength);
+          fg.d3Force('positionX', forceX(0).strength(centerStrength))
+            .d3Force('positionY', forceY(0).strength(centerStrength))
+            .d3Force('positionZ', null);
+          applyTimePositioning();
+        } else {
+          setDimensions(3);
+          fg.d3Force('charge', forceManyBody().strength(chargeStrength));
+          fg.d3Force('link').distance(linkDistance).strength(linkStrength);
+          fg.d3Force('positionX', forceX(0).strength(centerStrength))
+            .d3Force('positionY', forceY(0).strength(centerStrength))
+            .d3Force('positionZ', forceZ(0).strength(centerStrength));
+        }
+
+        fg.refresh();
+      },
+      [
+        mode,
+        chargeStrength,
+        linkStrength,
+        linkDistance,
+        centerStrength,
+        applyLayerPositioning,
+        applyTimePositioning,
+      ]
+    );
+
+    // Update forces when dependencies change
+    useEffect(() => {
+      if (fgRef.current) {
+        setTimeout(() => {
+          updateForces();
+        }, 100);
       }
-
-      fg.refresh(); // Refresh the graph to apply the new forces
-    },
-    [
+    }, [
       mode,
       chargeStrength,
       linkStrength,
       linkDistance,
       centerStrength,
       timeScale,
-      graphData.nodes,
-      dimensions,
-    ]
-  );
+      updateForces,
+    ]);
 
-  // Apply time-based positioning to nodes
-  const applyTimePositioning = useCallback(() => {
-    if (!fgRef.current) return;
-
-    // Adjust scale range based on timeScale slider
-    const scaledDate = scaleDate.copy().range([minX, timeScale + minX]);
-
-    const fg = fgRef.current;
-    const nodesData = graphData.nodes;
-    const todayDate = new Date();
-
-    // Apply time positions directly to the nodes in the simulation
-    nodesData.forEach((node) => {
-      const timePosition = node.date
-        ? scaledDate(new Date(node.date))
-        : scaledDate(todayDate);
-      // Store the position in the node object
-      node.datePosition = timePosition;
-      // Directly set z coordinate
-      node.z = timePosition;
-    });
-
-    // Update the graph with our modified data
-    fg.__data = { ...graphData };
-  }, [graphData, scaleDate, minX, timeScale]);
-
-  // Show Time grid with years and axis
-  const showTimeGrid = useCallback(
-    (show = true) => {
-      if (!fgRef.current || !fgRef.current.scene) return;
-
-      const scene = fgRef.current.scene();
-
-      // Remove existing grid if any
-      const existingGrid = scene.getObjectByName('time_grid');
-      if (existingGrid) {
-        scene.remove(existingGrid);
-      }
-
-      if (!show) return;
-
-      const turn90deg = 0.5 * Math.PI;
-
-      // Create container for grid and labels
-      const gridObject = new THREE.Object3D();
-      gridObject.name = 'time_grid';
-
-      // Check that we have valid date domain
-      if (!scaleDate.domain()[0] || !scaleDate.domain()[1]) {
-        return;
-      }
-
-      // Calculate ticks based on year span
-      const years =
-        scaleDate.domain()[1].getFullYear() -
-        scaleDate.domain()[0].getFullYear();
-      let nTicks = years;
-      if (years > 20) {
-        nTicks = Math.floor(years / 10);
-      }
-
-      const ticks = scaleDate.ticks(nTicks);
-      const ticksPos: number[] = [];
-
-      // Add tick marks and labels
-      for (const tick of ticks) {
-        const tickPos = scaleDate(tick);
-        ticksPos.push(tickPos);
-
-        // Add tick dot
-        const dot = makeDot([tickPos, 0, 0]);
-        gridObject.add(dot);
-
-        // Add year label
-        const year = tick.getFullYear();
-        const text = makeText(year.toString(), [tickPos, 0, 0]);
-        gridObject.add(text);
-      }
-
-      gridObject.rotation.set(0, -turn90deg, 0);
-      // Add grid to scene
-      scene.add(gridObject);
-    },
-    [scaleDate, minX, maxX]
-  );
-
-  // Update scene visualization based on current mode
-  const updateSceneVisualization = useCallback(() => {
-    if (mode === 'Time') {
-      showTimeGrid(true);
-      showLayerGrid(false);
-    } else if (mode === 'Layers') {
-      showTimeGrid(false);
-      showLayerGrid(true);
-    } else {
-      showTimeGrid(false);
-      showLayerGrid(false);
-    }
-  }, [mode, showTimeGrid, showLayerGrid]);
-
-  // Update scene visualization when mode or graph data changes
-  useEffect(() => {
-    if (fgRef.current && fgRef.current.scene) {
-      // Wait a bit for the graph to update its internal state
-      setTimeout(() => {
-        updateSceneVisualization();
-      }, 300);
-    }
-  }, [mode, graphData, updateSceneVisualization]);
-
-  // Handle mode change
-  const handleModeChange = useCallback(
-    (newMode: 'Free' | 'Layers' | 'Time') => {
-      setMode(newMode);
-      updateForces(newMode);
-      setRequestedModeChange(true);
-
-      const stepDuration = 3000;
-      setTimeout(() => {
-        // First zoom to fit
-        if (fgRef.current) {
-          // Then position the camera isometrically
-          const totalDistance = Math.max(
-            Math.abs(fgRef.current.cameraPosition().x),
-            Math.abs(fgRef.current.cameraPosition().y),
-            Math.abs(fgRef.current.cameraPosition().z)
-          );
-          const isometricFactor = totalDistance / Math.sqrt(3);
-
-          fgRef.current.cameraPosition(
-            { x: isometricFactor, y: -isometricFactor, z: isometricFactor },
-            { x: 0, y: 0, z: 0 },
-            stepDuration
-          );
-        }
-      }, 200);
-    },
-    []
-  );
-
-  // 3D Node object customization
-  const nodeThreeObject = useCallback(
-    (node: NodeObject) => {
-      const minR = 3;
-      const maxR = 6;
-      const segments = 10;
-
-      // Check if this is the selected node
-      const isSelected = selectedNode && selectedNode.id === node.id;
-
-      // Create geometry based on node type and selection state
-      // Increase radius for selected node
-      const radius = isSelected
-        ? maxR * 1.5
-        : node.type === 'Subject'
-        ? maxR
-        : minR;
-      const geometry = new THREE.SphereGeometry(radius, segments, segments);
-
-      // Create material with appropriate color and opacity
-      let opacity = 1;
-      if (mode === 'Time' && !node.date) {
-        opacity = 0.2;
-      }
-
-      // For selected node, we'll add an outline effect
-      if (isSelected) {
-        // Create a group to hold multiple meshes
-        const group = new THREE.Group();
-
-        // Inner sphere (the actual node)
-        const innerMaterial = new THREE.MeshBasicMaterial({
-          color: node.color,
-          transparent: false,
-        });
-        const innerMesh = new THREE.Mesh(geometry, innerMaterial);
-        group.add(innerMesh);
-
-        // Outer sphere (the highlight) - render only the back side of the material
-        const outerGeometry = new THREE.SphereGeometry(
-          radius * 1.3,
-          segments,
-          segments
-        );
-        const outerMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.8,
-          wireframe: false,
-          side: THREE.BackSide,
-        });
-        const outerMesh = new THREE.Mesh(outerGeometry, outerMaterial);
-        group.add(outerMesh);
-
-        return group;
-      } else {
-        // Regular node
-        const material = new THREE.MeshBasicMaterial({
-          color: node.color,
-          transparent: true,
-          opacity: opacity,
-        });
-
-        return new THREE.Mesh(geometry, material);
-      }
-    },
-    [mode, selectedNode]
-  );
-
-  // Zoom to fit function
-  const handleZoomToFit = useCallback(() => {
-    if (fgRef.current) {
-      fgRef.current.zoomToFit(1000, 30);
-    }
-  }, []);
-
-  // Handle engine stop event
-  const handleEngineStop = useCallback(() => {
-    if (requestedModeChange) {
-      if (mode === 'Layers') {
-        applyLayerPositioning();
-      }
+    const updateSceneVisualization = useCallback(() => {
       if (mode === 'Time') {
-        applyTimePositioning();
+        showTimeGrid(true);
+        showLayerGrid(false);
+      } else if (mode === 'Layers') {
+        showTimeGrid(false);
+        showLayerGrid(true);
+      } else {
+        showTimeGrid(false);
+        showLayerGrid(false);
       }
-      setRequestedModeChange(false);
-    }
-  }, [
-    mode,
-    applyLayerPositioning,
-    applyTimePositioning,
-    requestedModeChange,
-    setRequestedModeChange,
-  ]);
+    }, [mode, showTimeGrid, showLayerGrid]);
 
-  // Toggle controls visibility
-  const toggleControls = () => {
-    setShowControlsPanel(!showControlsPanel);
-  };
+    useEffect(() => {
+      if (fgRef.current && fgRef.current.scene) {
+        setTimeout(() => {
+          updateSceneVisualization();
+        }, 300);
+      }
+    }, [mode, graphData, updateSceneVisualization]);
 
-  // Add this function to handle legend item clicks
-  const handleLegendItemClick = useCallback((type: string) => {
-    setSelectedTypes((prev) => ({
-      ...prev,
-      [type]: !prev[type],
-    }));
-  }, []);
+    // Set initial camera after component mounts
+    useEffect(() => {
+      if (fgRef.current && filteredGraphData.nodes.length > 0) {
+        setTimeout(() => {
+          if (fgRef.current) {
+            const cameraDist = 2 * maxX;
+            fgRef.current.cameraPosition(
+              { x: cameraDist, y: -cameraDist, z: -cameraDist },
+              { x: 0, y: 0, z: 0 },
+              0
+            );
 
-  // Handle background click to reset selected node
-  const handleBackgroundClick = useCallback(() => {
-    setSelectedNode(null);
-  }, []);
+            setTimeout(() => {
+              if (fgRef.current) {
+                fgRef.current.zoomToFit(0, 30);
+              }
+            }, 200);
+          }
+        }, 100);
+      }
+    }, [maxX, filteredGraphData.nodes.length]);
 
-  // Node click handler - updates selected node for info display
-  const handleNodeClick = useCallback((node: NodeObject) => {
-    // Set the selected node for the info panel
-    setSelectedNode(node);
+    // Event handlers
+    const handleModeChange = useCallback(
+      (newMode: 'Free' | 'Layers' | 'Time') => {
+        setMode(newMode);
+        updateForces(newMode);
+        setRequestedModeChange(true);
 
-    // Aim at node from outside it
-    if (!fgRef.current) return;
+        setTimeout(() => {
+          if (fgRef.current) {
+            const totalDistance = Math.max(
+              Math.abs(fgRef.current.cameraPosition().x),
+              Math.abs(fgRef.current.cameraPosition().y),
+              Math.abs(fgRef.current.cameraPosition().z)
+            );
+            const isometricFactor = totalDistance / Math.sqrt(3);
 
-    const distance = 500;
-    const distRatio =
-      1 + distance / Math.hypot(node.x || 0, node.y || 0, node.z || 0);
-
-    fgRef.current.cameraPosition(
-      {
-        x: (node.x || 0) * distRatio,
-        y: (node.y || 0) * distRatio,
-        z: (node.z || 0) * distRatio,
+            fgRef.current.cameraPosition(
+              { x: isometricFactor, y: -isometricFactor, z: isometricFactor },
+              { x: 0, y: 0, z: 0 },
+              0
+            );
+          }
+        }, 200);
       },
-      node,
-      3000
+      [updateForces]
     );
-  }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      className='network-graph-container'
-      style={{
-        width: '100%',
-        height: '100%',
-        minHeight: '400px',
-      }}
-    >
+    // PERFORMANCE FIX: Optimized nodeThreeObject with caching and highlighting
+    const nodeThreeObject = useCallback(
+      (node: NodeObject) => {
+        const minR = 3;
+        const maxR = 6;
+        const segments = 8; // Reduced for better performance
+
+        const isSelected = selectedNode && selectedNode.id === node.id;
+        const isHovered = hoveredNode && hoveredNode.id === node.id;
+        const isHighlighted =
+          highlightedNodeType && node.type === highlightedNodeType;
+        const isPulsing = pulsingNodes.has(node.id);
+
+        let radius = isSelected
+          ? maxR * 1.5
+          : node.type === 'Subject'
+          ? maxR
+          : minR;
+
+        // Increase radius for highlighted or pulsing nodes
+        if (isHighlighted || isPulsing) {
+          radius *= 1.3;
+        }
+
+        // Use cached geometry
+        const geometryKey = `${radius}-${segments}`;
+        let geometry = geometryCache.current.get(geometryKey);
+        if (!geometry) {
+          geometry = new THREE.SphereGeometry(radius, segments, segments);
+          geometryCache.current.set(geometryKey, geometry);
+        }
+
+        let opacity = 1;
+        if (mode === 'Time' && !node.date) {
+          opacity = 0.2;
+        }
+
+        // Dim non-highlighted nodes when highlighting is active
+        if (highlightedNodeType && node.type !== highlightedNodeType) {
+          opacity *= 0.3;
+        }
+
+        if (
+          isSelected ||
+          (isHovered && node.type === 'Subject') ||
+          isHighlighted ||
+          isPulsing
+        ) {
+          const group = new THREE.Group();
+
+          // Use cached materials
+          const innerMaterialKey = `inner-${node.color}-${opacity}`;
+          let innerMaterial = materialCache.current.get(innerMaterialKey);
+          if (!innerMaterial) {
+            innerMaterial = new THREE.MeshBasicMaterial({
+              color: node.color,
+              transparent: opacity < 1,
+              opacity: opacity,
+            });
+            materialCache.current.set(innerMaterialKey, innerMaterial);
+          }
+
+          const innerMesh = new THREE.Mesh(geometry, innerMaterial);
+          group.add(innerMesh);
+
+          // Add glow effect for highlighted/pulsing nodes
+          if (isHighlighted || isPulsing) {
+            const glowGeometryKey = `${radius * 1.5}-${segments}`;
+            let glowGeometry = geometryCache.current.get(glowGeometryKey);
+            if (!glowGeometry) {
+              glowGeometry = new THREE.SphereGeometry(
+                radius * 1.5,
+                segments,
+                segments
+              );
+              geometryCache.current.set(glowGeometryKey, glowGeometry);
+            }
+
+            const glowColor = isPulsing ? 0xffffff : node.color;
+            const glowOpacity = isPulsing ? 0.6 : 0.4;
+
+            const glowMaterialKey = `glow-${glowColor.toString()}-${glowOpacity}`;
+            let glowMaterial = materialCache.current.get(glowMaterialKey);
+            if (!glowMaterial) {
+              glowMaterial = new THREE.MeshBasicMaterial({
+                color: glowColor,
+                transparent: true,
+                opacity: glowOpacity,
+                side: THREE.BackSide,
+              });
+              materialCache.current.set(glowMaterialKey, glowMaterial);
+            }
+
+            const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+            group.add(glowMesh);
+          }
+
+          // Regular outer shell for selected/hovered nodes
+          if (isSelected || isHovered) {
+            const outerGeometryKey = `${radius * 1.3}-${segments}`;
+            let outerGeometry = geometryCache.current.get(outerGeometryKey);
+            if (!outerGeometry) {
+              outerGeometry = new THREE.SphereGeometry(
+                radius * 1.3,
+                segments,
+                segments
+              );
+              geometryCache.current.set(outerGeometryKey, outerGeometry);
+            }
+
+            const outerMaterialKey = `outer-${isHovered ? 'cyan' : 'white'}`;
+            let outerMaterial = materialCache.current.get(outerMaterialKey);
+            if (!outerMaterial) {
+              outerMaterial = new THREE.MeshBasicMaterial({
+                color: isHovered ? 0x00ffff : 0xffffff,
+                transparent: true,
+                opacity: 0.8,
+                wireframe: false,
+                side: THREE.BackSide,
+              });
+              materialCache.current.set(outerMaterialKey, outerMaterial);
+            }
+
+            const outerMesh = new THREE.Mesh(outerGeometry, outerMaterial);
+            group.add(outerMesh);
+          }
+
+          return group;
+        } else {
+          const materialKey = `${node.color}-${opacity}`;
+          let material = materialCache.current.get(materialKey);
+          if (!material) {
+            material = new THREE.MeshBasicMaterial({
+              color: node.color,
+              transparent: opacity < 1,
+              opacity: opacity,
+            });
+            materialCache.current.set(materialKey, material);
+          }
+
+          return new THREE.Mesh(geometry, material);
+        }
+      },
+      [mode, selectedNode, hoveredNode, highlightedNodeType, pulsingNodes]
+    );
+
+    const handleZoomToFit = useCallback(() => {
+      if (fgRef.current) {
+        fgRef.current.zoomToFit(1000, 30);
+      }
+    }, []);
+
+    const handleEngineStop = useCallback(() => {
+      if (requestedModeChange) {
+        if (mode === 'Layers') {
+          applyLayerPositioning();
+        }
+        if (mode === 'Time') {
+          applyTimePositioning();
+        }
+        setRequestedModeChange(false);
+      }
+    }, [
+      mode,
+      applyLayerPositioning,
+      applyTimePositioning,
+      requestedModeChange,
+    ]);
+
+    const toggleControls = () => {
+      setShowControlsPanel(!showControlsPanel);
+    };
+
+    const handleLegendItemClick = useCallback((type: string) => {
+      setSelectedTypes((prev) => ({
+        ...prev,
+        [type]: !prev[type],
+      }));
+    }, []);
+
+    const handleBackgroundClick = useCallback(() => {
+      setSelectedNode(null);
+      setHoveredNode(null);
+    }, []);
+
+    const handleNodeClick = useCallback(
+      (node: NodeObject) => {
+        setSelectedNode(node);
+
+        // Navigate to subject page if this is a Subject node
+        if (node.type === 'Subject' && node.slug) {
+          navigate(`/subject/${node.slug}`);
+          return;
+        }
+
+        if (!fgRef.current) return;
+
+        const distance = 500;
+        const distRatio =
+          1 + distance / Math.hypot(node.x || 0, node.y || 0, node.z || 0);
+
+        fgRef.current.cameraPosition(
+          {
+            x: (node.x || 0) * distRatio,
+            y: (node.y || 0) * distRatio,
+            z: (node.z || 0) * distRatio,
+          },
+          node,
+          3000
+        );
+      },
+      [navigate]
+    );
+
+    // PERFORMANCE FIX: Throttled hover handler
+    const handleNodeHover = useCallback(
+      (node: NodeObject | null) => {
+        if (throttledHover.current) {
+          clearTimeout(throttledHover.current);
+        }
+
+        throttledHover.current = setTimeout(() => {
+          if (hoveredNode?.id !== node?.id) {
+            setHoveredNode(node);
+          }
+        }, 50); // 50ms throttle
+      },
+      [hoveredNode?.id]
+    );
+
+    // Get unique node types for legend
+    const uniqueNodeTypes = Array.from(
+      new Set(graphData.nodes.map((node) => node.type))
+    );
+
+    // PERFORMANCE FIX: Cleanup Three.js resources on unmount
+    useEffect(() => {
+      // Capture current refs to avoid stale closure issues
+      const currentGeometryCache = geometryCache.current;
+      const currentMaterialCache = materialCache.current;
+      const currentThrottledHover = throttledHover.current;
+      const currentAbortController = abortControllerRef.current;
+      const currentPulseAnimation = pulseAnimationRef.current;
+
+      return () => {
+        // Clean up geometry cache
+        currentGeometryCache.forEach((geometry) => {
+          geometry.dispose();
+        });
+        currentGeometryCache.clear();
+
+        // Clean up material cache
+        currentMaterialCache.forEach((material) => {
+          material.dispose();
+        });
+        currentMaterialCache.clear();
+
+        // Cancel any pending hover timeouts
+        if (currentThrottledHover) {
+          clearTimeout(currentThrottledHover);
+        }
+
+        // Cancel any pending pulse animations
+        if (currentPulseAnimation) {
+          clearTimeout(currentPulseAnimation);
+        }
+
+        // Cancel any pending requests
+        if (currentAbortController) {
+          currentAbortController.abort();
+        }
+      };
+    }, []);
+
+    return (
       <div
+        ref={containerRef}
+        className='network-graph-container'
         style={{
-          height: '100%',
           width: '100%',
+          height: '100%',
+          minHeight: '400px',
           position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
         }}
       >
-        {isLoading && (
+        {/* Scroll control overlay - prevents zoom when not captured */}
+        {!showTemporaryOverlay && !isScrollCaptured && (
           <div
-            className='loading-overlay'
+            className='scroll-overlay'
             style={{
               position: 'absolute',
-              width: '100%',
-              height: '100%',
-              top: '0',
-              left: '0',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: bgColor,
-              zIndex: 100,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 50,
+              backgroundColor: 'transparent',
+              pointerEvents: 'auto',
+              cursor: 'pointer',
+            }}
+            onClick={() => setIsScrollCaptured(true)}
+          />
+        )}
+
+        {/* Action Bar for Scroll Control */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 300,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            minWidth: '300px',
+            justifyContent: 'center',
+          }}
+          className={
+            theme.isDark ? 'dark-controls-panel' : 'light-controls-panel'
+          }
+        >
+          {showTemporaryOverlay ? (
+            <>
+              <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>
+                ⏳ Loading network...
+              </span>
+              <div
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  backgroundColor: 'rgba(255, 165, 0, 0.2)',
+                  border: '1px solid rgba(255, 165, 0, 0.4)',
+                  color: theme.isDark ? '#FFA500' : '#FF8C00',
+                  fontWeight: '500',
+                }}
+              >
+                Initializing...
+              </div>
+            </>
+          ) : !isScrollCaptured ? (
+            <>
+              <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>
+                💡 Click network to enable zoom
+              </span>
+              <div
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  backgroundColor: 'rgba(100, 200, 100, 0.2)',
+                  border: '1px solid rgba(100, 200, 100, 0.4)',
+                  color: theme.isDark ? '#90EE90' : '#006400',
+                  fontWeight: '500',
+                }}
+              >
+                Page Scroll Active
+              </div>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: '0.95rem', fontWeight: '500' }}>
+                🔒 Network Zoom Active
+              </span>
+              <button
+                onClick={() => setIsScrollCaptured(false)}
+                style={{
+                  background: 'rgba(255, 100, 100, 0.9)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '6px',
+                  padding: '6px 16px',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  color: 'white',
+                  fontWeight: '600',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 80, 80, 1)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 100, 100, 0.9)';
+                }}
+              >
+                Release Zoom (ESC)
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Legend */}
+        <div className={`fullscreen-legend ${theme.isDark ? 'dark' : 'light'}`}>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              marginBottom: '4px',
             }}
           >
+            Node Types
+          </div>
+          {uniqueNodeTypes.map((type) => (
             <div
-              className='loading-spinner'
+              key={type}
+              className={`legend-item ${theme.isDark ? 'dark' : 'light'} ${
+                !selectedTypes[type] ? 'legend-item-unselected' : ''
+              }`}
+              onClick={() => handleLegendItemClick(type)}
               style={{
-                width: '50px',
-                height: '50px',
-                border: `3px solid ${
-                  theme.isDark
-                    ? 'rgba(255, 255, 255, 0.2)'
-                    : 'rgba(0, 0, 0, 0.1)'
-                }`,
-                borderTop: `3px solid ${theme.isDark ? 'white' : '#333'}`,
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite',
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
+                backgroundColor:
+                  highlightedNodeType === type
+                    ? theme.isDark
+                      ? 'rgba(255, 255, 255, 0.1)'
+                      : 'rgba(0, 0, 0, 0.05)'
+                    : 'transparent',
               }}
-            ></div>
+            >
+              <div
+                className='legend-color-box'
+                style={{ backgroundColor: nodeColors[type] || '#999999' }}
+              />
+              <span className='legend-label'>{type}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Node Info Display */}
+        {(selectedNode || hoveredNode) && (
+          <div
+            className={`node-info-display ${theme.isDark ? 'dark' : 'light'}`}
+          >
+            <div className='node-header'>
+              <div
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: (selectedNode || hoveredNode)?.color,
+                }}
+              />
+              <span className='node-type'>
+                {(selectedNode || hoveredNode)?.type}
+              </span>
+            </div>
+            <div className='node-name'>
+              {(selectedNode || hoveredNode)?.name}
+            </div>
+            {(selectedNode || hoveredNode)?.date && (
+              <div className='node-date'>
+                {new Date((selectedNode || hoveredNode)!.date!).getFullYear()}
+              </div>
+            )}
+            {(selectedNode || hoveredNode)?.type === 'Subject' && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  opacity: 0.8,
+                  fontStyle: 'italic',
+                  color: 'inherit',
+                }}
+              >
+                💡 Click node to visit subject page
+              </div>
+            )}
           </div>
         )}
-        <ForceGraph3D
-          ref={fgRef}
-          key={`forcegraph-${mode}`}
-          graphData={filteredGraphData}
-          numDimensions={dimensions}
-          nodeLabel={(node) =>
-            `${node.type}${
-              node.date ? ` - ${new Date(node.date).getFullYear()}` : ''
-            }: ${node.name}`
-          }
-          nodeColor={(node) => node.color}
-          nodeVal={(node) => (node.type === 'Subject' ? 20 : 1)}
-          nodeThreeObject={nodeThreeObject}
-          linkColor={(link) => (link as LinkObject).color}
-          linkWidth={linkWidth}
-          linkOpacity={0.3}
-          linkDirectionalParticles={0}
-          linkDirectionalParticleWidth={0}
-          backgroundColor={bgColor}
-          onBackgroundClick={handleBackgroundClick}
-          onEngineStop={handleEngineStop}
-          cooldownTicks={100}
-          enableNodeDrag={false}
-          enablePointerInteraction={true}
-          width={containerDimensions.width || undefined}
-          height={containerDimensions.height || undefined}
-          controlType='orbit'
-        />
-      </div>
-    </div>
-  );
-}
 
-export default NetworkGraph;
+        {/* Controls */}
+        <div className='controls-toggle-container'>
+          {/* Mode Selector */}
+          <div
+            className={`mode-selector-button ${
+              theme.isDark ? 'dark-controls' : 'light-controls'
+            }`}
+          >
+            <button
+              className={`mode-selector-inner-button ${
+                theme.isDark ? 'dark-controls-panel' : 'light-controls-panel'
+              }`}
+              onClick={() => setShowModeOptions(!showModeOptions)}
+            >
+              <span>{mode} Mode</span>
+              <span className='mode-selector-chevron'>▼</span>
+            </button>
+            {showModeOptions && (
+              <div
+                className={`mode-options-dropdown ${
+                  theme.isDark ? 'dark-controls-panel' : 'light-controls-panel'
+                }`}
+              >
+                {(['Free', 'Layers', 'Time'] as const).map((modeOption) => (
+                  <button
+                    key={modeOption}
+                    className={`mode-option ${
+                      mode === modeOption ? 'selected' : ''
+                    } ${theme.isDark ? 'dark-hover' : 'light-hover'}`}
+                    onClick={() => {
+                      handleModeChange(modeOption);
+                      setShowModeOptions(false);
+                    }}
+                  >
+                    {modeOption} Mode
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Controls Toggle */}
+          <button
+            className={`control-button ${
+              theme.isDark ? 'dark-controls' : 'light-controls'
+            }`}
+            onClick={toggleControls}
+            title='Toggle Controls'
+          >
+            ⚙️
+          </button>
+        </div>
+
+        {/* Controls Panel */}
+        {showControlsPanel && (
+          <div
+            className={`controls-panel ${
+              theme.isDark ? 'dark-controls-panel' : 'light-controls-panel'
+            }`}
+          >
+            <button
+              className={`reheat-button ${
+                theme.isDark ? 'dark-controls' : 'light-controls'
+              }`}
+              onClick={() => fgRef.current?.d3ReheatSimulation()}
+            >
+              Reheat Simulation
+            </button>
+
+            <button
+              className={`reheat-button ${
+                theme.isDark ? 'dark-controls' : 'light-controls'
+              }`}
+              onClick={handleZoomToFit}
+            >
+              Zoom to Fit
+            </button>
+
+            <label className='control-label'>
+              Charge Strength: {chargeStrength}
+              <input
+                type='range'
+                min='-200'
+                max='0'
+                value={chargeStrength}
+                onChange={(e) => setChargeStrength(Number(e.target.value))}
+                className='control-slider'
+              />
+            </label>
+
+            <label className='control-label'>
+              Link Strength: {linkStrength}
+              <input
+                type='range'
+                min='0'
+                max='2'
+                step='0.1'
+                value={linkStrength}
+                onChange={(e) => setLinkStrength(Number(e.target.value))}
+                className='control-slider'
+              />
+            </label>
+
+            <label className='control-label'>
+              Link Distance: {linkDistance}
+              <input
+                type='range'
+                min='1'
+                max='50'
+                value={linkDistance}
+                onChange={(e) => setLinkDistance(Number(e.target.value))}
+                className='control-slider'
+              />
+            </label>
+
+            <label className='control-label'>
+              Center Strength: {centerStrength}
+              <input
+                type='range'
+                min='0'
+                max='1'
+                step='0.01'
+                value={centerStrength}
+                onChange={(e) => setCenterStrength(Number(e.target.value))}
+                className='control-slider'
+              />
+            </label>
+
+            <label className='control-label'>
+              Link Width: {linkWidth}
+              <input
+                type='range'
+                min='0'
+                max='5'
+                step='0.5'
+                value={linkWidth}
+                onChange={(e) => setLinkWidth(Number(e.target.value))}
+                className='control-slider'
+              />
+            </label>
+
+            {mode === 'Time' && (
+              <label className='control-label'>
+                Time Scale: {timeScale}
+                <input
+                  type='range'
+                  min='100'
+                  max='2000'
+                  step='50'
+                  value={timeScale}
+                  onChange={(e) => setTimeScale(Number(e.target.value))}
+                  className='control-slider'
+                />
+              </label>
+            )}
+          </div>
+        )}
+
+        {/* ForceGraph3D Component */}
+        <div
+          style={{
+            height: '100%',
+            width: '100%',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {isLoading && (
+            <div
+              className='loading-overlay'
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                top: '0',
+                left: '0',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: bgColor,
+                zIndex: 100,
+              }}
+            >
+              <div
+                className='loading-spinner'
+                style={{
+                  width: '50px',
+                  height: '50px',
+                  border: `3px solid ${
+                    theme.isDark
+                      ? 'rgba(255, 255, 255, 0.2)'
+                      : 'rgba(0, 0, 0, 0.1)'
+                  }`,
+                  borderTop: `3px solid ${theme.isDark ? 'white' : '#333'}`,
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                }}
+              ></div>
+            </div>
+          )}
+          <ForceGraph3D
+            ref={fgRef}
+            key={`forcegraph-${mode}-${params.subject || params.subjects}`}
+            graphData={filteredGraphData}
+            numDimensions={dimensions}
+            nodeLabel={(node) =>
+              `${node.type}${
+                node.date ? ` - ${new Date(node.date).getFullYear()}` : ''
+              }: ${node.name}`
+            }
+            nodeColor={(node) => node.color}
+            nodeVal={(node) => (node.type === 'Subject' ? 20 : 1)}
+            nodeThreeObject={nodeThreeObject}
+            linkColor={(link) => (link as LinkObject).color}
+            linkWidth={linkWidth}
+            linkOpacity={0.3}
+            linkDirectionalParticles={0}
+            linkDirectionalParticleWidth={0}
+            backgroundColor={bgColor}
+            onBackgroundClick={handleBackgroundClick}
+            onNodeClick={handleNodeClick}
+            onNodeHover={handleNodeHover}
+            onEngineStop={handleEngineStop}
+            cooldownTicks={50}
+            enableNodeDrag={false}
+            enablePointerInteraction={true}
+            enableNavigationControls={true}
+            width={containerDimensions.width || undefined}
+            height={containerDimensions.height || undefined}
+            controlType='orbit'
+            rendererConfig={{
+              antialias: false,
+              alpha: true,
+              powerPreference: 'high-performance',
+              precision: 'lowp',
+            }}
+            nodeRelSize={1}
+          />
+        </div>
+      </div>
+    );
+  }
+);
+
+NetworkGraph.displayName = 'NetworkGraph';
+
+export default React.memo(NetworkGraph);
