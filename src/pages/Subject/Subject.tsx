@@ -728,6 +728,7 @@ const Subject: React.FC = () => {
     <Box position='relative' bg='bg' minHeight='calc(100vh - 64px)'>
       {/* Background Network Graph - Make it shorter to show stat cards */}
       <Box
+        pt={40}
         position='relative'
         height='calc(90vh - 64px)' // Reduced from 100vh to 70vh
         zIndex={0}
