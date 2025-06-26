@@ -11,7 +11,7 @@ import Search from './pages/Search';
 import WorkspaceView from './pages/WorkspaceView';
 import Login from './pages/Login/Login';
 import Lab from './pages/Lab';
-import FuturityLab from './pages/FuturityLab';
+import FuturityLab from './pages/FuturityLab/FuturityLab';
 import Whiteboard from './pages/Whiteboard';
 import TeamView from './pages/TeamView';
 import TeamManage from './pages/TeamManage';

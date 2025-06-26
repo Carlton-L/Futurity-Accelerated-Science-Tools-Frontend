@@ -1,2 +1,5 @@
-export { default } from './FuturityLab';
-export { default as FuturityLabCard } from './FuturityLabCard';
+import {default} from './FuturityLab';
+import FuturityLabCardComponent from './FuturityLabCard';
+
+export default FuturityLabComponent;
+export { FuturityLabCardComponent as FuturityLabCard };
