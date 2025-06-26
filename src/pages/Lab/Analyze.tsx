@@ -57,6 +57,9 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
   // API data state
   const [subjects, setSubjects] = useState<LabSubject[]>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [loadingSubjects, setLoadingSubjects] = useState<boolean>(true);
   const [subjectsError, setSubjectsError] = useState<string | null>(null);
   const [refreshingSubjects, setRefreshingSubjects] = useState<boolean>(false);
@@ -166,6 +169,16 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
         const labData = await response.json();
         console.log('Fetched lab data:', labData);
 
+        // Extract categories from API response
+        const apiCategories = labData.categories || [];
+        // Add the default "Uncategorized" category
+        const allCategories = [
+          { id: 'uncategorized', name: 'Uncategorized' },
+          ...apiCategories,
+        ];
+        setCategories(allCategories);
+        console.log('Categories:', allCategories);
+
         // Transform subjects from API format to frontend format
         const transformedSubjects: LabSubject[] = [];
 
@@ -192,6 +205,9 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 notes: subjectData.ent_summary || '',
               };
 
+              console.log(
+                `Subject ${transformedSubject.subjectName} -> Category ID: ${transformedSubject.categoryId}`
+              );
               transformedSubjects.push(transformedSubject);
             } catch (subjectError) {
               console.warn(
@@ -296,11 +312,8 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
   // Computed values
   const usedCategoryNames = useMemo(() => {
-    const categories = mockCategories
-      .filter((cat) => cat.type !== 'exclude')
-      .map((cat) => cat.name);
-    return Array.from(new Set(categories)).sort();
-  }, []);
+    return categories.map((cat) => cat.name).sort();
+  }, [categories]);
 
   const excludedSubjects = useMemo(() => {
     const excludeCategory = mockCategories.find(
@@ -310,32 +323,45 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   }, []);
 
   const horizonData = useMemo((): HorizonItem[] => {
+    console.log('Generating horizon data...');
+    console.log('Available categories:', categories);
+    console.log(
+      'Selected subjects:',
+      subjects.filter((subject) => selectedSubjects.has(subject.id))
+    );
+
     return subjects
       .filter((subject) => selectedSubjects.has(subject.id))
       .map((subject) => {
-        // Try to find category from mockCategories, fallback to categoryId
-        const category = mockCategories.find((cat) =>
-          cat.subjects.some((s) => s.id === subject.id)
+        // Find the category from the actual API categories
+        const category = categories.find(
+          (cat) => cat.id === subject.categoryId
+        );
+        const categoryName = category?.name || 'Uncategorized';
+
+        console.log(
+          `Subject: ${subject.subjectName}, CategoryId: ${subject.categoryId}, Found Category: ${categoryName}`
         );
 
+        // Generate a hash from the subject name for positioning
         const nameHash = subject.subjectName.split('').reduce((a, b) => {
           a = (a << 5) - a + b.charCodeAt(0);
           return a & a;
         }, 0);
         const normalizedHash = Math.abs(nameHash) / 2147483648;
 
-        return {
+        const horizonItem = {
           name: subject.subjectName,
           horizon: convertHorizonValue(normalizedHash),
-          category: getCategoryNumber(
-            category?.name || 'Uncategorized',
-            usedCategoryNames
-          ),
+          category: getCategoryNumber(categoryName, usedCategoryNames),
           type: 1,
-          categoryName: category?.name || 'Uncategorized',
+          categoryName: categoryName,
         };
+
+        console.log(`Generated horizon item:`, horizonItem);
+        return horizonItem;
       });
-  }, [subjects, selectedSubjects, usedCategoryNames]);
+  }, [subjects, selectedSubjects, categories, usedCategoryNames]);
 
   const groupedSubjects = useMemo(() => {
     const selected: LabSubject[] = [];
