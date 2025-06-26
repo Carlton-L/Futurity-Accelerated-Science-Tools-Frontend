@@ -11,8 +11,9 @@ import {
   Spinner,
   Field,
   Flex,
+  IconButton,
 } from '@chakra-ui/react';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiRefreshCw } from 'react-icons/fi';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -46,6 +47,7 @@ interface GatherProps {
   categories: SubjectCategory[];
   onTermsUpdate: (includeTerms: string[], excludeTerms: string[]) => void;
   onCategoriesUpdate: (categories: SubjectCategory[]) => void;
+  onRefreshLab: () => Promise<void>;
 }
 
 // Search API Response Interface
@@ -352,10 +354,12 @@ const Gather: React.FC<GatherProps> = ({
   categories,
   onTermsUpdate,
   onCategoriesUpdate,
+  onRefreshLab,
 }) => {
   const { toast, toasts, removeToast, executeUndo } = useToast();
   const [userRole] = useState<UserRole>('editor');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const { token } = useAuth();
   const navigate = useNavigate();
 
@@ -416,6 +420,30 @@ const Gather: React.FC<GatherProps> = ({
     token,
     toast
   );
+
+  // Handle refresh lab data
+  const handleRefreshClick = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await onRefreshLab();
+      toast({
+        title: 'Lab refreshed',
+        description: 'Lab data has been updated with the latest information.',
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to refresh lab:', error);
+      toast({
+        title: 'Refresh failed',
+        description: 'Failed to refresh lab data. Please try again.',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [onRefreshLab, toast]);
 
   // Load initial lab data
   useEffect(() => {
@@ -1441,12 +1469,33 @@ const Gather: React.FC<GatherProps> = ({
   return (
     <DndProvider backend={HTML5Backend}>
       <VStack gap={4} align='stretch'>
-        {/* Header with search */}
+        {/* Header with search and refresh */}
         <HStack justify='space-between' align='center'>
           <HStack gap={4} flex='1'>
             <Heading as='h2' size='lg' color='fg' fontFamily='heading'>
               Subjects
             </Heading>
+
+            {/* Refresh Button */}
+            <IconButton
+              size='md'
+              variant='ghost'
+              onClick={handleRefreshClick}
+              disabled={isRefreshing}
+              color='fg.muted'
+              _hover={{ color: 'brand', bg: 'bg.hover' }}
+              aria-label='Refresh lab data'
+              title='Refresh lab data'
+            >
+              <FiRefreshCw
+                size={16}
+                style={{
+                  transform: isRefreshing ? 'rotate(360deg)' : 'none',
+                  transition: 'transform 1s linear',
+                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                }}
+              />
+            </IconButton>
 
             <SubjectSearch
               searchQuery={searchQuery}
@@ -1748,6 +1797,16 @@ const Gather: React.FC<GatherProps> = ({
           />
         </VStack>
       </VStack>
+
+      {/* Add CSS for refresh button animation */}
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </DndProvider>
   );
 };
