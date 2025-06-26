@@ -1,20 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 import type {
   ApiLabData,
-  ApiLabCategory,
-  ApiLabSubject,
+  LabUpdateRequest,
   MongoUUID,
   MongoObjectId,
 } from '../pages/Lab/types';
 
 const API_BASE_URL = 'https://tools.futurity.science/api/lab';
-
-interface LabAPIResponse {
-  success: boolean;
-  data?: ApiLabData;
-  error?: string;
-  message?: string;
-}
 
 // TODO: Update this type when the API response is fixed to match the correct MongoDB structure
 interface LabApiResponse {
@@ -36,7 +28,13 @@ interface LabApiResponse {
   }>;
   exclude_terms: string[];
   include_terms: string[];
-  subjects: any[];
+  subjects: Array<{
+    subject_id: string;
+    subject_name?: string;
+    name?: string;
+    category: string | null;
+    ent_fsid: string;
+  }>;
   analyses: string[];
   goals: Array<{
     id: string;
@@ -78,6 +76,42 @@ class LabAPIService {
    */
   public generateMongoObjectId(id: string): MongoObjectId {
     return { $oid: id };
+  }
+
+  /**
+   * Get a single lab by ID
+   */
+  async getLab(labId: string, token: string): Promise<ApiLabData> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/view?lab_id=${labId}`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(token),
+      });
+
+      if (response.status === 401) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      if (response.status === 403) {
+        throw new Error('You do not have permission to access this lab.');
+      }
+
+      if (response.status === 404) {
+        throw new Error('Lab not found.');
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch lab: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const labData: ApiLabData = await response.json();
+      return labData;
+    } catch (error) {
+      console.error('Get lab error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -126,16 +160,139 @@ class LabAPIService {
       throw error;
     }
   }
+  /**
+   * Create a lab from a Futurity Lab
+   */
+  /**
+   * Helper method to get current API format subjects from lab data
+   */
+  getApiSubjectsFromLab(lab: any): Array<{
+    subject_id: string;
+    subject_name?: string;
+    name?: string;
+    category: string | null;
+    ent_fsid: string;
+  }> {
+    return lab.subjects.map((subject: any) => ({
+      subject_id: subject.subjectId, // Use the actual subject ID
+      subject_name: subject.subjectName, // Use subject_name field
+      category:
+        subject.categoryId === 'uncategorized' ? null : subject.categoryId, // null for uncategorized
+      ent_fsid: subject.subjectSlug.startsWith('fsid_')
+        ? subject.subjectSlug
+        : `fsid_${subject.subjectSlug}`, // Ensure fsid_ prefix
+    }));
+  }
 
   /**
-   * Update lab data via API
+   * Create a lab from a Futurity Lab
+   */
+  async createLabFromFuturity(
+    futurityLab: any,
+    teamspaceId: string,
+    userGuid: string,
+    userId: string,
+    token: string
+  ): Promise<{ _id: string }> {
+    try {
+      // Map all subjects from the Futurity Lab
+      const subjects =
+        futurityLab.subjects?.map((subject: any) => ({
+          subject_id: subject._id.$oid, // Extract the ObjectId from the MongoDB format
+          subject_name: subject.ent_name, // Map ent_name to subject_name
+          category: null, // All subjects start uncategorized
+          ent_fsid: subject.ent_fsid, // Keep the same ent_fsid
+        })) || [];
+
+      // Map all analyses from the Futurity Lab
+      const analyses =
+        futurityLab.analyses?.map(
+          (analysis: any) => analysis._id.$oid // Extract the ObjectId from the MongoDB format
+        ) || [];
+
+      const labData = {
+        ent_name: `${futurityLab.ent_name} (Futurity Lab)`,
+        ent_summary: futurityLab.ent_summary,
+        picture_url: futurityLab.picture_url || null,
+        thumb_url: futurityLab.thumb_url || null,
+        owner_guid: userGuid,
+        teamspace_id: teamspaceId,
+        members: [
+          {
+            user_id: userId,
+            role: 'owner',
+          },
+        ],
+        kbid: null,
+        categories: [],
+        exclude_terms: [],
+        include_terms: [],
+        subjects: subjects, // Use the mapped subjects array
+        analyses: analyses, // Use the mapped analyses array
+        goals: [],
+        miro_board_url: null,
+        idea_seeds: [],
+        isArchived: false,
+        isDeleted: false,
+        deletedAt: null,
+      };
+
+      console.log('Creating lab from Futurity Lab with subjects:', {
+        totalSubjects: subjects.length,
+        totalAnalyses: analyses.length,
+        subjects: subjects,
+        analyses: analyses,
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/create?teamspace_id=${teamspaceId}`,
+        {
+          method: 'POST',
+          headers: this.getAuthHeaders(token),
+          body: JSON.stringify(labData),
+        }
+      );
+
+      if (response.status === 401) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      if (response.status === 403) {
+        throw new Error(
+          'You do not have permission to create labs in this teamspace.'
+        );
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Create lab failed response:', errorText);
+        throw new Error(
+          `Failed to create lab: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Create lab from Futurity failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update lab data via API - Updated to match actual API structure
    */
   async updateLab(
     labId: string,
-    updateData: Partial<ApiLabData>,
+    updateData: Partial<LabUpdateRequest>,
     token: string
   ): Promise<ApiLabData> {
     try {
+      console.log(
+        'Updating lab with data:',
+        JSON.stringify(updateData, null, 2)
+      );
+
       const response = await fetch(`${API_BASE_URL}/update?lab_id=${labId}`, {
         method: 'POST',
         headers: this.getAuthHeaders(token),
@@ -150,23 +307,35 @@ class LabAPIService {
         throw new Error('You do not have permission to update this lab.');
       }
 
+      if (response.status === 404) {
+        throw new Error('Lab not found or update endpoint not available.');
+      }
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Update failed response:', errorText);
         throw new Error(
           `Update failed: ${response.status} ${response.statusText}`
         );
       }
 
-      const result: LabAPIResponse = await response.json();
+      // The API might return the updated lab data directly, or in a wrapper
+      const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || 'Update failed');
+      // Handle different response formats
+      if (result.success !== undefined) {
+        // Wrapped response
+        if (!result.success) {
+          throw new Error(result.error || 'Update failed');
+        }
+        if (!result.data) {
+          throw new Error('No data returned from server');
+        }
+        return result.data;
+      } else {
+        // Direct response
+        return result as ApiLabData;
       }
-
-      if (!result.data) {
-        throw new Error('No data returned from server');
-      }
-
-      return result.data;
     } catch (error) {
       console.error('Lab update failed:', error);
       throw error;
@@ -184,7 +353,7 @@ class LabAPIService {
     currentExcludeTerms: string[],
     token: string
   ): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {};
+    const updateData: Partial<LabUpdateRequest> = {};
 
     if (type === 'include') {
       updateData.include_terms = [...currentIncludeTerms, term];
@@ -206,7 +375,7 @@ class LabAPIService {
     currentExcludeTerms: string[],
     token: string
   ): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {};
+    const updateData: Partial<LabUpdateRequest> = {};
 
     if (type === 'include') {
       updateData.include_terms = currentIncludeTerms.filter((t) => t !== term);
@@ -228,7 +397,7 @@ class LabAPIService {
     currentExcludeTerms: string[],
     token: string
   ): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {};
+    const updateData: Partial<LabUpdateRequest> = {};
 
     if (fromType === 'include') {
       // Move from include to exclude
@@ -244,20 +413,20 @@ class LabAPIService {
   }
 
   /**
-   * Add a new category
+   * Add a new category - Updated to match API format
    */
   async addCategory(
     labId: string,
     categoryName: string,
-    currentCategories: ApiLabCategory[],
+    currentCategories: Array<{ id: string; name: string }>,
     token: string
   ): Promise<ApiLabData> {
-    const newCategory: ApiLabCategory = {
-      id: this.generateMongoUUID(),
+    const newCategory = {
+      id: this.generateUUID(), // Generate simple UUID string
       name: categoryName,
     };
 
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       categories: [...currentCategories, newCategory],
     };
 
@@ -265,20 +434,20 @@ class LabAPIService {
   }
 
   /**
-   * Update category name
+   * Update category name - Updated to match API format
    */
   async updateCategoryName(
     labId: string,
     categoryId: string,
     newName: string,
-    currentCategories: ApiLabCategory[],
+    currentCategories: Array<{ id: string; name: string }>,
     token: string
   ): Promise<ApiLabData> {
     const updatedCategories = currentCategories.map((cat) =>
-      cat.id.$uuid === categoryId ? { ...cat, name: newName } : cat
+      cat.id === categoryId ? { ...cat, name: newName } : cat
     );
 
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       categories: updatedCategories,
     };
 
@@ -286,39 +455,59 @@ class LabAPIService {
   }
 
   /**
-   * Remove a category
+   * Remove a category - Updated to match API format
    */
   async removeCategory(
     labId: string,
     categoryId: string,
     moveSubjectsToUncategorized: boolean,
-    currentCategories: ApiLabCategory[],
-    currentSubjects: ApiLabSubject[],
+    currentCategories: Array<{ id: string; name: string }>,
+    currentSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     uncategorizedCategoryId: string,
     token: string
   ): Promise<ApiLabData> {
-    // Remove the category
+    console.log('Removing category:', {
+      categoryId,
+      moveSubjectsToUncategorized,
+      currentCategories,
+      currentSubjects,
+      uncategorizedCategoryId,
+    });
+
+    // Remove the category from the categories list
     const updatedCategories = currentCategories.filter(
-      (cat) => cat.id.$uuid !== categoryId
+      (cat) => cat.id !== categoryId
     );
 
     let updatedSubjects = currentSubjects;
 
     if (moveSubjectsToUncategorized) {
-      // Move subjects to uncategorized category
-      updatedSubjects = currentSubjects.map((subject) =>
-        subject.category.$uuid === categoryId
-          ? { ...subject, category: { $uuid: uncategorizedCategoryId } }
-          : subject
-      );
+      // Move subjects to uncategorized category (set category to null)
+      updatedSubjects = currentSubjects.map((subject) => {
+        if (subject.category === categoryId) {
+          return {
+            ...subject,
+            category: null, // null means uncategorized
+          };
+        }
+        return subject;
+      });
     } else {
       // Remove subjects that were in this category
       updatedSubjects = currentSubjects.filter(
-        (subject) => subject.category.$uuid !== categoryId
+        (subject) => subject.category !== categoryId
       );
     }
 
-    const updateData: Partial<ApiLabData> = {
+    console.log('Updated subjects after category removal:', updatedSubjects);
+
+    const updateData: Partial<LabUpdateRequest> = {
       categories: updatedCategories,
       subjects: updatedSubjects,
     };
@@ -327,7 +516,7 @@ class LabAPIService {
   }
 
   /**
-   * Add a subject to the lab
+   * Add a subject to the lab - Updated to match API format
    */
   async addSubject(
     labId: string,
@@ -335,17 +524,25 @@ class LabAPIService {
     subjectSlug: string,
     subjectName: string,
     categoryId: string,
-    currentSubjects: ApiLabSubject[],
+    currentSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     token: string
   ): Promise<ApiLabData> {
-    const newSubject: ApiLabSubject = {
-      subject_id: { $oid: subjectId },
-      subject_slug: subjectSlug,
+    const newSubject = {
+      subject_id: subjectId, // Simple string
       subject_name: subjectName,
-      category: { $uuid: categoryId },
+      category: categoryId === 'uncategorized' ? null : categoryId, // null for uncategorized
+      ent_fsid: subjectSlug.startsWith('fsid_')
+        ? subjectSlug
+        : `fsid_${subjectSlug}`,
     };
 
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       subjects: [...currentSubjects, newSubject],
     };
 
@@ -353,19 +550,25 @@ class LabAPIService {
   }
 
   /**
-   * Remove a subject from the lab
+   * Remove a subject from the lab - Updated to match API format
    */
   async removeSubject(
     labId: string,
     subjectId: string,
-    currentSubjects: ApiLabSubject[],
+    currentSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     token: string
   ): Promise<ApiLabData> {
     const updatedSubjects = currentSubjects.filter(
-      (subject) => subject.subject_id.$oid !== subjectId
+      (subject) => subject.subject_id !== subjectId
     );
 
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       subjects: updatedSubjects,
     };
 
@@ -373,22 +576,49 @@ class LabAPIService {
   }
 
   /**
-   * Move a subject to a different category
+   * Move a subject to a different category - CRITICAL FIX
    */
   async moveSubjectToCategory(
     labId: string,
     subjectId: string,
     newCategoryId: string,
-    currentSubjects: ApiLabSubject[],
+    currentApiSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     token: string
   ): Promise<ApiLabData> {
-    const updatedSubjects = currentSubjects.map((subject) =>
-      subject.subject_id.$oid === subjectId
-        ? { ...subject, category: { $uuid: newCategoryId } }
-        : subject
-    );
+    console.log('Moving subject to category:', {
+      subjectId,
+      newCategoryId,
+      currentApiSubjects,
+    });
 
-    const updateData: Partial<ApiLabData> = {
+    // Create the updated subjects array with the correct format
+    const updatedSubjects = currentApiSubjects.map((subject) => {
+      if (subject.subject_id === subjectId) {
+        return {
+          subject_id: subject.subject_id, // Keep the original subject ID
+          subject_name: subject.subject_name || subject.name, // Preserve name
+          category: newCategoryId === 'uncategorized' ? null : newCategoryId, // null for uncategorized
+          ent_fsid: subject.ent_fsid, // Keep the original ent_fsid
+        };
+      }
+      return {
+        subject_id: subject.subject_id,
+        subject_name: subject.subject_name || subject.name,
+        category: subject.category,
+        ent_fsid: subject.ent_fsid,
+      };
+    });
+
+    console.log('Updated subjects for API:', updatedSubjects);
+
+    // Send ONLY the subjects array to minimize chance of corruption
+    const updateData: Partial<LabUpdateRequest> = {
       subjects: updatedSubjects,
     };
 
@@ -402,7 +632,13 @@ class LabAPIService {
     labId: string,
     subjectId: string,
     uncategorizedCategoryId: string,
-    currentSubjects: ApiLabSubject[],
+    currentSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     token: string
   ): Promise<ApiLabData> {
     return this.moveSubjectToCategory(
@@ -423,7 +659,7 @@ class LabAPIService {
     description: string,
     token: string
   ): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       ent_name: name,
       ent_summary: description,
     };
@@ -435,8 +671,8 @@ class LabAPIService {
    * Archive a lab
    */
   async archiveLab(labId: string, token: string): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
-      isArchived: true,
+    const updateData: Partial<LabUpdateRequest> = {
+      isArchived: 1, // API expects number
     };
 
     return this.updateLab(labId, updateData, token);
@@ -446,8 +682,8 @@ class LabAPIService {
    * Unarchive a lab
    */
   async unarchiveLab(labId: string, token: string): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
-      isArchived: false,
+    const updateData: Partial<LabUpdateRequest> = {
+      isArchived: 0, // API expects number
     };
 
     return this.updateLab(labId, updateData, token);
@@ -457,8 +693,8 @@ class LabAPIService {
    * Delete a lab (soft delete)
    */
   async deleteLab(labId: string, token: string): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
-      isDeleted: true,
+    const updateData: Partial<LabUpdateRequest> = {
+      isDeleted: 1, // API expects number
       deletedAt: new Date().toISOString(),
     };
 
@@ -469,8 +705,8 @@ class LabAPIService {
    * Restore a deleted lab
    */
   async restoreLab(labId: string, token: string): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
-      isDeleted: false,
+    const updateData: Partial<LabUpdateRequest> = {
+      isDeleted: 0, // API expects number
       deletedAt: null,
     };
 
@@ -482,20 +718,14 @@ class LabAPIService {
    */
   async batchUpdate(
     labId: string,
-    updates: {
-      categories?: ApiLabCategory[];
-      subjects?: ApiLabSubject[];
-      include_terms?: string[];
-      exclude_terms?: string[];
-      [key: string]: any;
-    },
+    updates: Partial<LabUpdateRequest>,
     token: string
   ): Promise<ApiLabData> {
     return this.updateLab(labId, updates, token);
   }
 
   /**
-   * Add multiple subjects at once
+   * Add multiple subjects at once - Updated to match API format
    */
   async addSubjects(
     labId: string,
@@ -505,17 +735,26 @@ class LabAPIService {
       subjectName: string;
       categoryId: string;
     }>,
-    currentSubjects: ApiLabSubject[],
+    currentSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     token: string
   ): Promise<ApiLabData> {
-    const newSubjects: ApiLabSubject[] = subjects.map((subject) => ({
-      subject_id: { $oid: subject.subjectId },
-      subject_slug: subject.subjectSlug,
+    const newSubjects = subjects.map((subject) => ({
+      subject_id: subject.subjectId, // Simple string
       subject_name: subject.subjectName,
-      category: { $uuid: subject.categoryId },
+      category:
+        subject.categoryId === 'uncategorized' ? null : subject.categoryId, // null for uncategorized
+      ent_fsid: subject.subjectSlug.startsWith('fsid_')
+        ? subject.subjectSlug
+        : `fsid_${subject.subjectSlug}`,
     }));
 
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       subjects: [...currentSubjects, ...newSubjects],
     };
 
@@ -523,19 +762,25 @@ class LabAPIService {
   }
 
   /**
-   * Remove multiple subjects at once
+   * Remove multiple subjects at once - Updated to match API format
    */
   async removeSubjects(
     labId: string,
     subjectIds: string[],
-    currentSubjects: ApiLabSubject[],
+    currentSubjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>,
     token: string
   ): Promise<ApiLabData> {
     const updatedSubjects = currentSubjects.filter(
-      (subject) => !subjectIds.includes(subject.subject_id.$oid)
+      (subject) => !subjectIds.includes(subject.subject_id)
     );
 
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       subjects: updatedSubjects,
     };
 
@@ -543,14 +788,14 @@ class LabAPIService {
   }
 
   /**
-   * Update multiple categories at once
+   * Update multiple categories at once - Updated to match API format
    */
   async updateCategories(
     labId: string,
-    categories: ApiLabCategory[],
+    categories: Array<{ id: string; name: string }>,
     token: string
   ): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       categories,
     };
 
@@ -566,12 +811,33 @@ class LabAPIService {
     excludeTerms: string[],
     token: string
   ): Promise<ApiLabData> {
-    const updateData: Partial<ApiLabData> = {
+    const updateData: Partial<LabUpdateRequest> = {
       include_terms: includeTerms,
       exclude_terms: excludeTerms,
     };
 
     return this.updateLab(labId, updateData, token);
+  }
+
+  /**
+   * Helper method to get current API format subjects from lab data
+   */
+  getApiSubjectsFromLab(lab: any): Array<{
+    subject_id: string;
+    subject_name?: string;
+    name?: string;
+    category: string | null;
+    ent_fsid: string;
+  }> {
+    return lab.subjects.map((subject: any) => ({
+      subject_id: subject.subjectId, // Use the actual subject ID
+      subject_name: subject.subjectName, // Use subject_name field
+      category:
+        subject.categoryId === 'uncategorized' ? null : subject.categoryId, // null for uncategorized
+      ent_fsid: subject.subjectSlug.startsWith('fsid_')
+        ? subject.subjectSlug
+        : `fsid_${subject.subjectSlug}`, // Ensure fsid_ prefix
+    }));
   }
 }
 

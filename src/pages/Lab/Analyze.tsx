@@ -16,13 +16,20 @@ import {
   Input,
   Checkbox,
   Flex,
-  createToaster,
   Tabs,
+  IconButton,
 } from '@chakra-ui/react';
+import { FiRefreshCw } from 'react-icons/fi';
 import GlassCard from '../../components/shared/GlassCard';
 import CardScroller from '../../components/shared/CardScroller';
 import HorizonChartSection from './Horizons/HorizonChartSection';
-import type { LabSubject, HorizonItem, AnalysisType } from './types';
+import { useAuth } from '../../context/AuthContext';
+import type {
+  LabSubject,
+  HorizonItem,
+  AnalysisType,
+  SubjectData,
+} from './types';
 import { mockCategories, mockAnalyses } from './mockData';
 import {
   convertHorizonValue,
@@ -35,8 +42,7 @@ interface AnalyzeProps {
 }
 
 const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
-  // Create toaster instance
-  const toaster = createToaster({});
+  const { token } = useAuth();
 
   // Refs for scrolling to sections
   const horizonChartRef = useRef<HTMLDivElement>(null);
@@ -48,6 +54,15 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('most-recent');
   const [activeSection, setActiveSection] = useState<string>('horizon-chart');
+
+  // API data state
+  const [subjects, setSubjects] = useState<LabSubject[]>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [loadingSubjects, setLoadingSubjects] = useState<boolean>(true);
+  const [subjectsError, setSubjectsError] = useState<string | null>(null);
+  const [refreshingSubjects, setRefreshingSubjects] = useState<boolean>(false);
 
   // Horizon chart subject selection
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(
@@ -64,19 +79,246 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [isCopyingAnalysis, setIsCopyingAnalysis] = useState(false);
 
-  // Computed values
-  const allSubjects = useMemo(() => {
-    return mockCategories
-      .filter((cat) => cat.type !== 'exclude')
-      .flatMap((cat) => cat.subjects);
-  }, []);
+  // Fetch detailed subject data
+  const fetchSubjectData = useCallback(
+    async (objectId: string): Promise<SubjectData> => {
+      try {
+        if (token) {
+          const response = await fetch(
+            `https://tools.futurity.science/api/subject/${objectId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
 
+          if (response.ok) {
+            return await response.json();
+          }
+        }
+
+        // Fallback to mock data if API fails
+        const { mockFetchSubjectData } = await import('./mockData');
+        return await mockFetchSubjectData(objectId);
+      } catch (error) {
+        console.error('Failed to fetch subject data:', error);
+        return {
+          _id: objectId,
+          Google_hitcounts: 0,
+          Papers_hitcounts: 0,
+          Books_hitcounts: 0,
+          Gnews_hitcounts: 0,
+          Related_terms: '',
+          wikipedia_definition: '',
+          wiktionary_definition: '',
+          FST: '',
+          labs: '',
+          wikipedia_url: '',
+          ent_name: 'Unknown Subject',
+          ent_fsid: 'unknown',
+          ent_summary: 'Subject data not found',
+        };
+      }
+    },
+    [token]
+  );
+
+  // Async function to fetch subject details in the background (non-blocking)
+  const fetchSubjectDetailsAsync = useCallback(
+    async (subjectsToUpdate: LabSubject[]) => {
+      for (const subject of subjectsToUpdate) {
+        try {
+          const subjectData = await fetchSubjectData(subject.subjectId);
+
+          // Update the subject with the detailed data
+          setSubjects((prevSubjects) =>
+            prevSubjects.map((s) =>
+              s.id === subject.id
+                ? { ...s, notes: subjectData.ent_summary || s.notes }
+                : s
+            )
+          );
+        } catch (error) {
+          console.warn(
+            `Failed to fetch details for subject ${subject.subjectId}:`,
+            error
+          );
+        }
+      }
+    },
+    [fetchSubjectData]
+  );
+
+  // Fetch subjects from the API
+  const fetchSubjects = useCallback(
+    async (showRefreshState = false) => {
+      if (!token) {
+        console.warn('No auth token available');
+        setSubjectsError('Authentication required');
+        setLoadingSubjects(false);
+        return;
+      }
+
+      if (showRefreshState) {
+        setRefreshingSubjects(true);
+      } else {
+        setLoadingSubjects(true);
+      }
+      setSubjectsError(null);
+
+      try {
+        // Fetch lab data to get the subjects
+        const response = await fetch(
+          `https://tools.futurity.science/api/lab/view?lab_id=${labId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('Session expired. Please log in again.');
+          } else if (response.status === 403) {
+            throw new Error('You do not have permission to access this lab.');
+          } else if (response.status === 404) {
+            throw new Error('Lab not found.');
+          } else {
+            throw new Error(`Failed to fetch lab data: ${response.status}`);
+          }
+        }
+
+        const labData = await response.json();
+        console.log('Fetched lab data:', labData);
+
+        // Extract categories from API response
+        const apiCategories = labData.categories || [];
+        // Add the default "Uncategorized" category
+        const allCategories = [
+          { id: 'uncategorized', name: 'Uncategorized' },
+          ...apiCategories,
+        ];
+        setCategories(allCategories);
+        console.log('Categories:', allCategories);
+
+        // Transform subjects from API format to frontend format
+        const transformedSubjects: LabSubject[] = [];
+
+        if (labData.subjects && Array.isArray(labData.subjects)) {
+          for (const apiSubject of labData.subjects) {
+            // Create basic subject without fetching detailed data
+            const transformedSubject: LabSubject = {
+              id: `lab-subj-${apiSubject.subject_id}`,
+              subjectId: apiSubject.subject_id,
+              subjectName:
+                apiSubject.subject_name || apiSubject.name || 'Unknown Subject',
+              subjectSlug: apiSubject.ent_fsid?.startsWith('fsid_')
+                ? apiSubject.ent_fsid.substring(5)
+                : apiSubject.ent_fsid || 'unknown',
+              categoryId: apiSubject.category || 'uncategorized',
+              addedAt: new Date().toISOString(),
+              addedById: 'unknown',
+              notes: '', // We'll fetch this separately if needed
+            };
+
+            console.log(
+              `Subject ${transformedSubject.subjectName} -> Category ID: ${transformedSubject.categoryId}`
+            );
+            transformedSubjects.push(transformedSubject);
+          }
+
+          // Optionally fetch detailed data for the first few subjects if you need notes/descriptions
+          // This is async and doesn't block the main UI
+          if (transformedSubjects.length > 0) {
+            fetchSubjectDetailsAsync(transformedSubjects.slice(0, 5)); // Only fetch details for first 5
+          }
+        }
+
+        console.log('Transformed subjects:', transformedSubjects);
+        setSubjects(transformedSubjects);
+
+        // If this is the first load, select only the first 20 subjects
+        if (!showRefreshState && transformedSubjects.length > 0) {
+          const firstTwentyIds = transformedSubjects
+            .slice(0, 20)
+            .map((s) => s.id);
+          setSelectedSubjects(new Set(firstTwentyIds));
+          setAnalysisSelectedSubjects(
+            new Set(transformedSubjects.map((s) => s.id))
+          ); // Analysis can still use all subjects
+        }
+
+        if (showRefreshState) {
+          console.log(
+            `Subjects refreshed: Found ${transformedSubjects.length} subjects in this lab`
+          );
+        }
+      } catch (error) {
+        console.error('Failed to fetch subjects:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to load subjects';
+        setSubjectsError(errorMessage);
+
+        if (showRefreshState) {
+          console.error('Failed to refresh subjects:', errorMessage);
+        }
+      } finally {
+        setLoadingSubjects(false);
+        setRefreshingSubjects(false);
+      }
+    },
+    [labId, token, fetchSubjectDetailsAsync]
+  );
+
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchSubjects();
+  }, [fetchSubjects]);
+
+  // Handle refresh button click
+  const handleRefreshSubjects = useCallback(() => {
+    fetchSubjects(true);
+  }, [fetchSubjects]);
+
+  // Load saved selections from localStorage
+  useEffect(() => {
+    const storageKey = `lab-${labId}-selected-subjects`;
+    const savedSelections = localStorage.getItem(storageKey);
+
+    if (savedSelections && subjects.length > 0) {
+      try {
+        const parsed = JSON.parse(savedSelections);
+        const validIds = parsed.filter((id: string) =>
+          subjects.some((s) => s.id === id)
+        );
+        setSelectedSubjects(new Set(validIds));
+      } catch (error) {
+        console.error('Failed to parse saved subject selections:', error);
+        // Default to all subjects if parsing fails
+        setSelectedSubjects(new Set(subjects.map((s) => s.id)));
+      }
+    }
+  }, [labId, subjects]);
+
+  // Save selections to localStorage
+  useEffect(() => {
+    if (subjects.length > 0) {
+      const storageKey = `lab-${labId}-selected-subjects`;
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(Array.from(selectedSubjects))
+      );
+    }
+  }, [labId, selectedSubjects, subjects.length]);
+
+  // Computed values
   const usedCategoryNames = useMemo(() => {
-    const categories = mockCategories
-      .filter((cat) => cat.type !== 'exclude')
-      .map((cat) => cat.name);
-    return Array.from(new Set(categories)).sort();
-  }, []);
+    return categories.map((cat) => cat.name).sort();
+  }, [categories]);
 
   const excludedSubjects = useMemo(() => {
     const excludeCategory = mockCategories.find(
@@ -86,37 +328,51 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   }, []);
 
   const horizonData = useMemo((): HorizonItem[] => {
-    return allSubjects
+    console.log('Generating horizon data...');
+    console.log('Available categories:', categories);
+    console.log(
+      'Selected subjects:',
+      subjects.filter((subject) => selectedSubjects.has(subject.id))
+    );
+
+    return subjects
       .filter((subject) => selectedSubjects.has(subject.id))
       .map((subject) => {
-        const category = mockCategories.find((cat) =>
-          cat.subjects.some((s) => s.id === subject.id)
+        // Find the category from the actual API categories
+        const category = categories.find(
+          (cat) => cat.id === subject.categoryId
+        );
+        const categoryName = category?.name || 'Uncategorized';
+
+        console.log(
+          `Subject: ${subject.subjectName}, CategoryId: ${subject.categoryId}, Found Category: ${categoryName}`
         );
 
+        // Generate a hash from the subject name for positioning
         const nameHash = subject.subjectName.split('').reduce((a, b) => {
           a = (a << 5) - a + b.charCodeAt(0);
           return a & a;
         }, 0);
         const normalizedHash = Math.abs(nameHash) / 2147483648;
 
-        return {
+        const horizonItem = {
           name: subject.subjectName,
           horizon: convertHorizonValue(normalizedHash),
-          category: getCategoryNumber(
-            category?.name || 'Uncategorized',
-            usedCategoryNames
-          ),
+          category: getCategoryNumber(categoryName, usedCategoryNames),
           type: 1,
-          categoryName: category?.name || 'Uncategorized',
+          categoryName: categoryName,
         };
+
+        console.log(`Generated horizon item:`, horizonItem);
+        return horizonItem;
       });
-  }, [allSubjects, selectedSubjects, usedCategoryNames]);
+  }, [subjects, selectedSubjects, categories, usedCategoryNames]);
 
   const groupedSubjects = useMemo(() => {
     const selected: LabSubject[] = [];
     const unselected: LabSubject[] = [];
 
-    allSubjects.forEach((subject) => {
+    subjects.forEach((subject) => {
       if (selectedSubjects.has(subject.id)) {
         selected.push(subject);
       } else {
@@ -125,13 +381,13 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     });
 
     return { selected, unselected };
-  }, [allSubjects, selectedSubjects]);
+  }, [subjects, selectedSubjects]);
 
   const groupedAnalysisSubjects = useMemo(() => {
     const selected: LabSubject[] = [];
     const unselected: LabSubject[] = [];
 
-    allSubjects.forEach((subject) => {
+    subjects.forEach((subject) => {
       if (analysisSelectedSubjects.has(subject.id)) {
         selected.push(subject);
       } else {
@@ -140,7 +396,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     });
 
     return { selected, unselected };
-  }, [allSubjects, analysisSelectedSubjects]);
+  }, [subjects, analysisSelectedSubjects]);
 
   const filteredAndSortedAnalyses = useMemo(() => {
     const filtered = mockAnalyses.filter((analysis) => {
@@ -171,37 +427,15 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     }
   }, [searchQuery, sortBy]);
 
-  // Initialize data
+  // Initialize analysis subjects when subjects load
   useEffect(() => {
-    const storageKey = `lab-${labId}-selected-subjects`;
-    const savedSelections = localStorage.getItem(storageKey);
-
-    if (savedSelections) {
-      try {
-        const parsed = JSON.parse(savedSelections);
-        setSelectedSubjects(new Set(parsed));
-      } catch (error) {
-        console.error('Failed to parse saved subject selections:', error);
-        setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
-      }
-    } else {
-      setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
+    if (subjects.length > 0) {
+      setAnalysisSelectedSubjects(new Set(subjects.map((s) => s.id)));
     }
-  }, [labId, allSubjects]);
 
-  useEffect(() => {
-    const storageKey = `lab-${labId}-selected-subjects`;
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify(Array.from(selectedSubjects))
-    );
-  }, [labId, selectedSubjects]);
-
-  useEffect(() => {
-    setAnalysisSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
     const excludeSubjectNames = excludedSubjects.map((s) => s.subjectName);
     setExcludeTerms(excludeSubjectNames.join(', '));
-  }, [allSubjects, excludedSubjects]);
+  }, [subjects, excludedSubjects]);
 
   // Navigation handlers
   const scrollToSection = useCallback((sectionId: string) => {
@@ -232,7 +466,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
         { id: 'additional-tools', ref: additionalToolsRef },
       ];
 
-      const scrollY = window.scrollY + 200; // Adjusted offset for new nav position
+      const scrollY = window.scrollY + 200;
 
       for (let i = sections.length - 1; i >= 0; i--) {
         const section = sections[i];
@@ -252,22 +486,28 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Subject handlers
+  // Subject handlers with 20 subject limit
   const handleSubjectToggle = useCallback((subjectId: string) => {
     setSelectedSubjects((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(subjectId)) {
+        // Always allow deselection
         newSet.delete(subjectId);
       } else {
-        newSet.add(subjectId);
+        // Only allow selection if under 20 limit
+        if (newSet.size < 20) {
+          newSet.add(subjectId);
+        }
       }
       return newSet;
     });
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    setSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
-  }, [allSubjects]);
+    // Select only the first 20 subjects
+    const firstTwentyIds = subjects.slice(0, 20).map((s) => s.id);
+    setSelectedSubjects(new Set(firstTwentyIds));
+  }, [subjects]);
 
   const handleDeselectAll = useCallback(() => {
     setSelectedSubjects(new Set());
@@ -286,8 +526,8 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   }, []);
 
   const handleAnalysisSelectAll = useCallback(() => {
-    setAnalysisSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
-  }, [allSubjects]);
+    setAnalysisSelectedSubjects(new Set(subjects.map((s) => s.id)));
+  }, [subjects]);
 
   const handleAnalysisDeselectAll = useCallback(() => {
     setAnalysisSelectedSubjects(new Set());
@@ -308,7 +548,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     setAnalysisResult('');
 
     try {
-      const selectedSubjectNames = allSubjects
+      const selectedSubjectNames = subjects
         .filter((subject) => analysisSelectedSubjects.has(subject.id))
         .map((subject) => subject.subjectName);
 
@@ -335,7 +575,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     } finally {
       setIsGeneratingAnalysis(false);
     }
-  }, [analysisSelectedSubjects, allSubjects, excludeTerms, analysisType]);
+  }, [analysisSelectedSubjects, subjects, excludeTerms, analysisType]);
 
   const handleCopyAnalysis = useCallback(async () => {
     if (!analysisResult) return;
@@ -360,11 +600,49 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   return (
     <VStack gap={6} align='stretch'>
       {/* Header */}
-      <Heading as='h2' size='lg' fontFamily='heading' color='fg'>
-        Analyses
-      </Heading>
+      <HStack justify='space-between' align='center'>
+        <Heading as='h2' size='lg' fontFamily='heading' color='fg'>
+          Analyses
+        </Heading>
 
-      {/* Sticky Navigation Bar - Updated position */}
+        {/* Refresh button for subjects */}
+        <IconButton
+          size='sm'
+          variant='outline'
+          onClick={handleRefreshSubjects}
+          loading={refreshingSubjects}
+          disabled={loadingSubjects}
+          aria-label='Refresh subjects'
+          title='Refresh subjects from API'
+        >
+          <FiRefreshCw size={16} />
+        </IconButton>
+      </HStack>
+
+      {/* Error display for subjects */}
+      {subjectsError && (
+        <Box
+          p={4}
+          bg='red.50'
+          border='1px solid'
+          borderColor='red.200'
+          borderRadius='md'
+        >
+          <Text color='red.700' fontSize='sm'>
+            <strong>Error loading subjects:</strong> {subjectsError}
+          </Text>
+          <Button
+            size='sm'
+            mt={2}
+            onClick={handleRefreshSubjects}
+            loading={refreshingSubjects}
+          >
+            Retry
+          </Button>
+        </Box>
+      )}
+
+      {/* Sticky Navigation Bar */}
       <Box position='sticky' top='115px' zIndex='8' mb={6}>
         <GlassCard variant='glass' w='100%' bg='bg.canvas'>
           <Box p={4}>
@@ -410,13 +688,17 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
         </Heading>
         <HorizonChartSection
           ref={horizonChartRef}
-          allSubjects={allSubjects}
+          allSubjects={subjects}
           selectedSubjects={selectedSubjects}
           horizonData={horizonData}
           groupedSubjects={groupedSubjects}
           onSubjectToggle={handleSubjectToggle}
           onSelectAll={handleSelectAll}
           onDeselectAll={handleDeselectAll}
+          loading={loadingSubjects}
+          error={subjectsError}
+          onRefresh={handleRefreshSubjects}
+          refreshing={refreshingSubjects}
         />
       </VStack>
 
@@ -728,7 +1010,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                           color='fg'
                         >
                           Select Subjects ({analysisSelectedSubjects.size}/
-                          {allSubjects.length})
+                          {subjects.length})
                         </Text>
                         <HStack gap={2}>
                           <Button
@@ -757,134 +1039,8 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                         p={3}
                       >
                         <VStack gap={2} align='stretch'>
-                          {/* Selected subjects first */}
-                          {groupedAnalysisSubjects.selected.length > 0 && (
-                            <>
-                              <Text
-                                fontSize='xs'
-                                fontWeight='bold'
-                                color='success'
-                                textTransform='uppercase'
-                                fontFamily='heading'
-                              >
-                                Included (
-                                {groupedAnalysisSubjects.selected.length})
-                              </Text>
-                              {groupedAnalysisSubjects.selected.map(
-                                (subject) => (
-                                  <HStack
-                                    key={subject.id}
-                                    gap={2}
-                                    align='center'
-                                  >
-                                    <Checkbox.Root
-                                      checked={analysisSelectedSubjects.has(
-                                        subject.id
-                                      )}
-                                      onCheckedChange={() =>
-                                        handleAnalysisSubjectToggle(subject.id)
-                                      }
-                                      size='sm'
-                                    >
-                                      <Checkbox.HiddenInput />
-                                      <Checkbox.Control>
-                                        <Checkbox.Indicator />
-                                      </Checkbox.Control>
-                                    </Checkbox.Root>
-                                    <VStack gap={0} align='stretch' flex='1'>
-                                      <Text
-                                        fontSize='sm'
-                                        fontWeight='medium'
-                                        color='fg'
-                                        fontFamily='heading'
-                                      >
-                                        {subject.subjectName}
-                                      </Text>
-                                      {subject.notes && (
-                                        <Text
-                                          fontSize='xs'
-                                          color='fg.muted'
-                                          overflow='hidden'
-                                          textOverflow='ellipsis'
-                                          whiteSpace='nowrap'
-                                          fontFamily='body'
-                                        >
-                                          {subject.notes}
-                                        </Text>
-                                      )}
-                                    </VStack>
-                                  </HStack>
-                                )
-                              )}
-                            </>
-                          )}
-
-                          {/* Unselected subjects */}
-                          {groupedAnalysisSubjects.unselected.length > 0 && (
-                            <>
-                              {groupedAnalysisSubjects.selected.length > 0 && (
-                                <Box height='1px' bg='border.muted' my={2} />
-                              )}
-                              <Text
-                                fontSize='xs'
-                                fontWeight='bold'
-                                color='fg.muted'
-                                textTransform='uppercase'
-                                fontFamily='heading'
-                              >
-                                Available (
-                                {groupedAnalysisSubjects.unselected.length})
-                              </Text>
-                              {groupedAnalysisSubjects.unselected.map(
-                                (subject) => (
-                                  <HStack
-                                    key={subject.id}
-                                    gap={2}
-                                    align='center'
-                                  >
-                                    <Checkbox.Root
-                                      checked={analysisSelectedSubjects.has(
-                                        subject.id
-                                      )}
-                                      onCheckedChange={() =>
-                                        handleAnalysisSubjectToggle(subject.id)
-                                      }
-                                      size='sm'
-                                    >
-                                      <Checkbox.HiddenInput />
-                                      <Checkbox.Control>
-                                        <Checkbox.Indicator />
-                                      </Checkbox.Control>
-                                    </Checkbox.Root>
-                                    <VStack gap={0} align='stretch' flex='1'>
-                                      <Text
-                                        fontSize='sm'
-                                        fontWeight='medium'
-                                        color='fg'
-                                        fontFamily='heading'
-                                      >
-                                        {subject.subjectName}
-                                      </Text>
-                                      {subject.notes && (
-                                        <Text
-                                          fontSize='xs'
-                                          color='fg.muted'
-                                          overflow='hidden'
-                                          textOverflow='ellipsis'
-                                          whiteSpace='nowrap'
-                                          fontFamily='body'
-                                        >
-                                          {subject.notes}
-                                        </Text>
-                                      )}
-                                    </VStack>
-                                  </HStack>
-                                )
-                              )}
-                            </>
-                          )}
-
-                          {allSubjects.length === 0 && (
+                          {/* Loading state */}
+                          {loadingSubjects && (
                             <Text
                               fontSize='sm'
                               color='fg.muted'
@@ -892,10 +1048,173 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                               py={4}
                               fontFamily='body'
                             >
-                              No subjects available. Add subjects in the Gather
-                              tab first.
+                              Loading subjects...
                             </Text>
                           )}
+
+                          {/* Error state */}
+                          {subjectsError && !loadingSubjects && (
+                            <Text
+                              fontSize='sm'
+                              color='red.500'
+                              textAlign='center'
+                              py={4}
+                              fontFamily='body'
+                            >
+                              Failed to load subjects
+                            </Text>
+                          )}
+
+                          {/* Selected subjects first */}
+                          {!loadingSubjects &&
+                            !subjectsError &&
+                            groupedAnalysisSubjects.selected.length > 0 && (
+                              <>
+                                <Text
+                                  fontSize='xs'
+                                  fontWeight='bold'
+                                  color='success'
+                                  textTransform='uppercase'
+                                  fontFamily='heading'
+                                >
+                                  Included (
+                                  {groupedAnalysisSubjects.selected.length})
+                                </Text>
+                                {groupedAnalysisSubjects.selected.map(
+                                  (subject) => (
+                                    <HStack
+                                      key={subject.id}
+                                      gap={2}
+                                      align='center'
+                                    >
+                                      <Checkbox.Root
+                                        checked={analysisSelectedSubjects.has(
+                                          subject.id
+                                        )}
+                                        onCheckedChange={() =>
+                                          handleAnalysisSubjectToggle(
+                                            subject.id
+                                          )
+                                        }
+                                        size='sm'
+                                      >
+                                        <Checkbox.HiddenInput />
+                                        <Checkbox.Control>
+                                          <Checkbox.Indicator />
+                                        </Checkbox.Control>
+                                      </Checkbox.Root>
+                                      <VStack gap={0} align='stretch' flex='1'>
+                                        <Text
+                                          fontSize='sm'
+                                          fontWeight='medium'
+                                          color='fg'
+                                          fontFamily='heading'
+                                        >
+                                          {subject.subjectName}
+                                        </Text>
+                                        {subject.notes && (
+                                          <Text
+                                            fontSize='xs'
+                                            color='fg.muted'
+                                            overflow='hidden'
+                                            textOverflow='ellipsis'
+                                            whiteSpace='nowrap'
+                                            fontFamily='body'
+                                          >
+                                            {subject.notes}
+                                          </Text>
+                                        )}
+                                      </VStack>
+                                    </HStack>
+                                  )
+                                )}
+                              </>
+                            )}
+
+                          {/* Unselected subjects */}
+                          {!loadingSubjects &&
+                            !subjectsError &&
+                            groupedAnalysisSubjects.unselected.length > 0 && (
+                              <>
+                                {groupedAnalysisSubjects.selected.length >
+                                  0 && (
+                                  <Box height='1px' bg='border.muted' my={2} />
+                                )}
+                                <Text
+                                  fontSize='xs'
+                                  fontWeight='bold'
+                                  color='fg.muted'
+                                  textTransform='uppercase'
+                                  fontFamily='heading'
+                                >
+                                  Available (
+                                  {groupedAnalysisSubjects.unselected.length})
+                                </Text>
+                                {groupedAnalysisSubjects.unselected.map(
+                                  (subject) => (
+                                    <HStack
+                                      key={subject.id}
+                                      gap={2}
+                                      align='center'
+                                    >
+                                      <Checkbox.Root
+                                        checked={analysisSelectedSubjects.has(
+                                          subject.id
+                                        )}
+                                        onCheckedChange={() =>
+                                          handleAnalysisSubjectToggle(
+                                            subject.id
+                                          )
+                                        }
+                                        size='sm'
+                                      >
+                                        <Checkbox.HiddenInput />
+                                        <Checkbox.Control>
+                                          <Checkbox.Indicator />
+                                        </Checkbox.Control>
+                                      </Checkbox.Root>
+                                      <VStack gap={0} align='stretch' flex='1'>
+                                        <Text
+                                          fontSize='sm'
+                                          fontWeight='medium'
+                                          color='fg'
+                                          fontFamily='heading'
+                                        >
+                                          {subject.subjectName}
+                                        </Text>
+                                        {subject.notes && (
+                                          <Text
+                                            fontSize='xs'
+                                            color='fg.muted'
+                                            overflow='hidden'
+                                            textOverflow='ellipsis'
+                                            whiteSpace='nowrap'
+                                            fontFamily='body'
+                                          >
+                                            {subject.notes}
+                                          </Text>
+                                        )}
+                                      </VStack>
+                                    </HStack>
+                                  )
+                                )}
+                              </>
+                            )}
+
+                          {!loadingSubjects &&
+                            !subjectsError &&
+                            subjects.length === 0 && (
+                              <Text
+                                fontSize='sm'
+                                color='fg.muted'
+                                textAlign='center'
+                                py={4}
+                                fontFamily='body'
+                              >
+                                No subjects available. Add subjects in the
+                                Gather tab first.
+                              </Text>
+                            )}
                         </VStack>
                       </Box>
                     </Box>
@@ -964,7 +1283,8 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                       onClick={handleGenerateAnalysis}
                       disabled={
                         analysisSelectedSubjects.size === 0 ||
-                        isGeneratingAnalysis
+                        isGeneratingAnalysis ||
+                        loadingSubjects
                       }
                       size='md'
                       width='100%'
@@ -1041,22 +1361,25 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                           textAlign='center'
                           fontFamily='body'
                         >
-                          {analysisSelectedSubjects.size === 0
+                          {loadingSubjects
+                            ? 'Loading subjects...'
+                            : analysisSelectedSubjects.size === 0
                             ? 'Select subjects above to generate analysis'
                             : `Click "Generate Analysis" to create ${analysisType} report`}
                         </Text>
-                        {analysisSelectedSubjects.size > 0 && (
-                          <Text
-                            color='fg.subtle'
-                            fontSize='xs'
-                            textAlign='center'
-                            fontFamily='body'
-                          >
-                            Analysis will cover {analysisSelectedSubjects.size}{' '}
-                            subject
-                            {analysisSelectedSubjects.size !== 1 ? 's' : ''}
-                          </Text>
-                        )}
+                        {!loadingSubjects &&
+                          analysisSelectedSubjects.size > 0 && (
+                            <Text
+                              color='fg.subtle'
+                              fontSize='xs'
+                              textAlign='center'
+                              fontFamily='body'
+                            >
+                              Analysis will cover{' '}
+                              {analysisSelectedSubjects.size} subject
+                              {analysisSelectedSubjects.size !== 1 ? 's' : ''}
+                            </Text>
+                          )}
                       </VStack>
                     </Flex>
                   )}

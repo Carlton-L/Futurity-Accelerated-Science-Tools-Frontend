@@ -293,7 +293,7 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch labs when current teamspace changes
+  // Fetch labs when current teamspace changes - UPDATED to use only real API data
   useEffect(() => {
     const fetchTeamLabs = async () => {
       if (!currentTeamspace || !token) {
@@ -321,39 +321,11 @@ const Navbar: React.FC = () => {
           deletedAt: lab.deletedAt,
         }));
 
-        // TODO: Remove this hardcoded lab when proper lab data is available
-        // Add hardcoded lab for the active lab (V2 Test Lab)
-        const hardcodedLab: Lab = {
-          _id: '685be19be583f120efbc86d7',
-          ent_name: 'V2 Test Lab',
-          ent_summary:
-            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-          teamspace_id: currentTeamspace._id,
-          isArchived: 0,
-          isDeleted: 0,
-          deletedAt: null,
-        };
-
-        // Combine hardcoded lab with API labs (hardcoded first)
-        const allLabs = [hardcodedLab, ...labs];
-
-        setTeamLabs(allLabs);
+        setTeamLabs(labs);
       } catch (error) {
         console.error('Failed to fetch team labs:', error);
-
-        // Fallback to just the hardcoded lab if API fails
-        const hardcodedLab: Lab = {
-          _id: '685be19be583f120efbc86d7',
-          ent_name: 'V2 Test Lab',
-          ent_summary:
-            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-          teamspace_id: currentTeamspace._id,
-          isArchived: 0,
-          isDeleted: 0,
-          deletedAt: null,
-        };
-
-        setTeamLabs([hardcodedLab]);
+        // Set empty array on error - no fallback hardcoded lab
+        setTeamLabs([]);
       } finally {
         setIsLoadingLabs(false);
       }
@@ -385,19 +357,7 @@ const Navbar: React.FC = () => {
         deletedAt: lab.deletedAt,
       }));
 
-      const hardcodedLab: Lab = {
-        _id: '685be19be583f120efbc86d7',
-        ent_name: 'V2 Test Lab',
-        ent_summary:
-          'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-        teamspace_id: currentTeamspace._id,
-        isArchived: 0,
-        isDeleted: 0,
-        deletedAt: null,
-      };
-
-      const allLabs = [hardcodedLab, ...labs];
-      setTeamLabs(allLabs);
+      setTeamLabs(labs);
     } catch (error) {
       console.error('Failed to refresh labs:', error);
     } finally {
