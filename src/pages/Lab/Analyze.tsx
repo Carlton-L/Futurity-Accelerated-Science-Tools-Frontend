@@ -18,9 +18,20 @@ import {
   Flex,
   createToaster,
   Tabs,
+  Textarea,
+  Select,     // Assuming direct export from @chakra-ui/react
 } from '@chakra-ui/react';
+import InnovationStrategiesMakerToolCard from '../../components/lab/tools/InnovationStrategiesMakerToolCard';
+import StrategicRecommendationsToolCard from '../../components/lab/tools/StrategicRecommendationsToolCard';
 import GlassCard from '../../components/shared/GlassCard';
 import CardScroller from '../../components/shared/CardScroller';
+import SurveyToolCard from '../../components/lab/tools/SurveyToolCard';
+import UnstructuredSearchToolCard from '../../components/lab/tools/UnstructuredSearchToolCard';
+import KeywordHeatmapperToolCard from '../../components/lab/tools/KeywordHeatmapperToolCard';
+import WordCloudGeneratorToolCard from '../../components/lab/tools/WordCloudGeneratorToolCard';
+import FutureGrapherToolCard from '../../components/lab/tools/FutureGrapherToolCard';
+import FutureStoriesToolCard from '../../components/lab/tools/FutureStoriesToolCard';
+import FutureFolkToolCard from '../../components/lab/tools/FutureFolkToolCard';
 import HorizonChartSection from './Horizons/HorizonChartSection';
 import type { LabSubject, HorizonItem, AnalysisType } from './types';
 import { mockCategories, mockAnalyses } from './mockData';
@@ -29,6 +40,7 @@ import {
   getCategoryNumber,
   generateMockAnalysisResult,
 } from './utils/analyzeUtils';
+import { innovationStrategiesMakerService } from '../../services/innovationStrategiesMakerService'; // Import the new service
 
 interface AnalyzeProps {
   labId: string;
@@ -1096,83 +1108,14 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 >
                   Strategy & Planning Tools
                 </Heading>
-                <HStack gap={3} wrap='wrap'>
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='brand.50'
-                    borderColor='brand.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='brand.700'
-                          fontFamily='heading'
-                        >
-                          Innovation Strategies Maker
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Use innovation strategies based on management books
-                          and literature to expand and frame your ideas.
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='brand'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                <HStack gap={3} wrap='wrap' alignItems="stretch"> {/* Added alignItems stretch */}
+                  {/* Innovation Strategies Maker Card */}
+                  <InnovationStrategiesMakerToolCard />
 
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='brand.50'
-                    borderColor='brand.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='brand.700'
-                          fontFamily='heading'
-                        >
-                          Strategic Recommendations
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Freeform report drawing highlights from previous
-                          reports into recommendations for target audiences
-                          (industries, cities, governments).
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='brand'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                  {/* Strategic Recommendations Card */}
+                  <StrategicRecommendationsToolCard labId={labId} />
+                  {/* End of Strategic Recommendations Card */}
+
                 </HStack>
               </Box>
 
@@ -1187,99 +1130,12 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 >
                   Data Collection & Search Tools
                 </Heading>
-                <HStack gap={3} wrap='wrap'>
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='blue.50'
-                    borderColor='blue.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='blue.700'
-                          fontFamily='heading'
-                        >
-                          Survey Tool
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Create survey forms from CSV templates, distribute to
-                          respondents, and generate analysis reports.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='info'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Survey template CSV, target respondents
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='blue'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                <HStack gap={3} wrap='wrap' alignItems="stretch"> {/* alignItems="stretch" for consistent card height */}
+                  {/* Survey Tool Card */}
+                  <SurveyToolCard />
 
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='blue.50'
-                    borderColor='blue.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='blue.700'
-                          fontFamily='heading'
-                        >
-                          Unstructured Search
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Search the web for multiple terms, collect and
-                          summarize the first X hits for each term with URLs and
-                          content summaries.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='info'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Search terms, number of hits
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='blue'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                  {/* Unstructured Search Tool Card */}
+                  <UnstructuredSearchToolCard />
 
                   <GlassCard
                     variant='outline'
@@ -1341,101 +1197,12 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                   Content Analysis & Visualization Tools
                 </Heading>
                 <Text fontSize='xs' color='fg.muted' mb={3} fontFamily='body'>
-                  These tools work with keyword tables from document analysis to
-                  create visualizations and insights.
+                  Tools for ideation, storytelling, and visual creation.
                 </Text>
-                <HStack gap={3} wrap='wrap'>
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='green.50'
-                    borderColor='green.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='green.700'
-                          fontFamily='heading'
-                        >
-                          Keyword Heatmapper
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Create interactive heatmaps showing keyword frequency
-                          across documents. Download as SVG or view statistics.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='success'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Keyword appearance table (fst-labdata)
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='green'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
-
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='green.50'
-                    borderColor='green.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='green.700'
-                          fontFamily='heading'
-                        >
-                          Word Cloud Generator
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Generate word clouds from document content analysis.
-                          Save to lab bucket or download directly.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='success'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Keyword appearance table (fst-labdata)
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='green'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                <HStack gap={3} wrap='wrap' alignItems="stretch">
+                  <FutureGrapherToolCard />
+                  <FutureStoriesToolCard />
+                  <FutureFolkToolCard />
                 </HStack>
               </Box>
 
