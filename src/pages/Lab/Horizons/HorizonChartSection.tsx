@@ -53,6 +53,8 @@ const HorizonChartSection = forwardRef<
     },
     ref
   ) => {
+    const maxSubjects = 20;
+
     return (
       <Card.Root ref={ref} bg='bg.canvas' borderColor='border.emphasized'>
         <Card.Body p={6}>
@@ -71,7 +73,8 @@ const HorizonChartSection = forwardRef<
                 organizes them by category. Each subject is positioned based on
                 its technological maturity and relevance, helping you understand
                 the development timeline and strategic positioning of your
-                research areas.
+                research areas. <strong>Note:</strong> A maximum of 20 subjects
+                can be displayed on the chart at once for optimal readability.
               </Text>
             </Box>
 
@@ -89,7 +92,7 @@ const HorizonChartSection = forwardRef<
                       Select Subjects (
                       {loading
                         ? '...'
-                        : `${selectedSubjects.size}/${allSubjects.length}`}
+                        : `${selectedSubjects.size}/${maxSubjects}`}
                       )
                     </Text>
                     <HStack gap={2}>
@@ -99,7 +102,7 @@ const HorizonChartSection = forwardRef<
                         onClick={onSelectAll}
                         disabled={loading || allSubjects.length === 0}
                       >
-                        All
+                        First {maxSubjects}
                       </Button>
                       <Button
                         size='xs'
@@ -266,44 +269,57 @@ const HorizonChartSection = forwardRef<
                             >
                               Available ({groupedSubjects.unselected.length})
                             </Text>
-                            {groupedSubjects.unselected.map((subject) => (
-                              <HStack key={subject.id} gap={2} align='center'>
-                                <Checkbox.Root
-                                  checked={selectedSubjects.has(subject.id)}
-                                  onCheckedChange={() =>
-                                    onSubjectToggle(subject.id)
-                                  }
-                                  size='sm'
+                            {groupedSubjects.unselected.map((subject) => {
+                              const isAtLimit =
+                                selectedSubjects.size >= maxSubjects;
+                              const isDisabled =
+                                isAtLimit && !selectedSubjects.has(subject.id);
+
+                              return (
+                                <HStack
+                                  key={subject.id}
+                                  gap={2}
+                                  align='center'
+                                  opacity={isDisabled ? 0.5 : 1}
                                 >
-                                  <Checkbox.HiddenInput />
-                                  <Checkbox.Control>
-                                    <Checkbox.Indicator />
-                                  </Checkbox.Control>
-                                </Checkbox.Root>
-                                <VStack gap={0} align='stretch' flex='1'>
-                                  <Text
-                                    fontSize='sm'
-                                    fontWeight='medium'
-                                    color='fg'
-                                    fontFamily='heading'
+                                  <Checkbox.Root
+                                    checked={selectedSubjects.has(subject.id)}
+                                    onCheckedChange={() =>
+                                      onSubjectToggle(subject.id)
+                                    }
+                                    size='sm'
+                                    disabled={isDisabled}
                                   >
-                                    {subject.subjectName}
-                                  </Text>
-                                  {subject.notes && (
+                                    <Checkbox.HiddenInput />
+                                    <Checkbox.Control>
+                                      <Checkbox.Indicator />
+                                    </Checkbox.Control>
+                                  </Checkbox.Root>
+                                  <VStack gap={0} align='stretch' flex='1'>
                                     <Text
-                                      fontSize='xs'
-                                      color='fg.muted'
-                                      overflow='hidden'
-                                      textOverflow='ellipsis'
-                                      whiteSpace='nowrap'
-                                      fontFamily='body'
+                                      fontSize='sm'
+                                      fontWeight='medium'
+                                      color={isDisabled ? 'fg.muted' : 'fg'}
+                                      fontFamily='heading'
                                     >
-                                      {subject.notes}
+                                      {subject.subjectName}
                                     </Text>
-                                  )}
-                                </VStack>
-                              </HStack>
-                            ))}
+                                    {subject.notes && (
+                                      <Text
+                                        fontSize='xs'
+                                        color='fg.muted'
+                                        overflow='hidden'
+                                        textOverflow='ellipsis'
+                                        whiteSpace='nowrap'
+                                        fontFamily='body'
+                                      >
+                                        {subject.notes}
+                                      </Text>
+                                    )}
+                                  </VStack>
+                                </HStack>
+                              );
+                            })}
                           </>
                         )}
 
@@ -427,7 +443,9 @@ const HorizonChartSection = forwardRef<
                       >
                         {allSubjects.length === 0
                           ? 'No subjects available in this lab'
-                          : 'Select subjects to view horizon chart'}
+                          : selectedSubjects.size === 0
+                          ? 'Select subjects to view horizon chart'
+                          : `Select up to ${maxSubjects} subjects to view horizon chart`}
                       </Text>
                       {allSubjects.length === 0 && onRefresh && (
                         <Button
