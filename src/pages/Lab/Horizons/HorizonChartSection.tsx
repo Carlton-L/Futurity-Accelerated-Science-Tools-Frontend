@@ -1,9 +1,8 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import {
   Box,
   Button,
   Card,
-  Heading,
   Text,
   VStack,
   HStack,
@@ -43,19 +42,37 @@ const HorizonChartSection = forwardRef<
     ref
   ) => {
     return (
-      <Card.Root ref={ref}>
+      <Card.Root ref={ref} bg='bg.canvas' borderColor='border.emphasized'>
         <Card.Body p={6}>
           <VStack gap={4} align='stretch'>
-            <Heading as='h3' size='md'>
-              Horizon Chart
-            </Heading>
-
+            {/* Description */}
+            <Box>
+              <Text
+                fontSize='sm'
+                color='fg.muted'
+                lineHeight='1.6'
+                fontFamily='body'
+                mb={4}
+              >
+                The Horizon Chart visualizes your selected subjects across four
+                time horizons (Business, Engineering, Science, and Idea) and
+                organizes them by category. Each subject is positioned based on
+                its technological maturity and relevance, helping you understand
+                the development timeline and strategic positioning of your
+                research areas.
+              </Text>
+            </Box>
             <Flex gap={6} align='flex-start'>
               {/* Subject Selection Panel */}
               <Box minW='300px' maxW='300px'>
                 <VStack gap={4} align='stretch'>
                   <HStack justify='space-between' align='center'>
-                    <Text fontSize='sm' fontWeight='medium'>
+                    <Text
+                      fontSize='sm'
+                      fontWeight='medium'
+                      color='fg'
+                      fontFamily='heading'
+                    >
                       Select Subjects ({selectedSubjects.size}/
                       {allSubjects.length})
                     </Text>
@@ -73,8 +90,9 @@ const HorizonChartSection = forwardRef<
                     maxH='500px'
                     overflowY='auto'
                     border='1px solid'
-                    borderColor='gray.200'
+                    borderColor='border.emphasized'
                     borderRadius='md'
+                    bg='bg.canvas'
                     p={3}
                   >
                     <VStack gap={2} align='stretch'>
@@ -84,8 +102,9 @@ const HorizonChartSection = forwardRef<
                           <Text
                             fontSize='xs'
                             fontWeight='bold'
-                            color='green.600'
+                            color='success'
                             textTransform='uppercase'
+                            fontFamily='heading'
                           >
                             Included ({groupedSubjects.selected.length})
                           </Text>
@@ -104,16 +123,22 @@ const HorizonChartSection = forwardRef<
                                 </Checkbox.Control>
                               </Checkbox.Root>
                               <VStack gap={0} align='stretch' flex='1'>
-                                <Text fontSize='sm' fontWeight='medium'>
+                                <Text
+                                  fontSize='sm'
+                                  fontWeight='medium'
+                                  color='fg'
+                                  fontFamily='heading'
+                                >
                                   {subject.subjectName}
                                 </Text>
                                 {subject.notes && (
                                   <Text
                                     fontSize='xs'
-                                    color='gray.500'
+                                    color='fg.muted'
                                     overflow='hidden'
                                     textOverflow='ellipsis'
                                     whiteSpace='nowrap'
+                                    fontFamily='body'
                                   >
                                     {subject.notes}
                                   </Text>
@@ -128,13 +153,14 @@ const HorizonChartSection = forwardRef<
                       {groupedSubjects.unselected.length > 0 && (
                         <>
                           {groupedSubjects.selected.length > 0 && (
-                            <Box height='1px' bg='gray.200' my={2} />
+                            <Box height='1px' bg='border.muted' my={2} />
                           )}
                           <Text
                             fontSize='xs'
                             fontWeight='bold'
-                            color='gray.500'
+                            color='fg.muted'
                             textTransform='uppercase'
+                            fontFamily='heading'
                           >
                             Available ({groupedSubjects.unselected.length})
                           </Text>
@@ -153,16 +179,22 @@ const HorizonChartSection = forwardRef<
                                 </Checkbox.Control>
                               </Checkbox.Root>
                               <VStack gap={0} align='stretch' flex='1'>
-                                <Text fontSize='sm' fontWeight='medium'>
+                                <Text
+                                  fontSize='sm'
+                                  fontWeight='medium'
+                                  color='fg'
+                                  fontFamily='heading'
+                                >
                                   {subject.subjectName}
                                 </Text>
                                 {subject.notes && (
                                   <Text
                                     fontSize='xs'
-                                    color='gray.500'
+                                    color='fg.muted'
                                     overflow='hidden'
                                     textOverflow='ellipsis'
                                     whiteSpace='nowrap'
+                                    fontFamily='body'
                                   >
                                     {subject.notes}
                                   </Text>
@@ -176,9 +208,10 @@ const HorizonChartSection = forwardRef<
                       {allSubjects.length === 0 && (
                         <Text
                           fontSize='sm'
-                          color='gray.500'
+                          color='fg.muted'
                           textAlign='center'
                           py={4}
+                          fontFamily='body'
                         >
                           No subjects available. Add subjects in the Gather tab
                           first.
@@ -199,11 +232,11 @@ const HorizonChartSection = forwardRef<
                     align='center'
                     justify='center'
                     border='2px dashed'
-                    borderColor='gray.300'
+                    borderColor='border.muted'
                     borderRadius='md'
-                    bg='gray.50'
+                    bg='bg.subtle'
                   >
-                    <Text color='gray.500' fontSize='sm'>
+                    <Text color='fg.muted' fontSize='sm' fontFamily='body'>
                       Select subjects to view horizon chart
                     </Text>
                   </Flex>
