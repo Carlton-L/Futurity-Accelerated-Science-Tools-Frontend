@@ -10,20 +10,21 @@ import {
   VStack,
   HStack,
   Container,
-  Link,
 } from '@chakra-ui/react';
 import { useAuth } from '../../context/AuthContext';
 import { futurityLabsAPIService } from '../../services/futurityLabsAPIService';
-import type { FuturityLab } from './types';
+import { labAPIService } from '../../services/labAPIService';
+import type { FuturityLab as FuturityLabType } from './types';
 
 const FuturityLab: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, currentTeamspace, user } = useAuth();
 
-  const [lab, setLab] = useState<FuturityLab | null>(null);
+  const [lab, setLab] = useState<FuturityLabType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     const fetchLab = async () => {
@@ -50,11 +51,44 @@ const FuturityLab: React.FC = () => {
     fetchLab();
   }, [token, slug]);
 
-  const handleConvertToLab = () => {
-    // TODO: Implement conversion to team lab
-    console.log('Converting Futurity Lab to team lab:', lab);
-    // For now, just show an alert or navigate somewhere
-    alert('Lab conversion feature coming soon!');
+  const handleConvertToLab = async () => {
+    if (!lab || !currentTeamspace || !user || !token) {
+      console.error('Missing required data for conversion:', {
+        lab: !!lab,
+        currentTeamspace: !!currentTeamspace,
+        user: !!user,
+        token: !!token,
+      });
+      alert(
+        'Unable to convert lab. Please ensure you are logged in and have selected a team.'
+      );
+      return;
+    }
+
+    try {
+      setConverting(true);
+
+      // Create the lab using the API service
+      const result = await labAPIService.createLabFromFuturity(
+        lab,
+        currentTeamspace._id,
+        user.guid || user._id, // Use guid if available, fallback to _id
+        user._id,
+        token
+      );
+
+      console.log('Lab created successfully:', result);
+
+      // Navigate to the new lab
+      navigate(`/lab/${result._id}`);
+    } catch (error) {
+      console.error('Failed to convert Futurity Lab:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to convert lab';
+      alert(`Error converting lab: ${errorMessage}`);
+    } finally {
+      setConverting(false);
+    }
   };
 
   if (loading) {
@@ -200,27 +234,23 @@ const FuturityLab: React.FC = () => {
               onClick={handleConvertToLab}
               variant='solid'
               size='lg'
-              disabled={lab.visible === 0}
+              disabled={lab.visible === 0 || converting || !currentTeamspace}
+              isLoading={converting}
+              loadingText='Converting...'
             >
               Convert to Team Lab
             </Button>
-
-            {lab.ent_url && (
-              <Link
-                href={lab.ent_url}
-                isExternal
-                _hover={{ textDecoration: 'none' }}
-              >
-                <Button variant='outline' size='lg'>
-                  View Original
-                </Button>
-              </Link>
-            )}
           </HStack>
 
           {lab.visible === 0 && (
             <Text color='fg.muted' fontSize='sm' mt='2'>
               This lab is currently not available for conversion.
+            </Text>
+          )}
+
+          {!currentTeamspace && (
+            <Text color='fg.muted' fontSize='sm' mt='2'>
+              Please select a team to convert this lab.
             </Text>
           )}
         </Box>

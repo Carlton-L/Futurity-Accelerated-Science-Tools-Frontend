@@ -160,6 +160,124 @@ class LabAPIService {
       throw error;
     }
   }
+  /**
+   * Create a lab from a Futurity Lab
+   */
+  /**
+   * Helper method to get current API format subjects from lab data
+   */
+  getApiSubjectsFromLab(lab: any): Array<{
+    subject_id: string;
+    subject_name?: string;
+    name?: string;
+    category: string | null;
+    ent_fsid: string;
+  }> {
+    return lab.subjects.map((subject: any) => ({
+      subject_id: subject.subjectId, // Use the actual subject ID
+      subject_name: subject.subjectName, // Use subject_name field
+      category:
+        subject.categoryId === 'uncategorized' ? null : subject.categoryId, // null for uncategorized
+      ent_fsid: subject.subjectSlug.startsWith('fsid_')
+        ? subject.subjectSlug
+        : `fsid_${subject.subjectSlug}`, // Ensure fsid_ prefix
+    }));
+  }
+
+  /**
+   * Create a lab from a Futurity Lab
+   */
+  async createLabFromFuturity(
+    futurityLab: any,
+    teamspaceId: string,
+    userGuid: string,
+    userId: string,
+    token: string
+  ): Promise<{ _id: string }> {
+    try {
+      // Map all subjects from the Futurity Lab
+      const subjects =
+        futurityLab.subjects?.map((subject: any) => ({
+          subject_id: subject._id.$oid, // Extract the ObjectId from the MongoDB format
+          subject_name: subject.ent_name, // Map ent_name to subject_name
+          category: null, // All subjects start uncategorized
+          ent_fsid: subject.ent_fsid, // Keep the same ent_fsid
+        })) || [];
+
+      // Map all analyses from the Futurity Lab
+      const analyses =
+        futurityLab.analyses?.map(
+          (analysis: any) => analysis._id.$oid // Extract the ObjectId from the MongoDB format
+        ) || [];
+
+      const labData = {
+        ent_name: `${futurityLab.ent_name} (Futurity Lab)`,
+        ent_summary: futurityLab.ent_summary,
+        picture_url: futurityLab.picture_url || null,
+        thumb_url: futurityLab.thumb_url || null,
+        owner_guid: userGuid,
+        teamspace_id: teamspaceId,
+        members: [
+          {
+            user_id: userId,
+            role: 'owner',
+          },
+        ],
+        kbid: null,
+        categories: [],
+        exclude_terms: [],
+        include_terms: [],
+        subjects: subjects, // Use the mapped subjects array
+        analyses: analyses, // Use the mapped analyses array
+        goals: [],
+        miro_board_url: null,
+        idea_seeds: [],
+        isArchived: false,
+        isDeleted: false,
+        deletedAt: null,
+      };
+
+      console.log('Creating lab from Futurity Lab with subjects:', {
+        totalSubjects: subjects.length,
+        totalAnalyses: analyses.length,
+        subjects: subjects,
+        analyses: analyses,
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/create?teamspace_id=${teamspaceId}`,
+        {
+          method: 'POST',
+          headers: this.getAuthHeaders(token),
+          body: JSON.stringify(labData),
+        }
+      );
+
+      if (response.status === 401) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      if (response.status === 403) {
+        throw new Error(
+          'You do not have permission to create labs in this teamspace.'
+        );
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Create lab failed response:', errorText);
+        throw new Error(
+          `Failed to create lab: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Create lab from Futurity failed:', error);
+      throw error;
+    }
+  }
 
   /**
    * Update lab data via API - Updated to match actual API structure
