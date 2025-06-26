@@ -1395,8 +1395,8 @@ const Subject: React.FC = () => {
                                     flexShrink={0}
                                   >
                                     <Box
-                                      bg='brand'
-                                      color='brand.contrast'
+                                      bg='app'
+                                      color='text.primary'
                                       fontSize='xs'
                                       px={2}
                                       py={1}

@@ -1,0 +1,61 @@
+{
+  "isArchived": true,
+  "isDeleted": false,
+  "deletedAt": null,
+  "ent_name": "V2 Test Lab ARCHIVED",
+  "ent_summary": "This lab is the very third test lab created in the new MongoDB collection for the V2 version of FAST.",
+  "kbid": { "$uuid": "5fa0549c-f33d-432c-9fd9-8a372fa2cf55" },
+  "teamspace_id": null,
+  "members": [
+    {
+      "fullname": "Alexandru Catalin Trandafir",
+      "user_guid": "d9983-e04eab95-a9c8-4a02-bef3-f74252f8afeb",
+      "role": "editor"
+    },
+    {
+      "fullname": "Carlton Lindsay",
+      "user_guid": "d9983-2f21552f-ae2c-4b16-9cbd-72acec12ee1a",
+      "role": "admin"
+    }
+  ],
+  "categories": [
+    {
+      "id": { "$uuid": "0e70a4ca-0ba2-47ea-a9ec-55cd07b840fc" },
+      "name": "Space"
+    },
+    {
+      "id": { "$uuid": "c27b2599-7468-4b67-bb9a-99b17eaa683e" },
+      "name": "Sci-Fi"
+    }
+  ],
+  "exclude_terms": ["laser", "nucchatgptlear"],
+  "include_terms": ["bioreactor", "solar"],
+  "subjects": [
+    {
+      "subject_id": { "$oid": "685a7649a6627dbb0a2e0003" },
+      "subject_slug": "ansible",
+      "subject_name": "ansible",
+      "category": { "$uuid": "c27b2599-7468-4b67-bb9a-99b17eaa683e" }
+    }
+  ],
+  "analyses": [
+    { "$oid": "66a2ab3dcd921cfc507c88fa" },
+    { "$oid": "66a2ab3dcd921cfc507c8906" }
+  ],
+  "goals": [
+    {
+      "id": { "$uuid": "c75ee40e-5b5a-4e5c-b7a7-c723a1add5c3" },
+      "target_user_groups": [
+        { "name": "Astronauts", "number": { "$numberInt": "42" } },
+        { "name": "Aliens", "number": { "$numberInt": "69" } }
+      ],
+      "problem_statement": "Astronauts and Aliens have a difficult time finding partners for cross-species dating",
+      "goal_statement": "Connect 42 Astronauts with 69 Aliens by 2027",
+      "impact_score": { "$numberInt": "10" },
+      "weight": { "$numberInt": "100" },
+      "goal_year": { "$date": "2027-01-01T00:00:00.000Z" }
+    }
+  ],
+  "miro_board_url": "miro url",
+  "idea_seeds": [{ "$oid": "685a7649a6627dbb0a2e0003" }]
+}

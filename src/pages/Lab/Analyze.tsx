@@ -17,10 +17,10 @@ import {
   Checkbox,
   Flex,
   createToaster,
+  Tabs,
 } from '@chakra-ui/react';
 import GlassCard from '../../components/shared/GlassCard';
 import CardScroller from '../../components/shared/CardScroller';
-import StickyNavigation from './StickyNavigation';
 import HorizonChartSection from './Horizons/HorizonChartSection';
 import KnowledgebaseSection from './Knowledgebase';
 import type {
@@ -31,7 +31,7 @@ import type {
   KnowledgebaseDocumentsResponse,
   KnowledgebaseQueryResponse,
 } from './types';
-import { mockCategories, mockAnalyses, navigationItems } from './mockData';
+import { mockCategories, mockAnalyses } from './mockData';
 import {
   convertHorizonValue,
   getCategoryNumber,
@@ -229,6 +229,44 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     );
   }, [labId, selectedSubjects]);
 
+  // Knowledgebase handlers - Define first to avoid temporal dead zone
+  const fetchKnowledgebaseDocuments = useCallback(async () => {
+    setKbLoading(true);
+    setKbError('');
+
+    try {
+      const documents: KnowledgebaseDocument[] = [];
+      const fileTypes = ['pdf', 'image', 'audio', 'video', 'txt', 'raw_text'];
+
+      for (const fileType of fileTypes) {
+        try {
+          const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+          const targetUrl = `https://rag.futurity.science/knowledgebases/f2c3354a-bb62-4b5e-aa55-e62d2802e946/items/${fileType}?page=1&size=50`;
+
+          const response = await fetch(proxyUrl + targetUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          });
+
+          if (response.ok) {
+            const data: KnowledgebaseDocumentsResponse = await response.json();
+            documents.push(...data.items);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch ${fileType} documents:`, error);
+        }
+      }
+
+      setKbDocuments(documents);
+    } catch (error) {
+      console.error('Failed to fetch knowledgebase documents:', error);
+      setKbError(
+        'Failed to load documents - CORS issue. Please configure API server with proper CORS headers.'
+      );
+    } finally {
+      setKbLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setAnalysisSelectedSubjects(new Set(allSubjects.map((s) => s.id)));
     const excludeSubjectNames = excludedSubjects.map((s) => s.subjectName);
@@ -237,7 +275,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
   useEffect(() => {
     fetchKnowledgebaseDocuments();
-  }, []);
+  }, [fetchKnowledgebaseDocuments]);
 
   // Navigation handlers
   const scrollToSection = useCallback((sectionId: string) => {
@@ -394,44 +432,6 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
       setTimeout(() => setIsCopyingAnalysis(false), 2000);
     }
   }, [analysisResult]);
-
-  // Knowledgebase handlers
-  const fetchKnowledgebaseDocuments = useCallback(async () => {
-    setKbLoading(true);
-    setKbError('');
-
-    try {
-      const documents: KnowledgebaseDocument[] = [];
-      const fileTypes = ['pdf', 'image', 'audio', 'video', 'txt', 'raw_text'];
-
-      for (const fileType of fileTypes) {
-        try {
-          const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-          const targetUrl = `https://rag.futurity.science/knowledgebases/f2c3354a-bb62-4b5e-aa55-e62d2802e946/items/${fileType}?page=1&size=50`;
-
-          const response = await fetch(proxyUrl + targetUrl, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-          });
-
-          if (response.ok) {
-            const data: KnowledgebaseDocumentsResponse = await response.json();
-            documents.push(...data.items);
-          }
-        } catch (error) {
-          console.error(`Failed to fetch ${fileType} documents:`, error);
-        }
-      }
-
-      setKbDocuments(documents);
-    } catch (error) {
-      console.error('Failed to fetch knowledgebase documents:', error);
-      setKbError(
-        'Failed to load documents - CORS issue. Please configure API server with proper CORS headers.'
-      );
-    } finally {
-      setKbLoading(false);
-    }
-  }, []);
 
   const handleKbFileUpload = useCallback(
     async (files: File[]) => {
@@ -595,14 +595,48 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
         Analyses
       </Heading>
 
-      {/* Sticky Navigation Bar */}
-      <Box position='sticky' top='114px' zIndex='10' mb={6}>
-        <GlassCard variant='glass' w='100%'>
-          <StickyNavigation
-            items={navigationItems}
-            activeSection={activeSection}
-            onSectionClick={scrollToSection}
-          />
+      {/* Sticky Navigation Bar - Updated to match main tab navigation */}
+      <Box position='sticky' top='148px' zIndex='10' mb={6}>
+        <GlassCard variant='glass' w='100%' bg='bg.canvas'>
+          <Box p={4}>
+            <Tabs.Root
+              value={activeSection}
+              onValueChange={(details) => setActiveSection(details.value)}
+            >
+              <Tabs.List>
+                <Tabs.Trigger
+                  value='horizon-chart'
+                  onClick={() => scrollToSection('horizon-chart')}
+                >
+                  Horizon Chart
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value='lab-analyses'
+                  onClick={() => scrollToSection('lab-analyses')}
+                >
+                  Lab Analyses
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value='analysis-tools'
+                  onClick={() => scrollToSection('analysis-tools')}
+                >
+                  Analysis Tools
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value='knowledgebase'
+                  onClick={() => scrollToSection('knowledgebase')}
+                >
+                  Knowledgebase
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value='additional-tools'
+                  onClick={() => scrollToSection('additional-tools')}
+                >
+                  Additional Tools
+                </Tabs.Trigger>
+              </Tabs.List>
+            </Tabs.Root>
+          </Box>
         </GlassCard>
       </Box>
 
