@@ -113,7 +113,7 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
     const defs = svg.append('defs');
 
     const isDarkTheme =
-      document.documentElement.getAttribute('data-bs-theme') === 'dark';
+      document.documentElement.getAttribute('data-theme') === 'dark';
 
     // Create radial gradients for each horizon band
 
@@ -355,6 +355,7 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('dominant-baseline', 'middle')
         .attr('font-size', '12px')
         .attr('font-weight', 'bold')
+        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
         .text(categoryLabel);
     }
 
@@ -366,7 +367,8 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
     const jitterRadius = 15;
     const jitterAngle = Math.PI / 36;
 
-    const shapeBlue = '#8AC926';
+    // Use brand color for nodes
+    const shapeBlue = '#0005E9'; // Brand color
     const shapeOpacity = 0.9;
 
     // Keep track of all items for collision detection
@@ -578,6 +580,7 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('text-anchor', 'start')
         .attr('dominant-baseline', 'middle')
         .attr('font-size', '11px')
+        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
         .text(d.name);
 
       const labelWidth = d.name.length * 6;
@@ -832,9 +835,10 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('x', 0)
         .attr('y', 0)
         .attr('font-weight', 'bold')
+        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
         .text('Legend (Types)');
 
-      const legendBlue = '#4285F4';
+      const legendBlue = '#0005E9'; // Use brand color
       const legendOpacity = 0.8;
 
       // Type 1 - Circle
@@ -846,7 +850,12 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('fill', legendBlue)
         .attr('opacity', legendOpacity);
 
-      legend.append('text').attr('x', 25).attr('y', 25).text('Type 1');
+      legend
+        .append('text')
+        .attr('x', 25)
+        .attr('y', 25)
+        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
+        .text('Type 1');
 
       // Type 2 - Square
       legend
@@ -858,7 +867,12 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('fill', legendBlue)
         .attr('opacity', legendOpacity);
 
-      legend.append('text').attr('x', 25).attr('y', 50).text('Type 2');
+      legend
+        .append('text')
+        .attr('x', 25)
+        .attr('y', 50)
+        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
+        .text('Type 2');
 
       // Type 3 - Hexagon
       const legendHexPoints = d3.range(6).map((i) => {
@@ -872,7 +886,12 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('fill', legendBlue)
         .attr('opacity', legendOpacity);
 
-      legend.append('text').attr('x', 25).attr('y', 75).text('Type 3');
+      legend
+        .append('text')
+        .attr('x', 25)
+        .attr('y', 75)
+        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
+        .text('Type 3');
     }
   }, [data, showLegend]);
 
