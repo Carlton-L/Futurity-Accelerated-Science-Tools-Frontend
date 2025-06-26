@@ -11,6 +11,7 @@ import Search from './pages/Search';
 import WorkspaceView from './pages/WorkspaceView';
 import Login from './pages/Login/Login';
 import Lab from './pages/Lab';
+import FuturityLab from './pages/FuturityLab';
 import Whiteboard from './pages/Whiteboard';
 import TeamView from './pages/TeamView';
 import TeamManage from './pages/TeamManage';
@@ -33,6 +34,8 @@ function App() {
                   {/* Dynamic lab route - this will catch any lab ID */}
                   <Route path='/lab/:id' element={<Lab />} />
                   <Route path='/lab/create' element={<CreateLab />} />
+                  {/* Futurity Lab route - using slug (ent_fsid) */}
+                  <Route path='/futurity-lab/:slug' element={<FuturityLab />} />
                   <Route path='/search' element={<Search />} />
                   <Route path='/search/:query' element={<Search />} />
                   <Route path='/subject/:slug' element={<Subject />} />
