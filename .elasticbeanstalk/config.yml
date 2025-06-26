@@ -1,11 +1,9 @@
 branch-defaults:
-  default:
-    environment: futurity-frontend-prod
-    group_suffix: null
   staging:
-    environment: futurity-frontend-prod
+    environment: frontend
+    group_suffix: null
 global:
-  application_name: futurity-frontend
+  application_name: frontend
   branch: null
   default_ec2_keyname: developement
   default_platform: Docker running on 64bit Amazon Linux 2023
@@ -16,5 +14,5 @@ global:
   platform_version: null
   profile: eb-cli
   repository: null
-  sc: null
+  sc: git
   workspace_type: Application
