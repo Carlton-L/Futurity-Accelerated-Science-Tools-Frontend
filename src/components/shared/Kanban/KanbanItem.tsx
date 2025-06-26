@@ -34,6 +34,8 @@ const KanbanItem: React.FC<KanbanItemProps> = ({
       onClick={handleClick}
       className={className}
       transition='all 0.2s'
+      _active={isDraggable ? { cursor: 'grabbing' } : {}}
+      _hover={isDraggable ? { transform: 'translateY(-1px)' } : {}}
     >
       {children}
     </Box>

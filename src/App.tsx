@@ -8,16 +8,17 @@ import Layout from './components/layouts/MainLayout/MainLayout';
 import Home from './pages/Home';
 import Subject from './pages/Subject';
 import Search from './pages/Search';
-import Organization from './pages/Organization';
+import WorkspaceView from './pages/WorkspaceView';
 import Login from './pages/Login/Login';
 import Lab from './pages/Lab';
 import Whiteboard from './pages/Whiteboard';
+import TeamView from './pages/TeamView';
+import TeamManage from './pages/TeamManage';
+import CreateLab from './pages/CreateLab';
 
 function App() {
   return (
     <ChakraProvider value={theme}>
-      {' '}
-      {/* Use your custom theme instead of defaultSystem */}
       <BrowserRouter>
         <AuthProvider>
           <PageProvider>
@@ -29,12 +30,17 @@ function App() {
               <Route element={<PrivateRoute />}>
                 <Route element={<Layout />}>
                   <Route path='/' element={<Home />} />
-                  <Route path='/lab/1' element={<Lab />} />
+                  {/* Dynamic lab route - this will catch any lab ID */}
+                  <Route path='/lab/:id' element={<Lab />} />
+                  <Route path='/lab/create' element={<CreateLab />} />
                   <Route path='/search' element={<Search />} />
                   <Route path='/search/:query' element={<Search />} />
                   <Route path='/subject/:slug' element={<Subject />} />
-                  <Route path='/organization/' element={<Organization />} />
+                  <Route path='/workspace/' element={<WorkspaceView />} />
                   <Route path='/whiteboard/' element={<Whiteboard />} />
+                  {/* Team routes */}
+                  <Route path='/team/:teamId' element={<TeamView />} />
+                  <Route path='/team/:teamId/manage' element={<TeamManage />} />
                 </Route>
               </Route>
 

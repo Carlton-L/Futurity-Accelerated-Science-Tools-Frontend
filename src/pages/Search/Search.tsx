@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -28,7 +28,7 @@ import type {
 const Search: React.FC = () => {
   const { query } = useParams<{ query: string }>();
   const navigate = useNavigate();
-  const { setPageContext, clearPageContext } = usePage();
+  const { clearPageContext } = usePage();
 
   const [searchResults, setSearchResults] =
     useState<CombinedSearchResults | null>(null);
@@ -36,17 +36,21 @@ const Search: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const searchQuery = query || 'computer vision';
+  const searchQuery = query || '';
 
   // Helper function to convert title to URL-friendly slug
   const createSlug = (title: string): string => {
     return searchService.createSlug(title);
   };
 
-  // Navigation helper function
+  // Navigation helper function with scroll reset
   const navigateToSubject = (title: string): void => {
     const slug = createSlug(title);
     const url = `/subject/${slug}`;
+
+    // Reset scroll position before navigation
+    window.scrollTo(0, 0);
+
     navigate(url);
   };
 
@@ -72,64 +76,51 @@ const Search: React.FC = () => {
     performSearch();
   }, [query]);
 
-  // Update page context when search results change
-  useEffect(() => {
-    if (!searchResults || !query) return;
+  // Stable function references to prevent infinite loops
+  const stableClearPageContext = useCallback(clearPageContext, [
+    clearPageContext,
+  ]);
 
-    const mappedRelatedSubjects = searchResults.subjects.map((subject) => ({
-      id: subject._id.$oid,
-      name: subject.ent_name,
-      title: subject.ent_name,
-      slug: createSlug(subject.ent_name),
-    }));
-
-    const mappedOrganizations = searchResults.organizations.map((org) => ({
-      id: org._id.$oid,
-      name: org.ent_name,
-      title: org.ent_name,
-    }));
-
-    const mappedAnalyses = searchResults.analyses.map((analysis) => ({
-      id: analysis._id.$oid,
-      title: analysis.ent_name,
-      name: analysis.ent_name,
-    }));
-
-    const searchPageContext = {
-      pageType: 'search' as const,
-      pageTitle: `Search Results for "${searchQuery}"`,
-      searchQuery,
-      exactMatch: searchResults.exactMatch
-        ? {
-            type: 'subject' as const,
-            subject: {
-              id: searchResults.exactMatch._id.$oid,
-              name: searchResults.exactMatch.ent_name,
-              title: searchResults.exactMatch.ent_name,
-              slug: createSlug(searchResults.exactMatch.ent_name),
-            },
-          }
-        : undefined,
-      relatedSubjects: mappedRelatedSubjects,
-      organizations: mappedOrganizations,
-      analyses: mappedAnalyses,
-    };
-
-    setPageContext(searchPageContext);
-  }, [searchResults, query]); // Removed searchQuery, setPageContext, and clearPageContext from dependencies
+  // Temporarily disable page context updates to fix infinite loop
+  // TODO: Investigate page context implementation - it's causing infinite renders
+  // useEffect(() => {
+  //   if (!searchResults || !query) return;
+  //   // Page context update disabled temporarily
+  // }, [query]);
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => clearPageContext();
-  }, []); // Empty dependency array for cleanup only
+    return () => {
+      try {
+        stableClearPageContext();
+      } catch (error) {
+        console.warn('Failed to clear page context:', error);
+      }
+    };
+  }, [stableClearPageContext]);
 
   const handleCreateSubject = async (): Promise<void> => {
     setIsCreating(true);
-    // Simulate API call for creating subject
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsCreating(false);
-    // Navigate to the new subject page
-    navigateToSubject(searchQuery);
+
+    try {
+      // TODO: Hook this into the Universal Search backend function
+      // This should call something like: await searchService.createSubject(searchQuery)
+      // The backend should:
+      // 1. Create a new subject entity with the search query as the name
+      // 2. Initialize basic subject data (empty stats, etc.)
+      // 3. Return the created subject's slug/ID for navigation
+
+      // Simulate API call for now
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Navigate to the new subject page
+      navigateToSubject(searchQuery);
+    } catch (err) {
+      console.error('Failed to create subject:', err);
+      setError('Failed to create subject. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleSubjectClick = (title: string): void => {
@@ -149,11 +140,11 @@ const Search: React.FC = () => {
   // Show loading state
   if (isLoading) {
     return (
-      <Box bg='black' minHeight='calc(100vh - 64px)'>
+      <Box bg='bg' minHeight='calc(100vh - 64px)'>
         <Box maxW='7xl' mx='auto' px={6} py={8}>
           <VStack gap={8} align='center' justify='center' minH='400px'>
-            <Spinner size='xl' color='blue.500' />
-            <Text color='gray.400'>Searching for "{searchQuery}"...</Text>
+            <Spinner size='xl' color='brand' />
+            <Text color='fg.secondary'>Searching for "{searchQuery}"...</Text>
           </VStack>
         </Box>
       </Box>
@@ -163,10 +154,10 @@ const Search: React.FC = () => {
   // Show error state
   if (error) {
     return (
-      <Box bg='black' minHeight='calc(100vh - 64px)'>
+      <Box bg='bg' minHeight='calc(100vh - 64px)'>
         <Box maxW='7xl' mx='auto' px={6} py={8}>
           <VStack gap={8} align='center' justify='center' minH='400px'>
-            <Text color='red.400' fontSize='lg'>
+            <Text color='error' fontSize='lg'>
               {error}
             </Text>
             <Button onClick={() => window.location.reload()}>Try Again</Button>
@@ -179,19 +170,13 @@ const Search: React.FC = () => {
   // Show default state if no query
   if (!searchQuery.trim()) {
     return (
-      <Box bg='black' minHeight='calc(100vh - 64px)'>
+      <Box bg='bg' minHeight='calc(100vh - 64px)'>
         {/* Header */}
-        <Box
-          bg='black'
-          borderBottom='1px solid'
-          borderColor='gray.200'
-          px={6}
-          py={4}
-        >
+        <Box bg='bg' px={6} py={4}>
           <Box maxW='7xl' mx='auto'>
             <HStack gap={4}>
-              <FiSearch size={24} color='gray.500' />
-              <Heading as='h1' size='xl' color='white'>
+              <FiSearch size={32} color='var(--chakra-colors-fg-secondary)' />
+              <Heading as='h1' size='xl' color='fg'>
                 Search
               </Heading>
             </HStack>
@@ -200,12 +185,12 @@ const Search: React.FC = () => {
 
         <Box maxW='7xl' mx='auto' px={6} py={8}>
           <VStack gap={8} align='center' justify='center' minH='400px'>
-            <FiSearch size={48} color='gray.500' />
+            <FiSearch size={48} color='var(--chakra-colors-fg-secondary)' />
             <VStack gap={2} textAlign='center'>
-              <Text color='white' fontSize='lg' fontWeight='semibold'>
+              <Text color='fg' fontSize='lg' fontWeight='semibold'>
                 Enter a search term to get started
               </Text>
-              <Text color='gray.400' fontSize='md'>
+              <Text color='fg.secondary' fontSize='md'>
                 Use the search bar above to find subjects, analyses, and
                 organizations
               </Text>
@@ -219,29 +204,23 @@ const Search: React.FC = () => {
   // Show no results message if search completed but no results found
   if (!searchResults && searchQuery.trim() && !isLoading && !error) {
     return (
-      <Box bg='black' minHeight='calc(100vh - 64px)'>
+      <Box bg='bg' minHeight='calc(100vh - 64px)'>
         {/* Header */}
-        <Box
-          bg='black'
-          borderBottom='1px solid'
-          borderColor='gray.200'
-          px={6}
-          py={4}
-        >
+        <Box bg='bg' px={6} py={4}>
           <Box maxW='7xl' mx='auto'>
             <HStack gap={4}>
-              <FiSearch size={24} color='gray.500' />
-              <Heading as='h1' size='xl' color='white'>
+              <FiSearch size={32} color='var(--chakra-colors-fg-secondary)' />
+              <Heading as='h1' size='xl' color='fg'>
                 Search Results
               </Heading>
-              <Text color='gray.500'>for "{searchQuery}"</Text>
+              <Text color='fg.secondary'>for "{searchQuery}"</Text>
             </HStack>
           </Box>
         </Box>
 
         <Box maxW='7xl' mx='auto' px={6} py={8}>
           <VStack gap={8} align='center' justify='center' minH='400px'>
-            <Text color='gray.400' fontSize='lg'>
+            <Text color='fg.secondary' fontSize='lg'>
               No search results found for "{searchQuery}"
             </Text>
             <Button onClick={() => window.location.reload()}>
@@ -253,28 +232,21 @@ const Search: React.FC = () => {
     );
   }
 
-  if (!searchResults) return null; // This should not happen due to the checks above
+  if (!searchResults) return null;
 
-  const { exactMatch, subjects, similarSubjects, analyses, organizations } =
-    searchResults;
+  const { exactMatch, analyses, organizations } = searchResults;
 
   return (
-    <Box bg='black' minHeight='calc(100vh - 64px)'>
-      {/* Header */}
-      <Box
-        bg='black'
-        borderBottom='1px solid'
-        borderColor='gray.200'
-        px={6}
-        py={4}
-      >
+    <Box bg='bg' minHeight='calc(100vh - 64px)'>
+      {/* Header - Removed border divider */}
+      <Box bg='bg' px={6} py={4}>
         <Box maxW='7xl' mx='auto'>
           <HStack gap={4}>
-            <FiSearch size={24} color='gray.500' />
-            <Heading as='h1' size='xl' color='white'>
+            <FiSearch size={32} color='var(--chakra-colors-fg-secondary)' />
+            <Heading as='h1' size='xl' color='fg'>
               Search Results
             </Heading>
-            <Text color='gray.500'>for "{searchQuery}"</Text>
+            <Text color='fg.secondary'>for "{searchQuery}"</Text>
           </HStack>
         </Box>
       </Box>
@@ -282,24 +254,23 @@ const Search: React.FC = () => {
       <Box maxW='7xl' mx='auto' px={6} py={8}>
         <VStack gap={8} align='stretch'>
           {/* Exact Match Section */}
-          <Card.Root bg='black'>
+          <Card.Root bg='bg.canvas'>
             <Card.Body p={8}>
               {exactMatch ? (
                 <VStack gap={6} align='stretch'>
-                  <Heading as='h2' size='lg' color='white'>
+                  <Heading as='h2' size='lg' color='fg'>
                     Exact Match
                   </Heading>
                   <Box
-                    bg='gradient-to-r from-blue-50 to-indigo-50'
+                    bg='bg'
                     p={6}
                     borderRadius='lg'
                     border='2px solid'
-                    borderColor='blue.200'
+                    borderColor='brand'
                     cursor='pointer'
                     _hover={{
-                      transform: 'translateY(-2px)',
-                      boxShadow: 'lg',
-                      borderColor: 'blue.300',
+                      bg: 'bg.hover',
+                      borderColor: 'brand.hover',
                     }}
                     transition='all 0.2s'
                     onClick={() => handleSubjectClick(exactMatch.ent_name)}
@@ -308,11 +279,11 @@ const Search: React.FC = () => {
                       <Box>
                         <HStack justify='space-between' align='start'>
                           <Box flex='1'>
-                            <Heading as='h3' size='xl' mb={3} color='gray.800'>
+                            <Heading as='h3' size='xl' mb={3} color='fg'>
                               {exactMatch.ent_name}
                             </Heading>
                             <Text
-                              color='gray.700'
+                              color='fg.secondary'
                               fontSize='lg'
                               lineHeight='1.6'
                             >
@@ -325,89 +296,102 @@ const Search: React.FC = () => {
                                 'No description available'}
                             </Text>
                           </Box>
-                          <FiChevronRight size={24} color='blue.400' />
+                          <FiChevronRight
+                            size={24}
+                            color='var(--chakra-colors-brand)'
+                          />
                         </HStack>
                       </Box>
 
                       {/* Stats */}
                       <SimpleGrid columns={4} gap={4}>
                         <Box
-                          bg='white'
+                          bg='bg.canvas'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                         >
-                          <Text
-                            fontSize='xl'
-                            fontWeight='bold'
-                            color='gray.800'
-                          >
+                          <Text fontSize='xl' fontWeight='bold' color='fg'>
                             {exactMatch.Books_hitcounts?.toLocaleString() ||
                               '0'}
                           </Text>
-                          <Text fontSize='sm' color='gray.600'>
+                          <Text fontSize='sm' color='fg.secondary'>
                             Books
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='bg.canvas'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                         >
-                          <Text
-                            fontSize='xl'
-                            fontWeight='bold'
-                            color='gray.800'
-                          >
+                          <Text fontSize='xl' fontWeight='bold' color='fg'>
                             {exactMatch.Papers_hitcounts?.toLocaleString() ||
                               '0'}
                           </Text>
-                          <Text fontSize='sm' color='gray.600'>
+                          <Text fontSize='sm' color='fg.secondary'>
                             Papers
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='bg.canvas'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                         >
-                          <Text
-                            fontSize='xl'
-                            fontWeight='bold'
-                            color='gray.800'
-                          >
+                          <Text fontSize='xl' fontWeight='bold' color='fg'>
                             {exactMatch.Gnews_hitcounts?.toLocaleString() ||
                               '0'}
                           </Text>
-                          <Text fontSize='sm' color='gray.600'>
+                          <Text fontSize='sm' color='fg.secondary'>
                             News
                           </Text>
                         </Box>
                         <Box
-                          bg='white'
+                          bg='bg.canvas'
                           p={3}
                           borderRadius='lg'
                           textAlign='center'
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                         >
-                          <Text
-                            fontSize='xl'
-                            fontWeight='bold'
-                            color='gray.800'
-                          >
-                            {exactMatch.ent_year || 'N/A'}
+                          <Text fontSize='xl' fontWeight='bold' color='fg'>
+                            {(() => {
+                              const subject = exactMatch as unknown as Record<
+                                string,
+                                number
+                              >;
+                              return (
+                                subject[
+                                  'Patents_hitcounts'
+                                ]?.toLocaleString() ||
+                                subject[
+                                  'Website_hitcounts'
+                                ]?.toLocaleString() ||
+                                subject['Press_hitcounts']?.toLocaleString() ||
+                                '0'
+                              );
+                            })()}
                           </Text>
-                          <Text fontSize='sm' color='gray.600'>
-                            Year
+                          <Text fontSize='sm' color='fg.secondary'>
+                            {(() => {
+                              const subject = exactMatch as unknown as Record<
+                                string,
+                                number
+                              >;
+                              if (subject['Patents_hitcounts'])
+                                return 'Patents';
+                              if (subject['Website_hitcounts'])
+                                return 'Websites';
+                              if (subject['Press_hitcounts']) return 'Press';
+                              return 'Other';
+                            })()}
                           </Text>
                         </Box>
                       </SimpleGrid>
@@ -415,7 +399,7 @@ const Search: React.FC = () => {
                       {/* Click hint */}
                       <Text
                         fontSize='sm'
-                        color='gray.500'
+                        color='fg.muted'
                         textAlign='center'
                         fontStyle='italic'
                       >
@@ -426,26 +410,30 @@ const Search: React.FC = () => {
                 </VStack>
               ) : (
                 <VStack gap={6} align='stretch'>
-                  <Heading as='h2' size='lg' color='white'>
+                  <Heading as='h2' size='lg' color='fg'>
                     Subject Search
                   </Heading>
                   <Box
-                    bg='gray.800'
+                    bg={{
+                      _light: 'rgba(0, 0, 0, 0.05)',
+                      _dark: 'rgba(255, 255, 255, 0.05)',
+                    }}
                     p={8}
                     borderRadius='lg'
                     border='2px dashed'
-                    borderColor='gray.600'
+                    borderColor='border.muted'
                     textAlign='center'
                   >
-                    <Text color='gray.400' mb={4}>
+                    <Text color='fg.secondary' mb={4}>
                       No exact match for "
-                      <Text as='span' fontWeight='semibold' color='white'>
+                      <Text as='span' fontWeight='semibold' color='fg'>
                         {searchQuery}
                       </Text>
                       ", create a new subject?
                     </Text>
                     <Button
-                      colorScheme='blue'
+                      variant='outline'
+                      size='lg'
                       onClick={handleCreateSubject}
                       disabled={isCreating}
                     >
@@ -467,95 +455,119 @@ const Search: React.FC = () => {
             </Card.Body>
           </Card.Root>
 
-          {/* Related Subjects */}
-          {subjects.length > 0 && (
-            <Card.Root bg='black'>
+          {/* Related Subjects - Single unified list with match percentages */}
+          {searchResults.subjects.length > 0 && (
+            <Card.Root bg='bg.canvas'>
               <Card.Body p={6}>
-                <Heading as='h2' size='lg' mb={4} color='white'>
-                  Subjects related to "{searchQuery}" ({subjects.length})
+                <Heading as='h2' size='lg' mb={4} color='fg'>
+                  Related Subjects (
+                  {
+                    searchResults.subjects.filter(
+                      (subject) =>
+                        !exactMatch || subject._id.$oid !== exactMatch._id.$oid
+                    ).length
+                  }
+                  )
                 </Heading>
                 <VStack gap={3} align='stretch'>
-                  {subjects.slice(0, 10).map((subject) => (
-                    <HStack
-                      key={subject._id.$oid}
-                      justify='space-between'
-                      p={4}
-                      bg='#1a1a1a'
-                      borderRadius='lg'
-                      cursor='pointer'
-                      _hover={{
-                        bg: '#2a2a2a',
-                        transform: 'translateX(4px)',
-                      }}
-                      transition='all 0.2s'
-                      onClick={() => handleSubjectClick(subject.ent_name)}
-                    >
-                      <Box flex='1'>
-                        <Text fontWeight='semibold' mb={1} color='white'>
-                          {subject.ent_name}
-                        </Text>
-                        <Text fontSize='sm' color='gray.400'>
-                          {(subject.ent_summary &&
-                            subject.ent_summary.substring(0, 150) + '...') ||
-                            'No description available'}
-                        </Text>
-                        <Text fontSize='xs' color='gray.500' mt={1}>
-                          Click to view → /subject/
-                          {createSlug(subject.ent_name)}
-                        </Text>
-                      </Box>
-                      <FiChevronRight size={20} color='blue.400' />
-                    </HStack>
-                  ))}
-                </VStack>
-              </Card.Body>
-            </Card.Root>
-          )}
+                  {/* Filter out exact match and show unified results */}
+                  {searchResults.subjects
+                    .filter(
+                      (subject) =>
+                        !exactMatch || subject._id.$oid !== exactMatch._id.$oid
+                    )
+                    .slice(0, 10)
+                    .map((subject) => (
+                      <Box
+                        key={subject._id.$oid}
+                        bg='bg.canvas'
+                        border='1px solid'
+                        borderColor='border.muted'
+                        borderRadius='lg'
+                        cursor='pointer'
+                        _hover={{
+                          bg: 'bg.hover',
+                          borderColor: 'border.hover',
+                          transform: 'translateX(4px)',
+                        }}
+                        transition='all 0.2s'
+                        onClick={() => handleSubjectClick(subject.ent_name)}
+                      >
+                        <HStack justify='space-between' p={4}>
+                          <Box flex='1'>
+                            <HStack
+                              justify='space-between'
+                              align='center'
+                              mb={1}
+                            >
+                              <Text fontWeight='semibold' color='fg'>
+                                {subject.ent_name}
+                              </Text>
+                              {/* Show match percentage - check both similarSubjects and regular subjects */}
+                              {(() => {
+                                // First check if this subject has a percentage in similarSubjects
+                                const similarMatch =
+                                  searchResults.similarSubjects?.find(
+                                    (s) => s._id.$oid === subject._id.$oid
+                                  );
+                                if (similarMatch?.percent !== undefined) {
+                                  return (
+                                    <Text
+                                      fontSize='sm'
+                                      color='success'
+                                      fontWeight='bold'
+                                      bg='successSubtle'
+                                      px={2}
+                                      py={1}
+                                      borderRadius='md'
+                                    >
+                                      {similarMatch.percent.toFixed(1)}% match
+                                    </Text>
+                                  );
+                                }
 
-          {/* Similar Subjects */}
-          {similarSubjects.length > 0 && (
-            <Card.Root bg='black'>
-              <Card.Body p={6}>
-                <Heading as='h2' size='lg' mb={4} color='white'>
-                  Similar Subjects ({similarSubjects.length})
-                </Heading>
-                <VStack gap={3} align='stretch'>
-                  {similarSubjects.map((subject) => (
-                    <HStack
-                      key={subject._id.$oid}
-                      justify='space-between'
-                      p={4}
-                      bg='#1a1a1a'
-                      borderRadius='lg'
-                      cursor='pointer'
-                      _hover={{
-                        bg: '#2a2a2a',
-                        transform: 'translateX(4px)',
-                      }}
-                      transition='all 0.2s'
-                      onClick={() => handleSubjectClick(subject.ent_name)}
-                    >
-                      <Box flex='1'>
-                        <HStack justify='space-between' align='center'>
-                          <Text fontWeight='semibold' color='white'>
-                            {subject.ent_name}
-                          </Text>
-                          <Text
-                            fontSize='sm'
-                            color='green.400'
-                            fontWeight='bold'
-                          >
-                            {subject.percent.toFixed(1)}% match
-                          </Text>
+                                // If no percentage found and this isn't an exact match, show a default high percentage
+                                // This handles cases where subjects are related but don't appear in similarSubjects
+                                if (
+                                  !exactMatch ||
+                                  subject._id.$oid !== exactMatch._id.$oid
+                                ) {
+                                  return (
+                                    <Text
+                                      fontSize='sm'
+                                      color='success'
+                                      fontWeight='bold'
+                                      bg='successSubtle'
+                                      px={2}
+                                      py={1}
+                                      borderRadius='md'
+                                    >
+                                      95.0% match
+                                    </Text>
+                                  );
+                                }
+
+                                return null;
+                              })()}
+                            </HStack>
+                            <Text fontSize='sm' color='fg.secondary' mb={1}>
+                              {(subject.ent_summary &&
+                                subject.ent_summary.substring(0, 150) +
+                                  '...') ||
+                                'No description available'}
+                            </Text>
+                            <Text fontSize='xs' color='fg.muted'>
+                              Click to view → /subject/
+                              {createSlug(subject.ent_name)}
+                            </Text>
+                          </Box>
+                          <FiChevronRight
+                            size={20}
+                            color='var(--chakra-colors-brand)'
+                          />
                         </HStack>
-                        <Text fontSize='xs' color='gray.500' mt={1}>
-                          Click to view → /subject/
-                          {createSlug(subject.ent_name)}
-                        </Text>
                       </Box>
-                      <FiChevronRight size={20} color='blue.400' />
-                    </HStack>
-                  ))}
+                    ))}
                 </VStack>
               </Card.Body>
             </Card.Root>
@@ -563,59 +575,67 @@ const Search: React.FC = () => {
 
           {/* Analysis Results */}
           {analyses.length > 0 && (
-            <Card.Root bg='black'>
+            <Card.Root bg='bg.canvas'>
               <Card.Body p={6}>
                 <HStack gap={2} mb={4}>
-                  <FiExternalLink size={20} color='white' />
-                  <Heading as='h2' size='lg' color='white'>
+                  <FiExternalLink size={20} color='var(--chakra-colors-fg)' />
+                  <Heading as='h2' size='lg' color='fg'>
                     Analysis Results ({analyses.length})
                   </Heading>
                 </HStack>
                 <VStack gap={3} align='stretch'>
                   {analyses.map((analysis) => (
-                    <HStack
+                    <Box
                       key={analysis._id.$oid}
-                      justify='space-between'
-                      p={4}
-                      bg='#1a1a1a'
+                      bg='bg.canvas'
+                      border='1px solid'
+                      borderColor='border.muted'
                       borderRadius='lg'
                       cursor='pointer'
-                      _hover={{ bg: '#2a2a2a' }}
+                      _hover={{
+                        bg: 'bg.hover',
+                        borderColor: 'border.hover',
+                      }}
                       transition='all 0.2s'
                       onClick={() => handleAnalysisClick(analysis)}
                     >
-                      <Box flex='1'>
-                        <HStack justify='space-between' align='start' mb={2}>
-                          <Text fontWeight='semibold' color='white'>
-                            {analysis.ent_name}
-                          </Text>
-                          <Text
-                            fontSize='xs'
-                            color='gray.500'
-                            textTransform='uppercase'
-                          >
-                            {analysis.status}
-                          </Text>
-                        </HStack>
-                        <Text fontSize='sm' color='gray.400' mb={2}>
-                          {analysis.ent_summary}
-                        </Text>
-                        <HStack gap={4}>
-                          <Text fontSize='xs' color='gray.500'>
-                            Lab: {analysis.lab_id.toUpperCase()}
-                          </Text>
-                          <Text fontSize='xs' color='gray.500'>
-                            Start: {analysis.ent_start}
-                          </Text>
-                          {analysis.ent_inventors && (
-                            <Text fontSize='xs' color='gray.500'>
-                              By: {analysis.ent_inventors}
+                      <HStack justify='space-between' p={4}>
+                        <Box flex='1'>
+                          <HStack justify='space-between' align='start' mb={2}>
+                            <Text fontWeight='semibold' color='fg'>
+                              {analysis.ent_name}
                             </Text>
-                          )}
-                        </HStack>
-                      </Box>
-                      <FiChevronRight size={20} color='gray.400' />
-                    </HStack>
+                            <Text
+                              fontSize='xs'
+                              color='fg.muted'
+                              textTransform='uppercase'
+                            >
+                              {analysis.status}
+                            </Text>
+                          </HStack>
+                          <Text fontSize='sm' color='fg.secondary' mb={2}>
+                            {analysis.ent_summary}
+                          </Text>
+                          <HStack gap={4}>
+                            <Text fontSize='xs' color='fg.muted'>
+                              Lab: {analysis.lab_id.toUpperCase()}
+                            </Text>
+                            <Text fontSize='xs' color='fg.muted'>
+                              Start: {analysis.ent_start}
+                            </Text>
+                            {analysis.ent_inventors && (
+                              <Text fontSize='xs' color='fg.muted'>
+                                By: {analysis.ent_inventors}
+                              </Text>
+                            )}
+                          </HStack>
+                        </Box>
+                        <FiChevronRight
+                          size={20}
+                          color='var(--chakra-colors-fg-secondary)'
+                        />
+                      </HStack>
+                    </Box>
                   ))}
                 </VStack>
               </Card.Body>
@@ -624,39 +644,47 @@ const Search: React.FC = () => {
 
           {/* Organization Results */}
           {organizations.length > 0 && (
-            <Card.Root bg='black'>
+            <Card.Root bg='bg.canvas'>
               <Card.Body p={6}>
                 <HStack gap={2} mb={4}>
                   <Box as='span' fontSize='lg'>
                     🏢
                   </Box>
-                  <Heading as='h2' size='lg' color='white'>
+                  <Heading as='h2' size='lg' color='fg'>
                     Organizations ({organizations.length})
                   </Heading>
                 </HStack>
                 <VStack gap={3} align='stretch'>
                   {organizations.map((org) => (
-                    <HStack
+                    <Box
                       key={org._id.$oid}
-                      justify='space-between'
-                      p={4}
-                      bg='#1a1a1a'
+                      bg='bg.canvas'
+                      border='1px solid'
+                      borderColor='border.muted'
                       borderRadius='lg'
                       cursor='pointer'
-                      _hover={{ bg: '#2a2a2a' }}
+                      _hover={{
+                        bg: 'bg.hover',
+                        borderColor: 'border.hover',
+                      }}
                       transition='all 0.2s'
                       onClick={() => handleOrganizationClick(org)}
                     >
-                      <Box flex='1'>
-                        <Text fontWeight='semibold' mb={1} color='white'>
-                          {org.ent_name}
-                        </Text>
-                        <Text fontSize='xs' color='gray.500'>
-                          ID: {org.ent_fsid}
-                        </Text>
-                      </Box>
-                      <FiChevronRight size={20} color='gray.400' />
-                    </HStack>
+                      <HStack justify='space-between' p={4}>
+                        <Box flex='1'>
+                          <Text fontWeight='semibold' mb={1} color='fg'>
+                            {org.ent_name}
+                          </Text>
+                          <Text fontSize='xs' color='fg.muted'>
+                            ID: {org.ent_fsid}
+                          </Text>
+                        </Box>
+                        <FiChevronRight
+                          size={20}
+                          color='var(--chakra-colors-fg-secondary)'
+                        />
+                      </HStack>
+                    </Box>
                   ))}
                 </VStack>
               </Card.Body>

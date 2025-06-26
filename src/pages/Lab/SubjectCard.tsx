@@ -53,7 +53,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
       <Card.Root
         size='sm'
         variant='outline'
-        _hover={{ bg: 'gray.50', borderColor: 'blue.300' }}
+        _hover={{ bg: 'bg.hover', borderColor: 'border.hover' }}
         transition='all 0.2s'
         mb={3}
         w='100%'
@@ -64,7 +64,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
               <Text
                 fontSize='sm'
                 fontWeight='medium'
-                color='blue.600'
+                color='text.primary'
                 flex='1'
                 lineHeight='1.3'
               >
@@ -72,7 +72,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
               </Text>
               <HStack gap={1}>
                 {/* Drag handle - visual indicator only */}
-                <Box color='gray.400' cursor='grab'>
+                <Box color='text.muted' cursor='grab'>
                   <FiMove size={10} />
                 </Box>
 
@@ -83,8 +83,8 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                       as='button'
                       p={1}
                       borderRadius='sm'
-                      color='gray.400'
-                      _hover={{ color: 'gray.600', bg: 'gray.100' }}
+                      color='text.muted'
+                      _hover={{ color: 'text.primary', bg: 'bg.hover' }}
                       cursor='pointer'
                       onClick={(e) => e.stopPropagation()}
                       aria-label='Subject actions'
@@ -121,7 +121,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                         <Text
                           as='span'
                           textDecoration='underline'
-                          color='blue.500'
+                          color='text.muted'
                           cursor='help'
                           ml={1}
                         >
@@ -141,9 +141,6 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                 </Text>
               </Box>
             )}
-            <Text fontSize='xs' color='gray.400'>
-              {new Date(subject.addedAt).toLocaleDateString()}
-            </Text>
           </VStack>
         </Card.Body>
       </Card.Root>

@@ -728,6 +728,7 @@ const Subject: React.FC = () => {
     <Box position='relative' bg='bg' minHeight='calc(100vh - 64px)'>
       {/* Background Network Graph - Make it shorter to show stat cards */}
       <Box
+        pt={40}
         position='relative'
         height='calc(90vh - 64px)' // Reduced from 100vh to 70vh
         zIndex={0}
@@ -1249,16 +1250,16 @@ const Subject: React.FC = () => {
         </div>
 
         {/* Related Subjects and Related Analyses - MOVED HERE with added margin */}
-        <HStack gap={6} my={6} align='flex-start'>
+        <HStack gap={6} my={6} align='flex-start' height='400px'>
           {/* Related Subjects Card */}
           <Card.Root
             variant='outline'
             flex='1'
-            height='400px'
+            height='100%'
             borderRadius='8px'
             bg='bg.canvas' // Ensure proper background in dark mode
           >
-            <Card.Body>
+            <Card.Body height='100%'>
               <VStack gap={4} align='stretch' height='100%'>
                 <Heading as='h2' size='lg' flexShrink={0} color='fg'>
                   Related Subjects
@@ -1394,8 +1395,8 @@ const Subject: React.FC = () => {
                                     flexShrink={0}
                                   >
                                     <Box
-                                      bg='brand'
-                                      color='brand.contrast'
+                                      bg='app'
+                                      color='text.primary'
                                       fontSize='xs'
                                       px={2}
                                       py={1}
@@ -1499,7 +1500,7 @@ const Subject: React.FC = () => {
           <Card.Root
             variant='outline'
             flex='1'
-            height='400px'
+            height='100%'
             borderRadius='8px'
             bg='bg.canvas' // Ensure proper background in dark mode
           >

@@ -9,8 +9,7 @@ import {
   Text,
   Menu,
   Portal,
-  // Float,
-  // Circle,
+  Spinner,
 } from '@chakra-ui/react';
 import {
   LuSun,
@@ -22,70 +21,49 @@ import {
   LuLogOut,
   LuUsers,
   LuUserCog,
+  LuRefreshCw,
+  LuPlus,
 } from 'react-icons/lu';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
+import { labAPIService } from '../../../services/labAPIService';
+import type { Lab } from '../../../context/AuthContext';
 import FastIcon from '../../../assets/fast_icon.svg';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
 import LabsIcon from '../../../assets/labs.svg';
 import SearchField from './SearchField';
+import WorkspaceManageDialog from './WorkspaceManageDialog';
 
-// Types for team and lab data
-interface Team {
-  id: string;
-  name: string;
-}
-
-interface Lab {
-  id: string;
-  name: string;
-  slug: string;
-  teamId: string;
-}
-
-// TODO: Remove all mock data below when real API endpoints are available
-// Mock team data - will be replaced with API call
-const mockTeams: Team[] = [
-  { id: '1', name: 'Demo Research Team' },
-  { id: '2', name: 'Innovation Lab' },
-  { id: '3', name: 'Product Development' },
-];
-
-// Mock labs data - will be replaced with API call
-const mockLabs: Lab[] = [
-  { id: '1', name: 'Demo Lab 1', slug: 'demo-lab-1', teamId: '1' },
-  { id: '2', name: 'Analysis Lab', slug: 'analysis-lab', teamId: '1' },
-  { id: '3', name: 'Research Hub', slug: 'research-hub', teamId: '2' },
-  {
-    id: '4',
-    name: 'Innovation Studio',
-    slug: 'innovation-studio',
-    teamId: '2',
-  },
-];
-
-// TeamSelector Component - Inline for simplicity
+// TeamSelector Component - Updated to use real data
 interface TeamSelectorProps {
-  currentTeam: Team;
-  teams: Team[];
-  isAdmin: boolean;
-  onTeamChange: (teamId: string) => void;
   isCompact: boolean;
-  navigate: (path: string) => void; // Add navigate prop
+  navigate: (path: string) => void;
 }
 
-const TeamSelector: React.FC<TeamSelectorProps> = ({
-  currentTeam,
-  teams,
-  isAdmin,
-  onTeamChange,
-  isCompact,
-  navigate, // Add navigate parameter
-}) => {
-  // Filter out the current team from the switch options
-  const otherTeams = teams.filter((team) => team.id !== currentTeam.id);
+const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
+  const { workspace, currentTeamspace, teamspaces, setCurrentTeamspace } =
+    useAuth();
+
+  if (!workspace || !currentTeamspace) {
+    return null;
+  }
+
+  // Filter out the current teamspace from the switch options
+  const otherTeamspaces = teamspaces.filter(
+    (team) => team._id !== currentTeamspace._id
+  );
   const teamFontSize = isCompact ? '16px' : '24px';
+
+  // Check if user is workspace admin/owner
+  const isWorkspaceAdmin =
+    workspace.user_access_level === 'owner' ||
+    workspace.user_access_level === 'admin';
+
+  // Check if user is team admin/owner
+  const isTeamAdmin =
+    currentTeamspace.user_access_level === 'owner' ||
+    currentTeamspace.user_access_level === 'admin';
 
   return (
     <Menu.Root>
@@ -117,7 +95,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
               </Text>
               <HStack gap={2} align='center'>
                 <Text fontSize={teamFontSize} fontFamily='body' color='fg'>
-                  {currentTeam.name}
+                  {currentTeamspace.name}
                 </Text>
                 <LuChevronDown size={16} />
               </HStack>
@@ -128,7 +106,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
                 team:
               </Text>
               <Text fontSize={teamFontSize} fontFamily='body' color='fg'>
-                {currentTeam.name}
+                {currentTeamspace.name}
               </Text>
               <LuChevronDown size={16} />
             </HStack>
@@ -146,17 +124,29 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
           >
             {/* Admin Controls Section */}
             <Box p={3}>
-              {isAdmin ? (
+              {isTeamAdmin || isWorkspaceAdmin ? (
                 <HStack gap={2} align='stretch'>
                   {/* View Team Button */}
                   <Button
-                    onClick={() => navigate(`/team/${currentTeam.id}`)}
+                    onClick={() => navigate(`/team/${currentTeamspace._id}`)}
                     flex='1'
                     size='sm'
-                    bg='brand'
+                    bg='#0005E9'
                     color='white'
+                    borderWidth='1px'
+                    borderColor={{
+                      _light: '#111111',
+                      _dark: '#FFFFFF',
+                    }}
                     _hover={{
-                      bg: 'brand.hover',
+                      bg: '#000383',
+                      borderColor: {
+                        _light: '#111111',
+                        _dark: '#FFFFFF',
+                      },
+                    }}
+                    _active={{
+                      bg: '#000266',
                     }}
                     fontFamily='body'
                   >
@@ -164,9 +154,11 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
                     View Team
                   </Button>
 
-                  {/* Manage Button */}
+                  {/* Manage Button - only show for team/workspace admins */}
                   <Button
-                    onClick={() => navigate(`/team/${currentTeam.id}/admin`)}
+                    onClick={() =>
+                      navigate(`/team/${currentTeamspace._id}/manage`)
+                    }
                     flex='1'
                     size='sm'
                     bg='secondary'
@@ -183,13 +175,25 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
               ) : (
                 // Single View Team Button for non-admin users
                 <Button
-                  onClick={() => navigate(`/team/${currentTeam.id}`)}
+                  onClick={() => navigate(`/team/${currentTeamspace._id}`)}
                   width='100%'
                   size='sm'
-                  bg='brand'
+                  bg='#0005E9'
                   color='white'
+                  borderWidth='1px'
+                  borderColor={{
+                    _light: '#111111',
+                    _dark: '#FFFFFF',
+                  }}
                   _hover={{
-                    bg: 'brand.hover',
+                    bg: '#000383',
+                    borderColor: {
+                      _light: '#111111',
+                      _dark: '#FFFFFF',
+                    },
+                  }}
+                  _active={{
+                    bg: '#000266',
                   }}
                   fontFamily='body'
                 >
@@ -200,7 +204,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
             </Box>
 
             {/* Switch Teams Section - only show if there are other teams */}
-            {otherTeams.length > 0 && (
+            {otherTeamspaces.length > 0 && (
               <>
                 <Menu.Separator borderColor='border.muted' />
 
@@ -217,11 +221,11 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
                   </Box>
                 </Menu.ItemGroup>
 
-                {otherTeams.map((team) => (
+                {otherTeamspaces.map((team) => (
                   <Menu.Item
-                    key={team.id}
-                    value={team.id}
-                    onClick={() => onTeamChange(team.id)}
+                    key={team._id}
+                    value={team._id}
+                    onClick={() => setCurrentTeamspace(team)}
                     color='fg'
                     fontFamily='body'
                     fontSize='sm'
@@ -243,16 +247,14 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
 
 const Navbar: React.FC = () => {
   const { isDark, toggleColorMode } = useTheme();
-  const { user, logout } = useAuth();
-  const navigate = useNavigate(); // Add this line to actually call useNavigate
+  const { user, logout, currentTeamspace, token } = useAuth();
+  const navigate = useNavigate();
 
-  // State for team and labs management
-  const [userTeams, setUserTeams] = useState<Team[]>([]);
-  const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
+  // State for labs management
   const [teamLabs, setTeamLabs] = useState<Lab[]>([]);
-  const [isLoadingTeams, setIsLoadingTeams] = useState(true);
   const [isLoadingLabs, setIsLoadingLabs] = useState(false);
   const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
+  const [isWorkspaceManageOpen, setIsWorkspaceManageOpen] = useState(false);
 
   // Window resize handler
   useEffect(() => {
@@ -274,295 +276,498 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch user's teams on component mount
-  useEffect(() => {
-    const fetchUserTeams = async () => {
-      try {
-        setIsLoadingTeams(true);
-        // TODO: Replace with actual API call when ready
-        // const response = await fetch(`/api/users/${user?.id}/teams`);
-        // const teams = await response.json();
-
-        // Mock API delay for demo
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // TODO: Remove this - for demo purposes, always give user the first team
-        const teams = mockTeams;
-
-        setUserTeams(teams);
-        setCurrentTeam(teams.length > 0 ? teams[0] : null);
-      } catch (error) {
-        console.error('Failed to fetch user teams:', error);
-        setUserTeams([]);
-        setCurrentTeam(null);
-      } finally {
-        setIsLoadingTeams(false);
-      }
-    };
-
-    if (user) {
-      fetchUserTeams();
-    }
-  }, [user]);
-
-  // Fetch labs when current team changes
+  // Fetch labs when current teamspace changes
   useEffect(() => {
     const fetchTeamLabs = async () => {
-      if (!currentTeam) {
+      if (!currentTeamspace || !token) {
         setTeamLabs([]);
         return;
       }
 
       try {
         setIsLoadingLabs(true);
-        // TODO: Replace with actual API call when ready
-        // const response = await fetch(`/api/teams/${currentTeam.id}/labs`);
-        // const labs = await response.json();
 
-        // Mock API delay for demo
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Fetch real lab data from API using existing labAPIService
+        const apiLabs = await labAPIService.listLabs(
+          currentTeamspace._id,
+          token
+        );
 
-        // TODO: Remove this - filter mock labs by team ID for demo
-        const labs = mockLabs.filter((lab) => lab.teamId === currentTeam.id);
-        setTeamLabs(labs);
+        // Convert API response to our Lab type
+        const labs: Lab[] = apiLabs.map((lab) => ({
+          _id: lab._id,
+          ent_name: lab.ent_name,
+          ent_summary: lab.ent_summary,
+          teamspace_id: lab.teamspace_id,
+          isArchived: lab.isArchived,
+          isDeleted: lab.isDeleted,
+          deletedAt: lab.deletedAt,
+        }));
+
+        // TODO: Remove this hardcoded lab when proper lab data is available
+        // Add hardcoded lab for the active lab (V2 Test Lab)
+        const hardcodedLab: Lab = {
+          _id: '685be19be583f120efbc86d7',
+          ent_name: 'V2 Test Lab',
+          ent_summary:
+            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
+          teamspace_id: currentTeamspace._id,
+          isArchived: 0,
+          isDeleted: 0,
+          deletedAt: null,
+        };
+
+        // Combine hardcoded lab with API labs (hardcoded first)
+        const allLabs = [hardcodedLab, ...labs];
+
+        setTeamLabs(allLabs);
       } catch (error) {
         console.error('Failed to fetch team labs:', error);
-        setTeamLabs([]);
+
+        // Fallback to just the hardcoded lab if API fails
+        const hardcodedLab: Lab = {
+          _id: '685be19be583f120efbc86d7',
+          ent_name: 'V2 Test Lab',
+          ent_summary:
+            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
+          teamspace_id: currentTeamspace._id,
+          isArchived: 0,
+          isDeleted: 0,
+          deletedAt: null,
+        };
+
+        setTeamLabs([hardcodedLab]);
       } finally {
         setIsLoadingLabs(false);
       }
     };
 
     fetchTeamLabs();
-  }, [currentTeam]);
-
-  const handleTeamChange = (teamId: string) => {
-    const selectedTeam = userTeams.find((team) => team.id === teamId);
-    if (selectedTeam) {
-      setCurrentTeam(selectedTeam);
-    }
-  };
+  }, [currentTeamspace, token]);
 
   const handleLabSelect = (labId: string) => {
-    // TODO: Update route when lab pages are properly set up
     navigate(`/lab/${labId}`);
   };
 
-  const hasNoTeam = !currentTeam;
+  const refreshLabsList = async () => {
+    if (!currentTeamspace || !token) return;
+
+    try {
+      setIsLoadingLabs(true);
+
+      // Re-fetch labs using the same logic as the main effect
+      const apiLabs = await labAPIService.listLabs(currentTeamspace._id, token);
+
+      const labs: Lab[] = apiLabs.map((lab) => ({
+        _id: lab._id,
+        ent_name: lab.ent_name,
+        ent_summary: lab.ent_summary,
+        teamspace_id: lab.teamspace_id,
+        isArchived: lab.isArchived,
+        isDeleted: lab.isDeleted,
+        deletedAt: lab.deletedAt,
+      }));
+
+      const hardcodedLab: Lab = {
+        _id: '685be19be583f120efbc86d7',
+        ent_name: 'V2 Test Lab',
+        ent_summary:
+          'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
+        teamspace_id: currentTeamspace._id,
+        isArchived: 0,
+        isDeleted: 0,
+        deletedAt: null,
+      };
+
+      const allLabs = [hardcodedLab, ...labs];
+      setTeamLabs(allLabs);
+    } catch (error) {
+      console.error('Failed to refresh labs:', error);
+    } finally {
+      setIsLoadingLabs(false);
+    }
+  };
+
+  const hasNoTeam = !currentTeamspace;
   const isCompact = windowWidth <= 1100;
   const navHeight = isCompact ? '58px' : '64px';
-  const teamFontSize = isCompact ? '16px' : '24px';
 
   return (
-    <Box
-      position='fixed'
-      top={0}
-      left={0}
-      right={0}
-      zIndex={1001}
-      h={navHeight}
-      pt='16px'
-    >
-      <HStack
-        h='full'
-        align='center'
-        px={4}
-        gap={4}
-        w='full'
-        minH={isCompact ? '58px' : '64px'}
+    <>
+      <Box
+        position='fixed'
+        top={0}
+        left={0}
+        right={0}
+        zIndex={1001}
+        h={navHeight}
+        pt='16px'
       >
-        {/* Left Navigation Items */}
-        {/* Logo */}
-        <Box
-          onClick={() => navigate('/')}
-          height='100%'
-          width='auto'
-          filter={{
-            _dark: 'brightness(0) invert(1)', // White logo in dark mode
-            _light: 'brightness(0)', // Black logo in light mode
-          }}
-          _hover={{ opacity: 0.8 }}
-          cursor='pointer'
-          flexShrink={0}
+        <HStack
+          h='full'
+          align='center'
+          px={4}
+          gap={4}
+          w='full'
+          minH={isCompact ? '58px' : '64px'}
         >
-          <img
-            src={FastIcon}
-            alt='FAST Icon'
-            style={{ height: '100%', width: 'auto' }}
-          />
-        </Box>
-
-        {/* Whiteboard Button */}
-        <Button
-          onClick={() => navigate('/whiteboard')}
-          variant='outline'
-          size='sm'
-          height={isCompact ? 'auto' : '64px'}
-          borderColor='border.emphasized'
-          borderWidth='1px'
-          color='fg'
-          bg='bg.canvas'
-          fontFamily='body'
-          fontSize='13px'
-          flexShrink={0}
-          py={isCompact ? '4px' : '8px'}
-          px={isCompact ? '4px' : '16px'}
-          _hover={{
-            bg: 'bg.hover',
-          }}
-          display='flex'
-          flexDirection='column'
-          alignItems='center'
-          gap={1}
-        >
+          {/* Left Navigation Items */}
+          {/* Logo */}
           <Box
-            height='24px'
+            onClick={() => navigate('/')}
+            height='100%'
             width='auto'
             filter={{
-              _dark: 'brightness(0) invert(1)', // White icons in dark mode
-              _light: 'brightness(0)', // Black icons in light mode
+              _dark: 'brightness(0) invert(1)', // White logo in dark mode
+              _light: 'brightness(0)', // Black logo in light mode
             }}
+            _hover={{ opacity: 0.8 }}
+            cursor='pointer'
+            flexShrink={0}
           >
             <img
-              src={WhiteboardIcon}
-              alt='Whiteboard'
+              src={FastIcon}
+              alt='FAST Icon'
               style={{ height: '100%', width: 'auto' }}
             />
           </Box>
-          whiteboard
-        </Button>
 
-        {/* Team Selector */}
-        {currentTeam ? (
-          <TeamSelector
-            currentTeam={currentTeam}
-            teams={userTeams}
-            isAdmin={user?.role === 'admin'}
-            onTeamChange={handleTeamChange}
-            isCompact={isCompact}
-            navigate={navigate} // Pass navigate function
-          />
-        ) : (
-          // No team button for when there's no current team
+          {/* Whiteboard Button */}
           <Button
+            onClick={() => navigate('/whiteboard')}
             variant='outline'
             size='sm'
-            borderColor='border.muted'
+            height={isCompact ? 'auto' : '64px'}
+            borderColor='border.emphasized'
             borderWidth='1px'
-            color='fg.muted'
+            color='fg'
             bg='bg.canvas'
             fontFamily='body'
-            fontSize={teamFontSize}
+            fontSize='13px'
             flexShrink={0}
             py={isCompact ? '4px' : '8px'}
             px={isCompact ? '4px' : '16px'}
-            disabled={true}
-            _disabled={{
-              opacity: 0.6,
-              cursor: 'not-allowed',
-              bg: 'transparent',
+            _hover={{
+              bg: 'bg.hover',
             }}
             display='flex'
+            flexDirection='column'
             alignItems='center'
-            gap={2}
-            height='100%'
+            gap={1}
           >
-            {isCompact ? (
-              <VStack gap={1} align='flex-start'>
-                <Text fontSize='13px' fontFamily='body' color='fg.secondary'>
-                  team:
-                </Text>
-                <HStack gap={1} align='center'>
-                  <Text
-                    fontSize={teamFontSize}
-                    fontFamily='body'
-                    color='fg.muted'
-                  >
-                    {isLoadingTeams ? 'Loading...' : '[ NONE ]'}
-                  </Text>
-                  {!isLoadingTeams && (
-                    <Box position='relative'>
-                      <LuTriangleAlert size={14} color='#ef4444' />
-                    </Box>
-                  )}
-                </HStack>
-              </VStack>
-            ) : (
-              <HStack gap={2} align='center'>
-                <Text fontSize='24px' fontFamily='body' color='fg.secondary'>
-                  team:
-                </Text>
-                <HStack gap={2} align='center'>
-                  <Text
-                    fontSize={teamFontSize}
-                    fontFamily='body'
-                    color='fg.muted'
-                  >
-                    {isLoadingTeams ? 'Loading...' : '[ NONE ]'}
-                  </Text>
-                  {!isLoadingTeams && (
-                    <Box position='relative'>
-                      <LuTriangleAlert size={14} color='#ef4444' />
-                    </Box>
-                  )}
-                </HStack>
-              </HStack>
-            )}
+            <Box
+              height='24px'
+              width='auto'
+              filter={{
+                _dark: 'brightness(0) invert(1)', // White icons in dark mode
+                _light: 'brightness(0)', // Black icons in light mode
+              }}
+            >
+              <img
+                src={WhiteboardIcon}
+                alt='Whiteboard'
+                style={{ height: '100%', width: 'auto' }}
+              />
+            </Box>
+            whiteboard
           </Button>
-        )}
 
-        {/* Labs Button */}
-        <Menu.Root>
-          <Menu.Trigger asChild>
+          {/* Team Selector */}
+          {currentTeamspace ? (
+            <TeamSelector isCompact={isCompact} navigate={navigate} />
+          ) : (
+            // No team button for when there's no current teamspace
             <Button
               variant='outline'
               size='sm'
-              height={isCompact ? 'auto' : '64px'}
-              borderColor={hasNoTeam ? 'border.muted' : 'border.emphasized'}
+              borderColor='border.muted'
               borderWidth='1px'
-              color={hasNoTeam ? 'fg.muted' : 'fg'}
+              color='fg.muted'
               bg='bg.canvas'
               fontFamily='body'
-              fontSize='15px'
+              fontSize={isCompact ? '16px' : '24px'}
               flexShrink={0}
               py={isCompact ? '4px' : '8px'}
               px={isCompact ? '4px' : '16px'}
-              disabled={hasNoTeam}
-              _hover={{
-                bg: hasNoTeam ? 'transparent' : 'bg.hover',
-              }}
+              disabled={true}
               _disabled={{
                 opacity: 0.6,
                 cursor: 'not-allowed',
                 bg: 'transparent',
               }}
               display='flex'
-              flexDirection='column'
               alignItems='center'
-              gap={1}
+              gap={2}
+              height='100%'
             >
-              <Box
-                height='24px'
-                width='auto'
-                filter={{
-                  _dark: 'brightness(0) invert(1)', // White icons in dark mode
-                  _light: 'brightness(0)', // Black icons in light mode
-                }}
-                opacity={hasNoTeam ? 0.6 : 1}
-              >
-                <img
-                  src={LabsIcon}
-                  alt='Labs'
-                  style={{ height: '100%', width: 'auto' }}
-                />
-              </Box>
-              <HStack gap={1} align='center'>
-                labs
-                {!hasNoTeam && <LuChevronDown size={16} />}
-              </HStack>
+              {isCompact ? (
+                <VStack gap={1} align='flex-start'>
+                  <Text fontSize='13px' fontFamily='body' color='fg.secondary'>
+                    team:
+                  </Text>
+                  <HStack gap={1} align='center'>
+                    <Text fontSize='16px' fontFamily='body' color='fg.muted'>
+                      [ NONE ]
+                    </Text>
+                    <Box position='relative'>
+                      <LuTriangleAlert size={14} color='#ef4444' />
+                    </Box>
+                  </HStack>
+                </VStack>
+              ) : (
+                <HStack gap={2} align='center'>
+                  <Text fontSize='24px' fontFamily='body' color='fg.secondary'>
+                    team:
+                  </Text>
+                  <HStack gap={2} align='center'>
+                    <Text fontSize='24px' fontFamily='body' color='fg.muted'>
+                      [ NONE ]
+                    </Text>
+                    <Box position='relative'>
+                      <LuTriangleAlert size={14} color='#ef4444' />
+                    </Box>
+                  </HStack>
+                </HStack>
+              )}
             </Button>
-          </Menu.Trigger>
-          {!hasNoTeam && (
+          )}
+
+          {/* Labs Button */}
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <Button
+                variant='outline'
+                size='sm'
+                height={isCompact ? 'auto' : '64px'}
+                borderColor={hasNoTeam ? 'border.muted' : 'border.emphasized'}
+                borderWidth='1px'
+                color={hasNoTeam ? 'fg.muted' : 'fg'}
+                bg='bg.canvas'
+                fontFamily='body'
+                fontSize='15px'
+                flexShrink={0}
+                py={isCompact ? '4px' : '8px'}
+                px={isCompact ? '4px' : '16px'}
+                disabled={hasNoTeam}
+                _hover={{
+                  bg: hasNoTeam ? 'transparent' : 'bg.hover',
+                }}
+                _disabled={{
+                  opacity: 0.6,
+                  cursor: 'not-allowed',
+                  bg: 'transparent',
+                }}
+                display='flex'
+                flexDirection='column'
+                alignItems='center'
+                gap={1}
+              >
+                <Box
+                  height='24px'
+                  width='auto'
+                  filter={{
+                    _dark: 'brightness(0) invert(1)', // White icons in dark mode
+                    _light: 'brightness(0)', // Black icons in light mode
+                  }}
+                  opacity={hasNoTeam ? 0.6 : 1}
+                >
+                  <img
+                    src={LabsIcon}
+                    alt='Labs'
+                    style={{ height: '100%', width: 'auto' }}
+                  />
+                </Box>
+                <HStack gap={1} align='center'>
+                  labs
+                  {!hasNoTeam && <LuChevronDown size={16} />}
+                </HStack>
+              </Button>
+            </Menu.Trigger>
+            {!hasNoTeam && (
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
+                    borderWidth='1px'
+                    borderRadius='8px'
+                  >
+                    <Menu.ItemGroup>
+                      <HStack justify='space-between' px={3} py={2}>
+                        <Text
+                          fontSize='sm'
+                          fontWeight='medium'
+                          color='fg.secondary'
+                          fontFamily='body'
+                        >
+                          {`${currentTeamspace.name} labs`}
+                        </Text>
+                        <Button
+                          onClick={refreshLabsList}
+                          variant='ghost'
+                          size='xs'
+                          disabled={isLoadingLabs}
+                          fontFamily='body'
+                        >
+                          {isLoadingLabs ? (
+                            <Spinner size='xs' />
+                          ) : (
+                            <LuRefreshCw size={12} />
+                          )}
+                        </Button>
+                      </HStack>
+                    </Menu.ItemGroup>
+
+                    {isLoadingLabs ? (
+                      <Menu.Item
+                        value='loading'
+                        color='fg'
+                        fontFamily='body'
+                        fontSize='sm'
+                        disabled
+                      >
+                        <HStack gap={2}>
+                          <Spinner size='xs' />
+                          <Text>Loading labs...</Text>
+                        </HStack>
+                      </Menu.Item>
+                    ) : teamLabs.length > 0 ? (
+                      <>
+                        {teamLabs.map((lab) => (
+                          <Menu.Item
+                            key={lab._id}
+                            value={lab._id}
+                            onClick={() => handleLabSelect(lab._id)}
+                            color='fg'
+                            fontFamily='body'
+                            fontSize='sm'
+                            _hover={{
+                              bg: 'bg.hover',
+                            }}
+                          >
+                            {lab.ent_name}
+                          </Menu.Item>
+                        ))}
+
+                        <Menu.Separator borderColor='border.muted' />
+
+                        <Menu.Item
+                          value='create-lab'
+                          onClick={() => navigate('/lab/create')}
+                          color='brand'
+                          fontFamily='body'
+                          fontSize='sm'
+                          _hover={{
+                            bg: 'bg.hover',
+                          }}
+                        >
+                          <HStack gap={2}>
+                            <LuPlus size={14} />
+                            <Text>Create New Lab</Text>
+                          </HStack>
+                        </Menu.Item>
+                      </>
+                    ) : (
+                      <>
+                        <Menu.Item
+                          value='no-labs'
+                          color='fg.secondary'
+                          fontFamily='body'
+                          fontSize='sm'
+                          disabled
+                        >
+                          No labs available
+                        </Menu.Item>
+
+                        <Menu.Separator borderColor='border.muted' />
+
+                        <Menu.Item
+                          value='create-lab'
+                          onClick={() => navigate('/lab/create')}
+                          color='brand'
+                          fontFamily='body'
+                          fontSize='sm'
+                          _hover={{
+                            bg: 'bg.hover',
+                          }}
+                        >
+                          <HStack gap={2}>
+                            <LuPlus size={14} />
+                            <Text>Create New Lab</Text>
+                          </HStack>
+                        </Menu.Item>
+                      </>
+                    )}
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            )}
+          </Menu.Root>
+
+          {/* Search Field - Flex grow to take remaining space */}
+          <SearchField />
+
+          {/* Right Navigation Items */}
+          {/* Color Mode Toggle */}
+          <IconButton
+            aria-label='Toggle color mode'
+            onClick={toggleColorMode}
+            variant='outline'
+            size='sm'
+            height={isCompact ? '58px' : '64px'}
+            width={isCompact ? '58px' : '64px'}
+            borderColor='border.emphasized'
+            borderWidth='1px'
+            color='fg'
+            bg='bg.canvas'
+            flexShrink={0}
+            p={isCompact ? '4px' : '0'}
+            _hover={{
+              bg: 'bg.hover',
+            }}
+          >
+            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
+          </IconButton>
+
+          {/* Profile Button */}
+          <Menu.Root>
+            <Menu.Trigger asChild>
+              <Box
+                height={isCompact ? '58px' : '64px'}
+                width={isCompact ? '58px' : '64px'}
+                borderRadius='8px'
+                borderWidth='1px'
+                borderColor='border.emphasized'
+                overflow='hidden'
+                cursor='pointer'
+                flexShrink={0}
+                p={isCompact ? '4px' : '0'}
+                bg='bg.canvas'
+                _hover={{
+                  bg: 'bg.hover',
+                }}
+              >
+                <Avatar.Root
+                  size='full'
+                  height='100%'
+                  width='100%'
+                  shape='rounded'
+                  variant='solid'
+                  bg='bg.canvas'
+                  _hover={{
+                    bg: 'bg.hover',
+                  }}
+                >
+                  <Avatar.Fallback
+                    name={user?.fullname || user?.username || 'User'}
+                    color='fg'
+                    fontSize='lg'
+                    fontFamily='body'
+                  />
+                  {user?.picture_url && <Avatar.Image src={user.picture_url} />}
+                </Avatar.Root>
+              </Box>
+            </Menu.Trigger>
             <Portal>
               <Menu.Positioner>
                 <Menu.Content
@@ -573,221 +778,99 @@ const Navbar: React.FC = () => {
                 >
                   <Menu.ItemGroup>
                     <Menu.ItemGroupLabel color='fg.secondary'>
-                      {`${currentTeam.name} labs`}
+                      {user?.fullname}
                     </Menu.ItemGroupLabel>
                   </Menu.ItemGroup>
-                  {isLoadingLabs ? (
-                    <Menu.Item
-                      value='loading'
-                      color='fg'
-                      fontFamily='body'
-                      fontSize='sm'
-                      disabled
-                    >
-                      Loading labs...
-                    </Menu.Item>
-                  ) : teamLabs.length > 0 ? (
-                    teamLabs.map((lab) => (
-                      <Menu.Item
-                        key={lab.id}
-                        value={lab.id}
-                        onClick={() => handleLabSelect(lab.id)}
-                        color='fg'
-                        fontFamily='body'
-                        fontSize='sm'
-                        _hover={{
-                          bg: 'bg.hover',
-                        }}
-                      >
-                        {lab.name}
-                      </Menu.Item>
-                    ))
-                  ) : (
-                    <Menu.Item
-                      value='no-labs'
-                      color='fg.secondary'
-                      fontFamily='body'
-                      fontSize='sm'
-                      disabled
-                    >
-                      No labs available
-                    </Menu.Item>
+
+                  {/* Admin Workspace Management - only show for admin users */}
+                  {user?.role === 'admin' && (
+                    <>
+                      <Box p={2}>
+                        <Button
+                          onClick={() => setIsWorkspaceManageOpen(true)}
+                          bg='secondary'
+                          color='white'
+                          fontFamily='body'
+                          fontSize='sm'
+                          size='sm'
+                          width='100%'
+                          _hover={{
+                            bg: 'secondary.hover',
+                          }}
+                          borderRadius='md'
+                        >
+                          <HStack gap={2} justify='center'>
+                            <LuUserCog size={16} />
+                            <Text>Workspace Management</Text>
+                          </HStack>
+                        </Button>
+                      </Box>
+                      <Menu.Separator borderColor='border.muted' />
+                    </>
                   )}
+
+                  <Menu.Item
+                    value='profile'
+                    onClick={() => navigate(`/user/${user?._id}`)}
+                    color='fg'
+                    fontFamily='body'
+                    fontSize='sm'
+                    _hover={{
+                      bg: 'bg.hover',
+                    }}
+                  >
+                    <HStack gap={2}>
+                      <LuUser size={16} />
+                      <Text>My Profile</Text>
+                    </HStack>
+                  </Menu.Item>
+
+                  <Menu.Item
+                    value='settings'
+                    onClick={() => navigate(`/user/${user?._id}/settings`)}
+                    color='fg'
+                    fontFamily='body'
+                    fontSize='sm'
+                    _hover={{
+                      bg: 'bg.hover',
+                    }}
+                  >
+                    <HStack gap={2}>
+                      <LuSettings size={16} />
+                      <Text>Settings</Text>
+                    </HStack>
+                  </Menu.Item>
+
+                  <Menu.Separator borderColor='border.muted' />
+
+                  <Menu.Item
+                    value='logout'
+                    onClick={handleLogout}
+                    color='error'
+                    fontFamily='body'
+                    fontSize='sm'
+                    _hover={{
+                      bg: 'errorSubtle',
+                    }}
+                  >
+                    <HStack gap={2}>
+                      <LuLogOut size={16} />
+                      <Text>Logout</Text>
+                    </HStack>
+                  </Menu.Item>
                 </Menu.Content>
               </Menu.Positioner>
             </Portal>
-          )}
-        </Menu.Root>
+          </Menu.Root>
+        </HStack>
+      </Box>
 
-        {/* Search Field - Flex grow to take remaining space */}
-        <SearchField />
-
-        {/* Right Navigation Items */}
-        {/* Color Mode Toggle */}
-        <IconButton
-          aria-label='Toggle color mode'
-          onClick={toggleColorMode}
-          variant='outline'
-          size='sm'
-          height={isCompact ? '58px' : '64px'}
-          width={isCompact ? '58px' : '64px'}
-          borderColor='border.emphasized'
-          borderWidth='1px'
-          color='fg'
-          bg='bg.canvas'
-          flexShrink={0}
-          p={isCompact ? '4px' : '0'}
-          _hover={{
-            bg: 'bg.hover',
-          }}
-        >
-          {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
-        </IconButton>
-
-        {/* Profile Button */}
-        <Menu.Root>
-          <Menu.Trigger asChild>
-            <Box
-              height={isCompact ? '58px' : '64px'}
-              width={isCompact ? '58px' : '64px'}
-              borderRadius='8px'
-              borderWidth='1px'
-              borderColor='border.emphasized'
-              overflow='hidden'
-              cursor='pointer'
-              flexShrink={0}
-              p={isCompact ? '4px' : '0'}
-              bg='bg.canvas'
-              _hover={{
-                bg: 'bg.hover',
-              }}
-            >
-              <Avatar.Root
-                size='full'
-                height='100%'
-                width='100%'
-                shape='rounded'
-                variant='solid'
-                bg='bg.canvas'
-                _hover={{
-                  bg: 'bg.hover',
-                }}
-              >
-                <Avatar.Fallback
-                  name={user?.fullname || user?.username || 'User'}
-                  color='fg'
-                  fontSize='lg'
-                  fontFamily='body'
-                />
-                {/* TODO: Implement Notification code */}
-                {/* <Float placement='top-end' offsetX='2' offsetY='2'>
-                  <Circle
-                    bg='red.500'
-                    size='12px'
-                    outline='0.2em solid'
-                    outlineColor='bg'
-                  />
-                </Float> */}
-                {user?.picture_url && <Avatar.Image src={user.picture_url} />}
-              </Avatar.Root>
-            </Box>
-          </Menu.Trigger>
-          <Portal>
-            <Menu.Positioner>
-              <Menu.Content
-                bg='bg.canvas'
-                borderColor='border.emphasized'
-                borderWidth='1px'
-                borderRadius='8px'
-              >
-                <Menu.ItemGroup>
-                  <Menu.ItemGroupLabel color='fg.secondary'>
-                    {user?.fullname}
-                  </Menu.ItemGroupLabel>
-                </Menu.ItemGroup>
-
-                {/* Admin Org Management - only show for admin users */}
-                {user?.role === 'admin' && (
-                  <>
-                    <Box p={2}>
-                      <Button
-                        onClick={() => navigate(`/admin/${user?.team_id}`)}
-                        bg='secondary'
-                        color='white'
-                        fontFamily='body'
-                        fontSize='sm'
-                        size='sm'
-                        width='100%'
-                        _hover={{
-                          bg: 'secondary.hover',
-                        }}
-                        borderRadius='md'
-                      >
-                        <HStack gap={2} justify='center'>
-                          <LuUserCog size={16} />
-                          <Text>Org Management</Text>
-                        </HStack>
-                      </Button>
-                    </Box>
-                    <Menu.Separator borderColor='border.muted' />
-                  </>
-                )}
-
-                <Menu.Item
-                  value='profile'
-                  onClick={() => navigate(`/user/${user?._id}`)}
-                  color='fg'
-                  fontFamily='body'
-                  fontSize='sm'
-                  _hover={{
-                    bg: 'bg.hover',
-                  }}
-                >
-                  <HStack gap={2}>
-                    <LuUser size={16} />
-                    <Text>My Profile</Text>
-                  </HStack>
-                </Menu.Item>
-
-                <Menu.Item
-                  value='settings'
-                  onClick={() => navigate(`/user/${user?._id}/settings`)}
-                  color='fg'
-                  fontFamily='body'
-                  fontSize='sm'
-                  _hover={{
-                    bg: 'bg.hover',
-                  }}
-                >
-                  <HStack gap={2}>
-                    <LuSettings size={16} />
-                    <Text>Settings</Text>
-                  </HStack>
-                </Menu.Item>
-
-                <Menu.Separator borderColor='border.muted' />
-
-                <Menu.Item
-                  value='logout'
-                  onClick={handleLogout}
-                  color='error'
-                  fontFamily='body'
-                  fontSize='sm'
-                  _hover={{
-                    bg: 'errorSubtle',
-                  }}
-                >
-                  <HStack gap={2}>
-                    <LuLogOut size={16} />
-                    <Text>Logout</Text>
-                  </HStack>
-                </Menu.Item>
-              </Menu.Content>
-            </Menu.Positioner>
-          </Portal>
-        </Menu.Root>
-      </HStack>
-    </Box>
+      {/* Workspace Management Dialog */}
+      <WorkspaceManageDialog
+        isOpen={isWorkspaceManageOpen}
+        onClose={() => setIsWorkspaceManageOpen(false)}
+      />
+    </>
   );
 };
 

@@ -9,9 +9,8 @@ import {
   Dialog,
   Button,
   Checkbox,
-  Tooltip,
 } from '@chakra-ui/react';
-import { FiTag, FiEdit2, FiTrash2, FiInfo, FiEyeOff } from 'react-icons/fi';
+import { FiTag, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { KanbanColumn } from '../../components/shared/Kanban';
 import type { LabSubject, SubjectCategory } from './types';
 import { CategoryUtils } from './types';
@@ -108,13 +107,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     () => (
       <HStack justify='space-between' align='center'>
         <HStack gap={2} flex='1'>
-          {/* Category Icon - different for exclude vs default/custom */}
-          {CategoryUtils.isExclude(category) ? (
-            <FiEyeOff size={14} color='orange.400' />
-          ) : (
-            <FiTag size={14} color='gray.400' />
-          )}
-
+          <FiTag size={14} color='gray.400' />
           {isEditing ? (
             <Input
               value={editName}
@@ -123,9 +116,9 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               onKeyDown={handleKeyPress}
               size='sm'
               autoFocus
-              bg='gray.700'
+              bg='bg.app'
               borderColor='gray.500'
-              color='white'
+              color='text.muted'
               _focus={{ borderColor: 'blue.400' }}
               fontSize='sm'
               disabled={isRenaming}
@@ -135,9 +128,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               <Text
                 fontSize='sm'
                 fontWeight='medium'
-                color={
-                  CategoryUtils.isExclude(category) ? 'orange.300' : 'white'
-                }
+                color='text.primary'
                 cursor={canRename ? 'pointer' : 'default'}
                 onClick={handleTitleClick}
                 _hover={canRename ? { color: 'blue.300' } : {}}
@@ -146,46 +137,12 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               >
                 {category.name}
               </Text>
-
-              {/* Info tooltip for exclude category */}
-              {CategoryUtils.isExclude(category) && (
-                <Tooltip.Root>
-                  <Tooltip.Trigger asChild>
-                    <Box
-                      color='orange.400'
-                      cursor='help'
-                      _hover={{ color: 'orange.300' }}
-                    >
-                      <FiInfo size={12} />
-                    </Box>
-                  </Tooltip.Trigger>
-                  <Tooltip.Positioner>
-                    <Tooltip.Content>
-                      <Tooltip.Arrow />
-                      <Box maxW='250px' p={2}>
-                        <Text fontSize='sm' fontWeight='medium' mb={1}>
-                          Exclude from Analysis
-                        </Text>
-                        <Text fontSize='xs' lineHeight='1.4'>
-                          Subjects in this category will be excluded from search
-                          results and analysis. Use this to filter out
-                          irrelevant topics (e.g., exclude "food" when
-                          researching oil if you only want petroleum-related
-                          results).
-                        </Text>
-                      </Box>
-                    </Tooltip.Content>
-                  </Tooltip.Positioner>
-                </Tooltip.Root>
-              )}
             </HStack>
           )}
 
           <Box
-            bg={CategoryUtils.isExclude(category) ? 'orange.600' : 'gray.600'}
-            color={
-              CategoryUtils.isExclude(category) ? 'orange.100' : 'gray.200'
-            }
+            bg='bg.hover'
+            color='text.primary'
             fontSize='xs'
             px={2}
             py={1}
@@ -255,12 +212,6 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
           New subjects added here
         </Text>
       );
-    } else if (CategoryUtils.isExclude(category)) {
-      return (
-        <Text fontSize='xs' color='orange.500' textAlign='center'>
-          Excluded from analysis
-        </Text>
-      );
     }
     return null;
   }, [category]);
@@ -277,11 +228,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
         renderHeader={renderHeader}
         renderFooter={renderFooter}
         emptyMessage='No subjects'
-        emptyDropMessage={
-          CategoryUtils.isExclude(category)
-            ? 'Drop to exclude'
-            : 'Drop subject here'
-        }
+        emptyDropMessage='Drop subject here'
       />
 
       {/* Delete Confirmation Dialog */}

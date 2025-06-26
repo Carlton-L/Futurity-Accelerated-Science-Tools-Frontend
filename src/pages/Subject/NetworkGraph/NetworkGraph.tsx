@@ -324,8 +324,12 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
           const limit = '1000';
           const subjects = params.subjects || params.subject || 'metaverse';
 
+          // const response = await fetch(
+          //   `https://api.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`,
+          //   { signal: abortControllerRef.current.signal }
+          // );
           const response = await fetch(
-            `https://api.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`,
+            `https://fast.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`,
             { signal: abortControllerRef.current.signal }
           );
 
