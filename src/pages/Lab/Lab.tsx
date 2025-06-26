@@ -210,8 +210,9 @@ const Lab: React.FC = () => {
         // Try to fetch from real API first if token is available
         if (token) {
           try {
+            // Fixed: Use the correct endpoint with query parameter
             const response = await fetch(
-              `https://tools.futurity.science/api/lab/${id}`,
+              `https://tools.futurity.science/api/lab/view?lab_id=${id}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`,

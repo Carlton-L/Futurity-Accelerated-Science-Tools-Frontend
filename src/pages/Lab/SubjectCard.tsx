@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Card,
-  Text,
-  VStack,
-  HStack,
-  Menu,
-  Tooltip,
-  Box,
-} from '@chakra-ui/react';
+import { Card, Text, VStack, HStack, Menu, Box } from '@chakra-ui/react';
 import { FiMove, FiMoreHorizontal, FiEye, FiTrash2 } from 'react-icons/fi';
 import { KanbanItem } from '../../components/shared/Kanban';
 import type { LabSubject } from './types';
@@ -18,6 +10,7 @@ interface SubjectCardProps {
   onSubjectClick: (subject: LabSubject) => void;
   onSubjectRemove: (subjectId: string, categoryId: string) => void;
   onSubjectView: (subject: LabSubject) => void;
+  isLoading?: boolean;
 }
 
 const SubjectCard: React.FC<SubjectCardProps> = ({
@@ -26,16 +19,18 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onSubjectClick,
   onSubjectRemove,
   onSubjectView,
+  isLoading = false,
 }) => {
-  // Check if description needs truncation
-  const needsTruncation = subject.notes && subject.notes.length > 60;
-  const truncatedNotes = needsTruncation
-    ? subject.notes?.substring(0, 60) + '...'
-    : subject.notes;
-
   const handleRemoveSubject = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSubjectRemove(subject.id, categoryId);
+    console.log(
+      'Removing subject:',
+      subject.subjectId,
+      'from category:',
+      categoryId
+    );
+    // Use the actual subject ID from the database, not the frontend ID
+    onSubjectRemove(subject.subjectId, categoryId);
   };
 
   const handleViewSubject = (e: React.MouseEvent) => {
@@ -45,18 +40,24 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
 
   return (
     <KanbanItem
-      id={subject.id}
+      id={subject.id} // Frontend ID for kanban
       columnId={categoryId}
       onItemClick={() => onSubjectClick(subject)}
-      isDraggable={true}
+      isDraggable={!isLoading}
     >
       <Card.Root
         size='sm'
         variant='outline'
-        _hover={{ bg: 'bg.hover', borderColor: 'border.hover' }}
+        bg='bg.canvas' // Apply proper theme background
+        borderColor='border.emphasized'
+        _hover={{
+          bg: 'bg.hover',
+          borderColor: 'border.hover',
+        }}
         transition='all 0.2s'
         mb={3}
         w='100%'
+        opacity={isLoading ? 0.7 : 1}
       >
         <Card.Body p={3}>
           <VStack gap={2} align='stretch'>
@@ -64,15 +65,16 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
               <Text
                 fontSize='sm'
                 fontWeight='medium'
-                color='text.primary'
+                color='fg' // Apply proper theme foreground color
                 flex='1'
                 lineHeight='1.3'
+                fontFamily='body'
               >
                 {subject.subjectName}
               </Text>
               <HStack gap={1}>
                 {/* Drag handle - visual indicator only */}
-                <Box color='text.muted' cursor='grab'>
+                <Box color='fg.muted' cursor='grab'>
                   <FiMove size={10} />
                 </Box>
 
@@ -83,17 +85,24 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                       as='button'
                       p={1}
                       borderRadius='sm'
-                      color='text.muted'
-                      _hover={{ color: 'text.primary', bg: 'bg.hover' }}
+                      color='fg.muted'
+                      _hover={{ color: 'fg', bg: 'bg.hover' }}
                       cursor='pointer'
                       onClick={(e) => e.stopPropagation()}
                       aria-label='Subject actions'
+                      _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
+                      style={{ opacity: isLoading ? 0.5 : 1 }}
                     >
                       <FiMoreHorizontal size={10} />
                     </Box>
                   </Menu.Trigger>
                   <Menu.Positioner>
-                    <Menu.Content>
+                    <Menu.Content
+                      bg='bg.canvas'
+                      borderColor='border.emphasized'
+                      zIndex={9999} // High z-index to appear above cards
+                      boxShadow='lg'
+                    >
                       <Menu.Item value='view' onClick={handleViewSubject}>
                         <FiEye size={14} />
                         View Subject
@@ -111,36 +120,16 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                 </Menu.Root>
               </HStack>
             </HStack>
-            {subject.notes && (
-              <Box>
-                <Text fontSize='xs' color='gray.500' lineHeight='1.3'>
-                  {truncatedNotes}
-                  {needsTruncation && (
-                    <Tooltip.Root>
-                      <Tooltip.Trigger asChild>
-                        <Text
-                          as='span'
-                          textDecoration='underline'
-                          color='text.muted'
-                          cursor='help'
-                          ml={1}
-                        >
-                          more
-                        </Text>
-                      </Tooltip.Trigger>
-                      <Tooltip.Positioner>
-                        <Tooltip.Content>
-                          <Tooltip.Arrow />
-                          <Text fontSize='xs' maxW='300px' whiteSpace='normal'>
-                            {subject.notes}
-                          </Text>
-                        </Tooltip.Content>
-                      </Tooltip.Positioner>
-                    </Tooltip.Root>
-                  )}
-                </Text>
-              </Box>
-            )}
+
+            {/* Subject metadata */}
+            <HStack justify='space-between' mt={2}>
+              <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                ID: {subject.subjectId}
+              </Text>
+              <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                {subject.subjectSlug}
+              </Text>
+            </HStack>
           </VStack>
         </Card.Body>
       </Card.Root>

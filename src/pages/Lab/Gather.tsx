@@ -25,7 +25,7 @@ import type {
   KnowledgebaseFileType,
   KnowledgebaseQueryResult,
 } from './types';
-import { CategoryUtils, ApiTransformUtils } from './types';
+import { CategoryUtils } from './types';
 
 // Import components
 import SubjectCard from './SubjectCard';
@@ -212,7 +212,7 @@ const useCategoryManagement = (
   onCategoriesUpdate: (categories: SubjectCategory[]) => void,
   labId: string,
   token: string | null,
-  toast: any
+  toast: (options: any) => void
 ) => {
   const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState<boolean>(false);
@@ -258,10 +258,11 @@ const useCategoryManagement = (
     const trimmedName = newCategoryName.trim();
 
     try {
+      // FIXED: Use simple string format, not MongoDB format
       const currentCategories = categories
-        .filter(CategoryUtils.isCustom)
+        .filter((category) => CategoryUtils.isCustom(category))
         .map((category) => ({
-          id: ApiTransformUtils.stringToUUID(category.id),
+          id: category.id, // Simple string, not MongoDB UUID
           name: category.name,
         }));
 
@@ -467,9 +468,13 @@ const Gather: React.FC<GatherProps> = ({
     return kbDocuments.filter((doc) => selectedFileTypes.has(doc.file_type));
   }, [kbDocuments, selectedFileTypes]);
 
-  // Handle subject movement between categories
+  // Handle subject movement between categories - FIXED
   const handleSubjectMove = useCallback(
-    async (subjectId: string, fromCategoryId: string, toCategoryId: string) => {
+    async (
+      frontendSubjectId: string,
+      fromCategoryId: string,
+      toCategoryId: string
+    ) => {
       if (userRole === 'reader') {
         toast({
           title: 'Permission denied',
@@ -482,23 +487,20 @@ const Gather: React.FC<GatherProps> = ({
 
       if (fromCategoryId === toCategoryId) return;
 
-      const previousCategories = categories.map((cat) => ({
-        ...cat,
-        subjects: [...cat.subjects.map((subj) => ({ ...subj }))],
-      }));
+      console.log('Moving subject:', {
+        frontendSubjectId,
+        fromCategoryId,
+        toCategoryId,
+      });
 
+      // Find the subject by frontend ID
       const fromCategory = categories.find((cat) => cat.id === fromCategoryId);
       const toCategory = categories.find((cat) => cat.id === toCategoryId);
-      const subjectIndex = fromCategory?.subjects.findIndex(
-        (subj) => subj.id === subjectId
+      const subject = fromCategory?.subjects.find(
+        (subj) => subj.id === frontendSubjectId
       );
 
-      if (
-        !fromCategory ||
-        !toCategory ||
-        subjectIndex === undefined ||
-        subjectIndex < 0
-      ) {
+      if (!fromCategory || !toCategory || !subject) {
         toast({
           title: 'Move failed',
           description: 'Unable to find subject or categories.',
@@ -508,14 +510,19 @@ const Gather: React.FC<GatherProps> = ({
         return;
       }
 
-      const subject = fromCategory.subjects[subjectIndex];
+      const previousCategories = categories.map((cat) => ({
+        ...cat,
+        subjects: [...cat.subjects.map((subj) => ({ ...subj }))],
+      }));
 
       // Optimistic update
       const updatedCategories = categories.map((cat) => {
         if (cat.id === fromCategoryId) {
           return {
             ...cat,
-            subjects: cat.subjects.filter((subj) => subj.id !== subjectId),
+            subjects: cat.subjects.filter(
+              (subj) => subj.id !== frontendSubjectId
+            ),
           };
         } else if (cat.id === toCategoryId) {
           const updatedSubject = { ...subject, categoryId: toCategoryId };
@@ -530,20 +537,18 @@ const Gather: React.FC<GatherProps> = ({
       onCategoriesUpdate(updatedCategories);
 
       try {
-        const currentSubjects = updatedCategories.flatMap((cat) =>
-          cat.subjects.map((subject) => ({
-            subject_id: ApiTransformUtils.stringToObjectId(subject.subjectId),
-            subject_slug: subject.subjectSlug,
-            subject_name: subject.subjectName,
-            category: ApiTransformUtils.stringToUUID(subject.categoryId),
-          }))
-        );
+        // FIXED: Use the helper method to get correct API format
+        const currentApiSubjects = labAPIService.getApiSubjectsFromLab({
+          subjects: categories.flatMap((cat) => cat.subjects),
+        });
+
+        console.log('Current API subjects:', currentApiSubjects);
 
         await labAPIService.moveSubjectToCategory(
           labId,
-          subject.subjectId,
+          subject.subjectId, // Use actual database subject ID
           toCategoryId,
-          currentSubjects,
+          currentApiSubjects,
           token || ''
         );
 
@@ -565,12 +570,13 @@ const Gather: React.FC<GatherProps> = ({
           status: 'error',
           duration: 5000,
         });
+        console.error('Subject move error:', moveError);
       }
     },
     [userRole, categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle adding subject to lab
+  // Handle adding subject to lab - FIXED
   const handleAddSubject = useCallback(
     async (searchResult: SubjectSearchResult) => {
       if (userRole === 'reader') {
@@ -615,11 +621,16 @@ const Gather: React.FC<GatherProps> = ({
         return;
       }
 
+      // Parse slug from ent_fsid
+      const subjectSlug = searchResult.ent_fsid.startsWith('fsid_')
+        ? searchResult.ent_fsid.substring(5)
+        : searchResult.ent_fsid;
+
       const newSubject: LabSubject = {
         id: `subj-${Date.now()}`,
         subjectId: subjectId,
         subjectName: searchResult.ent_name,
-        subjectSlug: searchResult.ent_fsid.replace('fsid_', ''),
+        subjectSlug: subjectSlug,
         addedAt: new Date().toISOString(),
         addedById: 'current-user',
         notes: searchResult.ent_summary,
@@ -637,29 +648,27 @@ const Gather: React.FC<GatherProps> = ({
       onCategoriesUpdate(newCategories);
 
       try {
-        const currentSubjects = categories.flatMap((cat) =>
-          cat.subjects.map((subject) => ({
-            subject_id: ApiTransformUtils.stringToObjectId(subject.subjectId),
-            subject_slug: subject.subjectSlug,
-            subject_name: subject.subjectName,
-            category: ApiTransformUtils.stringToUUID(subject.categoryId),
-          }))
-        );
+        // FIXED: Use the helper method to get correct API format
+        const currentApiSubjects = labAPIService.getApiSubjectsFromLab({
+          subjects: categories.flatMap((cat) => cat.subjects),
+        });
 
         await labAPIService.addSubject(
           labId,
           subjectId,
-          newSubject.subjectSlug,
+          searchResult.ent_fsid, // Use full ent_fsid with fsid_ prefix
           searchResult.ent_name,
           defaultCategory.id,
-          currentSubjects,
+          currentApiSubjects,
           token
         );
 
-        clearSearch();
+        // Don't clear search - let user add more subjects
+        // clearSearch();
+
         toast({
           title: 'Subject added',
-          description: `"${searchResult.ent_name}" has been added to your lab.`,
+          description: `"${searchResult.ent_name}" has been added to your lab. Search remains open for adding more subjects.`,
           status: 'success',
           duration: 3000,
         });
@@ -686,7 +695,7 @@ const Gather: React.FC<GatherProps> = ({
     ]
   );
 
-  // Handle category rename
+  // Handle category rename - FIXED
   const handleCategoryRename = useCallback(
     async (categoryId: string, newName: string) => {
       if (!token) {
@@ -706,10 +715,11 @@ const Gather: React.FC<GatherProps> = ({
       onCategoriesUpdate(newCategories);
 
       try {
+        // FIXED: Use simple string format, not MongoDB format
         const currentCategories = categories
-          .filter(CategoryUtils.isCustom)
+          .filter((category) => CategoryUtils.isCustom(category))
           .map((category) => ({
-            id: ApiTransformUtils.stringToUUID(category.id),
+            id: category.id, // Simple string, not MongoDB UUID
             name: category.name,
           }));
 
@@ -741,7 +751,7 @@ const Gather: React.FC<GatherProps> = ({
     [categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle category deletion
+  // Handle category deletion - FIXED
   const handleCategoryDelete = useCallback(
     async (categoryId: string, moveSubjectsToUncategorized: boolean) => {
       if (!token) {
@@ -762,60 +772,75 @@ const Gather: React.FC<GatherProps> = ({
         subjects: [...cat.subjects],
       }));
 
-      let newCategories = [...categories];
+      // CRITICAL FIX: Don't do optimistic subject movement - let the API handle it
+      // Just remove the category from the UI, subjects will be updated when we refresh/get API response
+      const newCategories = categories.filter((cat) => cat.id !== categoryId);
 
-      if (moveSubjectsToUncategorized) {
-        const categoryToDeleteRef = newCategories.find(
-          (cat) => cat.id === categoryId
-        );
-        const uncategorized = newCategories.find((cat) =>
-          CategoryUtils.isDefault(cat)
-        );
-
-        if (categoryToDeleteRef && uncategorized) {
-          const updatedSubjects = categoryToDeleteRef.subjects.map(
-            (subject) => ({
-              ...subject,
-              categoryId: uncategorized.id,
-            })
-          );
-          uncategorized.subjects.push(...updatedSubjects);
-        }
-      }
-
-      newCategories = newCategories.filter((cat) => cat.id !== categoryId);
+      // Apply optimistic update (only remove category, don't move subjects yet)
       onCategoriesUpdate(newCategories);
 
       try {
+        // FIXED: Use simple string format, not MongoDB format
         const currentCategories = categories
-          .filter(CategoryUtils.isCustom)
+          .filter((category) => CategoryUtils.isCustom(category))
           .map((category) => ({
-            id: ApiTransformUtils.stringToUUID(category.id),
+            id: category.id, // Simple string, not MongoDB UUID
             name: category.name,
           }));
 
-        const currentSubjects = categories.flatMap((cat) =>
-          cat.subjects.map((subject) => ({
-            subject_id: ApiTransformUtils.stringToObjectId(subject.subjectId),
-            subject_slug: subject.subjectSlug,
-            subject_name: subject.subjectName,
-            category: ApiTransformUtils.stringToUUID(subject.categoryId),
-          }))
-        );
+        // Use the original categories state for API call
+        const originalApiSubjects = labAPIService.getApiSubjectsFromLab({
+          subjects: categories.flatMap((cat) => cat.subjects), // Use original categories
+        });
 
         const uncategorizedId =
-          newCategories.find((cat) => CategoryUtils.isDefault(cat))?.id ||
+          categories.find((cat) => CategoryUtils.isDefault(cat))?.id ||
           'uncategorized';
 
-        await labAPIService.removeCategory(
+        const updatedApiData = await labAPIService.removeCategory(
           labId,
           categoryId,
           moveSubjectsToUncategorized,
           currentCategories,
-          currentSubjects,
+          originalApiSubjects,
           uncategorizedId,
           token
         );
+
+        // Transform the API response back to frontend format to get the correct state
+        const { ApiTransformUtils } = await import('./types');
+        const updatedLab = await ApiTransformUtils.transformLab(
+          updatedApiData,
+          labId,
+          async () => ({
+            _id: '',
+            Google_hitcounts: 0,
+            Papers_hitcounts: 0,
+            Books_hitcounts: 0,
+            Gnews_hitcounts: 0,
+            Related_terms: '',
+            wikipedia_definition: '',
+            wiktionary_definition: '',
+            FST: '',
+            labs: '',
+            wikipedia_url: '',
+            ent_name: '',
+            ent_fsid: '',
+            ent_summary: '',
+          }),
+          async () => ({
+            id: '',
+            title: '',
+            description: '',
+            status: '',
+            createdAt: '',
+            updatedAt: '',
+            createdById: '',
+          })
+        );
+
+        // Update with the correct state from API
+        onCategoriesUpdate(updatedLab.categories);
 
         toast({
           title: 'Category deleted',
@@ -823,14 +848,57 @@ const Gather: React.FC<GatherProps> = ({
             ? `"${categoryToDelete.name}" deleted. ${categoryToDelete.subjects.length} subjects moved to Uncategorized.`
             : `"${categoryToDelete.name}" and its ${categoryToDelete.subjects.length} subjects deleted.`,
           status: 'info',
-          undoAction: () => {
+          undoAction: async () => {
+            // Restore the UI state
             onCategoriesUpdate(previousCategoriesState);
-            toast({
-              title: 'Category restored',
-              description: `"${categoryToDelete.name}" has been restored with all its subjects.`,
-              status: 'success',
-              duration: 3000,
-            });
+
+            // Also restore in the database by making an API call
+            try {
+              if (!token) {
+                throw new Error('Authentication required');
+              }
+
+              const restoreCategories = previousCategoriesState
+                .filter((category) => CategoryUtils.isCustom(category))
+                .map((category) => ({
+                  id: category.id,
+                  name: category.name,
+                }));
+
+              const restoreApiSubjects = labAPIService.getApiSubjectsFromLab({
+                subjects: previousCategoriesState.flatMap(
+                  (cat) => cat.subjects
+                ),
+              });
+
+              await labAPIService.batchUpdate(
+                labId,
+                {
+                  categories: restoreCategories,
+                  subjects: restoreApiSubjects,
+                },
+                token
+              );
+
+              toast({
+                title: 'Category restored',
+                description: `"${categoryToDelete.name}" has been restored with all its subjects.`,
+                status: 'success',
+                duration: 3000,
+              });
+            } catch (restoreError) {
+              console.error(
+                'Failed to restore category in database:',
+                restoreError
+              );
+              toast({
+                title: 'Restore failed',
+                description:
+                  'Category restored in UI but failed to restore in database. Please refresh the page.',
+                status: 'warning',
+                duration: 5000,
+              });
+            }
           },
           undoLabel: 'Undo Delete',
         });
@@ -848,7 +916,7 @@ const Gather: React.FC<GatherProps> = ({
     [categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle subject removal
+  // Handle subject removal - FIXED
   const handleSubjectRemove = useCallback(
     async (subjectId: string, categoryId: string) => {
       if (userRole === 'reader') {
@@ -871,10 +939,20 @@ const Gather: React.FC<GatherProps> = ({
         return;
       }
 
-      const category = categories.find((cat) => cat.id === categoryId);
-      const subject = category?.subjects.find((subj) => subj.id === subjectId);
+      console.log('Removing subject:', { subjectId, categoryId });
 
-      if (!subject) return;
+      const category = categories.find((cat) => cat.id === categoryId);
+      const subject = category?.subjects.find(
+        (subj) => subj.subjectId === subjectId
+      );
+
+      if (!subject) {
+        console.error('Subject not found for removal:', {
+          subjectId,
+          categoryId,
+        });
+        return;
+      }
 
       const previousCategoriesState = categories.map((cat) => ({
         ...cat,
@@ -886,7 +964,7 @@ const Gather: React.FC<GatherProps> = ({
           ? {
               ...cat,
               subjects: cat.subjects.filter(
-                (subject) => subject.id !== subjectId
+                (subject) => subject.subjectId !== subjectId
               ),
             }
           : cat
@@ -894,19 +972,15 @@ const Gather: React.FC<GatherProps> = ({
       onCategoriesUpdate(newCategories);
 
       try {
-        const currentSubjects = categories.flatMap((cat) =>
-          cat.subjects.map((subject) => ({
-            subject_id: ApiTransformUtils.stringToObjectId(subject.subjectId),
-            subject_slug: subject.subjectSlug,
-            subject_name: subject.subjectName,
-            category: ApiTransformUtils.stringToUUID(subject.categoryId),
-          }))
-        );
+        // FIXED: Use the helper method to get correct API format
+        const currentApiSubjects = labAPIService.getApiSubjectsFromLab({
+          subjects: categories.flatMap((cat) => cat.subjects),
+        });
 
         await labAPIService.removeSubject(
           labId,
-          subject.subjectId,
-          currentSubjects,
+          subjectId, // Use actual database subject ID
+          currentApiSubjects,
           token
         );
 
@@ -916,16 +990,57 @@ const Gather: React.FC<GatherProps> = ({
             category?.name || 'the lab'
           }.`,
           status: 'info',
-          undoAction: () => {
+          undoAction: async () => {
+            // Restore the UI state
             onCategoriesUpdate(previousCategoriesState);
-            toast({
-              title: 'Subject restored',
-              description: `"${subject.subjectName}" has been restored to ${
-                category?.name || 'the lab'
-              }.`,
-              status: 'success',
-              duration: 3000,
-            });
+
+            // Also restore in the database by making an API call
+            try {
+              if (!token) {
+                throw new Error('Authentication required');
+              }
+
+              const restoreApiSubjects = labAPIService.getApiSubjectsFromLab({
+                subjects: previousCategoriesState.flatMap(
+                  (cat) => cat.subjects
+                ),
+              });
+
+              await labAPIService.addSubject(
+                labId,
+                subject.subjectId,
+                subject.subjectSlug.startsWith('fsid_')
+                  ? subject.subjectSlug
+                  : `fsid_${subject.subjectSlug}`,
+                subject.subjectName,
+                subject.categoryId,
+                restoreApiSubjects.filter(
+                  (s) => s.subject_id !== subject.subjectId
+                ), // Exclude the subject we're adding back
+                token
+              );
+
+              toast({
+                title: 'Subject restored',
+                description: `"${subject.subjectName}" has been restored to ${
+                  category?.name || 'the lab'
+                }.`,
+                status: 'success',
+                duration: 3000,
+              });
+            } catch (restoreError) {
+              console.error(
+                'Failed to restore subject in database:',
+                restoreError
+              );
+              toast({
+                title: 'Restore failed',
+                description:
+                  'Subject restored in UI but failed to restore in database. Please refresh the page.',
+                status: 'warning',
+                duration: 5000,
+              });
+            }
           },
           undoLabel: 'Undo Remove',
         });
