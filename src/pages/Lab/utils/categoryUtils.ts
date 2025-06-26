@@ -185,7 +185,7 @@ export const addSubjectToDefaultCategory = (
  * @returns Updated categories array
  */
 export const addSubjectToExcludeCategory = (
-  subject: LabSubject,
+  _subject: LabSubject,
   categories: SubjectCategory[]
 ): SubjectCategory[] => {
   // No longer using exclude categories - return categories unchanged

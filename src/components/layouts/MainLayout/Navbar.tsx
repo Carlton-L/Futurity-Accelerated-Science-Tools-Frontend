@@ -28,7 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { labAPIService } from '../../../services/labAPIService';
-import type { Lab } from '../../../context/AuthContext';
+import type { Lab, TeamspaceListItem } from '../../../context/AuthContext';
 import FastIcon from '../../../assets/fast_icon.svg';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
 import LabsIcon from '../../../assets/labs.svg';
@@ -64,6 +64,23 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
   const isTeamAdmin =
     currentTeamspace.user_access_level === 'owner' ||
     currentTeamspace.user_access_level === 'admin';
+
+  // Handle team switching with smart navigation
+  const handleTeamChange = (newTeamspace: TeamspaceListItem) => {
+    setCurrentTeamspace(newTeamspace);
+
+    // Check current URL to determine if we should navigate to the same page type for the new team
+    const currentPath = window.location.pathname;
+
+    if (currentPath.includes('/team/') && currentPath.includes('/manage')) {
+      // User is on team manage page, navigate to manage page for new team
+      navigate(`/team/${newTeamspace._id}/manage`);
+    } else if (currentPath.includes('/team/')) {
+      // User is on team view page, navigate to view page for new team
+      navigate(`/team/${newTeamspace._id}`);
+    }
+    // Otherwise, stay on current page (home, lab, etc.)
+  };
 
   return (
     <Menu.Root>
@@ -225,7 +242,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                   <Menu.Item
                     key={team._id}
                     value={team._id}
-                    onClick={() => setCurrentTeamspace(team)}
+                    onClick={() => handleTeamChange(team)}
                     color='fg'
                     fontFamily='body'
                     fontSize='sm'

@@ -55,10 +55,10 @@ export interface KanbanBoardProps {
     columnId: string,
     updates: Partial<KanbanColumnData>
   ) => void;
-  onColumnDelete?: (columnId: string) => void;
+  _onColumnDelete?: (columnId: string) => void;
   renderItem: (item: KanbanItemData, columnId: string) => React.ReactNode;
   renderAddColumnButton?: () => React.ReactNode;
   scrollShadows?: boolean;
   className?: string;
-  dragType?: string;
+  _dragType?: string;
 }
