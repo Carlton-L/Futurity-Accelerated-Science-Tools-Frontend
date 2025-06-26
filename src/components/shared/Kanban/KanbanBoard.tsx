@@ -16,7 +16,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   renderAddColumnButton,
   scrollShadows = true,
   className,
-  dragType = 'KANBAN_ITEM',
+  _dragType = 'KANBAN_ITEM',
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shadows, setShadows] = useState({
