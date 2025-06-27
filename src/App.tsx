@@ -16,6 +16,7 @@ import Whiteboard from './pages/Whiteboard';
 import TeamView from './pages/TeamView';
 import TeamManage from './pages/TeamManage';
 import CreateLab from './pages/CreateLab';
+import { Profile } from './pages/Profile';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
               <Route element={<PrivateRoute />}>
                 <Route element={<Layout />}>
                   <Route path='/' element={<Home />} />
+                  <Route path='/profile' element={<Profile />} />
                   {/* Dynamic lab route - this will catch any lab ID */}
                   <Route path='/lab/:id' element={<Lab />} />
                   <Route path='/lab/create' element={<CreateLab />} />
