@@ -10,7 +10,7 @@ import {
   Button,
   Checkbox,
 } from '@chakra-ui/react';
-import { FiTag, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiLayers, FiEdit2, FiTrash2 } from 'react-icons/fi'; // Changed from FiTag to FiLayers
 import { KanbanColumn } from '../../components/shared/Kanban';
 import type { LabSubject, SubjectCategory } from './types';
 import { CategoryUtils } from './types';
@@ -124,7 +124,8 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     () => (
       <HStack justify='space-between' align='center'>
         <HStack gap={2} flex='1'>
-          <FiTag size={14} color='var(--chakra-colors-fg-muted)' />
+          {/* Changed from FiTag to FiLayers for Categories/Subcategories */}
+          <FiLayers size={14} color='var(--chakra-colors-fg-muted)' />
           {isEditing ? (
             <Input
               value={editName}
