@@ -409,47 +409,9 @@ const Navbar: React.FC = () => {
             />
           </Box>
 
-          {/* Whiteboard Button */}
-          <Button
-            onClick={() => navigate('/whiteboard')}
-            variant='outline'
-            size='sm'
-            height={isCompact ? 'auto' : '64px'}
-            borderColor='border.emphasized'
-            borderWidth='1px'
-            color='fg'
-            bg='bg.canvas'
-            fontFamily='body'
-            fontSize='13px'
-            flexShrink={0}
-            py={isCompact ? '4px' : '8px'}
-            px={isCompact ? '4px' : '16px'}
-            _hover={{
-              bg: 'bg.hover',
-            }}
-            display='flex'
-            flexDirection='column'
-            alignItems='center'
-            gap={1}
-          >
-            <Box
-              height='24px'
-              width='auto'
-              filter={{
-                _dark: 'brightness(0) invert(1)', // White icons in dark mode
-                _light: 'brightness(0)', // Black icons in light mode
-              }}
-            >
-              <img
-                src={WhiteboardIcon}
-                alt='Whiteboard'
-                style={{ height: '100%', width: 'auto' }}
-              />
-            </Box>
-            whiteboard
-          </Button>
+          {/* TASK 1: Reordered navigation items - Team → Labs → My Whiteboard → Profile */}
 
-          {/* Team Selector */}
+          {/* Team Selector - MOVED TO FIRST POSITION */}
           {currentTeamspace ? (
             <TeamSelector isCompact={isCompact} navigate={navigate} />
           ) : (
@@ -509,7 +471,7 @@ const Navbar: React.FC = () => {
             </Button>
           )}
 
-          {/* Labs Button */}
+          {/* Labs Button - MOVED TO SECOND POSITION */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Button
@@ -681,32 +643,47 @@ const Navbar: React.FC = () => {
             )}
           </Menu.Root>
 
-          {/* Search Field - Flex grow to take remaining space */}
-          <SearchField />
-
-          {/* Right Navigation Items */}
-          {/* Color Mode Toggle */}
-          <IconButton
-            aria-label='Toggle color mode'
-            onClick={toggleColorMode}
+          {/* TASK 3: My Whiteboard Button - RENAMED and MOVED TO THIRD POSITION */}
+          <Button
+            onClick={() => navigate('/whiteboard')}
             variant='outline'
             size='sm'
-            height={isCompact ? '58px' : '64px'}
-            width={isCompact ? '58px' : '64px'}
+            height={isCompact ? 'auto' : '64px'}
             borderColor='border.emphasized'
             borderWidth='1px'
             color='fg'
             bg='bg.canvas'
+            fontFamily='body'
+            fontSize='13px'
             flexShrink={0}
-            p={isCompact ? '4px' : '0'}
+            py={isCompact ? '4px' : '8px'}
+            px={isCompact ? '4px' : '16px'}
             _hover={{
               bg: 'bg.hover',
             }}
+            display='flex'
+            flexDirection='column'
+            alignItems='center'
+            gap={1}
           >
-            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
-          </IconButton>
+            <Box
+              height='24px'
+              width='auto'
+              filter={{
+                _dark: 'brightness(0) invert(1)', // White icons in dark mode
+                _light: 'brightness(0)', // Black icons in light mode
+              }}
+            >
+              <img
+                src={WhiteboardIcon}
+                alt='My Whiteboard'
+                style={{ height: '100%', width: 'auto' }}
+              />
+            </Box>
+            my whiteboard
+          </Button>
 
-          {/* Profile Button */}
+          {/* Profile Button - MOVED TO FOURTH POSITION (before separator) */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Box
@@ -839,6 +816,39 @@ const Navbar: React.FC = () => {
               </Menu.Positioner>
             </Portal>
           </Menu.Root>
+
+          {/* TASK 2: Visual Separator - Added between navigation and search */}
+          <Box
+            height={isCompact ? '40px' : '48px'}
+            width='1px'
+            bg='border.emphasized'
+            flexShrink={0}
+          />
+
+          {/* Search Field - Flex grow to take remaining space */}
+          <SearchField />
+
+          {/* Right Navigation Items */}
+          {/* Color Mode Toggle */}
+          <IconButton
+            aria-label='Toggle color mode'
+            onClick={toggleColorMode}
+            variant='outline'
+            size='sm'
+            height={isCompact ? '58px' : '64px'}
+            width={isCompact ? '58px' : '64px'}
+            borderColor='border.emphasized'
+            borderWidth='1px'
+            color='fg'
+            bg='bg.canvas'
+            flexShrink={0}
+            p={isCompact ? '4px' : '0'}
+            _hover={{
+              bg: 'bg.hover',
+            }}
+          >
+            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
+          </IconButton>
         </HStack>
       </Box>
 

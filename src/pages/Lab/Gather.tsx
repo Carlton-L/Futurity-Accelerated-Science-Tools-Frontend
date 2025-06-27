@@ -12,8 +12,9 @@ import {
   Field,
   Flex,
   IconButton,
+  Card,
 } from '@chakra-ui/react';
-import { FiPlus, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiRefreshCw, FiLayers } from 'react-icons/fi';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -33,19 +34,17 @@ import SubjectCard from './SubjectCard';
 import { useToast, ToastDisplay } from './ToastSystem';
 import { SubjectSearch } from './SubjectSearch';
 import { CategoryColumn } from './CategoryColumn';
-import IncludeExcludeTerms from './IncludeExcludeTerms';
 import Knowledgebase from './Knowledgebase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { labAPIService } from '../../services/labAPIService';
 
-// Component Props Interface
+// Component Props Interface - Updated to remove unused props
 interface GatherProps {
   labId: string;
-  includeTerms: string[];
-  excludeTerms: string[];
+  // includeTerms and excludeTerms removed - now handled in Plan tab
   categories: SubjectCategory[];
-  onTermsUpdate: (includeTerms: string[], excludeTerms: string[]) => void;
+  // onTermsUpdate removed - now handled in Plan tab
   onCategoriesUpdate: (categories: SubjectCategory[]) => void;
   onRefreshLab: () => Promise<void>;
 }
@@ -214,7 +213,12 @@ const useCategoryManagement = (
   onCategoriesUpdate: (categories: SubjectCategory[]) => void,
   labId: string,
   token: string | null,
-  toast: (options: any) => void
+  toast: (options: {
+    title: string;
+    description?: string;
+    status: 'success' | 'error' | 'warning' | 'info';
+    duration?: number;
+  }) => void
 ) => {
   const [newCategoryName, setNewCategoryName] = useState<string>('');
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState<boolean>(false);
@@ -349,10 +353,11 @@ const useCategoryManagement = (
  */
 const Gather: React.FC<GatherProps> = ({
   labId,
-  includeTerms,
-  excludeTerms,
+  // Remove unused props since Include/Exclude Terms are now handled in Plan tab
+  // includeTerms,
+  // excludeTerms,
   categories,
-  onTermsUpdate,
+  // onTermsUpdate,
   onCategoriesUpdate,
   onRefreshLab,
 }) => {
@@ -715,7 +720,6 @@ const Gather: React.FC<GatherProps> = ({
       userRole,
       isSubjectInLab,
       categories,
-      clearSearch,
       toast,
       onCategoriesUpdate,
       labId,
@@ -1086,47 +1090,6 @@ const Gather: React.FC<GatherProps> = ({
     [userRole, categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle terms update
-  const handleTermsUpdate = useCallback(
-    async (newIncludeTerms: string[], newExcludeTerms: string[]) => {
-      if (!token) {
-        toast({
-          title: 'Authentication required',
-          description: 'Please log in to perform this action.',
-          status: 'error',
-          duration: 3000,
-        });
-        return;
-      }
-
-      const previousInclude = [...includeTerms];
-      const previousExclude = [...excludeTerms];
-
-      onTermsUpdate(newIncludeTerms, newExcludeTerms);
-
-      try {
-        await labAPIService.updateLab(
-          labId,
-          {
-            include_terms: newIncludeTerms,
-            exclude_terms: newExcludeTerms,
-          },
-          token
-        );
-      } catch (updateError) {
-        onTermsUpdate(previousInclude, previousExclude);
-        toast({
-          title: 'Failed to update terms',
-          description: 'The terms could not be updated. Please try again.',
-          status: 'error',
-          duration: 5000,
-        });
-        console.error('Failed to update terms:', updateError);
-      }
-    },
-    [includeTerms, excludeTerms, onTermsUpdate, labId, token, toast]
-  );
-
   // Knowledgebase handlers
   const fetchKnowledgebaseDocuments = useCallback(async () => {
     setKbLoading(true);
@@ -1418,6 +1381,15 @@ const Gather: React.FC<GatherProps> = ({
     });
   }, [categories]);
 
+  // Separate uncategorized subjects for Task 19 - horizontal bar layout
+  const uncategorizedCategory = useMemo(() => {
+    return sortedCategories.find(CategoryUtils.isDefault);
+  }, [sortedCategories]);
+
+  const categorizedColumns = useMemo(() => {
+    return sortedCategories.filter((cat) => !CategoryUtils.isDefault(cat));
+  }, [sortedCategories]);
+
   // Memoized subject card renderer
   const renderSubjectCard = useCallback(
     (subject: LabSubject) => {
@@ -1538,7 +1510,71 @@ const Gather: React.FC<GatherProps> = ({
           </HStack>
         </HStack>
 
-        {/* Kanban Board */}
+        {/* Task 19: Uncategorized Subjects Horizontal Bar */}
+        {uncategorizedCategory && uncategorizedCategory.subjects.length > 0 && (
+          <Card.Root
+            borderWidth='1px'
+            borderColor='border.emphasized'
+            bg='bg.canvas'
+            borderRadius='md'
+          >
+            <Card.Header pb={2}>
+              <HStack gap={2}>
+                <FiLayers size={16} color='var(--chakra-colors-fg-muted)' />
+                <Text
+                  fontSize='md'
+                  fontWeight='medium'
+                  color='fg'
+                  fontFamily='heading'
+                >
+                  {uncategorizedCategory.name}
+                </Text>
+                <Box
+                  bg='bg.muted'
+                  color='fg.muted'
+                  fontSize='xs'
+                  px={2}
+                  py={1}
+                  borderRadius='md'
+                  fontFamily='body'
+                >
+                  {uncategorizedCategory.subjects.length}
+                </Box>
+              </HStack>
+            </Card.Header>
+            <Card.Body pt={0}>
+              <Box
+                w='100%'
+                overflowX='auto'
+                overflowY='hidden'
+                css={{
+                  '&::-webkit-scrollbar': { height: '6px' },
+                  '&::-webkit-scrollbar-track': {
+                    background: 'var(--chakra-colors-bg-subtle)',
+                    borderRadius: '3px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: 'var(--chakra-colors-border-muted)',
+                    borderRadius: '3px',
+                  },
+                  '&::-webkit-scrollbar-thumb:hover': {
+                    background: 'var(--chakra-colors-border-emphasized)',
+                  },
+                }}
+              >
+                <HStack gap={3} align='flex-start' minW='fit-content' pb={2}>
+                  {uncategorizedCategory.subjects.map((subject) => (
+                    <Box key={subject.id} minW='280px' maxW='320px'>
+                      {renderSubjectCard(subject)}
+                    </Box>
+                  ))}
+                </HStack>
+              </Box>
+            </Card.Body>
+          </Card.Root>
+        )}
+
+        {/* Main Kanban Board for Categorized Subjects */}
         <Box position='relative' w='100%'>
           <Box
             w='100%'
@@ -1562,17 +1598,8 @@ const Gather: React.FC<GatherProps> = ({
             }}
           >
             <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
-              {/* Include/Exclude Terms */}
-              <IncludeExcludeTerms
-                includeTerms={includeTerms}
-                excludeTerms={excludeTerms}
-                onTermsUpdate={handleTermsUpdate}
-                userRole={userRole}
-                isLoading={isLoading}
-              />
-
-              {/* Category columns */}
-              {sortedCategories.map((category) => (
+              {/* Category columns - excluding uncategorized */}
+              {categorizedColumns.map((category) => (
                 <CategoryColumn
                   key={category.id}
                   category={category}
