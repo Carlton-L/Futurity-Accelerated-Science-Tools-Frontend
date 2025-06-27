@@ -163,7 +163,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <Box position='relative' w='100%' className={className}>
+      <Box
+        position='relative'
+        w='100%'
+        overflow='visible'
+        className={className}
+      >
         {/* Scroll shadows */}
         {scrollShadows && shadows.left && (
           <Box
@@ -202,7 +207,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
           ref={scrollContainerRef}
           w='100%'
           overflowX='auto'
-          overflowY='hidden'
+          overflowY='visible'
           pb={4}
           pt={2}
           css={{

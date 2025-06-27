@@ -55,30 +55,12 @@ import {
   generateTaxonomySuggestions,
   validateDraftForPublishing,
 } from './types';
+import IconSubject from '../../components/shared/IconSubject';
 
 // Import visualization components
 import { ListView } from './visualizations';
 
 import { usePage } from '../../context/PageContext';
-
-// Blue hexagon icon component for subjects
-const SubjectHexagonIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox='0 0 24 24'
-    fill='none'
-    xmlns='http://www.w3.org/2000/svg'
-  >
-    <path
-      d='M12 2L20.196 7V17L12 22L3.804 17V7L12 2Z'
-      fill='#0005E9'
-      stroke='#0005E9'
-      strokeWidth='1'
-      strokeLinejoin='round'
-    />
-  </svg>
-);
 
 // Mock data
 const mockSubjects: WhiteboardSubject[] = [
@@ -278,7 +260,7 @@ const DraggableSubjectCard: React.FC<{
         <VStack gap={2} align='stretch'>
           <HStack justify='space-between' align='flex-start'>
             <HStack gap={2} flex='1' align='start'>
-              <SubjectHexagonIcon size={24} />
+              <IconSubject size='md' />
               <Text
                 fontSize='sm'
                 fontWeight='medium'
@@ -1138,7 +1120,7 @@ const Whiteboard: React.FC = () => {
                     color={{ base: 'gray.400', _light: 'gray.600' }}
                   >
                     <VStack gap={2}>
-                      <FiTarget size={24} />
+                      <FiTarget size='md' />
                       <Text fontSize='sm' textAlign='center'>
                         Drag subjects here to build your lab seed
                       </Text>
@@ -1368,7 +1350,7 @@ const Whiteboard: React.FC = () => {
                               >
                                 <VStack gap={1} align='start' flex='1'>
                                   <HStack gap={2}>
-                                    <SubjectHexagonIcon size={20} />
+                                    <IconSubject size={20} />
                                     <Text fontSize='sm' fontWeight='medium'>
                                       {result.name}
                                     </Text>
@@ -1573,7 +1555,7 @@ const Whiteboard: React.FC = () => {
                           color={{ base: 'gray.400', _light: 'gray.500' }}
                         >
                           <VStack gap={2}>
-                            <FiSearch size={24} />
+                            <FiSearch size='md' />
                             <Text fontSize='sm' textAlign='center'>
                               {filterText || sortMethod !== 'horizon-high'
                                 ? 'No subjects match your filters.'

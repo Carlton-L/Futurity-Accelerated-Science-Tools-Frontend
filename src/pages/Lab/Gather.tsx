@@ -12,9 +12,9 @@ import {
   Field,
   Flex,
   IconButton,
-  Card,
 } from '@chakra-ui/react';
-import { FiPlus, FiRefreshCw, FiLayers } from 'react-icons/fi';
+import { FiPlus, FiRefreshCw } from 'react-icons/fi';
+import { FaFolder } from 'react-icons/fa6';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -34,6 +34,7 @@ import SubjectCard from './SubjectCard';
 import { useToast, ToastDisplay } from './ToastSystem';
 import { SubjectSearch } from './SubjectSearch';
 import { CategoryColumn } from './CategoryColumn';
+import { HorizontalDropZone } from './HorizontalDropZone';
 import Knowledgebase from './Knowledgebase';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -71,7 +72,7 @@ interface SearchAPIResponse {
 }
 
 // User Role Type
-type UserRole = 'reader' | 'editor' | 'admin';
+type UserRole = 'viewer' | 'editor' | 'admin';
 
 /**
  * Custom hook for search functionality
@@ -508,7 +509,7 @@ const Gather: React.FC<GatherProps> = ({
       fromCategoryId: string,
       toCategoryId: string
     ) => {
-      if (userRole === 'reader') {
+      if (userRole === 'viewer') {
         toast({
           title: 'Permission denied',
           description: 'You do not have permission to move subjects.',
@@ -612,7 +613,7 @@ const Gather: React.FC<GatherProps> = ({
   // Handle adding subject to lab - FIXED
   const handleAddSubject = useCallback(
     async (searchResult: SubjectSearchResult) => {
-      if (userRole === 'reader') {
+      if (userRole === 'viewer') {
         toast({
           title: 'Permission denied',
           description: 'You do not have permission to add subjects.',
@@ -951,7 +952,7 @@ const Gather: React.FC<GatherProps> = ({
   // Handle subject removal - FIXED
   const handleSubjectRemove = useCallback(
     async (subjectId: string, categoryId: string) => {
-      if (userRole === 'reader') {
+      if (userRole === 'viewer') {
         toast({
           title: 'Permission denied',
           description: 'You do not have permission to remove subjects.',
@@ -1488,7 +1489,7 @@ const Gather: React.FC<GatherProps> = ({
 
           {/* Action buttons */}
           <HStack gap={3}>
-            {userRole !== 'reader' && (
+            {userRole !== 'viewer' && (
               <Button
                 size='md'
                 variant='outline'
@@ -1511,75 +1512,56 @@ const Gather: React.FC<GatherProps> = ({
         </HStack>
 
         {/* Task 19: Uncategorized Subjects Horizontal Bar */}
-        {uncategorizedCategory && uncategorizedCategory.subjects.length > 0 && (
-          <Card.Root
+        {uncategorizedCategory && (
+          <Box
             borderWidth='1px'
             borderColor='border.emphasized'
             bg='bg.canvas'
             borderRadius='md'
+            p={4}
           >
-            <Card.Header pb={2}>
-              <HStack gap={2}>
-                <FiLayers size={16} color='var(--chakra-colors-fg-muted)' />
-                <Text
-                  fontSize='md'
-                  fontWeight='medium'
-                  color='fg'
-                  fontFamily='heading'
-                >
-                  {uncategorizedCategory.name}
-                </Text>
-                <Box
-                  bg='bg.muted'
-                  color='fg.muted'
-                  fontSize='xs'
-                  px={2}
-                  py={1}
-                  borderRadius='md'
-                  fontFamily='body'
-                >
-                  {uncategorizedCategory.subjects.length}
-                </Box>
-              </HStack>
-            </Card.Header>
-            <Card.Body pt={0}>
-              <Box
-                w='100%'
-                overflowX='auto'
-                overflowY='hidden'
-                css={{
-                  '&::-webkit-scrollbar': { height: '6px' },
-                  '&::-webkit-scrollbar-track': {
-                    background: 'var(--chakra-colors-bg-subtle)',
-                    borderRadius: '3px',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: 'var(--chakra-colors-border-muted)',
-                    borderRadius: '3px',
-                  },
-                  '&::-webkit-scrollbar-thumb:hover': {
-                    background: 'var(--chakra-colors-border-emphasized)',
-                  },
-                }}
+            {/* Header */}
+            <HStack gap={2} mb={3}>
+              <FaFolder size={16} color='var(--chakra-colors-fg-muted)' />
+              <Text
+                fontSize='md'
+                fontWeight='medium'
+                color='fg'
+                fontFamily='heading'
               >
-                <HStack gap={3} align='flex-start' minW='fit-content' pb={2}>
-                  {uncategorizedCategory.subjects.map((subject) => (
-                    <Box key={subject.id} minW='280px' maxW='320px'>
-                      {renderSubjectCard(subject)}
-                    </Box>
-                  ))}
-                </HStack>
+                {uncategorizedCategory.name}
+              </Text>
+              <Box
+                bg='bg.muted'
+                color='fg.muted'
+                fontSize='xs'
+                px={2}
+                py={1}
+                borderRadius='md'
+                fontFamily='body'
+              >
+                {uncategorizedCategory.subjects.length}
               </Box>
-            </Card.Body>
-          </Card.Root>
+            </HStack>
+
+            {/* Horizontal Drop Zone for Uncategorized Subjects */}
+            <HorizontalDropZone
+              categoryId={uncategorizedCategory.id}
+              subjects={uncategorizedCategory.subjects}
+              onDrop={handleSubjectMove}
+              renderSubjectCard={renderSubjectCard}
+              emptyMessage='Drop subjects here to uncategorize them'
+              isLoading={isLoading}
+            />
+          </Box>
         )}
 
         {/* Main Kanban Board for Categorized Subjects */}
-        <Box position='relative' w='100%'>
+        <Box position='relative' overflowY='visible' w='100%'>
           <Box
             w='100%'
             overflowX='auto'
-            overflowY='hidden'
+            overflowY='visible'
             pb={4}
             pt={2}
             css={{
@@ -1597,7 +1579,13 @@ const Gather: React.FC<GatherProps> = ({
               },
             }}
           >
-            <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
+            <HStack
+              gap={4}
+              align='flex-start'
+              minW='fit-content'
+              pb={2}
+              overflowY='visible'
+            >
               {/* Category columns - excluding uncategorized */}
               {categorizedColumns.map((category) => (
                 <CategoryColumn
@@ -1613,7 +1601,7 @@ const Gather: React.FC<GatherProps> = ({
               ))}
 
               {/* Add New Category Column */}
-              {userRole !== 'reader' && (
+              {userRole !== 'viewer' && (
                 <Box
                   minW='280px'
                   maxW='320px'
