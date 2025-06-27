@@ -293,7 +293,7 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch labs when current teamspace changes
+  // Fetch labs when current teamspace changes - UPDATED to use only real API data
   useEffect(() => {
     const fetchTeamLabs = async () => {
       if (!currentTeamspace || !token) {
@@ -321,39 +321,11 @@ const Navbar: React.FC = () => {
           deletedAt: lab.deletedAt,
         }));
 
-        // TODO: Remove this hardcoded lab when proper lab data is available
-        // Add hardcoded lab for the active lab (V2 Test Lab)
-        const hardcodedLab: Lab = {
-          _id: '685be19be583f120efbc86d7',
-          ent_name: 'V2 Test Lab',
-          ent_summary:
-            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-          teamspace_id: currentTeamspace._id,
-          isArchived: 0,
-          isDeleted: 0,
-          deletedAt: null,
-        };
-
-        // Combine hardcoded lab with API labs (hardcoded first)
-        const allLabs = [hardcodedLab, ...labs];
-
-        setTeamLabs(allLabs);
+        setTeamLabs(labs);
       } catch (error) {
         console.error('Failed to fetch team labs:', error);
-
-        // Fallback to just the hardcoded lab if API fails
-        const hardcodedLab: Lab = {
-          _id: '685be19be583f120efbc86d7',
-          ent_name: 'V2 Test Lab',
-          ent_summary:
-            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-          teamspace_id: currentTeamspace._id,
-          isArchived: 0,
-          isDeleted: 0,
-          deletedAt: null,
-        };
-
-        setTeamLabs([hardcodedLab]);
+        // Set empty array on error - no fallback hardcoded lab
+        setTeamLabs([]);
       } finally {
         setIsLoadingLabs(false);
       }
@@ -385,19 +357,7 @@ const Navbar: React.FC = () => {
         deletedAt: lab.deletedAt,
       }));
 
-      const hardcodedLab: Lab = {
-        _id: '685be19be583f120efbc86d7',
-        ent_name: 'V2 Test Lab',
-        ent_summary:
-          'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-        teamspace_id: currentTeamspace._id,
-        isArchived: 0,
-        isDeleted: 0,
-        deletedAt: null,
-      };
-
-      const allLabs = [hardcodedLab, ...labs];
-      setTeamLabs(allLabs);
+      setTeamLabs(labs);
     } catch (error) {
       console.error('Failed to refresh labs:', error);
     } finally {
@@ -449,47 +409,9 @@ const Navbar: React.FC = () => {
             />
           </Box>
 
-          {/* Whiteboard Button */}
-          <Button
-            onClick={() => navigate('/whiteboard')}
-            variant='outline'
-            size='sm'
-            height={isCompact ? 'auto' : '64px'}
-            borderColor='border.emphasized'
-            borderWidth='1px'
-            color='fg'
-            bg='bg.canvas'
-            fontFamily='body'
-            fontSize='13px'
-            flexShrink={0}
-            py={isCompact ? '4px' : '8px'}
-            px={isCompact ? '4px' : '16px'}
-            _hover={{
-              bg: 'bg.hover',
-            }}
-            display='flex'
-            flexDirection='column'
-            alignItems='center'
-            gap={1}
-          >
-            <Box
-              height='24px'
-              width='auto'
-              filter={{
-                _dark: 'brightness(0) invert(1)', // White icons in dark mode
-                _light: 'brightness(0)', // Black icons in light mode
-              }}
-            >
-              <img
-                src={WhiteboardIcon}
-                alt='Whiteboard'
-                style={{ height: '100%', width: 'auto' }}
-              />
-            </Box>
-            whiteboard
-          </Button>
+          {/* TASK 1: Reordered navigation items - Team → Labs → My Whiteboard → Profile */}
 
-          {/* Team Selector */}
+          {/* Team Selector - MOVED TO FIRST POSITION */}
           {currentTeamspace ? (
             <TeamSelector isCompact={isCompact} navigate={navigate} />
           ) : (
@@ -549,7 +471,7 @@ const Navbar: React.FC = () => {
             </Button>
           )}
 
-          {/* Labs Button */}
+          {/* Labs Button - MOVED TO SECOND POSITION */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Button
@@ -721,32 +643,47 @@ const Navbar: React.FC = () => {
             )}
           </Menu.Root>
 
-          {/* Search Field - Flex grow to take remaining space */}
-          <SearchField />
-
-          {/* Right Navigation Items */}
-          {/* Color Mode Toggle */}
-          <IconButton
-            aria-label='Toggle color mode'
-            onClick={toggleColorMode}
+          {/* TASK 3: My Whiteboard Button - RENAMED and MOVED TO THIRD POSITION */}
+          <Button
+            onClick={() => navigate('/whiteboard')}
             variant='outline'
             size='sm'
-            height={isCompact ? '58px' : '64px'}
-            width={isCompact ? '58px' : '64px'}
+            height={isCompact ? 'auto' : '64px'}
             borderColor='border.emphasized'
             borderWidth='1px'
             color='fg'
             bg='bg.canvas'
+            fontFamily='body'
+            fontSize='13px'
             flexShrink={0}
-            p={isCompact ? '4px' : '0'}
+            py={isCompact ? '4px' : '8px'}
+            px={isCompact ? '4px' : '16px'}
             _hover={{
               bg: 'bg.hover',
             }}
+            display='flex'
+            flexDirection='column'
+            alignItems='center'
+            gap={1}
           >
-            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
-          </IconButton>
+            <Box
+              height='24px'
+              width='auto'
+              filter={{
+                _dark: 'brightness(0) invert(1)', // White icons in dark mode
+                _light: 'brightness(0)', // Black icons in light mode
+              }}
+            >
+              <img
+                src={WhiteboardIcon}
+                alt='My Whiteboard'
+                style={{ height: '100%', width: 'auto' }}
+              />
+            </Box>
+            my whiteboard
+          </Button>
 
-          {/* Profile Button */}
+          {/* Profile Button - MOVED TO FOURTH POSITION (before separator) */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Box
@@ -879,6 +816,39 @@ const Navbar: React.FC = () => {
               </Menu.Positioner>
             </Portal>
           </Menu.Root>
+
+          {/* TASK 2: Visual Separator - Added between navigation and search */}
+          <Box
+            height={isCompact ? '40px' : '48px'}
+            width='1px'
+            bg='border.emphasized'
+            flexShrink={0}
+          />
+
+          {/* Search Field - Flex grow to take remaining space */}
+          <SearchField />
+
+          {/* Right Navigation Items */}
+          {/* Color Mode Toggle */}
+          <IconButton
+            aria-label='Toggle color mode'
+            onClick={toggleColorMode}
+            variant='outline'
+            size='sm'
+            height={isCompact ? '58px' : '64px'}
+            width={isCompact ? '58px' : '64px'}
+            borderColor='border.emphasized'
+            borderWidth='1px'
+            color='fg'
+            bg='bg.canvas'
+            flexShrink={0}
+            p={isCompact ? '4px' : '0'}
+            _hover={{
+              bg: 'bg.hover',
+            }}
+          >
+            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
+          </IconButton>
         </HStack>
       </Box>
 
