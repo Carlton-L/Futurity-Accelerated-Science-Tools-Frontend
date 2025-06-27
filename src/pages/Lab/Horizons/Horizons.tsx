@@ -5,7 +5,7 @@ import * as d3 from 'd3';
 // Define the data structure
 interface HorizonItem {
   name: string;
-  horizon: 1 | 2 | 3 | 4;
+  horizon: number; // Changed to number to allow floats like 2.3
   category: 1 | 2 | 3 | 4 | 5;
   type: 1 | 2 | 3;
   categoryName?: string; // Optional category name for display
@@ -14,42 +14,42 @@ interface HorizonItem {
 const exampleData: HorizonItem[] = [
   {
     name: 'Quantum Computing',
-    horizon: 3,
+    horizon: 7.2,
     category: 1,
     type: 2,
     categoryName: 'Technology',
   },
   {
     name: 'Artificial Intelligence',
-    horizon: 2,
+    horizon: 2.3,
     category: 2,
     type: 1,
     categoryName: 'AI',
   },
   {
     name: 'Blockchain',
-    horizon: 1,
+    horizon: 8.5,
     category: 3,
     type: 1,
     categoryName: 'Finance',
   },
   {
     name: 'Renewable Energy',
-    horizon: 2,
+    horizon: 5.7,
     category: 4,
     type: 3,
     categoryName: 'Energy',
   },
   {
     name: 'Autonomous Vehicles',
-    horizon: 2,
+    horizon: 6.1,
     category: 2,
     type: 1,
     categoryName: 'AI',
   },
   {
     name: 'Genetic Engineering',
-    horizon: 3,
+    horizon: 4.8,
     category: 5,
     type: 2,
     categoryName: 'Biotech',
@@ -60,30 +60,170 @@ interface HorizonsProps {
   // Component props
   data?: HorizonItem[];
   showLegend?: boolean;
+  isLoading?: boolean; // Add loading prop
 }
 
-function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
+function Horizons({
+  data = exampleData,
+  showLegend = false,
+  isLoading = false,
+}: HorizonsProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Function to get horizon rank description based on value
+  const getHorizonDescription = (rank: number): string => {
+    if (rank >= 9) {
+      return "Forgotten/Obsolete (Once relevant or cutting-edge, now completely abandoned or irrelevant, 'No one remembers this')";
+    } else if (rank >= 8) {
+      return 'Dormant / Rediscovery Potential (Known but currently dormant, might see revival in new applications or contexts)';
+    } else if (rank >= 7) {
+      return "Residual. Niche Legacy (Obsolete for mainstream use, but still functional in niche contexts, or retained for legacy support i.e. it's rare to adopt this into new products)";
+    } else if (rank >= 6) {
+      return 'Post-standardization / Ubiquitous (Fully commoditized, infrastructure-level tech, or assumed baseline capability)';
+    } else if (rank >= 5) {
+      return 'Mainstream Adoption / Standard (Widely adopted and integrated into industries or daily life, but not yet ubiquitous)';
+    } else if (rank >= 4) {
+      return 'Commercial Breakthrough (First products or services launched; gaining traction in early markets but not yet mainstream)';
+    } else if (rank >= 3) {
+      return 'Emergent / Pre-Venture Viable (Early working prototypes or validated concepts; attracting venture or research grant interest)';
+    } else if (rank >= 2) {
+      return 'Moonshot / High-Risk development (Ambitious R&D or experimental prototypes exist; technical or market feasibility highly uncertain)';
+    } else if (rank >= 1) {
+      return 'Speculative / Early Concept (Mostly conceptual, discussed in speculative media or think tanks, minimal or no prototypes)';
+    } else {
+      return "Unimagined / Future Frontier (No known research, prototypes, or even speculative concepts yet 'No one's imagined this')";
+    }
+  };
 
   // Create the D3 visualization
   useEffect(() => {
-    if (!svgRef.current || !data.length) return;
+    if (!svgRef.current) return;
 
     // Clear previous content
     d3.select(svgRef.current).selectAll('*').remove();
 
-    // Detect theme using the same method as the component's theme system
-    const isDarkTheme =
-      document.documentElement.getAttribute('data-theme') === 'dark';
+    // Show loading state if explicitly requested
+    if (isLoading) {
+      const svg = d3
+        .select(svgRef.current)
+        .attr('width', 1000)
+        .attr('height', 650)
+        .attr('viewBox', [0, 0, 1000, 650])
+        .attr('style', 'width: 100%; height: 100%; display: block;');
 
-    // Determine unique categories from data
+      // Add loading indicator
+      const loadingGroup = svg
+        .append('g')
+        .attr('transform', 'translate(500, 325)'); // Center of the SVG
+
+      if (isLoading) {
+        loadingGroup
+          .append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('font-size', '16px')
+          .attr('font-family', 'JetBrains Mono, monospace')
+          .attr('fill', '#666')
+          .text('Loading horizon data...');
+
+        // Add simple loading animation
+        const circle = loadingGroup
+          .append('circle')
+          .attr('r', 20)
+          .attr('cy', -40)
+          .attr('fill', 'none')
+          .attr('stroke', '#0005E9')
+          .attr('stroke-width', 3)
+          .attr('stroke-dasharray', '31.4')
+          .attr('stroke-dashoffset', '31.4');
+
+        // Animate the circle
+        circle
+          .transition()
+          .duration(2000)
+          .ease(d3.easeLinear)
+          .attr('stroke-dashoffset', 0)
+          .on('end', function repeat() {
+            d3.select(this)
+              .attr('stroke-dashoffset', '31.4')
+              .transition()
+              .duration(2000)
+              .ease(d3.easeLinear)
+              .attr('stroke-dashoffset', 0)
+              .on('end', repeat);
+          });
+      } else {
+        loadingGroup
+          .append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('font-size', '16px')
+          .attr('font-family', 'JetBrains Mono, monospace')
+          .attr('fill', '#666')
+          .text('No data available');
+      }
+
+      return;
+    }
+
+    // Show empty state if no data
+    if (!data.length) {
+      const svg = d3
+        .select(svgRef.current)
+        .attr('width', 1000)
+        .attr('height', 650)
+        .attr('viewBox', [0, 0, 1000, 650])
+        .attr('style', 'width: 100%; height: 100%; display: block;');
+
+      const emptyGroup = svg
+        .append('g')
+        .attr('transform', 'translate(500, 325)'); // Center of the SVG
+
+      emptyGroup
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .attr('font-size', '16px')
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .attr('fill', '#666')
+        .text('No subjects selected');
+
+      return;
+    }
+
+    // Filter out any subjects that don't have valid horizon ranks
+    const validData = data.filter(
+      (d) => d.horizon !== undefined && d.horizon !== null && !isNaN(d.horizon)
+    );
+
+    if (validData.length === 0) {
+      console.log('No valid horizon data available yet');
+      return;
+    }
+
+    console.log('Rendering horizon chart with valid data:', validData);
+
+    // Detect theme using multiple methods to ensure it works with your Chakra system
+    const html = document.documentElement;
+    const isDarkTheme =
+      html.getAttribute('data-theme') === 'dark' ||
+      html.classList.contains('dark') ||
+      (html.hasAttribute('data-theme') &&
+        html.getAttribute('data-theme') === 'dark');
+
+    // Determine unique categories from data - put uncategorized (1) first
     const uniqueCategories = Array.from(
-      new Set(data.map((d) => d.category))
-    ).sort((a, b) => a - b);
+      new Set(validData.map((d) => d.category))
+    ).sort((a, b) => {
+      // Put category 1 (uncategorized) first, then sort others
+      if (a === 1) return -1;
+      if (b === 1) return 1;
+      return a - b;
+    });
 
     // Create a mapping from category numbers to category names
     const categoryNamesMap = new Map<number, string>();
-    data.forEach((item) => {
+    validData.forEach((item) => {
       if (item.categoryName && !categoryNamesMap.has(item.category)) {
         categoryNamesMap.set(item.category, item.categoryName);
       }
@@ -91,8 +231,9 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
 
     // Calculate minimum height based on data
     const minRowHeight = 160;
+    const rowSpacing = 8; // 8px spacing between rows
     const subjectsPerCategory = new Map<number, number>();
-    data.forEach((item) => {
+    validData.forEach((item) => {
       subjectsPerCategory.set(
         item.category,
         (subjectsPerCategory.get(item.category) || 0) + 1
@@ -115,7 +256,9 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
     // Chart dimensions with minimum height and centered content
     const containerWidth = 1000;
     const minChartHeight = 650;
-    const contentHeight = uniqueCategories.length * rowHeight;
+    const contentHeight =
+      uniqueCategories.length * rowHeight +
+      (uniqueCategories.length - 1) * rowSpacing;
     const chartHeight = Math.max(minChartHeight, contentHeight);
     const containerHeight = chartHeight + 100; // Add space for labels
 
@@ -137,29 +280,136 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
       .append('g')
       .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-    // Horizon boundaries - use simple proportions for now to get visible arcs
+    // Horizon boundaries - 0-10 scale mapped to sections
     const horizonBoundaries = [
-      { name: 'Business', start: 0, end: 0.2, radius: 200 },
-      { name: 'Engineering', start: 0.2, end: 0.4, radius: 300 },
-      { name: 'Science', start: 0.4, end: 0.7, radius: 400 },
-      { name: 'Imagination', start: 0.7, end: 1.0, radius: 0 },
+      { name: 'Imagination', start: 0, end: 2.5, category: 'A' },
+      { name: 'Science', start: 2.5, end: 5.0, category: 'B' },
+      { name: 'Engineering', start: 5.0, end: 7.5, category: 'C' },
+      { name: 'Business', start: 7.5, end: 10.0, category: 'D' },
     ];
 
-    // Theme-aware colors using your design system
-    const textColor = isDarkTheme ? '#FFFFFF' : '#1B1B1D';
-    const mutedTextColor = isDarkTheme ? '#646E78' : '#A7ACB2';
-    const borderColor = isDarkTheme ? '#333333' : '#E0E0E0';
-    const primaryTextColor = textColor; // Use primary text color for lines and labels
+    // Theme-aware colors using your design system hierarchy
+    const foregroundColor = isDarkTheme ? '#FFFFFF' : '#1B1B1D'; // fg - for row labels and vertical lines
+    const mutedTextColor = isDarkTheme ? '#646E78' : '#A7ACB2'; // fg.muted - for borders
+    const subtleTextColor = isDarkTheme ? '#A7ACB2' : '#646E78'; // fg.secondary - for column labels
 
-    // Draw category rows with rounded corners (centered vertically)
+    // Draw colored background sections for each maturity level with correct colors
+    const maturityColors = {
+      Imagination: '#6A35D4',
+      Science: '#46ACC8',
+      Engineering: '#F2CD5D',
+      Business: '#E07B91',
+    };
+
+    // Create scale for horizon values (0-10)
+    const xScale = d3.scaleLinear().domain([0, 10]).range([0, chartWidth]);
+
+    // Create tooltip div for hover effects
+    const tooltip = d3
+      .select('body')
+      .selectAll('.horizon-tooltip')
+      .data([null])
+      .join('div')
+      .attr('class', 'horizon-tooltip')
+      .style('position', 'absolute')
+      .style(
+        'background',
+        isDarkTheme ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)'
+      )
+      .style('border', `1px solid ${foregroundColor}`)
+      .style('border-radius', '4px')
+      .style('padding', '8px 12px')
+      .style('font-family', 'JetBrains Mono, monospace')
+      .style('font-size', '12px')
+      .style('color', foregroundColor)
+      .style('pointer-events', 'none')
+      .style('opacity', 0)
+      .style('z-index', 9999)
+      .style('backdrop-filter', 'blur(10px)');
+
+    horizonBoundaries.forEach((horizon) => {
+      const sectionStart = xScale(horizon.start);
+      const sectionEnd = xScale(horizon.end);
+      const sectionWidth = sectionEnd - sectionStart;
+
+      // Create colored background with 10% opacity
+      const baseColor =
+        maturityColors[horizon.name as keyof typeof maturityColors];
+      const opacity = isDarkTheme ? 0.15 : 0.1;
+
+      g.append('rect')
+        .attr('x', sectionStart)
+        .attr('y', -50)
+        .attr('width', sectionWidth)
+        .attr('height', chartHeight + 100)
+        .attr('fill', baseColor)
+        .attr('opacity', opacity);
+    });
+
+    // Add straight vertical boundary lines between sections (foreground color)
+    horizonBoundaries.slice(0, -1).forEach((horizon) => {
+      const boundaryX = xScale(horizon.end);
+
+      g.append('line')
+        .attr('x1', boundaryX)
+        .attr('y1', -50)
+        .attr('x2', boundaryX)
+        .attr('y2', chartHeight + 50)
+        .attr('stroke', foregroundColor) // Use foreground color
+        .attr('stroke-width', 2)
+        .attr('opacity', 0.8);
+    });
+
+    // Add maturity axis label at the top with chart-style arrow
+    g.append('text')
+      .attr('x', chartWidth / 2 - 30)
+      .attr('y', -30)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '14px')
+      .attr('font-style', 'italic')
+      .attr('font-family', 'TT Norms Pro, sans-serif')
+      .attr('fill', subtleTextColor)
+      .text('MATURITY');
+
+    // Add chart-style arrow pointing right (shorter line, bigger head)
+    const arrowStartX = chartWidth / 2 + 10;
+    const arrowEndX = chartWidth / 2 + 25;
+    const arrowY = -30;
+
+    g.append('line')
+      .attr('x1', arrowStartX)
+      .attr('y1', arrowY)
+      .attr('x2', arrowEndX)
+      .attr('y2', arrowY)
+      .attr('stroke', mutedTextColor)
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.3);
+
+    // Bigger arrow head
+    const arrowHeadSize = 6;
+    g.append('path')
+      .attr(
+        'd',
+        `M ${arrowEndX - arrowHeadSize} ${
+          arrowY - arrowHeadSize / 2
+        } L ${arrowEndX} ${arrowY} L ${arrowEndX - arrowHeadSize} ${
+          arrowY + arrowHeadSize / 2
+        }`
+      )
+      .attr('stroke', mutedTextColor)
+      .attr('stroke-width', 1)
+      .attr('fill', 'none')
+      .attr('opacity', 0.3);
+
+    // Draw category rows with rounded corners and spacing
     const categoryGroup = g
       .append('g')
       .attr('transform', `translate(0, ${contentVerticalOffset})`);
 
-    uniqueCategories.forEach((category, i) => {
-      const y = i * rowHeight;
+    uniqueCategories.forEach((categoryNum, i) => {
+      const y = i * (rowHeight + rowSpacing);
 
-      // Row background with rounded corners
+      // Row background with rounded corners and muted dotted border
       categoryGroup
         .append('rect')
         .attr('x', 0)
@@ -167,15 +417,16 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('width', chartWidth)
         .attr('height', rowHeight)
         .attr('fill', 'none')
-        .attr('stroke', borderColor)
-        .attr('stroke-width', 1)
-        .attr('stroke-dasharray', '3,3')
-        .attr('rx', 8) // Rounded corners
+        .attr('stroke', mutedTextColor) // Use muted color for borders
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '4,4')
+        .attr('rx', 8)
         .attr('ry', 8);
 
-      // Category label on the left
+      // Category label on the left (foreground color)
       const categoryLabel =
-        categoryNamesMap.get(category) || `Category ${category}`;
+        categoryNamesMap.get(categoryNum) ||
+        (categoryNum === 1 ? 'Uncategorized' : `Category ${categoryNum}`);
       categoryGroup
         .append('text')
         .attr('x', -10)
@@ -184,186 +435,209 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('dominant-baseline', 'middle')
         .attr('font-size', '14px')
         .attr('font-weight', 'bold')
-        .attr('fill', primaryTextColor)
+        .attr('font-family', 'TT Norms Pro, sans-serif')
+        .attr('fill', foregroundColor) // Use foreground color
         .text(categoryLabel);
     });
 
-    // Draw curved boundaries - RIGHT EDGES of circles align with boundaries
-    horizonBoundaries.slice(0, -1).forEach((horizon) => {
-      const boundaryX = horizon.end * chartWidth;
+    // Draw short arrows in center of each category row - improved visibility
+    uniqueCategories.forEach((categoryNum, i) => {
+      const y = i * (rowHeight + rowSpacing) + contentVerticalOffset;
+      const arrowY = y + rowHeight / 2;
 
-      const topY = -30;
-      const bottomY = chartHeight + 30;
-      const midY = (topY + bottomY) / 2;
+      // Draw arrows between sections only if not the last section
+      horizonBoundaries.slice(0, -1).forEach((horizon, j) => {
+        const fromX = xScale((horizon.start + horizon.end) / 2);
+        const toX = xScale(
+          (horizonBoundaries[j + 1].start + horizonBoundaries[j + 1].end) / 2
+        );
 
-      // Use smaller, more appropriate diameters for the chart size
-      let diameter;
-      if (horizon.name === 'Business') {
-        diameter = 120; // Very small circle, very tight curve
-      } else if (horizon.name === 'Engineering') {
-        diameter = 250; // Medium circle
-      } else if (horizon.name === 'Science') {
-        diameter = 450; // Large circle, gentle curve
-      } else {
-        diameter = 120;
-      }
+        // Much shorter arrow shaft
+        const shaftLength = 30; // Reduced from 15 to make it even shorter
+        const startX = fromX + (toX - fromX) / 2 - shaftLength / 2;
+        const endX = fromX + (toX - fromX) / 2 + shaftLength / 2;
 
-      const radius = diameter / 2;
+        // Arrow shaft
+        g.append('line')
+          .attr('x1', startX)
+          .attr('y1', arrowY)
+          .attr('x2', endX)
+          .attr('y2', arrowY)
+          .attr('stroke', mutedTextColor)
+          .attr('stroke-width', 2) // Slightly thicker shaft
+          .attr('opacity', 0.4); // Slightly more visible
 
-      // CRITICAL: Position circle center so the RIGHT EDGE is at boundaryX
-      // This means center is at (boundaryX - radius, midY)
-      const centerX = boundaryX - radius;
-      const centerY = midY;
-
-      // Calculate where the circle intersects the top and bottom boundaries
-      const deltaY_top = Math.abs(centerY - topY);
-      const deltaY_bottom = Math.abs(centerY - bottomY);
-
-      // Find intersection points where circle crosses horizontal lines at topY and bottomY
-      let topIntersectX, bottomIntersectX;
-
-      if (deltaY_top <= radius) {
-        // Circle extends to this Y level
-        topIntersectX =
-          centerX + Math.sqrt(radius * radius - deltaY_top * deltaY_top);
-      } else {
-        // Circle doesn't reach this high, use rightmost point
-        topIntersectX = centerX + radius;
-      }
-
-      if (deltaY_bottom <= radius) {
-        // Circle extends to this Y level
-        bottomIntersectX =
-          centerX + Math.sqrt(radius * radius - deltaY_bottom * deltaY_bottom);
-      } else {
-        // Circle doesn't reach this low, use rightmost point
-        bottomIntersectX = centerX + radius;
-      }
-
-      // Create arc curving to the RIGHT (sweep-flag = 1)
-      const pathData = `M ${topIntersectX} ${topY} A ${radius} ${radius} 0 0 1 ${bottomIntersectX} ${bottomY}`;
-
-      console.log(
-        `${horizon.name}: diameter=${diameter}, center=(${centerX}, ${centerY}), boundary at x=${boundaryX}`
-      );
-      console.log(
-        `  Right edge of circle should be at x=${
-          centerX + radius
-        } (boundary is at ${boundaryX})`
-      );
-
-      g.append('path')
-        .attr('d', pathData)
-        .attr('stroke', primaryTextColor)
-        .attr('stroke-width', 2)
-        .attr('fill', 'none');
-    });
-
-    // Add large horizon labels in center of each zone
-    horizonBoundaries.forEach((horizon) => {
-      const sectionStart = horizon.start * chartWidth;
-      const sectionEnd = horizon.end * chartWidth;
-      const centerX = (sectionStart + sectionEnd) / 2;
-      const centerY = chartHeight / 2;
-
-      g.append('text')
-        .attr('x', centerX)
-        .attr('y', centerY)
-        .attr('text-anchor', 'middle')
-        .attr('dominant-baseline', 'middle')
-        .attr('font-size', '24px')
-        .attr('font-weight', 'normal')
-        .attr('font-family', 'TT Norms Pro, sans-serif') // Use heading font family
-        .attr('fill', primaryTextColor) // Use theme-aware color
-        .text(horizon.name.toUpperCase());
-    });
-
-    // Add maturity axis label at the bottom
-    g.append('text')
-      .attr('x', chartWidth / 2)
-      .attr('y', chartHeight + 30)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', '14px')
-      .attr('font-style', 'italic')
-      .attr('fill', mutedTextColor)
-      .text('MATURITY →');
-
-    // Position data points (in centered content area)
-    const dataGroup = g
-      .append('g')
-      .attr('transform', `translate(0, ${contentVerticalOffset})`);
-
-    const jitterRange = rowHeight * 0.3; // Vertical jitter within row
-
-    // Use theme-aware colors and brand colors
-    const shapeColor = '#0005E9'; // Brand color for subject icons
-
-    data.forEach((item) => {
-      // Find which row this item belongs to
-      const categoryIndex = uniqueCategories.indexOf(item.category);
-      const rowY = categoryIndex * rowHeight;
-
-      // Position within the horizon section using proportional positions
-      const horizonSection = horizonBoundaries[item.horizon - 1];
-      const sectionStart = horizonSection.start * chartWidth;
-      const sectionEnd = horizonSection.end * chartWidth;
-      const sectionWidth = sectionEnd - sectionStart;
-
-      // Add some randomness within the section (but not too close to edges)
-      const padding = 30;
-      const x =
-        sectionStart + padding + Math.random() * (sectionWidth - 2 * padding);
-
-      // Vertical position with jitter within the row
-      const y = rowY + rowHeight / 2 + (Math.random() - 0.5) * jitterRange;
-
-      // Create item group
-      const itemGroup = dataGroup
-        .append('g')
-        .attr('class', 'horizon-item')
-        .attr('transform', `translate(${x}, ${y})`);
-
-      // Draw shape based on type (keeping hexagon for now)
-      const hexagonPoints = d3.range(6).map((i) => {
-        const angle = (i * Math.PI) / 3;
-        return [8 * Math.cos(angle), 8 * Math.sin(angle)];
+        // Much bigger arrow head
+        const arrowHeadSize = 12; // Increased from 6 to make it much more visible
+        g.append('path')
+          .attr(
+            'd',
+            `M ${endX - arrowHeadSize} ${
+              arrowY - arrowHeadSize / 2
+            } L ${endX} ${arrowY} L ${endX - arrowHeadSize} ${
+              arrowY + arrowHeadSize / 2
+            } Z`
+          )
+          .attr('stroke', mutedTextColor)
+          .attr('stroke-width', 1)
+          .attr('fill', mutedTextColor) // Fill the arrow head for better visibility
+          .attr('opacity', 0.4);
       });
+    });
 
-      const lineGenerator = d3.line();
-      const hexPath = lineGenerator(hexagonPoints as [number, number][]) + 'Z';
+    // Position subjects based on horizon rank - FIXED POSITIONING
+    const subjectGroup = g
+      .append('g')
+      .attr('class', 'subjects')
+      .style('z-index', 1000); // Highest z-index
 
-      itemGroup
-        .append('path')
-        .attr('d', hexPath)
-        .attr('fill', shapeColor)
-        .attr('opacity', 0.8)
-        .attr('stroke', primaryTextColor)
-        .attr('stroke-width', 1);
+    // Group subjects by category to handle positioning within each row
+    const subjectsByCategory = new Map<number, typeof validData>();
+    validData.forEach((subject) => {
+      if (!subjectsByCategory.has(subject.category)) {
+        subjectsByCategory.set(subject.category, []);
+      }
+      subjectsByCategory.get(subject.category)!.push(subject);
+    });
 
-      // Add connecting line to label
-      const labelDistance = 15;
-      itemGroup
-        .append('line')
-        .attr('x1', 0)
-        .attr('y1', 0)
-        .attr('x2', labelDistance)
-        .attr('y2', 0)
-        .attr('stroke', mutedTextColor)
-        .attr('stroke-width', 0.5)
-        .attr('stroke-dasharray', '1,1');
+    // Position subjects within each category row
+    subjectsByCategory.forEach((subjects) => {
+      // Find the category row index
+      const categoryRowIndex = uniqueCategories.indexOf(subjects[0].category);
+      if (categoryRowIndex === -1) return;
 
-      // Add label with monospace font
-      itemGroup
-        .append('text')
-        .attr('x', labelDistance + 2)
-        .attr('y', 0)
-        .attr('class', 'item-label')
-        .attr('text-anchor', 'start')
-        .attr('dominant-baseline', 'middle')
-        .attr('font-size', '10px')
-        .attr('font-family', 'JetBrains Mono, monospace') // Use monospace font
-        .attr('fill', primaryTextColor)
-        .text(item.name);
+      // Calculate the base Y position for this category
+      const baseY =
+        contentVerticalOffset +
+        categoryRowIndex * (rowHeight + rowSpacing) +
+        rowHeight / 2;
+
+      // Sort subjects by horizon rank for consistent positioning
+      const sortedSubjects = [...subjects].sort(
+        (a, b) => a.horizon - b.horizon
+      );
+
+      // Create a simple force simulation for label positioning to avoid overlaps
+      const labelPositions = new Map<
+        string,
+        { x: number; y: number; labelY: number }
+      >();
+
+      sortedSubjects.forEach((subject) => {
+        // X position based on horizon rank (0-10 scale)
+        const x = xScale(subject.horizon);
+
+        // Y position within the category row with better vertical spread
+        const rowPadding = 40; // Increased padding from top/bottom of row
+        const availableHeight = rowHeight - 2 * rowPadding;
+
+        // Use a deterministic spread based on subject name hash to be consistent
+        const hash = subject.name
+          .split('')
+          .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const normalizedHash = (hash % 1000) / 1000; // 0-1
+
+        // Create more vertical spacing between subjects by expanding the range
+        const verticalSpread = 1.5; // Increased from 1.0 to spread subjects more
+        const verticalOffset =
+          (normalizedHash - 0.5) * availableHeight * verticalSpread;
+        const y = baseY + verticalOffset;
+
+        // Label positioning - try to avoid overlaps with improved spacing
+        let labelY = y - 15; // Start above the hexagon
+
+        // Check for overlaps with existing labels and adjust if needed
+        const minLabelDistance = 25; // Increased from 20 for better spacing
+        const existingPositions = Array.from(labelPositions.values());
+
+        for (let attempt = 0; attempt < 15; attempt++) {
+          // Increased attempts
+          let hasOverlap = false;
+
+          for (const existing of existingPositions) {
+            const xDistance = Math.abs(x - existing.x);
+            const yDistance = Math.abs(labelY - existing.labelY);
+
+            // More aggressive collision detection
+            if (xDistance < 100 && yDistance < minLabelDistance) {
+              hasOverlap = true;
+              break;
+            }
+          }
+
+          if (!hasOverlap) break;
+
+          // Adjust label position with larger steps
+          labelY +=
+            (attempt % 2 === 0 ? 1 : -1) *
+            (minLabelDistance + Math.floor(attempt / 2) * 5);
+        }
+
+        // Store the final position
+        labelPositions.set(subject.name, { x, y, labelY });
+
+        // Draw subject as blue hexagon with brand color
+        const hexagonSize = 6;
+        const hexagonPath = `M${x},${y - hexagonSize} L${
+          x + hexagonSize * 0.866
+        },${y - hexagonSize * 0.5} L${x + hexagonSize * 0.866},${
+          y + hexagonSize * 0.5
+        } L${x},${y + hexagonSize} L${x - hexagonSize * 0.866},${
+          y + hexagonSize * 0.5
+        } L${x - hexagonSize * 0.866},${y - hexagonSize * 0.5} Z`;
+
+        subjectGroup
+          .append('path')
+          .attr('d', hexagonPath)
+          .attr('fill', '#0005E9') // Brand color
+          .attr('stroke', foregroundColor)
+          .attr('stroke-width', 2)
+          .style('z-index', 1001)
+          .style('cursor', 'pointer')
+          .on('mouseenter', function (event) {
+            // Show tooltip with delay
+            setTimeout(() => {
+              const horizonDescription = getHorizonDescription(subject.horizon);
+              tooltip
+                .html(
+                  `<strong>${subject.name}</strong><br/>
+                   <span style="color: ${mutedTextColor}; font-size: 11px;">
+                     Horizon Rank: ${subject.horizon.toFixed(1)}<br/>
+                     ${horizonDescription}
+                   </span>`
+                )
+                .style('opacity', 1)
+                .style('left', event.pageX + 10 + 'px')
+                .style('top', event.pageY - 10 + 'px');
+            }, 500);
+          })
+          .on('mouseleave', function () {
+            // Hide tooltip with delay
+            setTimeout(() => {
+              tooltip.style('opacity', 0);
+            }, 100);
+          })
+          .on('mousemove', function (event) {
+            tooltip
+              .style('left', event.pageX + 10 + 'px')
+              .style('top', event.pageY - 10 + 'px');
+          });
+
+        // Add subject label with theme-aware colors and monospace font
+        subjectGroup
+          .append('text')
+          .attr('x', x)
+          .attr('y', labelY) // Use calculated label position
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'bottom')
+          .attr('font-size', '11px')
+          .attr('font-family', 'JetBrains Mono, monospace') // Use monospace font from theme
+          .attr('font-weight', '500')
+          .attr('fill', foregroundColor) // Use theme foreground color
+          .style('z-index', 1002)
+          .style('pointer-events', 'none') // Don't interfere with hexagon hover
+          .text(subject.name);
+      });
     });
 
     // Add legend if requested
@@ -378,10 +652,9 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
         .attr('x', 0)
         .attr('y', 0)
         .attr('font-weight', 'bold')
-        .attr('fill', primaryTextColor)
+        .attr('fill', foregroundColor) // Use foreground color
         .text('Legend');
 
-      // Show horizon meanings
       const legendItems = [
         'Business: Can we do it profitably?',
         'Engineering: Can we do it at scale?',
@@ -395,11 +668,11 @@ function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
           .attr('x', 0)
           .attr('y', 20 + i * 15)
           .attr('font-size', '12px')
-          .attr('fill', mutedTextColor)
+          .attr('fill', subtleTextColor) // Use subtle color
           .text(text);
       });
     }
-  }, [data, showLegend]);
+  }, [data, showLegend, isLoading]);
 
   return (
     <div className='horizons-container' style={{ background: 'transparent' }}>

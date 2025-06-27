@@ -32,7 +32,6 @@ import type {
 } from './types';
 import { mockCategories, mockAnalyses } from './mockData';
 import {
-  convertHorizonValue,
   getCategoryNumber,
   generateMockAnalysisResult,
 } from './utils/analyzeUtils';
@@ -69,6 +68,11 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     new Set()
   );
 
+  // Store generated random horizon ranks to prevent recalculation
+  const [generatedHorizonRanks, setGeneratedHorizonRanks] = useState<
+    Map<string, number>
+  >(new Map());
+
   // Analysis state
   const [analysisSelectedSubjects, setAnalysisSelectedSubjects] = useState<
     Set<string>
@@ -79,13 +83,15 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [isCopyingAnalysis, setIsCopyingAnalysis] = useState(false);
 
-  // Fetch detailed subject data
-  const fetchSubjectData = useCallback(
-    async (objectId: string): Promise<SubjectData> => {
+  // Fetch detailed subject data including horizon ranks by slug
+  const fetchSubjectDataBySlug = useCallback(
+    async (slug: string): Promise<SubjectData> => {
       try {
         if (token) {
           const response = await fetch(
-            `https://tools.futurity.science/api/subject/${objectId}`,
+            `https://tools.futurity.science/api/subject/view?slug=${encodeURIComponent(
+              slug
+            )}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -101,11 +107,11 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
         // Fallback to mock data if API fails
         const { mockFetchSubjectData } = await import('./mockData');
-        return await mockFetchSubjectData(objectId);
+        return await mockFetchSubjectData(slug);
       } catch (error) {
-        console.error('Failed to fetch subject data:', error);
+        console.error('Failed to fetch subject data by slug:', error);
         return {
-          _id: objectId,
+          _id: slug,
           Google_hitcounts: 0,
           Papers_hitcounts: 0,
           Books_hitcounts: 0,
@@ -128,18 +134,60 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   // Async function to fetch subject details in the background (non-blocking)
   const fetchSubjectDetailsAsync = useCallback(
     async (subjectsToUpdate: LabSubject[]) => {
+      console.log('=== FETCHING SUBJECT DETAILS ===');
+      console.log(
+        'Starting to fetch details for',
+        subjectsToUpdate.length,
+        'subjects'
+      );
+
       for (const subject of subjectsToUpdate) {
         try {
-          const subjectData = await fetchSubjectData(subject.subjectId);
-
-          // Update the subject with the detailed data
-          setSubjects((prevSubjects) =>
-            prevSubjects.map((s) =>
-              s.id === subject.id
-                ? { ...s, notes: subjectData.ent_summary || s.notes }
-                : s
-            )
+          console.log(
+            `Fetching data for subject: ${subject.subjectName} (slug: ${subject.subjectSlug})`
           );
+
+          // Use the subject slug to fetch detailed data including horizon ranks
+          const subjectData = await fetchSubjectDataBySlug(subject.subjectSlug);
+
+          // Extract horizon rank and other metrics from the indexes array
+          let horizonRank: number | undefined;
+          let techTransfer: number | undefined;
+          let whiteSpace: number | undefined;
+
+          if (subjectData.indexes && subjectData.indexes.length > 0) {
+            const firstIndex = subjectData.indexes[0];
+            horizonRank = firstIndex.HR;
+            techTransfer = firstIndex.TT;
+            whiteSpace = firstIndex.WS;
+            console.log(
+              `✓ Fetched horizon rank ${horizonRank} for ${subject.subjectName}`
+            );
+          } else {
+            console.log(
+              `✗ No horizon rank data found for ${subject.subjectName}, will use random value for testing`
+            );
+          }
+
+          // Update the subject with the detailed data including horizon rank
+          setSubjects((prevSubjects) => {
+            const updated = prevSubjects.map((s) =>
+              s.id === subject.id
+                ? {
+                    ...s,
+                    notes: subjectData.ent_summary || s.notes,
+                    horizonRank: horizonRank,
+                    techTransfer: techTransfer,
+                    whiteSpace: whiteSpace,
+                  }
+                : s
+            );
+
+            console.log(
+              `Updated subject ${subject.subjectName} with HR: ${horizonRank}`
+            );
+            return updated;
+          });
         } catch (error) {
           console.warn(
             `Failed to fetch details for subject ${subject.subjectId}:`,
@@ -147,8 +195,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
           );
         }
       }
+
+      console.log('=== FINISHED FETCHING SUBJECT DETAILS ===');
     },
-    [fetchSubjectData]
+    [fetchSubjectDataBySlug]
   );
 
   // Fetch subjects from the API
@@ -210,7 +260,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
         if (labData.subjects && Array.isArray(labData.subjects)) {
           for (const apiSubject of labData.subjects) {
-            // Create basic subject without fetching detailed data
+            // Create basic subject without fetching detailed data initially
             const transformedSubject: LabSubject = {
               id: `lab-subj-${apiSubject.subject_id}`,
               subjectId: apiSubject.subject_id,
@@ -223,6 +273,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
               addedAt: new Date().toISOString(),
               addedById: 'unknown',
               notes: '', // We'll fetch this separately if needed
+              // Horizon rank data will be populated by fetchSubjectDetailsAsync
+              horizonRank: undefined,
+              techTransfer: undefined,
+              whiteSpace: undefined,
             };
 
             console.log(
@@ -231,10 +285,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
             transformedSubjects.push(transformedSubject);
           }
 
-          // Optionally fetch detailed data for the first few subjects if you need notes/descriptions
-          // This is async and doesn't block the main UI
+          // Fetch detailed data for all subjects to get horizon ranks
+          // This is async and will update the subjects with horizon rank data
           if (transformedSubjects.length > 0) {
-            fetchSubjectDetailsAsync(transformedSubjects.slice(0, 5)); // Only fetch details for first 5
+            fetchSubjectDetailsAsync(transformedSubjects);
           }
         }
 
@@ -327,46 +381,111 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     return excludeCategory?.subjects || [];
   }, []);
 
+  // Updated horizonData with consistent random generation
   const horizonData = useMemo((): HorizonItem[] => {
+    console.log('=== HORIZON DATA GENERATION ===');
     console.log('Generating horizon data...');
     console.log('Available categories:', categories);
+    console.log('All subjects:', subjects.length);
+    console.log('Selected subjects:', Array.from(selectedSubjects));
     console.log(
-      'Selected subjects:',
+      'Selected subjects details:',
       subjects.filter((subject) => selectedSubjects.has(subject.id))
     );
 
-    return subjects
-      .filter((subject) => selectedSubjects.has(subject.id))
-      .map((subject) => {
-        // Find the category from the actual API categories
-        const category = categories.find(
-          (cat) => cat.id === subject.categoryId
-        );
-        const categoryName = category?.name || 'Uncategorized';
+    const newGeneratedRanks = new Map(generatedHorizonRanks);
+    let hasNewGeneratedRanks = false;
 
+    const selectedSubjectsData = subjects.filter((subject) =>
+      selectedSubjects.has(subject.id)
+    );
+    console.log('Filtered selected subjects:', selectedSubjectsData.length);
+
+    const result = selectedSubjectsData.map((subject) => {
+      // Find the category from the actual API categories
+      const category = categories.find((cat) => cat.id === subject.categoryId);
+      const categoryName = category?.name || 'Uncategorized';
+
+      console.log(
+        `Processing Subject: ${subject.subjectName}, CategoryId: ${subject.categoryId}, Found Category: ${categoryName}, Current HR: ${subject.horizonRank}`
+      );
+
+      // Get horizon rank from subject data if available, otherwise use stored random or generate new
+      let horizonRank: number;
+
+      if (subject.horizonRank !== undefined) {
+        // Use the actual horizon rank from API (0-10 scale)
+        horizonRank = subject.horizonRank;
         console.log(
-          `Subject: ${subject.subjectName}, CategoryId: ${subject.categoryId}, Found Category: ${categoryName}`
+          `Using real horizon rank ${horizonRank} for ${subject.subjectName}`
         );
+      } else {
+        // Check if we already have a generated random value for this subject
+        if (newGeneratedRanks.has(subject.id)) {
+          horizonRank = newGeneratedRanks.get(subject.id)!;
+          console.log(
+            `Using stored random horizon rank ${horizonRank.toFixed(2)} for ${
+              subject.subjectName
+            }`
+          );
+        } else {
+          // Generate new random horizon rank for testing (0-10 scale)
+          horizonRank = Math.random() * 10;
+          newGeneratedRanks.set(subject.id, horizonRank);
+          hasNewGeneratedRanks = true;
+          console.log(
+            `Generated new random horizon rank ${horizonRank.toFixed(2)} for ${
+              subject.subjectName
+            }`
+          );
+        }
+      }
 
-        // Generate a hash from the subject name for positioning
-        const nameHash = subject.subjectName.split('').reduce((a, b) => {
-          a = (a << 5) - a + b.charCodeAt(0);
-          return a & a;
-        }, 0);
-        const normalizedHash = Math.abs(nameHash) / 2147483648;
+      const horizonItem: HorizonItem = {
+        name: subject.subjectName,
+        horizon: horizonRank,
+        category: getCategoryNumber(categoryName, usedCategoryNames),
+        type: 1 as const,
+        categoryName: categoryName,
+      };
 
-        const horizonItem = {
-          name: subject.subjectName,
-          horizon: convertHorizonValue(normalizedHash),
-          category: getCategoryNumber(categoryName, usedCategoryNames),
-          type: 1,
-          categoryName: categoryName,
-        };
+      console.log(`Generated horizon item:`, horizonItem);
+      return horizonItem;
+    });
 
-        console.log(`Generated horizon item:`, horizonItem);
-        return horizonItem;
-      });
-  }, [subjects, selectedSubjects, categories, usedCategoryNames]);
+    // Update stored generated ranks if we created new ones
+    if (hasNewGeneratedRanks) {
+      console.log('Updating stored generated ranks:', newGeneratedRanks);
+      setGeneratedHorizonRanks(newGeneratedRanks);
+    }
+
+    console.log('Final horizon data result:', result.length, result);
+    console.log('=== END HORIZON DATA GENERATION ===');
+    return result;
+  }, [
+    subjects,
+    selectedSubjects,
+    categories,
+    usedCategoryNames,
+    generatedHorizonRanks,
+  ]);
+
+  // Clean up generated ranks when subjects change
+  useEffect(() => {
+    // Remove generated ranks for subjects that no longer exist
+    const currentSubjectIds = new Set(subjects.map((s) => s.id));
+    const cleanedRanks = new Map();
+
+    for (const [subjectId, rank] of generatedHorizonRanks.entries()) {
+      if (currentSubjectIds.has(subjectId)) {
+        cleanedRanks.set(subjectId, rank);
+      }
+    }
+
+    if (cleanedRanks.size !== generatedHorizonRanks.size) {
+      setGeneratedHorizonRanks(cleanedRanks);
+    }
+  }, [subjects, generatedHorizonRanks]);
 
   const groupedSubjects = useMemo(() => {
     const selected: LabSubject[] = [];
@@ -1124,6 +1243,16 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                                             {subject.notes}
                                           </Text>
                                         )}
+                                        {/* Show horizon rank if available */}
+                                        {subject.horizonRank !== undefined && (
+                                          <Text
+                                            fontSize='xs'
+                                            color='brand.500'
+                                            fontFamily='mono'
+                                          >
+                                            HR: {subject.horizonRank.toFixed(1)}
+                                          </Text>
+                                        )}
                                       </VStack>
                                     </HStack>
                                   )
@@ -1192,6 +1321,16 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                                             fontFamily='body'
                                           >
                                             {subject.notes}
+                                          </Text>
+                                        )}
+                                        {/* Show horizon rank if available */}
+                                        {subject.horizonRank !== undefined && (
+                                          <Text
+                                            fontSize='xs'
+                                            color='brand.500'
+                                            fontFamily='mono'
+                                          >
+                                            HR: {subject.horizonRank.toFixed(1)}
                                           </Text>
                                         )}
                                       </VStack>
