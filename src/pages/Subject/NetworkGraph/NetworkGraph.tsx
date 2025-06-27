@@ -324,9 +324,9 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
 
         try {
           const limit = '1000';
-          const subjects = params.subjects || params.subject || 'metaverse';
+          const subjects = params.subjects || params.subject;
 
-          const originalUrl = `https://fast.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
+          const originalUrl = `https://fast.futurity.science/graphs/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
           const apiUrl = getApiUrl(originalUrl);
 
           console.log('Fetching graph data from:', apiUrl);
