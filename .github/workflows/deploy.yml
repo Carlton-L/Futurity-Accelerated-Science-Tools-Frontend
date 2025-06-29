@@ -21,7 +21,7 @@ jobs:
         run: |
           branch_name=${{ github.head_ref || github.ref_name }}
           env_name=$([[ "$branch_name" == "main" ]] && echo "prod" || echo "dev")
-          repo_name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')"
+          repo_name="$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')"
           echo "ECR_REPO_NAME=${{ env.ECR_HOST }}/${env_name}/${repo_name}" >> $GITHUB_ENV
 
       - name: Check out code
