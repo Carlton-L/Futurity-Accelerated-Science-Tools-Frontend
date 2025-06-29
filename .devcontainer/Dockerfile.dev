@@ -1,0 +1,31 @@
+# Development Dockerfile for DevContainer
+FROM node:18-alpine
+
+# Install git and other development tools
+# Also install github cli using Alpine package manager
+RUN apk add --no-cache \
+    git \
+    bash \
+    openssh-client \
+    github-cli
+
+# Create app directory
+WORKDIR /app
+
+# Install global packages (same as production)
+RUN npm install -g serve
+
+# Create node user if it doesn't exist and set permissions
+RUN addgroup -g 1000 node 2>/dev/null || true && \
+    adduser -u 1000 -G node -s /bin/sh -D node 2>/dev/null || true && \
+    chown -R node:node /app
+
+# Switch to node user
+USER node
+
+# Expose both development and production ports
+EXPOSE 5173
+EXPOSE 8080
+
+# Keep container running
+CMD ["tail", "-f", "/dev/null"]

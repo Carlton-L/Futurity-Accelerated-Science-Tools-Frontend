@@ -1,0 +1,77 @@
+{
+  "name": "Futurity Frontend Dev Container",
+  "dockerFile": "Dockerfile.dev",
+  "context": "..",
+  
+  // Override the default command to run the dev server instead of production build
+  "overrideCommand": true,
+  
+  // Forward both dev server and production server ports
+  "forwardPorts": [5173, 8080],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Production Server (serve)",
+      "onAutoForward": "notify"
+    }
+  },
+  
+  // Build configuration
+  "build": {
+    "dockerfile": "Dockerfile.dev",
+    "context": ".."
+  },
+  
+  // Run as non-root user
+  "remoteUser": "node",
+  
+  // Configure container runtime
+  "runArgs": [
+    "--init"
+  ],
+  
+  // Mount workspace
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+  "workspaceFolder": "/app",
+  
+  // Install VS Code extensions
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "dsznajder.es7-react-js-snippets",
+        "formulahendry.auto-rename-tag",
+        "christian-kohler.path-intellisense",
+        "msjsdiag.debugger-for-chrome"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "eslint.validate": [
+          "javascript",
+          "javascriptreact",
+          "typescript",
+          "typescriptreact"
+        ]
+      }
+    }
+  },
+  
+  // Run npm install when container is created
+  "postCreateCommand": "npm install",
+  
+  // Don't auto-start any server - let user choose
+  "postStartCommand": "echo 'Container ready! Run \"npm run dev\" for development or \"npm run build && serve -s dist -l 8080\" for production testing'",
+  
+  // Environment variables
+  "containerEnv": {
+    "NODE_ENV": "development"
+  }
+}
