@@ -1,0 +1,65 @@
+name: Build push and deploy
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  ECR_HOST: 876315599902.dkr.ecr.eu-west-3.amazonaws.com
+
+jobs:
+  build-and-push:
+    name: Build and Push to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set repo to lowercase
+        run: |
+          branch_name=${{ github.head_ref || github.ref_name }}
+          env_name=$([[ "$branch_name" == "main" ]] && echo "prod" || echo "dev")
+          repo_name="$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')"
+          echo "ECR_REPO_NAME=${{ env.ECR_HOST }}/${env_name}/${repo_name}" >> $GITHUB_ENV
+
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image to Amazon ECR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ECR_REPO_NAME }}:${{ github.sha }}
+
+      - name: Render Amazon ECS task definition
+        id: render-web-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition-family: fullstack-main-site-staging
+          container-name: frontend
+          image: ${{ env.ECR_REPO_NAME }}:${{ github.sha }}
+
+      - name: Deploy to Amazon ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-web-container.outputs.task-definition }}
+          service: fullstack-main-site-staging
+          cluster: fullstack-main-site-staging
