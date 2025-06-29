@@ -116,9 +116,9 @@ export interface SubjectData {
   ent_fsid: string;
   ent_summary: string;
   indexes?: Array<{
-    HR: number;
-    TT: number;
-    WS: number;
+    HR: number; // Horizon Rank (0-10 scale)
+    TT: number; // Tech Transfer
+    WS: number; // White Space
   }>;
 }
 
@@ -151,7 +151,7 @@ export type AnalysisType = 'patent' | 'taxonomy' | 'research' | 'investment';
 
 export interface HorizonItem {
   name: string;
-  horizon: 1 | 2 | 3 | 4;
+  horizon: number; // This is the actual HR value (0-10 scale) from the API
   category: 1 | 2 | 3 | 4 | 5;
   type: 1 | 2 | 3;
   categoryName?: string;
@@ -257,6 +257,10 @@ export interface LabSubject {
   addedAt: string;
   addedById: string;
   notes?: string;
+  // Add horizon rank data from API
+  horizonRank?: number; // HR value from indexes[0].HR (0-10 scale)
+  techTransfer?: number; // TT value from indexes[0].TT
+  whiteSpace?: number; // WS value from indexes[0].WS
 }
 
 export interface SubjectCategory {
@@ -544,6 +548,10 @@ export class ApiTransformUtils {
         addedAt: new Date().toISOString(), // Default since not in API
         addedById: 'unknown', // Default since not in API
         notes: '', // No notes in API, default to empty
+        // Horizon rank data will be populated separately when detailed subject data is fetched
+        horizonRank: undefined,
+        techTransfer: undefined,
+        whiteSpace: undefined,
       };
 
       transformedSubjects.push(transformedSubject);

@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -54,6 +54,70 @@ const HorizonChartSection = forwardRef<
     ref
   ) => {
     const maxSubjects = 20;
+    const [horizonDataTimeout, setHorizonDataTimeout] = useState(false);
+
+    // Check if we're still waiting for horizon rank data
+    const selectedSubjectsWithoutHorizonRank = groupedSubjects.selected.filter(
+      (subject) => subject.horizonRank === undefined
+    );
+    const isLoadingHorizonData = selectedSubjectsWithoutHorizonRank.length > 0;
+
+    // Debug logging
+    console.log('=== HORIZON CHART DEBUG ===');
+    console.log('Total selected subjects:', selectedSubjects.size);
+    console.log('Grouped selected subjects:', groupedSubjects.selected.length);
+    console.log(
+      'Subjects without horizon rank:',
+      selectedSubjectsWithoutHorizonRank.length
+    );
+    console.log(
+      'Selected subjects with horizon rank data:',
+      groupedSubjects.selected.filter((s) => s.horizonRank !== undefined).length
+    );
+    console.log('isLoadingHorizonData:', isLoadingHorizonData);
+    console.log('horizonDataTimeout:', horizonDataTimeout);
+    console.log('Horizon data length:', horizonData.length);
+
+    // Log individual subjects and their horizon rank status
+    groupedSubjects.selected.forEach((subject, index) => {
+      console.log(
+        `Subject ${index + 1}: ${subject.subjectName} - HR: ${
+          subject.horizonRank
+        }`
+      );
+    });
+    console.log('=== END DEBUG ===');
+
+    // Set a timeout for horizon data loading (10 seconds)
+    useEffect(() => {
+      if (isLoadingHorizonData && selectedSubjects.size > 0) {
+        console.log('Starting 10-second timeout for horizon data');
+        const timer = setTimeout(() => {
+          console.log(
+            'Horizon data timeout reached, proceeding with available data'
+          );
+          setHorizonDataTimeout(true);
+        }, 10000); // 10 second timeout
+
+        return () => {
+          console.log('Clearing horizon data timeout');
+          clearTimeout(timer);
+        };
+      } else {
+        setHorizonDataTimeout(false);
+      }
+    }, [isLoadingHorizonData, selectedSubjects.size]);
+
+    // Reset timeout when subjects change
+    useEffect(() => {
+      console.log('Subjects changed, resetting timeout');
+      setHorizonDataTimeout(false);
+    }, [selectedSubjects]);
+
+    // Determine if we should show the chart
+    const shouldShowChart =
+      selectedSubjects.size > 0 &&
+      (!isLoadingHorizonData || horizonDataTimeout);
 
     return (
       <Card.Root ref={ref} bg='bg.canvas' borderColor='border.emphasized'>
@@ -226,14 +290,37 @@ const HorizonChartSection = forwardRef<
                                   </Checkbox.Control>
                                 </Checkbox.Root>
                                 <VStack gap={0} align='stretch' flex='1'>
-                                  <Text
-                                    fontSize='sm'
-                                    fontWeight='medium'
-                                    color='fg'
-                                    fontFamily='heading'
-                                  >
-                                    {subject.subjectName}
-                                  </Text>
+                                  <HStack gap={2} align='center'>
+                                    <Text
+                                      fontSize='sm'
+                                      fontWeight='medium'
+                                      color='fg'
+                                      fontFamily='heading'
+                                      flex='1'
+                                    >
+                                      {subject.subjectName}
+                                    </Text>
+                                    {/* Horizon rank status indicator */}
+                                    {subject.horizonRank !== undefined ? (
+                                      <Text
+                                        fontSize='xs'
+                                        color='success'
+                                        fontFamily='mono'
+                                        fontWeight='medium'
+                                      >
+                                        HR: {subject.horizonRank.toFixed(1)}
+                                      </Text>
+                                    ) : (
+                                      <Text
+                                        fontSize='xs'
+                                        color='warning'
+                                        fontFamily='mono'
+                                        fontWeight='medium'
+                                      >
+                                        Loading...
+                                      </Text>
+                                    )}
+                                  </HStack>
                                   {subject.notes && (
                                     <Text
                                       fontSize='xs'
@@ -296,14 +383,37 @@ const HorizonChartSection = forwardRef<
                                     </Checkbox.Control>
                                   </Checkbox.Root>
                                   <VStack gap={0} align='stretch' flex='1'>
-                                    <Text
-                                      fontSize='sm'
-                                      fontWeight='medium'
-                                      color={isDisabled ? 'fg.muted' : 'fg'}
-                                      fontFamily='heading'
-                                    >
-                                      {subject.subjectName}
-                                    </Text>
+                                    <HStack gap={2} align='center'>
+                                      <Text
+                                        fontSize='sm'
+                                        fontWeight='medium'
+                                        color={isDisabled ? 'fg.muted' : 'fg'}
+                                        fontFamily='heading'
+                                        flex='1'
+                                      >
+                                        {subject.subjectName}
+                                      </Text>
+                                      {/* Horizon rank status indicator */}
+                                      {subject.horizonRank !== undefined ? (
+                                        <Text
+                                          fontSize='xs'
+                                          color='success'
+                                          fontFamily='mono'
+                                          fontWeight='medium'
+                                        >
+                                          HR: {subject.horizonRank.toFixed(1)}
+                                        </Text>
+                                      ) : (
+                                        <Text
+                                          fontSize='xs'
+                                          color='fg.muted'
+                                          fontFamily='mono'
+                                          fontWeight='medium'
+                                        >
+                                          ---
+                                        </Text>
+                                      )}
+                                    </HStack>
                                     {subject.notes && (
                                       <Text
                                         fontSize='xs'
@@ -350,6 +460,43 @@ const HorizonChartSection = forwardRef<
                       )}
                     </VStack>
                   </Box>
+
+                  {/* Horizon data loading status */}
+                  {!loading &&
+                    !error &&
+                    selectedSubjects.size > 0 &&
+                    isLoadingHorizonData && (
+                      <Box
+                        p={3}
+                        bg='blue.50'
+                        border='1px solid'
+                        borderColor='blue.200'
+                        borderRadius='md'
+                      >
+                        <VStack gap={2} align='stretch'>
+                          <Text
+                            fontSize='xs'
+                            fontWeight='bold'
+                            color='blue.700'
+                            fontFamily='heading'
+                          >
+                            Loading Horizon Data
+                          </Text>
+                          <Text
+                            fontSize='xs'
+                            color='blue.600'
+                            fontFamily='body'
+                          >
+                            Fetching horizon ranks for{' '}
+                            {selectedSubjectsWithoutHorizonRank.length} subject
+                            {selectedSubjectsWithoutHorizonRank.length !== 1
+                              ? 's'
+                              : ''}
+                            ...
+                          </Text>
+                        </VStack>
+                      </Box>
+                    )}
                 </VStack>
               </Box>
 
@@ -420,10 +567,60 @@ const HorizonChartSection = forwardRef<
                       )}
                     </VStack>
                   </Flex>
-                ) : horizonData.length > 0 ? (
-                  // Actual horizon chart with data
-                  <Horizons data={horizonData} showLegend={false} />
-                ) : (
+                ) : isLoadingHorizonData && !horizonDataTimeout ? (
+                  // Loading state while waiting for horizon data (with timeout)
+                  <Flex
+                    height='400px'
+                    align='center'
+                    justify='center'
+                    border='2px dashed'
+                    borderColor='blue.200'
+                    borderRadius='md'
+                    bg='blue.50'
+                  >
+                    <VStack gap={3}>
+                      <Box
+                        width='40px'
+                        height='40px'
+                        border='3px solid'
+                        borderColor='blue.200'
+                        borderTopColor='blue.500'
+                        borderRadius='full'
+                        animation='spin 1s linear infinite'
+                      />
+                      <VStack gap={1}>
+                        <Text
+                          color='blue.700'
+                          fontSize='sm'
+                          fontFamily='body'
+                          textAlign='center'
+                          fontWeight='medium'
+                        >
+                          Loading Horizon Data
+                        </Text>
+                        <Text
+                          color='blue.600'
+                          fontSize='xs'
+                          fontFamily='body'
+                          textAlign='center'
+                        >
+                          Fetching horizon ranks for{' '}
+                          {selectedSubjectsWithoutHorizonRank.length} of{' '}
+                          {selectedSubjects.size} selected subjects...
+                        </Text>
+                        <Text
+                          color='blue.500'
+                          fontSize='xs'
+                          fontFamily='body'
+                          textAlign='center'
+                          fontStyle='italic'
+                        >
+                          (Will proceed with available data after 10 seconds)
+                        </Text>
+                      </VStack>
+                    </VStack>
+                  </Flex>
+                ) : selectedSubjects.size === 0 ? (
                   // Empty state - no subjects selected
                   <Flex
                     height='400px'
@@ -438,27 +635,46 @@ const HorizonChartSection = forwardRef<
                       <Text
                         color='fg.muted'
                         fontSize='sm'
-                        fontFamily='body'
                         textAlign='center'
+                        fontFamily='body'
                       >
-                        {allSubjects.length === 0
-                          ? 'No subjects available in this lab'
-                          : selectedSubjects.size === 0
-                          ? 'Select subjects to view horizon chart'
-                          : `Select up to ${maxSubjects} subjects to view horizon chart`}
+                        Select subjects to view horizon chart
                       </Text>
-                      {allSubjects.length === 0 && onRefresh && (
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          onClick={onRefresh}
-                          loading={refreshing}
-                        >
-                          Refresh Subjects
-                        </Button>
-                      )}
                     </VStack>
                   </Flex>
+                ) : (
+                  // Horizon chart component - show when ready or after timeout
+                  <VStack gap={2} align='stretch'>
+                    {isLoadingHorizonData && horizonDataTimeout && (
+                      <Box
+                        p={2}
+                        bg='orange.50'
+                        border='1px solid'
+                        borderColor='orange.200'
+                        borderRadius='md'
+                      >
+                        <Text
+                          fontSize='xs'
+                          color='orange.700'
+                          fontFamily='body'
+                          textAlign='center'
+                        >
+                          Showing chart with available data.{' '}
+                          {selectedSubjectsWithoutHorizonRank.length} subject
+                          {selectedSubjectsWithoutHorizonRank.length !== 1
+                            ? 's'
+                            : ''}{' '}
+                          without horizon ranks will use random values for
+                          display.
+                        </Text>
+                      </Box>
+                    )}
+                    <Horizons
+                      data={horizonData}
+                      showLegend={false}
+                      isLoading={false}
+                    />
+                  </VStack>
                 )}
               </Box>
             </Flex>
