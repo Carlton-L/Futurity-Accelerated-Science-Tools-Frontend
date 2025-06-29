@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   Box,
   Button,
@@ -12,9 +18,9 @@ import {
   Field,
   Flex,
   IconButton,
-  Card,
 } from '@chakra-ui/react';
-import { FiPlus, FiRefreshCw, FiLayers } from 'react-icons/fi';
+import { FiPlus, FiRefreshCw } from 'react-icons/fi';
+import { FaFolder } from 'react-icons/fa6';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -26,6 +32,8 @@ import type {
   KnowledgebaseDocument,
   KnowledgebaseFileType,
   KnowledgebaseQueryResult,
+  HorizonItem,
+  SubjectData,
 } from './types';
 import { CategoryUtils } from './types';
 
@@ -34,14 +42,22 @@ import SubjectCard from './SubjectCard';
 import { useToast, ToastDisplay } from './ToastSystem';
 import { SubjectSearch } from './SubjectSearch';
 import { CategoryColumn } from './CategoryColumn';
+import { HorizontalDropZone } from './HorizontalDropZone';
 import Knowledgebase from './Knowledgebase';
+import { PhylogenyTree } from '../../components/charts/PhylogenyTree';
+import type { PhylogenyData } from '../../components/charts/PhylogenyTree';
+import HorizonChartSection from './Horizons/HorizonChartSection';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { labAPIService } from '../../services/labAPIService';
 
+// Import horizon chart utilities
+import { convertHorizonValue, getCategoryNumber } from './utils/analyzeUtils';
+
 // Component Props Interface - Updated to remove unused props
 interface GatherProps {
   labId: string;
+  labName?: string; // Added to get lab name for phylogeny tree
   // includeTerms and excludeTerms removed - now handled in Plan tab
   categories: SubjectCategory[];
   // onTermsUpdate removed - now handled in Plan tab
@@ -71,7 +87,7 @@ interface SearchAPIResponse {
 }
 
 // User Role Type
-type UserRole = 'reader' | 'editor' | 'admin';
+type UserRole = 'viewer' | 'editor' | 'admin';
 
 /**
  * Custom hook for search functionality
@@ -353,6 +369,7 @@ const useCategoryManagement = (
  */
 const Gather: React.FC<GatherProps> = ({
   labId,
+  labName = 'Lab',
   // Remove unused props since Include/Exclude Terms are now handled in Plan tab
   // includeTerms,
   // excludeTerms,
@@ -367,6 +384,60 @@ const Gather: React.FC<GatherProps> = ({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const { token } = useAuth();
   const navigate = useNavigate();
+
+  // Refs for sections
+  const horizonChartRef = useRef<HTMLDivElement>(null);
+
+  // Horizon chart subject selection
+  const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Fetch detailed subject data for horizon chart
+  const fetchSubjectData = useCallback(
+    async (objectId: string): Promise<SubjectData> => {
+      try {
+        if (token) {
+          const response = await fetch(
+            `https://tools.futurity.science/api/subject/${objectId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (response.ok) {
+            return await response.json();
+          }
+        }
+
+        // Fallback to mock data if API fails
+        const { mockFetchSubjectData } = await import('./mockData');
+        return await mockFetchSubjectData(objectId);
+      } catch (error) {
+        console.error('Failed to fetch subject data:', error);
+        return {
+          _id: objectId,
+          Google_hitcounts: 0,
+          Papers_hitcounts: 0,
+          Books_hitcounts: 0,
+          Gnews_hitcounts: 0,
+          Related_terms: '',
+          wikipedia_definition: '',
+          wiktionary_definition: '',
+          FST: '',
+          labs: '',
+          wikipedia_url: '',
+          ent_name: 'Unknown Subject',
+          ent_fsid: 'unknown',
+          ent_summary: 'Subject data not found',
+        };
+      }
+    },
+    [token]
+  );
 
   // Knowledgebase state
   const [kbDocuments, setKbDocuments] = useState<KnowledgebaseDocument[]>([]);
@@ -425,6 +496,55 @@ const Gather: React.FC<GatherProps> = ({
     token,
     toast
   );
+
+  // Phylogeny Tree Data - Memoized to update when categories change
+  const phylogenyData: PhylogenyData = useMemo(() => {
+    // Get custom categories (non-default)
+    const customCategories = categories.filter(
+      (category) => !CategoryUtils.isDefault(category)
+    );
+
+    // Get uncategorized category if it has subjects
+    const uncategorizedCategory = categories.find(CategoryUtils.isDefault);
+    const includeUncategorized =
+      uncategorizedCategory && uncategorizedCategory.subjects.length > 0;
+
+    // Build subcategories array
+    const subcategories = [
+      // Add custom categories first
+      ...customCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        items: category.subjects.map((subject) => ({
+          id: subject.id,
+          name: subject.subjectName,
+        })),
+        // Use theme colors - these will be overridden by the component's default color assignment
+      })),
+      // Add uncategorized at the end if it has subjects, with a muted color
+      ...(includeUncategorized
+        ? [
+            {
+              id: uncategorizedCategory.id,
+              name: uncategorizedCategory.name,
+              items: uncategorizedCategory.subjects.map((subject) => ({
+                id: subject.id,
+                name: subject.subjectName,
+              })),
+              color: '#A7ACB2', // Use muted color from your theme (fg.muted in dark mode)
+            },
+          ]
+        : []),
+    ];
+
+    return {
+      root: {
+        id: 'lab-root',
+        name: labName,
+      },
+      subcategories,
+    };
+  }, [categories, labName]);
 
   // Handle refresh lab data
   const handleRefreshClick = useCallback(async () => {
@@ -501,6 +621,99 @@ const Gather: React.FC<GatherProps> = ({
     return kbDocuments.filter((doc) => selectedFileTypes.has(doc.file_type));
   }, [kbDocuments, selectedFileTypes]);
 
+  // Get all lab subjects for horizon chart
+  const allLabSubjects = useMemo(() => {
+    return categories.flatMap((cat) => cat.subjects);
+  }, [categories]);
+
+  // Get category names for horizon chart
+  const usedCategoryNames = useMemo(() => {
+    return categories
+      .filter((cat) => !CategoryUtils.isDefault(cat))
+      .map((cat) => cat.name)
+      .sort();
+  }, [categories]);
+
+  // Generate horizon chart data
+  const horizonData = useMemo((): HorizonItem[] => {
+    return allLabSubjects
+      .filter((subject) => selectedSubjects.has(subject.id))
+      .map((subject) => {
+        // Find the category
+        const category = categories.find(
+          (cat) => cat.id === subject.categoryId
+        );
+        const categoryName = category?.name || 'Uncategorized';
+
+        // Generate a hash from the subject name for positioning
+        const nameHash = subject.subjectName.split('').reduce((a, b) => {
+          a = (a << 5) - a + b.charCodeAt(0);
+          return a & a;
+        }, 0);
+        const normalizedHash = Math.abs(nameHash) / 2147483648;
+
+        return {
+          name: subject.subjectName,
+          horizon: convertHorizonValue(normalizedHash),
+          category: getCategoryNumber(categoryName, usedCategoryNames),
+          type: 1,
+          categoryName: categoryName,
+        };
+      });
+  }, [allLabSubjects, selectedSubjects, categories, usedCategoryNames]);
+
+  // Grouped subjects for horizon chart
+  const groupedSubjects = useMemo(() => {
+    const selected: LabSubject[] = [];
+    const unselected: LabSubject[] = [];
+
+    allLabSubjects.forEach((subject) => {
+      if (selectedSubjects.has(subject.id)) {
+        selected.push(subject);
+      } else {
+        unselected.push(subject);
+      }
+    });
+
+    return { selected, unselected };
+  }, [allLabSubjects, selectedSubjects]);
+
+  // Initialize horizon chart selections when categories load
+  useEffect(() => {
+    if (allLabSubjects.length > 0 && selectedSubjects.size === 0) {
+      // Select first 20 subjects by default
+      const firstTwentyIds = allLabSubjects.slice(0, 20).map((s) => s.id);
+      setSelectedSubjects(new Set(firstTwentyIds));
+    }
+  }, [allLabSubjects, selectedSubjects.size]);
+
+  // Horizon chart handlers
+  const handleSubjectToggle = useCallback((subjectId: string) => {
+    setSelectedSubjects((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(subjectId)) {
+        // Always allow deselection
+        newSet.delete(subjectId);
+      } else {
+        // Only allow selection if under 20 limit
+        if (newSet.size < 20) {
+          newSet.add(subjectId);
+        }
+      }
+      return newSet;
+    });
+  }, []);
+
+  const handleSelectAllHorizon = useCallback(() => {
+    // Select only the first 20 subjects
+    const firstTwentyIds = allLabSubjects.slice(0, 20).map((s) => s.id);
+    setSelectedSubjects(new Set(firstTwentyIds));
+  }, [allLabSubjects]);
+
+  const handleDeselectAllHorizon = useCallback(() => {
+    setSelectedSubjects(new Set());
+  }, []);
+
   // Handle subject movement between categories - FIXED
   const handleSubjectMove = useCallback(
     async (
@@ -508,7 +721,7 @@ const Gather: React.FC<GatherProps> = ({
       fromCategoryId: string,
       toCategoryId: string
     ) => {
-      if (userRole === 'reader') {
+      if (userRole === 'viewer') {
         toast({
           title: 'Permission denied',
           description: 'You do not have permission to move subjects.',
@@ -612,7 +825,7 @@ const Gather: React.FC<GatherProps> = ({
   // Handle adding subject to lab - FIXED
   const handleAddSubject = useCallback(
     async (searchResult: SubjectSearchResult) => {
-      if (userRole === 'reader') {
+      if (userRole === 'viewer') {
         toast({
           title: 'Permission denied',
           description: 'You do not have permission to add subjects.',
@@ -951,7 +1164,7 @@ const Gather: React.FC<GatherProps> = ({
   // Handle subject removal - FIXED
   const handleSubjectRemove = useCallback(
     async (subjectId: string, categoryId: string) => {
-      if (userRole === 'reader') {
+      if (userRole === 'viewer') {
         toast({
           title: 'Permission denied',
           description: 'You do not have permission to remove subjects.',
@@ -1417,6 +1630,35 @@ const Gather: React.FC<GatherProps> = ({
     ]
   );
 
+  // Separate renderer for horizontal layout (uncategorized)
+  const renderHorizontalSubjectCard = useCallback(
+    (subject: LabSubject) => {
+      const categoryId =
+        sortedCategories.find((cat) =>
+          cat.subjects.some((s) => s.id === subject.id)
+        )?.id || '';
+
+      return (
+        <SubjectCard
+          key={subject.id}
+          subject={subject}
+          categoryId={categoryId}
+          onSubjectClick={handleSubjectClick}
+          onSubjectRemove={handleSubjectRemove}
+          onSubjectView={handleSubjectView}
+          tooltipPlacement='right' // Use horizontal tooltip placement
+          isInHorizontalLayout={true} // Enable horizontal layout constraints
+        />
+      );
+    },
+    [
+      sortedCategories,
+      handleSubjectClick,
+      handleSubjectRemove,
+      handleSubjectView,
+    ]
+  );
+
   // Loading state
   if (isLoading) {
     return (
@@ -1440,7 +1682,9 @@ const Gather: React.FC<GatherProps> = ({
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <VStack gap={4} align='stretch'>
+      <VStack gap={6} align='stretch' overflow='visible'>
+        {' '}
+        {/* FIXED: Allow tooltips to overflow the main container */}
         {/* Header with search and refresh */}
         <HStack justify='space-between' align='center'>
           <HStack gap={4} flex='1'>
@@ -1488,7 +1732,7 @@ const Gather: React.FC<GatherProps> = ({
 
           {/* Action buttons */}
           <HStack gap={3}>
-            {userRole !== 'reader' && (
+            {userRole !== 'viewer' && (
               <Button
                 size='md'
                 variant='outline'
@@ -1509,77 +1753,57 @@ const Gather: React.FC<GatherProps> = ({
             )}
           </HStack>
         </HStack>
-
         {/* Task 19: Uncategorized Subjects Horizontal Bar */}
-        {uncategorizedCategory && uncategorizedCategory.subjects.length > 0 && (
-          <Card.Root
+        {uncategorizedCategory && (
+          <Box
             borderWidth='1px'
             borderColor='border.emphasized'
             bg='bg.canvas'
             borderRadius='md'
+            p={4}
+            overflow='hidden' // FIXED: Constrain tooltips to this container for horizontal layout
           >
-            <Card.Header pb={2}>
-              <HStack gap={2}>
-                <FiLayers size={16} color='var(--chakra-colors-fg-muted)' />
-                <Text
-                  fontSize='md'
-                  fontWeight='medium'
-                  color='fg'
-                  fontFamily='heading'
-                >
-                  {uncategorizedCategory.name}
-                </Text>
-                <Box
-                  bg='bg.muted'
-                  color='fg.muted'
-                  fontSize='xs'
-                  px={2}
-                  py={1}
-                  borderRadius='md'
-                  fontFamily='body'
-                >
-                  {uncategorizedCategory.subjects.length}
-                </Box>
-              </HStack>
-            </Card.Header>
-            <Card.Body pt={0}>
-              <Box
-                w='100%'
-                overflowX='auto'
-                overflowY='hidden'
-                css={{
-                  '&::-webkit-scrollbar': { height: '6px' },
-                  '&::-webkit-scrollbar-track': {
-                    background: 'var(--chakra-colors-bg-subtle)',
-                    borderRadius: '3px',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: 'var(--chakra-colors-border-muted)',
-                    borderRadius: '3px',
-                  },
-                  '&::-webkit-scrollbar-thumb:hover': {
-                    background: 'var(--chakra-colors-border-emphasized)',
-                  },
-                }}
+            {/* Header */}
+            <HStack gap={2} mb={3}>
+              <FaFolder size={16} color='var(--chakra-colors-fg-muted)' />
+              <Text
+                fontSize='md'
+                fontWeight='medium'
+                color='fg'
+                fontFamily='heading'
               >
-                <HStack gap={3} align='flex-start' minW='fit-content' pb={2}>
-                  {uncategorizedCategory.subjects.map((subject) => (
-                    <Box key={subject.id} minW='280px' maxW='320px'>
-                      {renderSubjectCard(subject)}
-                    </Box>
-                  ))}
-                </HStack>
+                {uncategorizedCategory.name}
+              </Text>
+              <Box
+                bg='bg.muted'
+                color='fg.muted'
+                fontSize='xs'
+                px={2}
+                py={1}
+                borderRadius='md'
+                fontFamily='body'
+              >
+                {uncategorizedCategory.subjects.length}
               </Box>
-            </Card.Body>
-          </Card.Root>
-        )}
+            </HStack>
 
+            {/* Horizontal Drop Zone for Uncategorized Subjects */}
+            <HorizontalDropZone
+              categoryId={uncategorizedCategory.id}
+              subjects={uncategorizedCategory.subjects}
+              onDrop={handleSubjectMove}
+              renderSubjectCard={renderHorizontalSubjectCard} // Use horizontal renderer
+              emptyMessage='Drop subjects here to uncategorize them'
+              isLoading={isLoading}
+            />
+          </Box>
+        )}
         {/* Main Kanban Board for Categorized Subjects */}
-        <Box position='relative' w='100%'>
+        <Box position='relative' overflowY='visible' w='100%'>
           <Box
             w='100%'
             overflowX='auto'
-            overflowY='hidden'
+            overflowY='visible'
             pb={4}
             pt={2}
             css={{
@@ -1597,7 +1821,13 @@ const Gather: React.FC<GatherProps> = ({
               },
             }}
           >
-            <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
+            <HStack
+              gap={4}
+              align='flex-start'
+              minW='fit-content'
+              pb={2}
+              overflowY='visible'
+            >
               {/* Category columns - excluding uncategorized */}
               {categorizedColumns.map((category) => (
                 <CategoryColumn
@@ -1613,7 +1843,7 @@ const Gather: React.FC<GatherProps> = ({
               ))}
 
               {/* Add New Category Column */}
-              {userRole !== 'reader' && (
+              {userRole !== 'viewer' && (
                 <Box
                   minW='280px'
                   maxW='320px'
@@ -1651,7 +1881,51 @@ const Gather: React.FC<GatherProps> = ({
             </HStack>
           </Box>
         </Box>
+        {/* Task 17: Taxonomy Tree View - PhylogenyTree Component */}
+        <VStack gap={4} align='stretch'>
+          <HStack gap={2} align='center'>
+            <Heading as='h3' size='md' color='fg' fontFamily='heading'>
+              Subject Taxonomy Tree
+            </Heading>
+            <Text fontSize='sm' color='fg.muted' fontFamily='body'>
+              Visual representation of lab structure and relationships
+            </Text>
+          </HStack>
 
+          {/* Phylogeny Tree Component */}
+          <PhylogenyTree
+            data={phylogenyData}
+            nodeSpacing={80}
+            levelSpacing={240}
+            itemSpacing={40}
+          />
+        </VStack>
+        {/* Horizon Chart Section */}
+        <VStack gap={4} align='stretch'>
+          <HStack gap={2} align='center'>
+            <Heading as='h3' size='md' color='fg' fontFamily='heading'>
+              Subject Horizon Chart
+            </Heading>
+            <Text fontSize='sm' color='fg.muted' fontFamily='body'>
+              Technology maturity and strategic positioning visualization
+            </Text>
+          </HStack>
+
+          <HorizonChartSection
+            ref={horizonChartRef}
+            allSubjects={allLabSubjects}
+            selectedSubjects={selectedSubjects}
+            horizonData={horizonData}
+            groupedSubjects={groupedSubjects}
+            onSubjectToggle={handleSubjectToggle}
+            onSelectAll={handleSelectAllHorizon}
+            onDeselectAll={handleDeselectAllHorizon}
+            loading={isLoading}
+            error={null}
+            onRefresh={handleRefreshClick}
+            refreshing={isRefreshing}
+          />
+        </VStack>
         {/* Add Category Dialog */}
         <Dialog.Root
           open={isAddCategoryOpen}
@@ -1744,14 +2018,12 @@ const Gather: React.FC<GatherProps> = ({
             </Dialog.Content>
           </Dialog.Positioner>
         </Dialog.Root>
-
         {/* Toast Container */}
         <ToastDisplay
           toasts={toasts}
           onRemove={removeToast}
           onUndo={executeUndo}
         />
-
         {/* Knowledgebase Section */}
         <VStack gap={4} align='stretch' mt={6}>
           {/* Knowledgebase Header */}

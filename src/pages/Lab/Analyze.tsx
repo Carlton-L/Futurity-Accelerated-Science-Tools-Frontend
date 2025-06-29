@@ -17,11 +17,26 @@ import {
   Checkbox,
   Flex,
   Tabs,
-  IconButton,
+  Textarea,
+  Select,    
+  IconButton, // Assuming direct export from @chakra-ui/react
 } from '@chakra-ui/react';
+import InnovationStrategiesMakerToolCard from '../../components/lab/tools/InnovationStrategiesMakerToolCard';
+import StrategicRecommendationsToolCard from '../../components/lab/tools/StrategicRecommendationsToolCard';
+
+
+
 import { FiRefreshCw } from 'react-icons/fi';
+
 import GlassCard from '../../components/shared/GlassCard';
 import CardScroller from '../../components/shared/CardScroller';
+import SurveyToolCard from '../../components/lab/tools/SurveyToolCard';
+import UnstructuredSearchToolCard from '../../components/lab/tools/UnstructuredSearchToolCard';
+import KeywordHeatmapperToolCard from '../../components/lab/tools/KeywordHeatmapperToolCard';
+import WordCloudGeneratorToolCard from '../../components/lab/tools/WordCloudGeneratorToolCard';
+import FutureGrapherToolCard from '../../components/lab/tools/FutureGrapherToolCard';
+import FutureStoriesToolCard from '../../components/lab/tools/FutureStoriesToolCard';
+import FutureFolkToolCard from '../../components/lab/tools/FutureFolkToolCard';
 import HorizonChartSection from './Horizons/HorizonChartSection';
 import { useAuth } from '../../context/AuthContext';
 import type {
@@ -32,10 +47,10 @@ import type {
 } from './types';
 import { mockCategories, mockAnalyses } from './mockData';
 import {
-  convertHorizonValue,
   getCategoryNumber,
   generateMockAnalysisResult,
 } from './utils/analyzeUtils';
+import { innovationStrategiesMakerService } from '../../services/innovationStrategiesMakerService'; // Import the new service
 
 interface AnalyzeProps {
   labId: string;
@@ -69,6 +84,11 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     new Set()
   );
 
+  // Store generated random horizon ranks to prevent recalculation
+  const [generatedHorizonRanks, setGeneratedHorizonRanks] = useState<
+    Map<string, number>
+  >(new Map());
+
   // Analysis state
   const [analysisSelectedSubjects, setAnalysisSelectedSubjects] = useState<
     Set<string>
@@ -79,13 +99,15 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   const [isGeneratingAnalysis, setIsGeneratingAnalysis] = useState(false);
   const [isCopyingAnalysis, setIsCopyingAnalysis] = useState(false);
 
-  // Fetch detailed subject data
-  const fetchSubjectData = useCallback(
-    async (objectId: string): Promise<SubjectData> => {
+  // Fetch detailed subject data including horizon ranks by slug
+  const fetchSubjectDataBySlug = useCallback(
+    async (slug: string): Promise<SubjectData> => {
       try {
         if (token) {
           const response = await fetch(
-            `https://tools.futurity.science/api/subject/${objectId}`,
+            `https://tools.futurity.science/api/subject/view?slug=${encodeURIComponent(
+              slug
+            )}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -101,11 +123,11 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
         // Fallback to mock data if API fails
         const { mockFetchSubjectData } = await import('./mockData');
-        return await mockFetchSubjectData(objectId);
+        return await mockFetchSubjectData(slug);
       } catch (error) {
-        console.error('Failed to fetch subject data:', error);
+        console.error('Failed to fetch subject data by slug:', error);
         return {
-          _id: objectId,
+          _id: slug,
           Google_hitcounts: 0,
           Papers_hitcounts: 0,
           Books_hitcounts: 0,
@@ -128,18 +150,60 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
   // Async function to fetch subject details in the background (non-blocking)
   const fetchSubjectDetailsAsync = useCallback(
     async (subjectsToUpdate: LabSubject[]) => {
+      console.log('=== FETCHING SUBJECT DETAILS ===');
+      console.log(
+        'Starting to fetch details for',
+        subjectsToUpdate.length,
+        'subjects'
+      );
+
       for (const subject of subjectsToUpdate) {
         try {
-          const subjectData = await fetchSubjectData(subject.subjectId);
-
-          // Update the subject with the detailed data
-          setSubjects((prevSubjects) =>
-            prevSubjects.map((s) =>
-              s.id === subject.id
-                ? { ...s, notes: subjectData.ent_summary || s.notes }
-                : s
-            )
+          console.log(
+            `Fetching data for subject: ${subject.subjectName} (slug: ${subject.subjectSlug})`
           );
+
+          // Use the subject slug to fetch detailed data including horizon ranks
+          const subjectData = await fetchSubjectDataBySlug(subject.subjectSlug);
+
+          // Extract horizon rank and other metrics from the indexes array
+          let horizonRank: number | undefined;
+          let techTransfer: number | undefined;
+          let whiteSpace: number | undefined;
+
+          if (subjectData.indexes && subjectData.indexes.length > 0) {
+            const firstIndex = subjectData.indexes[0];
+            horizonRank = firstIndex.HR;
+            techTransfer = firstIndex.TT;
+            whiteSpace = firstIndex.WS;
+            console.log(
+              `✓ Fetched horizon rank ${horizonRank} for ${subject.subjectName}`
+            );
+          } else {
+            console.log(
+              `✗ No horizon rank data found for ${subject.subjectName}, will use random value for testing`
+            );
+          }
+
+          // Update the subject with the detailed data including horizon rank
+          setSubjects((prevSubjects) => {
+            const updated = prevSubjects.map((s) =>
+              s.id === subject.id
+                ? {
+                    ...s,
+                    notes: subjectData.ent_summary || s.notes,
+                    horizonRank: horizonRank,
+                    techTransfer: techTransfer,
+                    whiteSpace: whiteSpace,
+                  }
+                : s
+            );
+
+            console.log(
+              `Updated subject ${subject.subjectName} with HR: ${horizonRank}`
+            );
+            return updated;
+          });
         } catch (error) {
           console.warn(
             `Failed to fetch details for subject ${subject.subjectId}:`,
@@ -147,8 +211,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
           );
         }
       }
+
+      console.log('=== FINISHED FETCHING SUBJECT DETAILS ===');
     },
-    [fetchSubjectData]
+    [fetchSubjectDataBySlug]
   );
 
   // Fetch subjects from the API
@@ -210,7 +276,7 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
 
         if (labData.subjects && Array.isArray(labData.subjects)) {
           for (const apiSubject of labData.subjects) {
-            // Create basic subject without fetching detailed data
+            // Create basic subject without fetching detailed data initially
             const transformedSubject: LabSubject = {
               id: `lab-subj-${apiSubject.subject_id}`,
               subjectId: apiSubject.subject_id,
@@ -223,6 +289,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
               addedAt: new Date().toISOString(),
               addedById: 'unknown',
               notes: '', // We'll fetch this separately if needed
+              // Horizon rank data will be populated by fetchSubjectDetailsAsync
+              horizonRank: undefined,
+              techTransfer: undefined,
+              whiteSpace: undefined,
             };
 
             console.log(
@@ -231,10 +301,10 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
             transformedSubjects.push(transformedSubject);
           }
 
-          // Optionally fetch detailed data for the first few subjects if you need notes/descriptions
-          // This is async and doesn't block the main UI
+          // Fetch detailed data for all subjects to get horizon ranks
+          // This is async and will update the subjects with horizon rank data
           if (transformedSubjects.length > 0) {
-            fetchSubjectDetailsAsync(transformedSubjects.slice(0, 5)); // Only fetch details for first 5
+            fetchSubjectDetailsAsync(transformedSubjects);
           }
         }
 
@@ -327,46 +397,111 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
     return excludeCategory?.subjects || [];
   }, []);
 
+  // Updated horizonData with consistent random generation
   const horizonData = useMemo((): HorizonItem[] => {
+    console.log('=== HORIZON DATA GENERATION ===');
     console.log('Generating horizon data...');
     console.log('Available categories:', categories);
+    console.log('All subjects:', subjects.length);
+    console.log('Selected subjects:', Array.from(selectedSubjects));
     console.log(
-      'Selected subjects:',
+      'Selected subjects details:',
       subjects.filter((subject) => selectedSubjects.has(subject.id))
     );
 
-    return subjects
-      .filter((subject) => selectedSubjects.has(subject.id))
-      .map((subject) => {
-        // Find the category from the actual API categories
-        const category = categories.find(
-          (cat) => cat.id === subject.categoryId
-        );
-        const categoryName = category?.name || 'Uncategorized';
+    const newGeneratedRanks = new Map(generatedHorizonRanks);
+    let hasNewGeneratedRanks = false;
 
+    const selectedSubjectsData = subjects.filter((subject) =>
+      selectedSubjects.has(subject.id)
+    );
+    console.log('Filtered selected subjects:', selectedSubjectsData.length);
+
+    const result = selectedSubjectsData.map((subject) => {
+      // Find the category from the actual API categories
+      const category = categories.find((cat) => cat.id === subject.categoryId);
+      const categoryName = category?.name || 'Uncategorized';
+
+      console.log(
+        `Processing Subject: ${subject.subjectName}, CategoryId: ${subject.categoryId}, Found Category: ${categoryName}, Current HR: ${subject.horizonRank}`
+      );
+
+      // Get horizon rank from subject data if available, otherwise use stored random or generate new
+      let horizonRank: number;
+
+      if (subject.horizonRank !== undefined) {
+        // Use the actual horizon rank from API (0-10 scale)
+        horizonRank = subject.horizonRank;
         console.log(
-          `Subject: ${subject.subjectName}, CategoryId: ${subject.categoryId}, Found Category: ${categoryName}`
+          `Using real horizon rank ${horizonRank} for ${subject.subjectName}`
         );
+      } else {
+        // Check if we already have a generated random value for this subject
+        if (newGeneratedRanks.has(subject.id)) {
+          horizonRank = newGeneratedRanks.get(subject.id)!;
+          console.log(
+            `Using stored random horizon rank ${horizonRank.toFixed(2)} for ${
+              subject.subjectName
+            }`
+          );
+        } else {
+          // Generate new random horizon rank for testing (0-10 scale)
+          horizonRank = Math.random() * 10;
+          newGeneratedRanks.set(subject.id, horizonRank);
+          hasNewGeneratedRanks = true;
+          console.log(
+            `Generated new random horizon rank ${horizonRank.toFixed(2)} for ${
+              subject.subjectName
+            }`
+          );
+        }
+      }
 
-        // Generate a hash from the subject name for positioning
-        const nameHash = subject.subjectName.split('').reduce((a, b) => {
-          a = (a << 5) - a + b.charCodeAt(0);
-          return a & a;
-        }, 0);
-        const normalizedHash = Math.abs(nameHash) / 2147483648;
+      const horizonItem: HorizonItem = {
+        name: subject.subjectName,
+        horizon: horizonRank,
+        category: getCategoryNumber(categoryName, usedCategoryNames),
+        type: 1 as const,
+        categoryName: categoryName,
+      };
 
-        const horizonItem = {
-          name: subject.subjectName,
-          horizon: convertHorizonValue(normalizedHash),
-          category: getCategoryNumber(categoryName, usedCategoryNames),
-          type: 1,
-          categoryName: categoryName,
-        };
+      console.log(`Generated horizon item:`, horizonItem);
+      return horizonItem;
+    });
 
-        console.log(`Generated horizon item:`, horizonItem);
-        return horizonItem;
-      });
-  }, [subjects, selectedSubjects, categories, usedCategoryNames]);
+    // Update stored generated ranks if we created new ones
+    if (hasNewGeneratedRanks) {
+      console.log('Updating stored generated ranks:', newGeneratedRanks);
+      setGeneratedHorizonRanks(newGeneratedRanks);
+    }
+
+    console.log('Final horizon data result:', result.length, result);
+    console.log('=== END HORIZON DATA GENERATION ===');
+    return result;
+  }, [
+    subjects,
+    selectedSubjects,
+    categories,
+    usedCategoryNames,
+    generatedHorizonRanks,
+  ]);
+
+  // Clean up generated ranks when subjects change
+  useEffect(() => {
+    // Remove generated ranks for subjects that no longer exist
+    const currentSubjectIds = new Set(subjects.map((s) => s.id));
+    const cleanedRanks = new Map();
+
+    for (const [subjectId, rank] of generatedHorizonRanks.entries()) {
+      if (currentSubjectIds.has(subjectId)) {
+        cleanedRanks.set(subjectId, rank);
+      }
+    }
+
+    if (cleanedRanks.size !== generatedHorizonRanks.size) {
+      setGeneratedHorizonRanks(cleanedRanks);
+    }
+  }, [subjects, generatedHorizonRanks]);
 
   const groupedSubjects = useMemo(() => {
     const selected: LabSubject[] = [];
@@ -1124,6 +1259,16 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                                             {subject.notes}
                                           </Text>
                                         )}
+                                        {/* Show horizon rank if available */}
+                                        {subject.horizonRank !== undefined && (
+                                          <Text
+                                            fontSize='xs'
+                                            color='brand.500'
+                                            fontFamily='mono'
+                                          >
+                                            HR: {subject.horizonRank.toFixed(1)}
+                                          </Text>
+                                        )}
                                       </VStack>
                                     </HStack>
                                   )
@@ -1192,6 +1337,16 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                                             fontFamily='body'
                                           >
                                             {subject.notes}
+                                          </Text>
+                                        )}
+                                        {/* Show horizon rank if available */}
+                                        {subject.horizonRank !== undefined && (
+                                          <Text
+                                            fontSize='xs'
+                                            color='brand.500'
+                                            fontFamily='mono'
+                                          >
+                                            HR: {subject.horizonRank.toFixed(1)}
                                           </Text>
                                         )}
                                       </VStack>
@@ -1419,83 +1574,14 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 >
                   Strategy & Planning Tools
                 </Heading>
-                <HStack gap={3} wrap='wrap'>
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='brand.50'
-                    borderColor='brand.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='brand.700'
-                          fontFamily='heading'
-                        >
-                          Innovation Strategies Maker
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Use innovation strategies based on management books
-                          and literature to expand and frame your ideas.
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='brand'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                <HStack gap={3} wrap='wrap' alignItems="stretch"> {/* Added alignItems stretch */}
+                  {/* Innovation Strategies Maker Card */}
+                  <InnovationStrategiesMakerToolCard />
 
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='brand.50'
-                    borderColor='brand.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='brand.700'
-                          fontFamily='heading'
-                        >
-                          Strategic Recommendations
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Freeform report drawing highlights from previous
-                          reports into recommendations for target audiences
-                          (industries, cities, governments).
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='brand'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                  {/* Strategic Recommendations Card */}
+                  <StrategicRecommendationsToolCard labId={labId} />
+                  {/* End of Strategic Recommendations Card */}
+
                 </HStack>
               </Box>
 
@@ -1510,99 +1596,12 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                 >
                   Data Collection & Search Tools
                 </Heading>
-                <HStack gap={3} wrap='wrap'>
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='blue.50'
-                    borderColor='blue.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='blue.700'
-                          fontFamily='heading'
-                        >
-                          Survey Tool
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Create survey forms from CSV templates, distribute to
-                          respondents, and generate analysis reports.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='info'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Survey template CSV, target respondents
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='blue'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                <HStack gap={3} wrap='wrap' alignItems="stretch"> {/* alignItems="stretch" for consistent card height */}
+                  {/* Survey Tool Card */}
+                  <SurveyToolCard />
 
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='blue.50'
-                    borderColor='blue.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='blue.700'
-                          fontFamily='heading'
-                        >
-                          Unstructured Search
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Search the web for multiple terms, collect and
-                          summarize the first X hits for each term with URLs and
-                          content summaries.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='info'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Search terms, number of hits
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='blue'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                  {/* Unstructured Search Tool Card */}
+                  <UnstructuredSearchToolCard />
 
                   <GlassCard
                     variant='outline'
@@ -1664,101 +1663,12 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId }) => {
                   Content Analysis & Visualization Tools
                 </Heading>
                 <Text fontSize='xs' color='fg.muted' mb={3} fontFamily='body'>
-                  These tools work with keyword tables from document analysis to
-                  create visualizations and insights.
+                  Tools for ideation, storytelling, and visual creation.
                 </Text>
-                <HStack gap={3} wrap='wrap'>
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='green.50'
-                    borderColor='green.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='green.700'
-                          fontFamily='heading'
-                        >
-                          Keyword Heatmapper
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Create interactive heatmaps showing keyword frequency
-                          across documents. Download as SVG or view statistics.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='success'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Keyword appearance table (fst-labdata)
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='green'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
-
-                  <GlassCard
-                    variant='outline'
-                    minW='280px'
-                    maxW='320px'
-                    bg='green.50'
-                    borderColor='green.200'
-                  >
-                    <Box p={4}>
-                      <VStack gap={2} align='stretch'>
-                        <Heading
-                          as='h5'
-                          size='xs'
-                          color='green.700'
-                          fontFamily='heading'
-                        >
-                          Word Cloud Generator
-                        </Heading>
-                        <Text
-                          fontSize='xs'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          fontFamily='body'
-                        >
-                          Generate word clouds from document content analysis.
-                          Save to lab bucket or download directly.
-                        </Text>
-                        <Text
-                          fontSize='xs'
-                          color='success'
-                          fontWeight='medium'
-                          fontFamily='body'
-                        >
-                          Input: Keyword appearance table (fst-labdata)
-                        </Text>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          disabled
-                          colorScheme='green'
-                        >
-                          Coming Soon
-                        </Button>
-                      </VStack>
-                    </Box>
-                  </GlassCard>
+                <HStack gap={3} wrap='wrap' alignItems="stretch">
+                  <FutureGrapherToolCard />
+                  <FutureStoriesToolCard />
+                  <FutureFolkToolCard />
                 </HStack>
               </Box>
 

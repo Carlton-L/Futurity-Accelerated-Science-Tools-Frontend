@@ -765,7 +765,7 @@ const Navbar: React.FC = () => {
 
                   <Menu.Item
                     value='profile'
-                    onClick={() => navigate(`/user/${user?._id}`)}
+                    onClick={() => navigate(`/profile`)}
                     color='fg'
                     fontFamily='body'
                     fontSize='sm'
@@ -776,22 +776,6 @@ const Navbar: React.FC = () => {
                     <HStack gap={2}>
                       <LuUser size={16} />
                       <Text>My Profile</Text>
-                    </HStack>
-                  </Menu.Item>
-
-                  <Menu.Item
-                    value='settings'
-                    onClick={() => navigate(`/user/${user?._id}/settings`)}
-                    color='fg'
-                    fontFamily='body'
-                    fontSize='sm'
-                    _hover={{
-                      bg: 'bg.hover',
-                    }}
-                  >
-                    <HStack gap={2}>
-                      <LuSettings size={16} />
-                      <Text>Settings</Text>
                     </HStack>
                   </Menu.Item>
 

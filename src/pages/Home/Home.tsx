@@ -1,12 +1,14 @@
 import React from 'react';
 import { Container, VStack } from '@chakra-ui/react';
 import FuturityLabsSection from './FuturityLabsSection';
+import FeaturedSubjectSection from './FeaturedSubjectSection';
 
 const Home: React.FC = () => {
   return (
     <Container maxW='7xl' py='8'>
       <VStack gap='12' align='stretch'>
-        {/* Your existing home page content would go here */}
+        {/* Featured Subject Section */}
+        <FeaturedSubjectSection />
 
         {/* Futurity Labs Section */}
         <FuturityLabsSection />

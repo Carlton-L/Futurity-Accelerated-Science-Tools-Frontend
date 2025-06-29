@@ -324,9 +324,9 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
 
         try {
           const limit = '1000';
-          const subjects = params.subjects || params.subject || 'metaverse';
+          const subjects = params.subjects || params.subject;
 
-          const originalUrl = `https://fast.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
+          const originalUrl = `https://fast.futurity.science/graphs/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
           const apiUrl = getApiUrl(originalUrl);
 
           console.log('Fetching graph data from:', apiUrl);
@@ -417,37 +417,6 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
               console.error(
                 'Solutions: 1) Use development proxy, 2) Contact API maintainer, 3) Use CORS browser extension for development'
               );
-            }
-
-            // If it's a 500 error, try the original API without proxy as fallback
-            if (error.message.includes('500') && import.meta.env.DEV) {
-              console.log(
-                '500 error detected, trying original API URL as fallback...'
-              );
-              try {
-                const fallbackUrl = `https://fast.futurity.science/search/graph-data?subjects=${
-                  params.subjects || params.subject || 'metaverse'
-                }&limit=1000&target=&debug=false`;
-                console.log('Trying fallback URL:', fallbackUrl);
-
-                const fallbackResponse = await fetch(fallbackUrl, {
-                  signal: abortControllerRef.current.signal,
-                });
-
-                if (fallbackResponse.ok) {
-                  console.log('Fallback request succeeded');
-                  const fallbackData = await fallbackResponse.json();
-                  // Process the data same as above...
-                  // ... (same data processing code)
-                } else {
-                  console.error(
-                    'Fallback also failed with status:',
-                    fallbackResponse.status
-                  );
-                }
-              } catch (fallbackError) {
-                console.error('Fallback request also failed:', fallbackError);
-              }
             }
           }
         } finally {

@@ -32,7 +32,7 @@ export interface WhiteboardSubject {
 }
 
 /**
- * Draft collection of subjects for lab creation
+ * Lab Seed collection of subjects for lab creation (formerly Draft)
  */
 export interface WhiteboardDraft {
   id: string;
@@ -64,7 +64,7 @@ export interface WhiteboardDraft {
 }
 
 /**
- * Computed metrics for a draft
+ * Computed metrics for a lab seed (formerly draft metrics)
  */
 export interface DraftMetrics {
   // Averages
@@ -73,7 +73,7 @@ export interface DraftMetrics {
   avgWhiteSpace: number;
 
   // Computed scores
-  coherenceScore: number; // 0-100: How well subjects relate
+  coherenceScore: number; // 0-100: How well subjects relate (Cluster Coefficient)
   innovationPotential: number; // 0-100: White Space × Tech Transfer
   maturityBalance: number; // 0-100: Spread across Horizon Ranks
   velocityScore: number; // 0-100: Average Tech Transfer
@@ -89,14 +89,14 @@ export interface DraftMetrics {
 }
 
 /**
- * Visualization type for draft analysis
+ * Visualization type for lab seed analysis
  */
 export type VisualizationType =
   | 'list' // Simple subject listing
   | 'network' // Relationship graph
   | 'matrix' // Innovation opportunity matrix
   | 'radar' // Portfolio balance radar
-  | 'heatmap' // Coherence heatmap
+  | 'heatmap' // Cluster coefficient heatmap
   | 'distribution'; // Metrics distribution
 
 /**
@@ -138,7 +138,7 @@ export interface WhiteboardFilters {
 }
 
 /**
- * Draft creation/update requests
+ * Lab Seed creation/update requests (formerly Draft)
  */
 export interface CreateDraftRequest {
   name: string;
@@ -163,7 +163,7 @@ export interface RemoveSubjectFromDraftRequest {
 }
 
 /**
- * Lab creation from draft
+ * Lab creation from lab seed
  */
 export interface PublishDraftToLabRequest {
   draftId: string;
@@ -181,7 +181,7 @@ export interface PublishDraftToLabRequest {
 // ============================================================================
 
 /**
- * Calculate comprehensive metrics for a draft
+ * Calculate comprehensive metrics for a lab seed
  */
 export const calculateDraftMetrics = (
   subjects: WhiteboardSubject[]
@@ -235,7 +235,7 @@ export const calculateDraftMetrics = (
   const speculationRisk = (1 - avgHorizonRank) * 100; // Low horizon rank = high speculation
   const stagnationRisk = 100 - avgTechTransfer; // Low tech transfer = high stagnation
 
-  // Coherence score (mock calculation - would use AI in real implementation)
+  // Cluster coefficient score (mock calculation - would use AI in real implementation)
   const coherenceScore = Math.max(
     0,
     100 - categoryDiversity * 10 - horizonStdDev * 50
@@ -333,7 +333,7 @@ export const getInnovationQuadrant = (
 };
 
 /**
- * Generate AI taxonomy suggestions for a draft
+ * Generate AI taxonomy suggestions for a lab seed
  * (Mock implementation - would use real AI service)
  */
 export const generateTaxonomySuggestions = (
@@ -438,7 +438,7 @@ export const generateTaxonomySuggestions = (
 };
 
 /**
- * Validate draft before publishing
+ * Validate lab seed before publishing
  */
 export const validateDraftForPublishing = (
   draft: WhiteboardDraft
@@ -452,11 +452,11 @@ export const validateDraftForPublishing = (
 
   // Required validations
   if (draft.subjects.length === 0) {
-    errors.push('Draft must contain at least one subject');
+    errors.push('Lab seed must contain at least one subject');
   }
 
   if (!draft.name.trim()) {
-    errors.push('Draft must have a name');
+    errors.push('Lab seed must have a name');
   }
 
   // Warning validations
@@ -466,7 +466,7 @@ export const validateDraftForPublishing = (
 
   if (draft.metrics.coherenceScore < 50) {
     warnings.push(
-      'Low coherence score - subjects may not relate well together'
+      'Low cluster coefficient score - subjects may not relate well together'
     );
   }
 

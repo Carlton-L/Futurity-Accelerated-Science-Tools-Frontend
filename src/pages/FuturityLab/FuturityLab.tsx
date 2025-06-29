@@ -10,6 +10,8 @@ import {
   VStack,
   HStack,
   Container,
+  Skeleton,
+  SkeletonText,
 } from '@chakra-ui/react';
 import { useAuth } from '../../context/AuthContext';
 import { futurityLabsAPIService } from '../../services/futurityLabsAPIService';
@@ -94,12 +96,44 @@ const FuturityLab: React.FC = () => {
   if (loading) {
     return (
       <Container maxW='6xl' py='8'>
-        <Box textAlign='center' py='12'>
-          <Spinner size='xl' color='brand.500' />
-          <Text mt='6' color='fg.secondary' fontSize='lg'>
-            Loading Futurity Lab...
-          </Text>
-        </Box>
+        <VStack gap='8' align='stretch'>
+          {/* Header Skeleton */}
+          <Box>
+            <Skeleton height='32px' width='120px' mb='4' />
+
+            <HStack gap='4' align='start'>
+              <VStack gap='4' align='start' flex='1'>
+                <Box>
+                  <HStack gap='3' mb='3'>
+                    <Skeleton height='24px' width='60px' borderRadius='full' />
+                    <Skeleton height='24px' width='80px' borderRadius='full' />
+                  </HStack>
+
+                  <Skeleton height='48px' width='400px' mb='4' />
+                </Box>
+
+                <SkeletonText noOfLines={3} spacing='4' skeletonHeight='20px' />
+              </VStack>
+            </HStack>
+          </Box>
+
+          {/* Image Skeleton */}
+          <Skeleton height='400px' width='100%' borderRadius='8px' />
+
+          {/* Actions Skeleton */}
+          <Box>
+            <HStack gap='4'>
+              <Skeleton height='48px' width='200px' borderRadius='md' />
+            </HStack>
+            <Skeleton height='16px' width='300px' mt='2' />
+          </Box>
+
+          {/* Additional Info Skeleton */}
+          <Box>
+            <Skeleton height='16px' width='200px' mb='2' />
+            <Skeleton height='16px' width='180px' />
+          </Box>
+        </VStack>
       </Container>
     );
   }

@@ -10,16 +10,48 @@ import type {
 } from './authTypes';
 import { authService } from './authService';
 import { workspaceService } from '../../services/workspaceService';
-import { userService } from '../../services/userService';
+import { userService, type ExtendedUserData } from '../../services/userService';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [extendedUser, setExtendedUser] = useState<ExtendedUserData | null>(
+    null
+  );
   const [token, setToken] = useState<string | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [teamspaces, setTeamspaces] = useState<TeamspaceListItem[]>([]);
   const [currentTeamspace, setCurrentTeamspace] =
     useState<TeamspaceListItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Load extended user data after basic auth
+  const loadExtendedUserData = async (basicUser: User, userToken: string) => {
+    try {
+      console.log('Loading extended user data for user ID:', basicUser._id);
+      const extendedData = await userService.getExtendedUserData(
+        basicUser._id,
+        userToken
+      );
+      setExtendedUser(extendedData);
+
+      // Merge extended data with basic user data
+      const mergedUser: User = {
+        ...basicUser,
+        ...extendedData,
+        // Preserve the auth-specific fields from the basic user
+        auth_key: basicUser.auth_key,
+      };
+      setUser(mergedUser);
+
+      console.log('Extended user data loaded successfully');
+    } catch (error) {
+      console.error('Failed to load extended user data:', error);
+      // Keep the basic user data if extended fetch fails
+      console.log(
+        'Using basic user data only due to extended data fetch failure'
+      );
+    }
+  };
 
   // Load workspace data after user is authenticated
   const loadWorkspaceData = async (userToken: string) => {
@@ -72,18 +104,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (storedToken) {
             setToken(storedToken);
 
-            // Try to verify the token
+            // Try to verify the token and get basic user data
             const userData = await authService.verifyToken(storedToken);
             setUser(userData);
 
             // Update token if the API returned a new one
+            const finalToken = userData.auth_key || storedToken;
             if (userData.auth_key && userData.auth_key !== storedToken) {
               setToken(userData.auth_key);
               authService.setStoredToken(userData.auth_key);
             }
 
+            // Load extended user data (will use reliable ID if needed)
+            await loadExtendedUserData(userData, finalToken);
+
             // Load workspace data
-            await loadWorkspaceData(userData.auth_key || storedToken);
+            await loadWorkspaceData(finalToken);
           }
         } catch (error) {
           console.error('Failed to verify stored token:', error);
@@ -94,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log('Token is invalid, clearing auth state');
             await authService.logout();
             setUser(null);
+            setExtendedUser(null);
             setToken(null);
             setWorkspace(null);
             setTeamspaces([]);
@@ -126,6 +163,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       setToken(authToken);
 
+      // Load extended user data after successful login (will use reliable ID if needed)
+      await loadExtendedUserData(userData, authToken);
+
       // Load workspace data after successful login
       await loadWorkspaceData(authToken);
     } catch (error) {
@@ -141,6 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.logout();
       setUser(null);
+      setExtendedUser(null);
       setToken(null);
       setWorkspace(null);
       setTeamspaces([]);
@@ -149,6 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Logout failed:', error);
       // Still clear local state even if API call fails
       setUser(null);
+      setExtendedUser(null);
       setToken(null);
       setWorkspace(null);
       setTeamspaces([]);
@@ -171,6 +213,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Add method to refresh user data
+  const refreshUser = async (): Promise<void> => {
+    if (!user || !token) {
+      return;
+    }
+
+    try {
+      const userData = await authService.verifyToken(token);
+      await loadExtendedUserData(userData, token);
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+      throw error;
+    }
+  };
+
   const handleSetCurrentTeamspace = (teamspace: TeamspaceListItem | null) => {
     setCurrentTeamspace(teamspace);
   };
@@ -185,8 +242,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     setCurrentTeamspace: handleSetCurrentTeamspace,
     refreshWorkspace,
+    refreshUser,
     isLoading,
     isAuthenticated: !!user,
+    extendedUser,
   };
 
   return (

@@ -5,7 +5,7 @@ import * as d3 from 'd3';
 // Define the data structure
 interface HorizonItem {
   name: string;
-  horizon: 1 | 2 | 3 | 4;
+  horizon: number; // Changed to number to allow floats like 2.3
   category: 1 | 2 | 3 | 4 | 5;
   type: 1 | 2 | 3;
   categoryName?: string; // Optional category name for display
@@ -14,42 +14,42 @@ interface HorizonItem {
 const exampleData: HorizonItem[] = [
   {
     name: 'Quantum Computing',
-    horizon: 3,
+    horizon: 7.2,
     category: 1,
     type: 2,
     categoryName: 'Technology',
   },
   {
     name: 'Artificial Intelligence',
-    horizon: 2,
+    horizon: 2.3,
     category: 2,
     type: 1,
     categoryName: 'AI',
   },
   {
     name: 'Blockchain',
-    horizon: 1,
+    horizon: 8.5,
     category: 3,
     type: 1,
     categoryName: 'Finance',
   },
   {
     name: 'Renewable Energy',
-    horizon: 2,
+    horizon: 5.7,
     category: 4,
     type: 3,
     categoryName: 'Energy',
   },
   {
     name: 'Autonomous Vehicles',
-    horizon: 2,
+    horizon: 6.1,
     category: 2,
     type: 1,
     categoryName: 'AI',
   },
   {
     name: 'Genetic Engineering',
-    horizon: 3,
+    horizon: 4.8,
     category: 5,
     type: 2,
     categoryName: 'Biotech',
@@ -60,843 +60,622 @@ interface HorizonsProps {
   // Component props
   data?: HorizonItem[];
   showLegend?: boolean;
+  isLoading?: boolean; // Add loading prop
 }
 
-function Horizons({ data = exampleData, showLegend = false }: HorizonsProps) {
+function Horizons({
+  data = exampleData,
+  showLegend = false,
+  isLoading = false,
+}: HorizonsProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Function to get horizon rank description based on value
+  const getHorizonDescription = (rank: number): string => {
+    if (rank >= 9) {
+      return "Forgotten/Obsolete (Once relevant or cutting-edge, now completely abandoned or irrelevant, 'No one remembers this')";
+    } else if (rank >= 8) {
+      return 'Dormant / Rediscovery Potential (Known but currently dormant, might see revival in new applications or contexts)';
+    } else if (rank >= 7) {
+      return "Residual. Niche Legacy (Obsolete for mainstream use, but still functional in niche contexts, or retained for legacy support i.e. it's rare to adopt this into new products)";
+    } else if (rank >= 6) {
+      return 'Post-standardization / Ubiquitous (Fully commoditized, infrastructure-level tech, or assumed baseline capability)';
+    } else if (rank >= 5) {
+      return 'Mainstream Adoption / Standard (Widely adopted and integrated into industries or daily life, but not yet ubiquitous)';
+    } else if (rank >= 4) {
+      return 'Commercial Breakthrough (First products or services launched; gaining traction in early markets but not yet mainstream)';
+    } else if (rank >= 3) {
+      return 'Emergent / Pre-Venture Viable (Early working prototypes or validated concepts; attracting venture or research grant interest)';
+    } else if (rank >= 2) {
+      return 'Moonshot / High-Risk development (Ambitious R&D or experimental prototypes exist; technical or market feasibility highly uncertain)';
+    } else if (rank >= 1) {
+      return 'Speculative / Early Concept (Mostly conceptual, discussed in speculative media or think tanks, minimal or no prototypes)';
+    } else {
+      return "Unimagined / Future Frontier (No known research, prototypes, or even speculative concepts yet 'No one's imagined this')";
+    }
+  };
 
   // Create the D3 visualization
   useEffect(() => {
-    if (!svgRef.current || !data.length) return;
+    if (!svgRef.current) return;
 
     // Clear previous content
     d3.select(svgRef.current).selectAll('*').remove();
 
-    // Responsive: use parent size for width/height (square aspect ratio)
-    // Find the closest parent with a non-zero width/height
-    let container = svgRef.current.parentElement;
-    let containerWidth = 950;
-    let containerHeight = 650;
-    while (container && (containerWidth === 0 || containerHeight === 0)) {
-      container = container.parentElement;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        containerWidth = rect.width;
-        containerHeight = rect.height;
-      }
-    }
-    // Use square aspect ratio for polar chart, fit to min dimension
-    const size = Math.min(containerWidth, containerHeight);
-    const width = size;
-    const height = size;
-    // Add more bottom margin to ensure horizon axis labels are visible
-    const margin = { top: 30, right: 30, bottom: 60, left: 30 };
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
+    // Show loading state if explicitly requested
+    if (isLoading) {
+      const svg = d3
+        .select(svgRef.current)
+        .attr('width', 1000)
+        .attr('height', 650)
+        .attr('viewBox', [0, 0, 1000, 650])
+        .attr('style', 'width: 100%; height: 100%; display: block;');
 
-    // The radius of our polar chart will be based on the smallest dimension
-    const maxRadius = Math.min(chartWidth, chartHeight);
+      // Add loading indicator
+      const loadingGroup = svg
+        .append('g')
+        .attr('transform', 'translate(500, 325)'); // Center of the SVG
+
+      if (isLoading) {
+        loadingGroup
+          .append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('font-size', '16px')
+          .attr('font-family', 'JetBrains Mono, monospace')
+          .attr('fill', '#666')
+          .text('Loading horizon data...');
+
+        // Add simple loading animation
+        const circle = loadingGroup
+          .append('circle')
+          .attr('r', 20)
+          .attr('cy', -40)
+          .attr('fill', 'none')
+          .attr('stroke', '#0005E9')
+          .attr('stroke-width', 3)
+          .attr('stroke-dasharray', '31.4')
+          .attr('stroke-dashoffset', '31.4');
+
+        // Animate the circle
+        circle
+          .transition()
+          .duration(2000)
+          .ease(d3.easeLinear)
+          .attr('stroke-dashoffset', 0)
+          .on('end', function repeat() {
+            d3.select(this)
+              .attr('stroke-dashoffset', '31.4')
+              .transition()
+              .duration(2000)
+              .ease(d3.easeLinear)
+              .attr('stroke-dashoffset', 0)
+              .on('end', repeat);
+          });
+      } else {
+        loadingGroup
+          .append('text')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+          .attr('font-size', '16px')
+          .attr('font-family', 'JetBrains Mono, monospace')
+          .attr('fill', '#666')
+          .text('No data available');
+      }
+
+      return;
+    }
+
+    // Show empty state if no data
+    if (!data.length) {
+      const svg = d3
+        .select(svgRef.current)
+        .attr('width', 1000)
+        .attr('height', 650)
+        .attr('viewBox', [0, 0, 1000, 650])
+        .attr('style', 'width: 100%; height: 100%; display: block;');
+
+      const emptyGroup = svg
+        .append('g')
+        .attr('transform', 'translate(500, 325)'); // Center of the SVG
+
+      emptyGroup
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .attr('font-size', '16px')
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .attr('fill', '#666')
+        .text('No subjects selected');
+
+      return;
+    }
+
+    // Filter out any subjects that don't have valid horizon ranks
+    const validData = data.filter(
+      (d) => d.horizon !== undefined && d.horizon !== null && !isNaN(d.horizon)
+    );
+
+    if (validData.length === 0) {
+      console.log('No valid horizon data available yet');
+      return;
+    }
+
+    console.log('Rendering horizon chart with valid data:', validData);
+
+    // Detect theme using multiple methods to ensure it works with your Chakra system
+    const html = document.documentElement;
+    const isDarkTheme =
+      html.getAttribute('data-theme') === 'dark' ||
+      html.classList.contains('dark') ||
+      (html.hasAttribute('data-theme') &&
+        html.getAttribute('data-theme') === 'dark');
+
+    // Determine unique categories from data - put uncategorized (1) first
+    const uniqueCategories = Array.from(
+      new Set(validData.map((d) => d.category))
+    ).sort((a, b) => {
+      // Put category 1 (uncategorized) first, then sort others
+      if (a === 1) return -1;
+      if (b === 1) return 1;
+      return a - b;
+    });
+
+    // Create a mapping from category numbers to category names
+    const categoryNamesMap = new Map<number, string>();
+    validData.forEach((item) => {
+      if (item.categoryName && !categoryNamesMap.has(item.category)) {
+        categoryNamesMap.set(item.category, item.categoryName);
+      }
+    });
+
+    // Calculate minimum height based on data
+    const minRowHeight = 160;
+    const rowSpacing = 8; // 8px spacing between rows
+    const subjectsPerCategory = new Map<number, number>();
+    validData.forEach((item) => {
+      subjectsPerCategory.set(
+        item.category,
+        (subjectsPerCategory.get(item.category) || 0) + 1
+      );
+    });
+
+    // Calculate row height - either minimum or based on number of subjects
+    const maxSubjectsInCategory = Math.max(
+      ...Array.from(subjectsPerCategory.values())
+    );
+    const calculatedRowHeight = Math.max(
+      minRowHeight,
+      maxSubjectsInCategory * 40 + 60
+    );
+    const rowHeight =
+      uniqueCategories.length === 1
+        ? calculatedRowHeight
+        : Math.max(minRowHeight, calculatedRowHeight * 0.7);
+
+    // Chart dimensions with minimum height and centered content
+    const containerWidth = 1000;
+    const minChartHeight = 650;
+    const contentHeight =
+      uniqueCategories.length * rowHeight +
+      (uniqueCategories.length - 1) * rowSpacing;
+    const chartHeight = Math.max(minChartHeight, contentHeight);
+    const containerHeight = chartHeight + 100; // Add space for labels
+
+    // Calculate vertical offset to center content
+    const contentVerticalOffset = (chartHeight - contentHeight) / 2;
+
+    const margin = { top: 60, right: 60, bottom: 40, left: 120 };
+    const chartWidth = containerWidth - margin.left - margin.right;
 
     // Create SVG
     const svg = d3
       .select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height)
-      .attr('viewBox', [0, 0, width, height])
+      .attr('width', containerWidth)
+      .attr('height', containerHeight)
+      .attr('viewBox', [0, 0, containerWidth, containerHeight])
       .attr('style', 'width: 100%; height: 100%; display: block;');
 
     const g = svg
       .append('g')
       .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-    // Define gradients for each horizon
-    const defs = svg.append('defs');
+    // Horizon boundaries - 0-10 scale mapped to sections
+    const horizonBoundaries = [
+      { name: 'Imagination', start: 0, end: 2.5, category: 'A' },
+      { name: 'Science', start: 2.5, end: 5.0, category: 'B' },
+      { name: 'Engineering', start: 5.0, end: 7.5, category: 'C' },
+      { name: 'Business', start: 7.5, end: 10.0, category: 'D' },
+    ];
 
-    const isDarkTheme =
-      document.documentElement.getAttribute('data-theme') === 'dark';
+    // Theme-aware colors using your design system hierarchy
+    const foregroundColor = isDarkTheme ? '#FFFFFF' : '#1B1B1D'; // fg - for row labels and vertical lines
+    const mutedTextColor = isDarkTheme ? '#646E78' : '#A7ACB2'; // fg.muted - for borders
+    const subtleTextColor = isDarkTheme ? '#A7ACB2' : '#646E78'; // fg.secondary - for column labels
 
-    // Create radial gradients for each horizon band
-
-    // Business gradient (horizon 1)
-    const businessGradient = defs
-      .append('radialGradient')
-      .attr('id', 'business-gradient')
-      .attr('cx', '0')
-      .attr('cy', '1')
-      .attr('r', '1')
-      .attr('gradientUnits', 'userSpaceOnUse')
-      .attr('gradientTransform', `scale(${maxRadius} ${maxRadius})`);
-
-    businessGradient
-      .append('stop')
-      .attr('offset', '0%')
-      .attr('stop-color', isDarkTheme ? '#333333' : '#e6e6e6')
-      .attr('stop-opacity', isDarkTheme ? 0.3 : 0.35);
-
-    businessGradient
-      .append('stop')
-      .attr('offset', '25%')
-      .attr('stop-color', isDarkTheme ? '#333333' : '#e6e6e6')
-      .attr('stop-opacity', isDarkTheme ? 0.05 : 0.08);
-
-    // Engineering gradient (horizon 2)
-    const engineeringGradient = defs
-      .append('radialGradient')
-      .attr('id', 'engineering-gradient')
-      .attr('cx', '0')
-      .attr('cy', '1')
-      .attr('r', '1')
-      .attr('gradientUnits', 'userSpaceOnUse')
-      .attr('gradientTransform', `scale(${maxRadius} ${maxRadius})`);
-
-    engineeringGradient
-      .append('stop')
-      .attr('offset', '25%')
-      .attr('stop-color', isDarkTheme ? '#404040' : '#d9d9d9')
-      .attr('stop-opacity', isDarkTheme ? 0.3 : 0.35);
-
-    engineeringGradient
-      .append('stop')
-      .attr('offset', '50%')
-      .attr('stop-color', isDarkTheme ? '#404040' : '#d9d9d9')
-      .attr('stop-opacity', isDarkTheme ? 0.05 : 0.08);
-
-    // Science gradient (horizon 3)
-    const scienceGradient = defs
-      .append('radialGradient')
-      .attr('id', 'science-gradient')
-      .attr('cx', '0')
-      .attr('cy', '1')
-      .attr('r', '1')
-      .attr('gradientUnits', 'userSpaceOnUse')
-      .attr('gradientTransform', `scale(${maxRadius} ${maxRadius})`);
-
-    scienceGradient
-      .append('stop')
-      .attr('offset', '50%')
-      .attr('stop-color', isDarkTheme ? '#4d4d4d' : '#cccccc')
-      .attr('stop-opacity', isDarkTheme ? 0.3 : 0.35);
-
-    scienceGradient
-      .append('stop')
-      .attr('offset', '75%')
-      .attr('stop-color', isDarkTheme ? '#4d4d4d' : '#cccccc')
-      .attr('stop-opacity', isDarkTheme ? 0.05 : 0.08);
-
-    // Idea gradient (horizon 4)
-    const ideaGradient = defs
-      .append('radialGradient')
-      .attr('id', 'idea-gradient')
-      .attr('cx', '0')
-      .attr('cy', '1')
-      .attr('r', '1')
-      .attr('gradientUnits', 'userSpaceOnUse')
-      .attr('gradientTransform', `scale(${maxRadius} ${maxRadius})`);
-
-    ideaGradient
-      .append('stop')
-      .attr('offset', '75%')
-      .attr('stop-color', isDarkTheme ? '#595959' : '#bfbfbf')
-      .attr('stop-opacity', isDarkTheme ? 0.3 : 0.35);
-
-    ideaGradient
-      .append('stop')
-      .attr('offset', '100%')
-      .attr('stop-color', isDarkTheme ? '#595959' : '#bfbfbf')
-      .attr('stop-opacity', isDarkTheme ? 0.05 : 0.08);
-
-    // Create scales for polar coordinates with empty space in the center
-    const centerPadding = maxRadius * 0.15;
-    const radiusScale = d3
-      .scaleLinear()
-      .domain([0.5, 4.5])
-      .range([centerPadding, maxRadius])
-      .nice();
-
-    const horizonToRadius = (horizon: number) => {
-      const invertedHorizon = 5 - horizon;
-      return radiusScale(invertedHorizon);
+    // Draw colored background sections for each maturity level with correct colors
+    const maturityColors = {
+      Imagination: '#6A35D4',
+      Science: '#46ACC8',
+      Engineering: '#F2CD5D',
+      Business: '#E07B91',
     };
 
-    // Determine unique categories from data
-    const uniqueCategories = Array.from(
-      new Set(data.map((d) => d.category))
-    ).sort((a, b) => a - b);
-    const minCategory = Math.min(...uniqueCategories);
-    const maxCategory = Math.max(...uniqueCategories);
+    // Create scale for horizon values (0-10)
+    const xScale = d3.scaleLinear().domain([0, 10]).range([0, chartWidth]);
 
-    const angleScale = d3
-      .scaleLinear()
-      .domain([minCategory - 0.5, maxCategory + 0.5])
-      .range([0, Math.PI / 2])
-      .nice();
+    // Create tooltip div for hover effects
+    const tooltip = d3
+      .select('body')
+      .selectAll('.horizon-tooltip')
+      .data([null])
+      .join('div')
+      .attr('class', 'horizon-tooltip')
+      .style('position', 'absolute')
+      .style(
+        'background',
+        isDarkTheme ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)'
+      )
+      .style('border', `1px solid ${foregroundColor}`)
+      .style('border-radius', '4px')
+      .style('padding', '8px 12px')
+      .style('font-family', 'JetBrains Mono, monospace')
+      .style('font-size', '12px')
+      .style('color', foregroundColor)
+      .style('pointer-events', 'none')
+      .style('opacity', 0)
+      .style('z-index', 9999)
+      .style('backdrop-filter', 'blur(10px)');
 
-    // Create a mapping from category numbers to category names
-    const categoryNamesMap = new Map<number, string>();
-    data.forEach((item) => {
-      if (item.categoryName && !categoryNamesMap.has(item.category)) {
-        categoryNamesMap.set(item.category, item.categoryName);
-      }
+    horizonBoundaries.forEach((horizon) => {
+      const sectionStart = xScale(horizon.start);
+      const sectionEnd = xScale(horizon.end);
+      const sectionWidth = sectionEnd - sectionStart;
+
+      // Create colored background with 10% opacity
+      const baseColor =
+        maturityColors[horizon.name as keyof typeof maturityColors];
+      const opacity = isDarkTheme ? 0.15 : 0.1;
+
+      g.append('rect')
+        .attr('x', sectionStart)
+        .attr('y', -50)
+        .attr('width', sectionWidth)
+        .attr('height', chartHeight + 100)
+        .attr('fill', baseColor)
+        .attr('opacity', opacity);
     });
 
-    // Define horizon info
-    const backgroundGroup = g
+    // Add straight vertical boundary lines between sections (foreground color)
+    horizonBoundaries.slice(0, -1).forEach((horizon) => {
+      const boundaryX = xScale(horizon.end);
+
+      g.append('line')
+        .attr('x1', boundaryX)
+        .attr('y1', -50)
+        .attr('x2', boundaryX)
+        .attr('y2', chartHeight + 50)
+        .attr('stroke', foregroundColor) // Use foreground color
+        .attr('stroke-width', 2)
+        .attr('opacity', 0.8);
+    });
+
+    // Add maturity axis label at the top with chart-style arrow
+    g.append('text')
+      .attr('x', chartWidth / 2 - 30)
+      .attr('y', -30)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '14px')
+      .attr('font-style', 'italic')
+      .attr('font-family', 'TT Norms Pro, sans-serif')
+      .attr('fill', subtleTextColor)
+      .text('MATURITY');
+
+    // Add chart-style arrow pointing right (shorter line, bigger head)
+    const arrowStartX = chartWidth / 2 + 10;
+    const arrowEndX = chartWidth / 2 + 25;
+    const arrowY = -30;
+
+    g.append('line')
+      .attr('x1', arrowStartX)
+      .attr('y1', arrowY)
+      .attr('x2', arrowEndX)
+      .attr('y2', arrowY)
+      .attr('stroke', mutedTextColor)
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.3);
+
+    // Bigger arrow head
+    const arrowHeadSize = 6;
+    g.append('path')
+      .attr(
+        'd',
+        `M ${arrowEndX - arrowHeadSize} ${
+          arrowY - arrowHeadSize / 2
+        } L ${arrowEndX} ${arrowY} L ${arrowEndX - arrowHeadSize} ${
+          arrowY + arrowHeadSize / 2
+        }`
+      )
+      .attr('stroke', mutedTextColor)
+      .attr('stroke-width', 1)
+      .attr('fill', 'none')
+      .attr('opacity', 0.3);
+
+    // Draw category rows with rounded corners and spacing
+    const categoryGroup = g
       .append('g')
-      .attr('class', 'horizon-backgrounds')
-      .attr('transform', `translate(0, ${chartHeight})`);
+      .attr('transform', `translate(0, ${contentVerticalOffset})`);
 
-    // create different arcs for each sector
-    const createSector = (innerR: number, outerR: number, fill: string) => {
-      const arc = d3
-        .arc<any, any>()
-        .innerRadius(innerR)
-        .outerRadius(outerR)
-        .startAngle(0)
-        .endAngle(Math.PI / 2);
+    uniqueCategories.forEach((categoryNum, i) => {
+      const y = i * (rowHeight + rowSpacing);
 
-      backgroundGroup
-        .append('path')
-        .attr('d', arc({} as any))
-        .attr('fill', fill);
-    };
+      // Row background with rounded corners and muted dotted border
+      categoryGroup
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', y)
+        .attr('width', chartWidth)
+        .attr('height', rowHeight)
+        .attr('fill', 'none')
+        .attr('stroke', mutedTextColor) // Use muted color for borders
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '4,4')
+        .attr('rx', 8)
+        .attr('ry', 8);
 
-    // Background sectors
-    createSector(0, horizonToRadius(4), 'url(#idea-gradient)'); // Horizon 4 (innermost)
-    createSector(
-      horizonToRadius(4),
-      horizonToRadius(3),
-      'url(#science-gradient)'
-    ); // Horizon 3
-    createSector(
-      horizonToRadius(3),
-      horizonToRadius(2),
-      'url(#engineering-gradient)'
-    ); // Horizon 2
-    createSector(
-      horizonToRadius(2),
-      horizonToRadius(1),
-      'url(#business-gradient)'
-    ); // Horizon 1 (outermost)
-
-    // Create grid lines for the polar coordinates
-    const gridGroup = g
-      .append('g')
-      .attr('class', 'grid-lines')
-      .attr('transform', `translate(0, ${chartHeight})`);
-
-    // Radial grid lines (horizons) - between bands instead of at their centers
-    const horizonLabels = ['Idea', 'Science', 'Engineering', 'Business'];
-
-    // Draw boundary lines between horizon bands
-    // Place horizon labels from innermost (Idea) to outermost (Business)
-    for (let i = 0; i < 4; i++) {
-      const bandInner = horizonToRadius(4 - i + 0.5);
-      const bandOuter = horizonToRadius(4 - i - 0.5);
-      const midRadius = (bandInner + bandOuter) / 2;
-      // Draw boundary lines
-      if (i !== 0) {
-        const boundaryRadius = bandInner;
-        const arcGenerator = d3
-          .arc<any, any>()
-          .innerRadius(boundaryRadius - 0.5)
-          .outerRadius(boundaryRadius + 0.5)
-          .startAngle(0)
-          .endAngle(Math.PI / 2);
-        gridGroup
-          .append('path')
-          .attr('d', arcGenerator({} as any))
-          .attr('fill', 'none')
-          .attr('stroke', isDarkTheme ? '#555' : '#ccc')
-          .attr('stroke-width', 1);
-      }
-      // Place label at the bottom, centered to the band
-      gridGroup
+      // Category label on the left (foreground color)
+      const categoryLabel =
+        categoryNamesMap.get(categoryNum) ||
+        (categoryNum === 1 ? 'Uncategorized' : `Category ${categoryNum}`);
+      categoryGroup
         .append('text')
-        .attr('x', midRadius)
-        .attr('y', 44)
-        .attr('class', 'horizon-label')
-        .text(horizonLabels[i]);
-    }
-
-    // Category grid lines (boundaries between bands)
-    // Draw grid lines at category boundaries (min-0.5 to max+0.5)
-    for (let i = 0; i <= uniqueCategories.length; i++) {
-      const catBoundary = minCategory - 0.5 + i;
-      const angle = angleScale(catBoundary);
-      const lineLength = horizonToRadius(1) * 1.02;
-      gridGroup
-        .append('line')
-        .attr('x1', 0)
-        .attr('y1', 0)
-        .attr('x2', lineLength * Math.cos(angle))
-        .attr('y2', -lineLength * Math.sin(angle))
-        .attr('stroke', isDarkTheme ? '#555' : '#ccc')
-        .attr('stroke-width', 0.5)
-        .attr('stroke-dasharray', '3,3');
-    }
-
-    // Place category labels centered in each band, at a slightly larger radius
-    // Use category names instead of numbers
-    for (let i = 0; i < uniqueCategories.length; i++) {
-      const cat = uniqueCategories[i];
-      const angleStart = angleScale(cat - 0.5);
-      const angleEnd = angleScale(cat + 0.5);
-      const midAngle = (angleStart + angleEnd) / 2;
-      const labelRadius = horizonToRadius(1) * 1.13;
-
-      // Get the category name from our mapping, fall back to number if not found
-      const categoryLabel = categoryNamesMap.get(cat) || String(cat);
-
-      gridGroup
-        .append('text')
-        .attr('x', labelRadius * Math.cos(midAngle))
-        .attr('y', -labelRadius * Math.sin(midAngle))
-        .attr('text-anchor', 'middle')
+        .attr('x', -10)
+        .attr('y', y + rowHeight / 2)
+        .attr('text-anchor', 'end')
         .attr('dominant-baseline', 'middle')
-        .attr('font-size', '12px')
+        .attr('font-size', '14px')
         .attr('font-weight', 'bold')
-        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
+        .attr('font-family', 'TT Norms Pro, sans-serif')
+        .attr('fill', foregroundColor) // Use foreground color
         .text(categoryLabel);
-    }
+    });
 
-    const dataPointsGroup = g
+    // Draw short arrows in center of each category row - improved visibility
+    uniqueCategories.forEach((categoryNum, i) => {
+      const y = i * (rowHeight + rowSpacing) + contentVerticalOffset;
+      const arrowY = y + rowHeight / 2;
+
+      // Draw arrows between sections only if not the last section
+      horizonBoundaries.slice(0, -1).forEach((horizon, j) => {
+        const fromX = xScale((horizon.start + horizon.end) / 2);
+        const toX = xScale(
+          (horizonBoundaries[j + 1].start + horizonBoundaries[j + 1].end) / 2
+        );
+
+        // Much shorter arrow shaft
+        const shaftLength = 30; // Reduced from 15 to make it even shorter
+        const startX = fromX + (toX - fromX) / 2 - shaftLength / 2;
+        const endX = fromX + (toX - fromX) / 2 + shaftLength / 2;
+
+        // Arrow shaft
+        g.append('line')
+          .attr('x1', startX)
+          .attr('y1', arrowY)
+          .attr('x2', endX)
+          .attr('y2', arrowY)
+          .attr('stroke', mutedTextColor)
+          .attr('stroke-width', 2) // Slightly thicker shaft
+          .attr('opacity', 0.4); // Slightly more visible
+
+        // Much bigger arrow head
+        const arrowHeadSize = 12; // Increased from 6 to make it much more visible
+        g.append('path')
+          .attr(
+            'd',
+            `M ${endX - arrowHeadSize} ${
+              arrowY - arrowHeadSize / 2
+            } L ${endX} ${arrowY} L ${endX - arrowHeadSize} ${
+              arrowY + arrowHeadSize / 2
+            } Z`
+          )
+          .attr('stroke', mutedTextColor)
+          .attr('stroke-width', 1)
+          .attr('fill', mutedTextColor) // Fill the arrow head for better visibility
+          .attr('opacity', 0.4);
+      });
+    });
+
+    // Position subjects based on horizon rank - FIXED POSITIONING
+    const subjectGroup = g
       .append('g')
-      .attr('class', 'data-points')
-      .attr('transform', `translate(0, ${chartHeight})`);
+      .attr('class', 'subjects')
+      .style('z-index', 1000); // Highest z-index
 
-    const jitterRadius = 15;
-    const jitterAngle = Math.PI / 36;
+    // Group subjects by category to handle positioning within each row
+    const subjectsByCategory = new Map<number, typeof validData>();
+    validData.forEach((subject) => {
+      if (!subjectsByCategory.has(subject.category)) {
+        subjectsByCategory.set(subject.category, []);
+      }
+      subjectsByCategory.get(subject.category)!.push(subject);
+    });
 
-    // Use brand color for nodes
-    const shapeBlue = '#0005E9'; // Brand color
-    const shapeOpacity = 0.9;
+    // Position subjects within each category row
+    subjectsByCategory.forEach((subjects) => {
+      // Find the category row index
+      const categoryRowIndex = uniqueCategories.indexOf(subjects[0].category);
+      if (categoryRowIndex === -1) return;
 
-    // Keep track of all items for collision detection
-    type ItemPosition = {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      itemGroup: d3.Selection<SVGGElement, unknown, null, undefined>;
-      isColliding: boolean;
-      radius: number;
-      angle: number;
-    };
+      // Calculate the base Y position for this category
+      const baseY =
+        contentVerticalOffset +
+        categoryRowIndex * (rowHeight + rowSpacing) +
+        rowHeight / 2;
 
-    const itemPositions: ItemPosition[] = [];
-
-    // Helper: overlap function
-    function overlap(r1: any, r2: any, labelPad = 2) {
-      return !(
-        r1.right + labelPad < r2.left - labelPad ||
-        r1.left - labelPad > r2.right + labelPad ||
-        r1.bottom + labelPad < r2.top - labelPad ||
-        r1.top - labelPad > r2.bottom + labelPad
+      // Sort subjects by horizon rank for consistent positioning
+      const sortedSubjects = [...subjects].sort(
+        (a, b) => a.horizon - b.horizon
       );
-    }
 
-    // Check collision between two data items (hex and label)
-    function checkItemCollision(a: ItemPosition, b: ItemPosition): boolean {
-      const hexRadius = 12;
-      // a hexagon center
-      const aHex = {
-        left: a.x - 24,
-        right: a.x - 24 + hexRadius * 2,
-        top: a.y - hexRadius,
-        bottom: a.y + hexRadius,
-      };
-      // a label
-      const aLabel = {
-        left: a.x,
-        right: a.x + a.width,
-        top: a.y - a.height / 2,
-        bottom: a.y + a.height / 2,
-      };
-      // b hexagon center
-      const bHex = {
-        left: b.x - 24,
-        right: b.x - 24 + hexRadius * 2,
-        top: b.y - hexRadius,
-        bottom: b.y + hexRadius,
-      };
-      // b label
-      const bLabel = {
-        left: b.x,
-        right: b.x + b.width,
-        top: b.y - b.height / 2,
-        bottom: b.y + b.height / 2,
-      };
-      return (
-        overlap(aHex, bHex) ||
-        overlap(aHex, bLabel) ||
-        overlap(aLabel, bHex) ||
-        overlap(aLabel, bLabel)
-      );
-    }
+      // Create a simple force simulation for label positioning to avoid overlaps
+      const labelPositions = new Map<
+        string,
+        { x: number; y: number; labelY: number }
+      >();
 
-    // Check collision between a data item (hex and label) and an axis label box
-    function checkLabelCollision(
-      item: ItemPosition,
-      axisBox: {
-        left: number;
-        right: number;
-        top: number;
-        bottom: number;
-        name: string;
-      }
-    ): boolean {
-      const hexRadius = 12;
-      const labelDistance = 24;
-      const itemHex = {
-        left: item.x - labelDistance,
-        right: item.x - labelDistance + hexRadius * 2,
-        top: item.y - hexRadius,
-        bottom: item.y + hexRadius,
-      };
-      const itemLabel = {
-        left: item.x,
-        right: item.x + item.width,
-        top: item.y - item.height / 2,
-        bottom: item.y + item.height / 2,
-      };
-      return overlap(itemLabel, axisBox) || overlap(itemHex, axisBox);
-    }
+      sortedSubjects.forEach((subject) => {
+        // X position based on horizon rank (0-10 scale)
+        const x = xScale(subject.horizon);
 
-    // Axis label bounding boxes for collision avoidance
-    let axisLabelBoxes: {
-      left: number;
-      right: number;
-      top: number;
-      bottom: number;
-      name: string;
-    }[] = [];
+        // Y position within the category row with better vertical spread
+        const rowPadding = 40; // Increased padding from top/bottom of row
+        const availableHeight = rowHeight - 2 * rowPadding;
 
-    // Function to detect collisions and return true if any exist
-    const detectCollisions = () => {
-      itemPositions.forEach((item) => {
-        item.isColliding = false;
-      });
+        // Use a deterministic spread based on subject name hash to be consistent
+        const hash = subject.name
+          .split('')
+          .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const normalizedHash = (hash % 1000) / 1000; // 0-1
 
-      let collisionsExist = false;
+        // Create more vertical spacing between subjects by expanding the range
+        const verticalSpread = 1.5; // Increased from 1.0 to spread subjects more
+        const verticalOffset =
+          (normalizedHash - 0.5) * availableHeight * verticalSpread;
+        const y = baseY + verticalOffset;
 
-      // Check each pair of items for collisions (data-data)
-      for (let i = 0; i < itemPositions.length; i++) {
-        for (let j = i + 1; j < itemPositions.length; j++) {
-          if (checkItemCollision(itemPositions[i], itemPositions[j])) {
-            itemPositions[i].isColliding = true;
-            itemPositions[j].isColliding = true;
-            collisionsExist = true;
-          }
-        }
-      }
+        // Label positioning - try to avoid overlaps with improved spacing
+        let labelY = y - 15; // Start above the hexagon
 
-      // Check for overlap with axis labels (data-axis)
-      for (let i = 0; i < itemPositions.length; i++) {
-        for (let k = 0; k < axisLabelBoxes.length; k++) {
-          const item = itemPositions[i];
-          const axisBox = axisLabelBoxes[k];
-          if (checkLabelCollision(item, axisBox)) {
-            console.log(
-              `Collision detected between item ${i} and axis label ${axisBox.name}`
-            );
-            item.isColliding = true;
-            collisionsExist = true;
-          }
-        }
-      }
+        // Check for overlaps with existing labels and adjust if needed
+        const minLabelDistance = 25; // Increased from 20 for better spacing
+        const existingPositions = Array.from(labelPositions.values());
 
-      // No visual changes for collisions, just track them for resolution
-      itemPositions.forEach((item) => {
-        // All items have the same appearance regardless of collision status
-        item.itemGroup
-          .select('circle, rect, path')
-          .attr('fill', shapeBlue)
-          .attr('opacity', shapeOpacity);
+        for (let attempt = 0; attempt < 15; attempt++) {
+          // Increased attempts
+          let hasOverlap = false;
 
-        item.itemGroup.select('text').classed('colliding-label', false);
-      });
+          for (const existing of existingPositions) {
+            const xDistance = Math.abs(x - existing.x);
+            const yDistance = Math.abs(labelY - existing.labelY);
 
-      return collisionsExist;
-    };
-
-    // Function to create shapes based on type
-    const renderShape = (d: HorizonItem) => {
-      // Place data in the center of the horizon and category bands
-      const horizonBandStart = horizonToRadius(d.horizon + 0.5);
-      const horizonBandEnd = horizonToRadius(d.horizon - 0.5);
-      const radius =
-        (horizonBandStart + horizonBandEnd) / 2 +
-        (Math.random() - 0.5) * jitterRadius;
-      const catBandStart = angleScale(d.category - 0.5);
-      const catBandEnd = angleScale(d.category + 0.5);
-      const angle =
-        (catBandStart + catBandEnd) / 2 + (Math.random() - 0.5) * jitterAngle;
-
-      // Convert polar to cartesian coordinates
-      const x = radius * Math.cos(angle);
-      const y = -radius * Math.sin(angle);
-
-      const itemGroup = dataPointsGroup
-        .append('g')
-        .attr('class', 'horizon-item')
-        .attr('transform', `translate(${x}, ${y})`);
-
-      const hexagonPoints = d3.range(6).map((i) => {
-        const angle = (i * Math.PI) / 3;
-        return [12 * Math.cos(angle), 12 * Math.sin(angle)];
-      });
-      const lineGenerator = d3.line();
-      const hexPath = lineGenerator(hexagonPoints as [number, number][]) + 'Z';
-      itemGroup
-        .append('path')
-        .attr('d', hexPath)
-        .attr('fill', shapeBlue)
-        .attr('opacity', shapeOpacity)
-        .attr('stroke', '#fff')
-        .attr('stroke-width', '0.5');
-
-      // All text labels will be horizontal and always to the right of data points
-      // Create a line from the point to the label position
-      const labelDistance = 24;
-      const labelX = labelDistance;
-      const labelY = 0;
-
-      // Add connecting line from point to label
-      itemGroup
-        .append('line')
-        .attr('x1', 0)
-        .attr('y1', 0)
-        .attr('x2', labelDistance - 3)
-        .attr('y2', 0)
-        .attr('stroke', isDarkTheme ? '#777' : '#999')
-        .attr('stroke-width', 0.5)
-        .attr('stroke-dasharray', '1,1');
-
-      itemGroup
-        .append('text')
-        .attr('x', labelX)
-        .attr('y', labelY)
-        .attr('class', 'item-label')
-        .attr('text-anchor', 'start')
-        .attr('dominant-baseline', 'middle')
-        .attr('font-size', '11px')
-        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
-        .text(d.name);
-
-      const labelWidth = d.name.length * 6;
-
-      const globalLabelX = x + labelDistance;
-      const globalLabelY = y;
-
-      itemPositions.push({
-        x: globalLabelX,
-        y: globalLabelY,
-        width: labelWidth,
-        height: 20,
-        itemGroup: itemGroup,
-        isColliding: false,
-        radius: radius,
-        angle: angle,
-      });
-    };
-
-    axisLabelBoxes = [];
-    // Horizon axis labels (bottom, centered to each band)
-    for (let i = 0; i < 4; i++) {
-      const bandInner = horizonToRadius(4 - i + 0.5);
-      const bandOuter = horizonToRadius(4 - i - 0.5);
-      const midRadius = (bandInner + bandOuter) / 2;
-      const x = midRadius;
-      const y = 32;
-      const text = ['Idea', 'Science', 'Engineering', 'Business'][i];
-      const width = text.length * 8;
-      const height = 18;
-      axisLabelBoxes.push({
-        left: x - width / 2,
-        right: x + width / 2,
-        top: y,
-        bottom: y + height,
-        name: text,
-      });
-    }
-    // Category axis labels (centered in each band, outside data region)
-    for (let i = 0; i < uniqueCategories.length; i++) {
-      const cat = uniqueCategories[i];
-      const angleStart = angleScale(cat - 0.5);
-      const angleEnd = angleScale(cat + 0.5);
-      const midAngle = (angleStart + angleEnd) / 2;
-      const labelRadius = horizonToRadius(1) * 1.13;
-      const x = labelRadius * Math.cos(midAngle);
-      const y = -labelRadius * Math.sin(midAngle);
-      const categoryLabel = categoryNamesMap.get(cat) || String(cat);
-      const width = categoryLabel.length * 8;
-      const height = 18;
-      axisLabelBoxes.push({
-        left: x - width / 2,
-        right: x + width / 2,
-        top: y - height / 2,
-        bottom: y + height / 2,
-        name: categoryLabel,
-      });
-    }
-
-    data.forEach(renderShape);
-
-    const resolveCollisions = () => {
-      const maxIterations = 60;
-      const moveStep = 8;
-      let iterations = 0;
-
-      // Function to perform a single iteration of collision resolution
-      const resolveStep = () => {
-        if (iterations >= maxIterations) {
-          console.log(
-            `Reached max iterations (${maxIterations}). Some collisions may remain.`
-          );
-          return;
-        }
-
-        iterations++;
-
-        // Detect collisions
-        const hasCollisions = detectCollisions();
-
-        // If no collisions, we're done
-        if (!hasCollisions) {
-          console.log(
-            `All collisions resolved after ${iterations} iterations.`
-          );
-          return;
-        }
-
-        // Map to track which items are colliding with each other (data-data and data-label)
-        const collisionMap = new Map<ItemPosition, ItemPosition[]>();
-
-        // Data-data collisions
-        for (let i = 0; i < itemPositions.length; i++) {
-          for (let j = i + 1; j < itemPositions.length; j++) {
-            if (checkItemCollision(itemPositions[i], itemPositions[j])) {
-              if (!collisionMap.has(itemPositions[i])) {
-                collisionMap.set(itemPositions[i], []);
-              }
-              if (!collisionMap.has(itemPositions[j])) {
-                collisionMap.set(itemPositions[j], []);
-              }
-              collisionMap.get(itemPositions[i])!.push(itemPositions[j]);
-              collisionMap.get(itemPositions[j])!.push(itemPositions[i]);
+            // More aggressive collision detection
+            if (xDistance < 100 && yDistance < minLabelDistance) {
+              hasOverlap = true;
+              break;
             }
           }
+
+          if (!hasOverlap) break;
+
+          // Adjust label position with larger steps
+          labelY +=
+            (attempt % 2 === 0 ? 1 : -1) *
+            (minLabelDistance + Math.floor(attempt / 2) * 5);
         }
 
-        // Data-axis label collisions: treat axis label collisions as a repulsive force from a virtual item at the axis label's center
-        for (let i = 0; i < itemPositions.length; i++) {
-          for (let k = 0; k < axisLabelBoxes.length; k++) {
-            const item = itemPositions[i];
-            const axisBox = axisLabelBoxes[k];
-            if (checkLabelCollision(item, axisBox)) {
-              // Create a virtual item at the center of the axis label box
-              const centerX = (axisBox.left + axisBox.right) / 2;
-              const centerY = (axisBox.top + axisBox.bottom) / 2;
-              // We'll use the same width/height as the item label for repulsion
-              const virtualItem: ItemPosition = {
-                x: centerX,
-                y: centerY,
-                width: axisBox.right - axisBox.left,
-                height: axisBox.bottom - axisBox.top,
-                itemGroup: item.itemGroup, // not used
-                isColliding: false,
-                radius: Math.sqrt(centerX * centerX + centerY * centerY),
-                angle: Math.atan2(-centerY, centerX), // SVG y is down
-              };
-              if (!collisionMap.has(item)) {
-                collisionMap.set(item, []);
-              }
-              collisionMap.get(item)!.push(virtualItem);
-            }
-          }
-        }
+        // Store the final position
+        labelPositions.set(subject.name, { x, y, labelY });
 
-        // Function to calculate the movement vector away from colliding items
-        const calculateMovementVector = (
-          item: ItemPosition,
-          collidingWith: ItemPosition[]
-        ): { radius: number; angle: number } => {
-          // If not colliding with anything, return no movement
-          if (collidingWith.length === 0) {
-            return { radius: 0, angle: 0 };
-          }
+        // Draw subject as blue hexagon with brand color
+        const hexagonSize = 6;
+        const hexagonPath = `M${x},${y - hexagonSize} L${
+          x + hexagonSize * 0.866
+        },${y - hexagonSize * 0.5} L${x + hexagonSize * 0.866},${
+          y + hexagonSize * 0.5
+        } L${x},${y + hexagonSize} L${x - hexagonSize * 0.866},${
+          y + hexagonSize * 0.5
+        } L${x - hexagonSize * 0.866},${y - hexagonSize * 0.5} Z`;
 
-          // In polar coordinates, we'll modify radius and angle instead of x and y
-          let radiusChange = 0;
-          let angleChange = 0;
-
-          collidingWith.forEach((other) => {
-            // Determine if we should push more radially or angularly
-            const radialDiff = item.radius - other.radius;
-            const angularDiff = item.angle - other.angle;
-
-            // Prioritize the direction with greater difference
-            if (Math.abs(radialDiff) > Math.abs(angularDiff * item.radius)) {
-              // Move more in radial direction
-              radiusChange += Math.sign(radialDiff) * 2;
-              angleChange += (Math.sign(angularDiff) * 0.5) / item.radius;
-            } else {
-              // Move more in angular direction
-              radiusChange += Math.sign(radialDiff) * 0.5;
-              angleChange += (Math.sign(angularDiff) * 2) / item.radius;
-            }
+        subjectGroup
+          .append('path')
+          .attr('d', hexagonPath)
+          .attr('fill', '#0005E9') // Brand color
+          .attr('stroke', foregroundColor)
+          .attr('stroke-width', 2)
+          .style('z-index', 1001)
+          .style('cursor', 'pointer')
+          .on('mouseenter', function (event) {
+            // Show tooltip with delay
+            setTimeout(() => {
+              const horizonDescription = getHorizonDescription(subject.horizon);
+              tooltip
+                .html(
+                  `<strong>${subject.name}</strong><br/>
+                   <span style="color: ${mutedTextColor}; font-size: 11px;">
+                     Horizon Rank: ${subject.horizon.toFixed(1)}<br/>
+                     ${horizonDescription}
+                   </span>`
+                )
+                .style('opacity', 1)
+                .style('left', event.pageX + 10 + 'px')
+                .style('top', event.pageY - 10 + 'px');
+            }, 500);
+          })
+          .on('mouseleave', function () {
+            // Hide tooltip with delay
+            setTimeout(() => {
+              tooltip.style('opacity', 0);
+            }, 100);
+          })
+          .on('mousemove', function (event) {
+            tooltip
+              .style('left', event.pageX + 10 + 'px')
+              .style('top', event.pageY - 10 + 'px');
           });
 
-          // Normalize the changes
-          const magnitude =
-            Math.sqrt(
-              radiusChange * radiusChange + angleChange * angleChange
-            ) || 1;
-          radiusChange = (radiusChange / magnitude) * moveStep;
-          angleChange = (angleChange / magnitude) * moveStep * 0.02;
+        // Add subject label with theme-aware colors and monospace font
+        subjectGroup
+          .append('text')
+          .attr('x', x)
+          .attr('y', labelY) // Use calculated label position
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'bottom')
+          .attr('font-size', '11px')
+          .attr('font-family', 'JetBrains Mono, monospace') // Use monospace font from theme
+          .attr('font-weight', '500')
+          .attr('fill', foregroundColor) // Use theme foreground color
+          .style('z-index', 1002)
+          .style('pointer-events', 'none') // Don't interfere with hexagon hover
+          .text(subject.name);
+      });
+    });
 
-          return { radius: radiusChange, angle: angleChange };
-        };
-
-        // For each colliding item, move it away from its collisions
-        let movedPoints = false;
-
-        collisionMap.forEach((collidingWith, item) => {
-          movedPoints = true;
-
-          // Calculate movement vector in polar coordinates
-          const movement = calculateMovementVector(item, collidingWith);
-
-          // Update polar coordinates
-          const newRadius = item.radius + movement.radius;
-          const newAngle = item.angle + movement.angle;
-
-          // Ensure we stay within bounds (use min horizon radius for inner bound)
-          const minRadius = Math.max(10, horizonToRadius(4));
-          const maxRadius = horizonToRadius(1) * 1.05;
-          const boundedRadius = Math.max(
-            minRadius,
-            Math.min(newRadius, maxRadius)
-          );
-          const boundedAngle = Math.max(
-            0.01,
-            Math.min(newAngle, Math.PI / 2 - 0.01)
-          );
-
-          item.radius = boundedRadius;
-          item.angle = boundedAngle;
-
-          // Convert to cartesian for the data point
-          const pointX = boundedRadius * Math.cos(boundedAngle);
-          const pointY = -boundedRadius * Math.sin(boundedAngle);
-
-          // Update the position of the item in our tracking data
-          item.x = pointX + 24;
-          item.y = pointY;
-          item.radius = boundedRadius;
-          item.angle = boundedAngle;
-
-          // Move the entire group (which includes both the point and its label)
-          item.itemGroup
-            .transition()
-            .duration(200)
-            .ease(d3.easeCubicInOut)
-            .attr('transform', `translate(${pointX}, ${pointY})`);
-        });
-
-        // Schedule next iteration if we moved any points
-        if (movedPoints) {
-          setTimeout(resolveStep, 80);
-        }
-      };
-
-      resolveStep();
-    };
-
-    // Run initial collision detection
-    detectCollisions();
-
-    // Automatically start collision resolution with a small delay to let the initial rendering complete
-    setTimeout(() => {
-      resolveCollisions();
-    }, 300);
-
+    // Add legend if requested
     if (showLegend) {
       const legend = svg
         .append('g')
         .attr('class', 'legend')
-        .attr(
-          'transform',
-          `translate(${width - margin.right - 150}, ${margin.top})`
-        );
+        .attr('transform', `translate(${containerWidth - 150}, ${margin.top})`);
 
       legend
         .append('text')
         .attr('x', 0)
         .attr('y', 0)
         .attr('font-weight', 'bold')
-        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
-        .text('Legend (Types)');
+        .attr('fill', foregroundColor) // Use foreground color
+        .text('Legend');
 
-      const legendBlue = '#0005E9'; // Use brand color
-      const legendOpacity = 0.8;
+      const legendItems = [
+        'Business: Can we do it profitably?',
+        'Engineering: Can we do it at scale?',
+        'Science: Can we do it at all?',
+        'Imagination: What if we could?',
+      ];
 
-      // Type 1 - Circle
-      legend
-        .append('circle')
-        .attr('cx', 10)
-        .attr('cy', 20)
-        .attr('r', 8)
-        .attr('fill', legendBlue)
-        .attr('opacity', legendOpacity);
-
-      legend
-        .append('text')
-        .attr('x', 25)
-        .attr('y', 25)
-        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
-        .text('Type 1');
-
-      // Type 2 - Square
-      legend
-        .append('rect')
-        .attr('x', 2)
-        .attr('y', 40)
-        .attr('width', 16)
-        .attr('height', 16)
-        .attr('fill', legendBlue)
-        .attr('opacity', legendOpacity);
-
-      legend
-        .append('text')
-        .attr('x', 25)
-        .attr('y', 50)
-        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
-        .text('Type 2');
-
-      // Type 3 - Hexagon
-      const legendHexPoints = d3.range(6).map((i) => {
-        const angle = (i * Math.PI) / 3;
-        return [8 * Math.cos(angle) + 10, 8 * Math.sin(angle) + 75];
+      legendItems.forEach((text, i) => {
+        legend
+          .append('text')
+          .attr('x', 0)
+          .attr('y', 20 + i * 15)
+          .attr('font-size', '12px')
+          .attr('fill', subtleTextColor) // Use subtle color
+          .text(text);
       });
-
-      legend
-        .append('path')
-        .attr('d', d3.line()(legendHexPoints as [number, number][]) + 'Z')
-        .attr('fill', legendBlue)
-        .attr('opacity', legendOpacity);
-
-      legend
-        .append('text')
-        .attr('x', 25)
-        .attr('y', 75)
-        .attr('fill', isDarkTheme ? '#FFFFFF' : '#1B1B1D') // Theme-aware color
-        .text('Type 3');
     }
-  }, [data, showLegend]);
+  }, [data, showLegend, isLoading]);
 
   return (
-    <div className='horizons-container'>
+    <div className='horizons-container' style={{ background: 'transparent' }}>
       <div className='horizons-chart'>
         <svg ref={svgRef}></svg>
       </div>

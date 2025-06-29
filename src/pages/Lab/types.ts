@@ -80,7 +80,7 @@ export interface ApiLabSubject {
 export interface ApiLabMember {
   fullname: string;
   user_guid: string;
-  role: 'admin' | 'editor' | 'reader';
+  role: 'admin' | 'editor' | 'viewer';
 }
 
 export interface ApiLabGoal {
@@ -116,9 +116,9 @@ export interface SubjectData {
   ent_fsid: string;
   ent_summary: string;
   indexes?: Array<{
-    HR: number;
-    TT: number;
-    WS: number;
+    HR: number; // Horizon Rank (0-10 scale)
+    TT: number; // Tech Transfer
+    WS: number; // White Space
   }>;
 }
 
@@ -151,7 +151,7 @@ export type AnalysisType = 'patent' | 'taxonomy' | 'research' | 'investment';
 
 export interface HorizonItem {
   name: string;
-  horizon: 1 | 2 | 3 | 4;
+  horizon: number; // This is the actual HR value (0-10 scale) from the API
   category: 1 | 2 | 3 | 4 | 5;
   type: 1 | 2 | 3;
   categoryName?: string;
@@ -235,7 +235,7 @@ export interface Lab {
   memberIds: string[];
   adminIds: string[];
   editorIds: string[];
-  readerIds: string[];
+  viewerIds: string[];
   categories: SubjectCategory[];
   subjects: LabSubject[];
   analyses: LabAnalysis[];
@@ -257,6 +257,10 @@ export interface LabSubject {
   addedAt: string;
   addedById: string;
   notes?: string;
+  // Add horizon rank data from API
+  horizonRank?: number; // HR value from indexes[0].HR (0-10 scale)
+  techTransfer?: number; // TT value from indexes[0].TT
+  whiteSpace?: number; // WS value from indexes[0].WS
 }
 
 export interface SubjectCategory {
@@ -294,7 +298,7 @@ export interface LabMember {
   id: string;
   fullname: string;
   userGuid: string;
-  role: 'admin' | 'editor' | 'reader';
+  role: 'admin' | 'editor' | 'viewer';
 }
 
 // ============================================================================
@@ -544,6 +548,10 @@ export class ApiTransformUtils {
         addedAt: new Date().toISOString(), // Default since not in API
         addedById: 'unknown', // Default since not in API
         notes: '', // No notes in API, default to empty
+        // Horizon rank data will be populated separately when detailed subject data is fetched
+        horizonRank: undefined,
+        techTransfer: undefined,
+        whiteSpace: undefined,
       };
 
       transformedSubjects.push(transformedSubject);
@@ -598,7 +606,7 @@ export class ApiTransformUtils {
     // Determine admin based on role or owner_guid
     const adminIds: string[] = [];
     const editorIds: string[] = [];
-    const readerIds: string[] = [];
+    const viewerIds: string[] = [];
 
     apiData.members.forEach((member) => {
       if (member.role === 'owner' || member.role === 'admin') {
@@ -606,7 +614,7 @@ export class ApiTransformUtils {
       } else if (member.role === 'editor') {
         editorIds.push(member.user_id);
       } else {
-        readerIds.push(member.user_id);
+        viewerIds.push(member.user_id);
       }
     });
 
@@ -633,7 +641,7 @@ export class ApiTransformUtils {
       memberIds,
       adminIds,
       editorIds,
-      readerIds,
+      viewerIds,
       categories: transformedCategories,
       subjects: transformedSubjects,
       analyses: transformedAnalyses,

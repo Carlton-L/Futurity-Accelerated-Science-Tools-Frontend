@@ -5,6 +5,7 @@ import { PrivateRoute } from './context/AuthContext';
 import { PageProvider } from './context/PageContext';
 import { theme } from './theme'; // Import your custom theme
 import Layout from './components/layouts/MainLayout/MainLayout';
+import ScrollToTop from './components/shared/ScrollToTop';
 import Home from './pages/Home';
 import Subject from './pages/Subject';
 import Search from './pages/Search';
@@ -12,15 +13,18 @@ import WorkspaceView from './pages/WorkspaceView';
 import Login from './pages/Login/Login';
 import Lab from './pages/Lab';
 import FuturityLab from './pages/FuturityLab/FuturityLab';
+import FuturityLabsDirectory from './pages/FuturityLabsDirectory';
 import Whiteboard from './pages/Whiteboard';
 import TeamView from './pages/TeamView';
 import TeamManage from './pages/TeamManage';
 import CreateLab from './pages/CreateLab';
+import { Profile } from './pages/Profile';
 
 function App() {
   return (
     <ChakraProvider value={theme}>
       <BrowserRouter>
+        <ScrollToTop />
         <AuthProvider>
           <PageProvider>
             <Routes>
@@ -31,11 +35,17 @@ function App() {
               <Route element={<PrivateRoute />}>
                 <Route element={<Layout />}>
                   <Route path='/' element={<Home />} />
+                  <Route path='/profile' element={<Profile />} />
                   {/* Dynamic lab route - this will catch any lab ID */}
                   <Route path='/lab/:id' element={<Lab />} />
                   <Route path='/lab/create' element={<CreateLab />} />
                   {/* Futurity Lab route - using slug (ent_fsid) */}
                   <Route path='/futurity-lab/:slug' element={<FuturityLab />} />
+                  {/* Futurity Labs Directory route */}
+                  <Route
+                    path='/futuritylabs'
+                    element={<FuturityLabsDirectory />}
+                  />
                   <Route path='/search' element={<Search />} />
                   <Route path='/search/:query' element={<Search />} />
                   <Route path='/subject/:slug' element={<Subject />} />
