@@ -18,6 +18,10 @@ export type User = {
   team_id?: string;
   changing_email?: string | null;
   displayName?: string;
+  // Extended fields from management API
+  last_login?: number;
+  preferences?: Record<string, any>;
+  permissions?: string[];
 };
 
 export type WorkspaceMember = {
@@ -109,8 +113,36 @@ export type LoginResponse = {
   errors: string[];
 };
 
+// Extended user data type from management API
+export type ExtendedUserData = {
+  _id: string;
+  username: string;
+  email: string;
+  fullname: string;
+  role: string;
+  status: number;
+  debug_mode: number;
+  research_team: number;
+  email_validated: number;
+  auth_key: string;
+  created_at: number;
+  updated_at: number;
+  guid: string;
+  biography?: string;
+  picture_url?: string;
+  thumb_url?: string;
+  team_id?: string;
+  changing_email?: string | null;
+  displayName?: string;
+  // Additional fields that might come from the management API
+  last_login?: number;
+  preferences?: Record<string, any>;
+  permissions?: string[];
+};
+
 export type AuthContextType = {
   user: User | null;
+  extendedUser: ExtendedUserData | null;
   token: string | null;
   workspace: Workspace | null;
   currentTeamspace: TeamspaceListItem | null;
@@ -119,6 +151,7 @@ export type AuthContextType = {
   logout: () => void;
   setCurrentTeamspace: (teamspace: TeamspaceListItem | null) => void;
   refreshWorkspace: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
 };

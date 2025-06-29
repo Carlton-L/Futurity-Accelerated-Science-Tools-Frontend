@@ -46,7 +46,7 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
 
       try {
         const response = await fetch(
-          `https://tools.futurity.science/api/subject/get-ridgeline-plot?slug=${subjectSlug}`,
+          `http://fast.futurity.science/graphs/ridgeline-data?subject==${subjectSlug}`,
           {
             headers: {
               Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',

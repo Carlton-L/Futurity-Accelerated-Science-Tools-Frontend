@@ -14,10 +14,11 @@ import {
   IconButton,
   Field,
   InputGroup,
-  Alert,
   Container,
   SimpleGrid,
-  Spinner,
+  Skeleton,
+  SkeletonText,
+  SkeletonCircle,
 } from '@chakra-ui/react';
 import {
   FiEdit2,
@@ -30,8 +31,10 @@ import {
   FiUser,
   FiLock,
   FiCamera,
+  FiUpload,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
+import { userService } from '../../services/userService';
 import { useToast, ToastDisplay } from '../Lab/ToastSystem';
 import type {
   EditingState,
@@ -208,7 +211,7 @@ const PasswordField: React.FC<
 );
 
 const Profile: React.FC = () => {
-  const { user, workspace } = useAuth();
+  const { user, workspace, token, refreshUser } = useAuth();
   const { toast, toasts, removeToast, executeUndo } = useToast();
 
   // Initialize all hooks first (React hooks rules)
@@ -222,7 +225,7 @@ const Profile: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
     fullname: user?.fullname || '',
     biography: user?.biography || '',
-    email: user?.email || 'carlton@example.com', // Mock email since every user has one
+    email: user?.email || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -236,22 +239,58 @@ const Profile: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(
+    null
+  );
+  const [isUploadingPicture, setIsUploadingPicture] = useState<boolean>(false);
 
   // Early return after all hooks are declared
   if (!user) {
     return (
-      <Container maxW='4xl' py={8}>
-        <Box
-          display='flex'
-          alignItems='center'
-          justifyContent='center'
-          minH='200px'
-        >
-          <VStack gap={4}>
-            <Spinner size='xl' color='brand.500' />
-            <Text>Loading profile...</Text>
-          </VStack>
-        </Box>
+      <Container maxW='1440px' px={6} py={8}>
+        <VStack gap={6} align='stretch'>
+          {/* Header Skeleton */}
+          <Box>
+            <Skeleton height='40px' width='200px' mb={2} />
+            <SkeletonText noOfLines={1} width='60%' />
+          </Box>
+
+          {/* Profile Photo & Basic Info Skeleton */}
+          <Card.Root bg='bg.canvas' borderColor='border.emphasized'>
+            <Card.Header>
+              <HStack gap={3}>
+                <Skeleton height='20px' width='20px' />
+                <Skeleton height='24px' width='280px' />
+              </HStack>
+            </Card.Header>
+            <Card.Body>
+              <VStack gap={6} align='stretch'>
+                <HStack gap={6}>
+                  <Box position='relative'>
+                    <SkeletonCircle size='128px' />
+                  </Box>
+                  <VStack align='start' gap={4} flex={1}>
+                    <Skeleton height='28px' width='200px' />
+                    <SkeletonText noOfLines={2} width='80%' />
+                    <HStack gap={2}>
+                      <Skeleton
+                        height='24px'
+                        width='120px'
+                        borderRadius='full'
+                      />
+                      <Skeleton
+                        height='24px'
+                        width='100px'
+                        borderRadius='full'
+                      />
+                    </HStack>
+                  </VStack>
+                </HStack>
+                <Skeleton height='60px' width='100%' />
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+        </VStack>
       </Container>
     );
   }
@@ -266,6 +305,13 @@ const Profile: React.FC = () => {
 
   const handleEdit = (field: keyof EditingState): void => {
     setIsEditing((prev) => ({ ...prev, [field]: true }));
+    // Reset form data to current user values when starting to edit
+    if (field !== 'password') {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: user[field as keyof typeof user] || '',
+      }));
+    }
   };
 
   const handleCancel = (field: keyof EditingState): void => {
@@ -289,6 +335,10 @@ const Profile: React.FC = () => {
 
   const handleFormChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear field-specific errors when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
   };
 
   const validatePassword = (): ValidationErrors => {
@@ -312,6 +362,8 @@ const Profile: React.FC = () => {
   };
 
   const handleSave = async (field: keyof EditingState): Promise<void> => {
+    if (!user || !token) return;
+
     setIsLoading(true);
     setErrors({});
 
@@ -324,14 +376,14 @@ const Profile: React.FC = () => {
           return;
         }
 
-        // TODO: Replace with actual API call
-        // const response = await userService.changePassword({
-        //   currentPassword: formData.currentPassword,
-        //   newPassword: formData.newPassword
-        // });
-
-        // Simulate API call for password change
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await userService.changePassword(
+          user._id,
+          {
+            currentPassword: formData.currentPassword,
+            newPassword: formData.newPassword,
+          },
+          token
+        );
 
         toast({
           title: 'Password updated',
@@ -347,11 +399,18 @@ const Profile: React.FC = () => {
           confirmPassword: '',
         }));
       } else {
-        // TODO: Replace with actual API call
-        // const response = await userService.updateProfile(updateData);
+        // Profile update
+        const updateData: any = {};
+        if (field === 'fullname') updateData.fullname = formData.fullname;
+        if (field === 'biography') updateData.biography = formData.biography;
+        if (field === 'email') updateData.email = formData.email;
 
-        // Simulate API call for profile update
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await userService.updateProfile(user._id, updateData, token);
+
+        // Refresh user data in context
+        if (refreshUser) {
+          await refreshUser();
+        }
 
         toast({
           title: 'Profile updated',
@@ -363,9 +422,11 @@ const Profile: React.FC = () => {
       setIsEditing((prev) => ({ ...prev, [field]: false }));
     } catch (error) {
       console.error('Update error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: 'Update failed',
-        description: 'Failed to update your profile. Please try again.',
+        description: `Failed to update your profile: ${errorMessage}`,
         status: 'error',
       });
     } finally {
@@ -373,8 +434,79 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleProfilePictureChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select an image file.',
+          status: 'error',
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: 'Please select an image smaller than 5MB.',
+          status: 'error',
+        });
+        return;
+      }
+
+      setProfilePictureFile(file);
+    }
+  };
+
+  const handleProfilePictureUpload = async () => {
+    if (!profilePictureFile || !user || !token) return;
+
+    setIsUploadingPicture(true);
+    try {
+      const result = await userService.uploadProfilePicture(
+        user._id,
+        profilePictureFile,
+        token
+      );
+
+      // Refresh user data to get new picture URLs
+      if (refreshUser) {
+        await refreshUser();
+      }
+
+      toast({
+        title: 'Profile picture updated',
+        description: 'Your profile picture has been successfully updated.',
+        status: 'success',
+      });
+
+      setProfilePictureFile(null);
+      // Reset the file input
+      const fileInput = document.getElementById(
+        'profile-picture-input'
+      ) as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch (error) {
+      console.error('Upload error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({
+        title: 'Upload failed',
+        description: `Failed to upload profile picture: ${errorMessage}`,
+        status: 'error',
+      });
+    } finally {
+      setIsUploadingPicture(false);
+    }
+  };
+
   return (
-    <Container maxW='4xl' py={8}>
+    <Container maxW='1440px' px={6} py={8}>
       <VStack gap={6} align='stretch'>
         {/* Header */}
         <Box>
@@ -402,159 +534,91 @@ const Profile: React.FC = () => {
                       .toUpperCase()}
                   </Avatar.Fallback>
                 </Avatar.Root>
-                <IconButton
-                  position='absolute'
-                  bottom='0'
-                  right='0'
-                  size='sm'
-                  variant='solid'
-                  borderRadius='full'
-                  aria-label='Upload photo'
-                  disabled
-                  title='Photo upload coming soon'
-                >
-                  <FiCamera size={16} />
-                </IconButton>
+                <Box position='absolute' bottom='0' right='0'>
+                  <input
+                    id='profile-picture-input'
+                    type='file'
+                    accept='image/*'
+                    onChange={handleProfilePictureChange}
+                    style={{ display: 'none' }}
+                  />
+                  <IconButton
+                    size='sm'
+                    variant='solid'
+                    borderRadius='full'
+                    aria-label='Upload photo'
+                    onClick={() =>
+                      document.getElementById('profile-picture-input')?.click()
+                    }
+                  >
+                    <FiCamera size={16} />
+                  </IconButton>
+                </Box>
               </Box>
               <VStack align='start' gap={4} flex={1}>
+                {/* Show upload button if file is selected */}
+                {profilePictureFile && (
+                  <HStack gap={2}>
+                    <Text fontSize='sm' color='fg.secondary'>
+                      Selected: {profilePictureFile.name}
+                    </Text>
+                    <Button
+                      size='sm'
+                      variant='solid'
+                      onClick={handleProfilePictureUpload}
+                      loading={isUploadingPicture}
+                    >
+                      <FiUpload size={16} />
+                      Upload
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => setProfilePictureFile(null)}
+                    >
+                      <FiX size={16} />
+                      Cancel
+                    </Button>
+                  </HStack>
+                )}
+
                 {/* Editable Full Name */}
-                <Field.Root invalid={!!errors.fullname}>
-                  {isEditing.fullname ? (
-                    <VStack gap={3} align='stretch' width='full'>
-                      <Input
-                        value={formData.fullname}
-                        onChange={(e) =>
-                          handleFormChange('fullname', e.target.value)
-                        }
-                        placeholder='Enter your full name'
-                        bg='bg.canvas'
-                        fontSize='lg'
-                        fontWeight='medium'
-                      />
-                      <HStack gap={2}>
-                        <Button
-                          size='sm'
-                          variant='solid'
-                          onClick={() => handleSave('fullname')}
-                          loading={isLoading}
-                        >
-                          <FiSave size={16} />
-                          Save
-                        </Button>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          onClick={() => handleCancel('fullname')}
-                        >
-                          <FiX size={16} />
-                          Cancel
-                        </Button>
-                      </HStack>
-                      {errors.fullname && (
-                        <Field.ErrorText>{errors.fullname}</Field.ErrorText>
-                      )}
-                    </VStack>
-                  ) : (
-                    <HStack gap={2} align='center' width='full'>
-                      <Text
-                        fontSize='lg'
-                        fontWeight='medium'
-                        color='fg'
-                        cursor='pointer'
-                        onClick={() => handleEdit('fullname')}
-                        _hover={{ color: 'brand.500' }}
-                      >
-                        {user.fullname || 'Set your name'}
-                      </Text>
-                      <IconButton
-                        size='sm'
-                        variant='ghost'
-                        onClick={() => handleEdit('fullname')}
-                        aria-label='Edit name'
-                      >
-                        <FiEdit2 size={16} />
-                      </IconButton>
-                    </HStack>
-                  )}
-                </Field.Root>
+                <EditableField
+                  field='fullname'
+                  label='Full Name'
+                  value={user.fullname || ''}
+                  placeholder='Enter your full name'
+                  isEditing={isEditing.fullname}
+                  formData={formData}
+                  errors={errors}
+                  isLoading={isLoading}
+                  onEdit={() => handleEdit('fullname')}
+                  onCancel={() => handleCancel('fullname')}
+                  onSave={() => handleSave('fullname')}
+                  onFormChange={handleFormChange}
+                />
 
                 {/* Editable Biography */}
-                <Field.Root invalid={!!errors.biography} width='full'>
-                  {isEditing.biography ? (
-                    <VStack gap={3} align='stretch' width='full'>
-                      <Textarea
-                        value={formData.biography}
-                        onChange={(e) =>
-                          handleFormChange('biography', e.target.value)
-                        }
-                        placeholder='Tell us about yourself...'
-                        bg='bg.canvas'
-                        rows={3}
-                      />
-                      <HStack gap={2}>
-                        <Button
-                          size='sm'
-                          variant='solid'
-                          onClick={() => handleSave('biography')}
-                          loading={isLoading}
-                        >
-                          <FiSave size={16} />
-                          Save
-                        </Button>
-                        <Button
-                          size='sm'
-                          variant='outline'
-                          onClick={() => handleCancel('biography')}
-                        >
-                          <FiX size={16} />
-                          Cancel
-                        </Button>
-                      </HStack>
-                      {errors.biography && (
-                        <Field.ErrorText>{errors.biography}</Field.ErrorText>
-                      )}
-                    </VStack>
-                  ) : (
-                    <HStack gap={2} align='start' width='fit-content'>
-                      <Box>
-                        {user.biography ? (
-                          <Text
-                            color='fg.secondary'
-                            cursor='pointer'
-                            onClick={() => handleEdit('biography')}
-                            _hover={{ color: 'fg' }}
-                          >
-                            {user.biography}
-                          </Text>
-                        ) : (
-                          <Text
-                            color='fg.muted'
-                            fontStyle='italic'
-                            cursor='pointer'
-                            onClick={() => handleEdit('biography')}
-                            _hover={{ color: 'fg.secondary' }}
-                          >
-                            Add a biography...
-                          </Text>
-                        )}
-                      </Box>
-                      <IconButton
-                        size='sm'
-                        variant='ghost'
-                        onClick={() => handleEdit('biography')}
-                        aria-label='Edit biography'
-                        alignSelf='flex-start'
-                      >
-                        <FiEdit2 size={16} />
-                      </IconButton>
-                    </HStack>
-                  )}
-                </Field.Root>
+                <EditableField
+                  field='biography'
+                  label='Biography'
+                  value={user.biography || ''}
+                  placeholder='Tell us about yourself...'
+                  isTextarea={true}
+                  isEditing={isEditing.biography}
+                  formData={formData}
+                  errors={errors}
+                  isLoading={isLoading}
+                  onEdit={() => handleEdit('biography')}
+                  onCancel={() => handleCancel('biography')}
+                  onSave={() => handleSave('biography')}
+                  onFormChange={handleFormChange}
+                />
 
                 {/* Role Badge */}
                 <HStack gap={2}>
                   <Badge variant='subtle' colorPalette='blue'>
-                    {workspace?.name || 'Futurity Systems'} • Admin
+                    {workspace?.name || 'Futurity Systems'} • {user.role}
                   </Badge>
                   {user.email_validated === 1 && (
                     <Badge variant='subtle' colorPalette='green'>
@@ -564,17 +628,6 @@ const Profile: React.FC = () => {
                 </HStack>
               </VStack>
             </HStack>
-
-            <Alert.Root status='info'>
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Title>Photo Upload Coming Soon</Alert.Title>
-                <Alert.Description>
-                  Profile picture upload functionality will be available in a
-                  future update.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert.Root>
           </VStack>
         </ProfileCard>
 
@@ -584,10 +637,10 @@ const Profile: React.FC = () => {
             <EditableField
               field='email'
               label='Email Address'
-              value={formData.email}
+              value={user.email}
               placeholder='Enter your email address'
               type='email'
-              helper='Email change functionality coming soon'
+              helper='Changes to email will require verification'
               isEditing={isEditing.email}
               formData={formData}
               errors={errors}
@@ -597,17 +650,6 @@ const Profile: React.FC = () => {
               onSave={() => handleSave('email')}
               onFormChange={handleFormChange}
             />
-
-            <Alert.Root status='warning'>
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Title>Email Change Coming Soon</Alert.Title>
-                <Alert.Description>
-                  Email verification and change functionality will be available
-                  in a future update.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert.Root>
           </VStack>
         </ProfileCard>
 
@@ -635,7 +677,7 @@ const Profile: React.FC = () => {
                 <PasswordField
                   field='new'
                   label='New Password'
-                  placeholder='Enter a new password'
+                  placeholder='Enter a new password (min 8 characters)'
                   formData={formData}
                   errors={errors}
                   showPassword={showPassword.new}
@@ -708,6 +750,11 @@ const Profile: React.FC = () => {
               <Text color='fg' fontFamily='mono' fontSize='sm'>
                 {user._id}
               </Text>
+            </Field.Root>
+
+            <Field.Root>
+              <Field.Label color='fg.secondary'>Username</Field.Label>
+              <Text color='fg'>{user.username}</Text>
             </Field.Root>
 
             <Field.Root>
