@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set repo to lowercase
+        run: echo "REPO_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Check out code
         uses: actions/checkout@v4
 
@@ -40,4 +43,4 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ env.REPO_NAME }}:${{ github.sha }}
