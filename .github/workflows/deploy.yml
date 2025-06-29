@@ -10,7 +10,7 @@ on:
 
 env:
   BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-  ECR_REPOSITORY: 876315599902.dkr.ecr.eu-west-3.amazonaws.com/${{ env.BRANCH_NAME == 'main' && 'production' || 'dev' }}/${{ github.repository }}
+  ECR_HOST: 876315599902.dkr.ecr.eu-west-3.amazonaws.com
 
 jobs:
   build-and-push:
@@ -19,7 +19,9 @@ jobs:
 
     steps:
       - name: Set repo to lowercase
-        run: echo "REPO_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+        run: |
+          repo_name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')"
+          echo "ECR_REPO_NAME=${{env.ECR_HOST}}/${{ env.BRANCH_NAME == 'main' && 'production' || 'dev' }}/${repo_name}" >> $GITHUB_ENV
 
       - name: Check out code
         uses: actions/checkout@v4
@@ -44,4 +46,4 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REPO_NAME }}:${{ github.sha }}
+            ${{ env.ECR_REPO_NAME }}:${{ github.sha }}
