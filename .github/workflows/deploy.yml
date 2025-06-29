@@ -9,7 +9,6 @@ on:
   workflow_dispatch:
 
 env:
-  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
   ECR_HOST: 876315599902.dkr.ecr.eu-west-3.amazonaws.com
 
 jobs:
@@ -20,8 +19,10 @@ jobs:
     steps:
       - name: Set repo to lowercase
         run: |
+          branch_name=${{ github.head_ref || github.ref_name }}
+          env_name=$([[ "$branch_name" == "main" ]] && echo "prod" || echo "dev")
           repo_name=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')"
-          echo "ECR_REPO_NAME=${{env.ECR_HOST}}/${{ env.BRANCH_NAME == 'main' && 'production' || 'dev' }}/${repo_name}" >> $GITHUB_ENV
+          echo "ECR_REPO_NAME=${{ env.ECR_HOST }}/${env_name}/${repo_name}" >> $GITHUB_ENV
 
       - name: Check out code
         uses: actions/checkout@v4
