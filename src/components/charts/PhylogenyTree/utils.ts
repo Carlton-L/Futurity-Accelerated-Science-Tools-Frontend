@@ -1,4 +1,4 @@
-import { SubCategory } from './types';
+import type { SubCategory } from './types';
 
 /**
  * Default color palette for subcategories - using your FS colors from the theme
@@ -34,8 +34,7 @@ export function assignDefaultColors(
 export function calculateTreeDimensions(
   subcategoriesCount: number,
   nodeSpacing: number,
-  hasExpandedItems: boolean,
-  levelSpacing: number
+  hasExpandedItems: boolean
 ) {
   const baseWidth = hasExpandedItems ? 900 : 600;
   const height = Math.max(400, subcategoriesCount * nodeSpacing + 160); // Added padding
@@ -53,8 +52,7 @@ export function calculateTreeDimensions(
  */
 export function calculatePositions(
   subcategoriesCount: number,
-  nodeSpacing: number,
-  levelSpacing: number
+  nodeSpacing: number
 ) {
   const rootY = (subcategoriesCount * nodeSpacing) / 2 + 80; // Center root vertically
   const verticalLineStart = 80; // Start from first subcategory

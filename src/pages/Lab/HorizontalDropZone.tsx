@@ -84,6 +84,8 @@ export const HorizontalDropZone: React.FC<HorizontalDropZoneProps> = ({
       position='relative'
       bg={showDropIndicator ? 'bg.hover' : 'transparent'}
       transition='all 0.2s'
+      // FIXED: Allow tooltips to overflow by removing overflow hidden
+      overflow='visible'
     >
       {isEmpty && !isLoading ? (
         // Empty state with drop indicator
@@ -103,6 +105,7 @@ export const HorizontalDropZone: React.FC<HorizontalDropZoneProps> = ({
             borderColor: 'border.emphasized',
             bg: 'bg.hover',
           }}
+          overflowY='visible'
         >
           {showDropIndicator ? 'Drop here to uncategorize' : emptyMessage}
         </Box>
@@ -111,7 +114,9 @@ export const HorizontalDropZone: React.FC<HorizontalDropZoneProps> = ({
         <Box
           w='100%'
           overflowX='auto'
-          overflowY='visible'
+          overflowY='visible' // FIXED: Allow vertical overflow for tooltips
+          pb={4}
+          pt={2}
           css={{
             '&::-webkit-scrollbar': { height: '6px' },
             '&::-webkit-scrollbar-track': {
@@ -127,31 +132,24 @@ export const HorizontalDropZone: React.FC<HorizontalDropZoneProps> = ({
             },
           }}
         >
-          <HStack gap={3} align='flex-start' minW='fit-content'>
+          <HStack
+            gap={3}
+            align='flex-start'
+            minW='fit-content'
+            overflowY='visible'
+          >
             {subjects.map((subject) => (
-              <Box key={subject.id} minW='280px' maxW='320px' flexShrink={0}>
+              <Box
+                key={subject.id}
+                minW='280px'
+                maxW='320px'
+                flexShrink={0}
+                overflowY='visible'
+              >
                 {renderSubjectCard(subject)}
               </Box>
             ))}
           </HStack>
-        </Box>
-      )}
-
-      {/* Debug info - remove this in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <Box
-          position='absolute'
-          top='-20px'
-          right='0'
-          fontSize='xs'
-          color='gray.500'
-          bg='white'
-          px={2}
-          borderRadius='sm'
-          border='1px solid'
-          borderColor='gray.200'
-        >
-          isOver: {isOver.toString()}, canDrop: {canDrop.toString()}
         </Box>
       )}
     </Box>

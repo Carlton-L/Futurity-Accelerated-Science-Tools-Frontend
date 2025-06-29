@@ -478,23 +478,6 @@ const CreateLab: React.FC<CreateLabProps> = ({
           </Alert.Root>
         )}
 
-        {/* Validation errors */}
-        {currentStepValidation.errors.length > 0 && (
-          <Alert.Root status='error'>
-            <Alert.Indicator />
-            <Alert.Title>Please fix the following issues:</Alert.Title>
-            <Alert.Description fontFamily='body'>
-              <VStack gap={1} align='start'>
-                {currentStepValidation.errors.map((error, index) => (
-                  <Text key={index} fontSize='sm'>
-                    • {error}
-                  </Text>
-                ))}
-              </VStack>
-            </Alert.Description>
-          </Alert.Root>
-        )}
-
         {/* Validation warnings */}
         {currentStepValidation.warnings.length > 0 && (
           <Alert.Root status='warning'>

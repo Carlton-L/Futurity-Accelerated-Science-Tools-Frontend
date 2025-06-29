@@ -21,6 +21,9 @@ interface SubjectCardProps {
   onSubjectRemove: (subjectId: string, categoryId: string) => void;
   onSubjectView: (subject: LabSubject) => void;
   isLoading?: boolean;
+  // New props for horizontal tooltip positioning
+  tooltipPlacement?: 'bottom-start' | 'right' | 'left';
+  isInHorizontalLayout?: boolean;
 }
 
 interface SubjectApiData {
@@ -183,9 +186,16 @@ const MetricBar: React.FC<MetricBarProps> = ({
   );
 };
 
-const TruncatedSummary: React.FC<{ summary: string; maxLines?: number }> = ({
+const TruncatedSummary: React.FC<{
+  summary: string;
+  maxLines?: number;
+  tooltipPlacement?: 'bottom-start' | 'right' | 'left';
+  isInHorizontalLayout?: boolean;
+}> = ({
   summary,
   maxLines = 2,
+  tooltipPlacement = 'bottom-start',
+  isInHorizontalLayout = false,
 }) => {
   // Calculate approximate character limit for 2 lines (assuming ~60 chars per line)
   const maxLength = maxLines * 24;
@@ -212,22 +222,53 @@ const TruncatedSummary: React.FC<{ summary: string; maxLines?: number }> = ({
 
   const truncated = summary.substring(0, maxLength).trim();
 
+  // Calculate tooltip dimensions for horizontal layout
+  const getTooltipDimensions = (text: string) => {
+    if (!isInHorizontalLayout) {
+      return { maxW: '240px', maxH: 'auto' };
+    }
+
+    // For horizontal layout, allow 5 lines to prevent clipping
+    // Line height is 1.4, font size is 12px (xs), so each line is ~16.8px
+    const lineHeight = 16.8; // 1.4 * 12px
+    const maxLines = 5; // Increased to 5 to prevent clipping
+    const padding = 24; // 12px top + 12px bottom
+    const calculatedMaxHeight = maxLines * lineHeight + padding;
+
+    return {
+      minW: '250px',
+      maxW: '500px', // Allow horizontal expansion
+      maxH: `${calculatedMaxHeight}px`, // Exactly 5 lines + padding
+      width: 'max-content',
+      // Remove conflicting properties - handle in CSS instead
+    };
+  };
+
+  const dimensions = getTooltipDimensions(summary);
+
   return (
     <Box fontSize='xs' color='fg.muted' lineHeight='1.4' fontFamily='body'>
       {truncated}
       <Tooltip.Root
         openDelay={500}
         closeDelay={100}
-        positioning={{ placement: 'bottom-start' }}
+        positioning={{
+          placement: tooltipPlacement,
+          strategy: 'absolute',
+          // Better offset for horizontal layout
+          ...(isInHorizontalLayout && {
+            offset: { mainAxis: 8, crossAxis: 0 }, // 8px to the right, aligned with trigger
+          }),
+        }}
       >
         <Tooltip.Trigger asChild>
           <Box
             as='span'
-            color='brand'
+            color='fg.muted'
             textDecoration='underline'
             cursor='pointer'
             ml={1}
-            _hover={{ color: 'brand.hover' }}
+            _hover={{ color: 'fg' }}
             display='inline'
           >
             ...
@@ -237,23 +278,47 @@ const TruncatedSummary: React.FC<{ summary: string; maxLines?: number }> = ({
           <Tooltip.Content
             bg='bg.canvas'
             color='fg'
-            p={3}
+            // p={3}
             borderRadius='md'
             boxShadow='lg'
             border='1px solid'
             borderColor='border.emphasized'
-            maxW='240px'
             fontSize='xs'
             lineHeight='1.4'
             fontFamily='body'
             zIndex={999999}
-            position='relative'
+            // Dynamic sizing based on content
+            {...dimensions}
+            // For horizontal layout, use CSS to strictly enforce 4-line limit
             css={{
               zIndex: '999999 !important',
-              position: 'relative !important',
+              ...(isInHorizontalLayout && {
+                // Allow 5 lines to prevent clipping, with proper text wrapping
+                wordBreak: 'break-word !important',
+                overflowWrap: 'break-word !important',
+                whiteSpace: 'normal !important',
+                // Ensure the height calculation is respected
+                boxSizing: 'border-box !important',
+                // Remove line clamping to allow natural 5-line display
+              }),
+              ...(!isInHorizontalLayout && {
+                maxHeight: '160px',
+                // For vertical layout, allow natural text flow
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+              }),
             }}
           >
-            <Tooltip.Arrow>
+            {/* Arrow positioning */}
+            <Tooltip.Arrow
+              css={{
+                ...(isInHorizontalLayout && {
+                  // Position arrow at the vertical center of the left edge for right placement
+                  '--arrow-offset': '100%',
+                }),
+              }}
+            >
               <Tooltip.ArrowTip />
             </Tooltip.Arrow>
             {summary}
@@ -271,6 +336,8 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onSubjectRemove,
   onSubjectView,
   isLoading = false,
+  tooltipPlacement = 'bottom-start',
+  isInHorizontalLayout = false,
 }) => {
   const { token } = useAuth();
   const [subjectData, setSubjectData] = useState<SubjectApiData | null>(null);
@@ -496,7 +563,11 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                   Failed to load summary
                 </Text>
               ) : subjectData?.ent_summary ? (
-                <TruncatedSummary summary={subjectData.ent_summary} />
+                <TruncatedSummary
+                  summary={subjectData.ent_summary}
+                  tooltipPlacement={tooltipPlacement}
+                  isInHorizontalLayout={isInHorizontalLayout}
+                />
               ) : (
                 <Text
                   fontSize='xs'

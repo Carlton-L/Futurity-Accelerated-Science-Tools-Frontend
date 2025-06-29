@@ -126,9 +126,9 @@ export const PhylogenyTreeExample: React.FC = () => {
     React.useState<PhylogenyData>(exampleData);
 
   return (
-    <VStack spacing={6} p={6} fontFamily='body'>
+    <VStack gap={6} p={6} fontFamily='body'>
       {/* Header Card */}
-      <Card variant='outline' w='100%' maxW='1200px'>
+      <Card.Root variant='outline' w='100%' maxW='1200px'>
         <Card.Header>
           <HStack justify='space-between' align='center'>
             <Box>
@@ -144,7 +144,7 @@ export const PhylogenyTreeExample: React.FC = () => {
                 Interactive taxonomy visualization using your theme system
               </Text>
             </Box>
-            <HStack spacing={3}>
+            <HStack gap={3}>
               <Button
                 variant='outline'
                 size='sm'
@@ -167,7 +167,7 @@ export const PhylogenyTreeExample: React.FC = () => {
             </HStack>
           </HStack>
         </Card.Header>
-      </Card>
+      </Card.Root>
 
       {/* Tree Visualization */}
       <Box w='100%' maxW='1200px'>
@@ -180,7 +180,7 @@ export const PhylogenyTreeExample: React.FC = () => {
       </Box>
 
       {/* Features Card */}
-      <Card variant='subtle' w='100%' maxW='1200px'>
+      <Card.Root variant='subtle' w='100%' maxW='1200px'>
         <Card.Body>
           <Text
             fontSize='md'
@@ -191,7 +191,7 @@ export const PhylogenyTreeExample: React.FC = () => {
           >
             Component Features
           </Text>
-          <VStack align='start' spacing={2}>
+          <VStack align='start' gap={2}>
             <Text fontSize='sm' color='fg.secondary'>
               •{' '}
               <Text as='span' color='fg'>
@@ -236,7 +236,7 @@ export const PhylogenyTreeExample: React.FC = () => {
             </Text>
           </VStack>
         </Card.Body>
-      </Card>
+      </Card.Root>
     </VStack>
   );
 };

@@ -131,7 +131,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </Box>
 
       {/* Items List */}
-      <Box flex='1' p={3} overflow='visible'>
+      <Box flex='1' p={3} overflowX='visible' overflowY='scroll'>
         {items.length > 0 ? (
           <VStack gap={0} align='stretch'>
             {items.map((item) => (
