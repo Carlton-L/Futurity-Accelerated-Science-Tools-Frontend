@@ -9,7 +9,8 @@ on:
   workflow_dispatch:
 
 env:
-  ECR_REPOSITORY: 876315599902.dkr.ecr.eu-west-3.amazonaws.com/futurity/${{ inputs.environment == 'production' && 'production' || 'dev' }}/${{ github.repository }}
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  ECR_REPOSITORY: 876315599902.dkr.ecr.eu-west-3.amazonaws.com/${{ env.BRANCH_NAME == 'main' && 'production' || 'dev' }}/${{ github.repository }}
 
 jobs:
   build-and-push:
