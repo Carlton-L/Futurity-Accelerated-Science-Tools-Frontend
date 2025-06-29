@@ -11,7 +11,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   allowDrop = true,
   onDrop,
   onColumnRename,
-  onColumnDelete,
+  _onColumnDelete,
   renderItem,
   renderHeader,
   renderFooter,

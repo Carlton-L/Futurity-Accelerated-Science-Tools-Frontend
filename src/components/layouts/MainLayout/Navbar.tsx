@@ -28,7 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { labAPIService } from '../../../services/labAPIService';
-import type { Lab } from '../../../context/AuthContext';
+import type { Lab, TeamspaceListItem } from '../../../context/AuthContext';
 import FastIcon from '../../../assets/fast_icon.svg';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
 import LabsIcon from '../../../assets/labs.svg';
@@ -64,6 +64,23 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
   const isTeamAdmin =
     currentTeamspace.user_access_level === 'owner' ||
     currentTeamspace.user_access_level === 'admin';
+
+  // Handle team switching with smart navigation
+  const handleTeamChange = (newTeamspace: TeamspaceListItem) => {
+    setCurrentTeamspace(newTeamspace);
+
+    // Check current URL to determine if we should navigate to the same page type for the new team
+    const currentPath = window.location.pathname;
+
+    if (currentPath.includes('/team/') && currentPath.includes('/manage')) {
+      // User is on team manage page, navigate to manage page for new team
+      navigate(`/team/${newTeamspace._id}/manage`);
+    } else if (currentPath.includes('/team/')) {
+      // User is on team view page, navigate to view page for new team
+      navigate(`/team/${newTeamspace._id}`);
+    }
+    // Otherwise, stay on current page (home, lab, etc.)
+  };
 
   return (
     <Menu.Root>
@@ -225,7 +242,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                   <Menu.Item
                     key={team._id}
                     value={team._id}
-                    onClick={() => setCurrentTeamspace(team)}
+                    onClick={() => handleTeamChange(team)}
                     color='fg'
                     fontFamily='body'
                     fontSize='sm'
@@ -276,7 +293,7 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch labs when current teamspace changes
+  // Fetch labs when current teamspace changes - UPDATED to use only real API data
   useEffect(() => {
     const fetchTeamLabs = async () => {
       if (!currentTeamspace || !token) {
@@ -304,39 +321,11 @@ const Navbar: React.FC = () => {
           deletedAt: lab.deletedAt,
         }));
 
-        // TODO: Remove this hardcoded lab when proper lab data is available
-        // Add hardcoded lab for the active lab (V2 Test Lab)
-        const hardcodedLab: Lab = {
-          _id: '685be19be583f120efbc86d7',
-          ent_name: 'V2 Test Lab',
-          ent_summary:
-            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-          teamspace_id: currentTeamspace._id,
-          isArchived: 0,
-          isDeleted: 0,
-          deletedAt: null,
-        };
-
-        // Combine hardcoded lab with API labs (hardcoded first)
-        const allLabs = [hardcodedLab, ...labs];
-
-        setTeamLabs(allLabs);
+        setTeamLabs(labs);
       } catch (error) {
         console.error('Failed to fetch team labs:', error);
-
-        // Fallback to just the hardcoded lab if API fails
-        const hardcodedLab: Lab = {
-          _id: '685be19be583f120efbc86d7',
-          ent_name: 'V2 Test Lab',
-          ent_summary:
-            'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-          teamspace_id: currentTeamspace._id,
-          isArchived: 0,
-          isDeleted: 0,
-          deletedAt: null,
-        };
-
-        setTeamLabs([hardcodedLab]);
+        // Set empty array on error - no fallback hardcoded lab
+        setTeamLabs([]);
       } finally {
         setIsLoadingLabs(false);
       }
@@ -368,19 +357,7 @@ const Navbar: React.FC = () => {
         deletedAt: lab.deletedAt,
       }));
 
-      const hardcodedLab: Lab = {
-        _id: '685be19be583f120efbc86d7',
-        ent_name: 'V2 Test Lab',
-        ent_summary:
-          'This lab is the very first test lab created in the new MongoDB collection for the V2 version of FAST.',
-        teamspace_id: currentTeamspace._id,
-        isArchived: 0,
-        isDeleted: 0,
-        deletedAt: null,
-      };
-
-      const allLabs = [hardcodedLab, ...labs];
-      setTeamLabs(allLabs);
+      setTeamLabs(labs);
     } catch (error) {
       console.error('Failed to refresh labs:', error);
     } finally {

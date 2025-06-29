@@ -27,7 +27,10 @@ interface LabTerm {
 interface IncludeExcludeTermsProps {
   includeTerms: string[];
   excludeTerms: string[];
-  onTermsUpdate: (includeTerms: string[], excludeTerms: string[]) => void;
+  onTermsUpdate: (
+    includeTerms: string[],
+    excludeTerms: string[]
+  ) => Promise<void>;
   userRole: 'reader' | 'editor' | 'admin';
   isLoading?: boolean;
 }
@@ -44,6 +47,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
   const [newTermType, setNewTermType] = useState<'include' | 'exclude'>(
     'include'
   );
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Convert string arrays to LabTerm objects for easier manipulation
   const terms: LabTerm[] = useMemo(
@@ -64,23 +68,38 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
 
   // Helper function to update terms using the API-integrated callback
   const updateTerms = useCallback(
-    (updatedTerms: LabTerm[]) => {
-      const newIncludeTerms = updatedTerms
-        .filter((term) => term.type === 'include')
-        .map((term) => term.text);
-      const newExcludeTerms = updatedTerms
-        .filter((term) => term.type === 'exclude')
-        .map((term) => term.text);
+    async (updatedTerms: LabTerm[]) => {
+      if (isUpdating) return; // Prevent concurrent updates
 
-      onTermsUpdate(newIncludeTerms, newExcludeTerms);
+      setIsUpdating(true);
+      try {
+        const newIncludeTerms = updatedTerms
+          .filter((term) => term.type === 'include')
+          .map((term) => term.text);
+        const newExcludeTerms = updatedTerms
+          .filter((term) => term.type === 'exclude')
+          .map((term) => term.text);
+
+        console.log('IncludeExcludeTerms: Updating terms', {
+          newIncludeTerms,
+          newExcludeTerms,
+        });
+
+        await onTermsUpdate(newIncludeTerms, newExcludeTerms);
+      } catch (error) {
+        console.error('Failed to update terms:', error);
+        // TODO: Show error toast
+      } finally {
+        setIsUpdating(false);
+      }
     },
-    [onTermsUpdate]
+    [onTermsUpdate, isUpdating]
   );
 
   // Toggle term type between include and exclude
   const handleToggleTermType = useCallback(
-    (termId: string) => {
-      if (userRole === 'reader') return;
+    async (termId: string) => {
+      if (userRole === 'reader' || isUpdating) return;
 
       const updatedTerms = terms.map((term) =>
         term.id === termId
@@ -93,25 +112,26 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
             }
           : term
       );
-      updateTerms(updatedTerms);
+
+      await updateTerms(updatedTerms);
     },
-    [terms, updateTerms, userRole]
+    [terms, updateTerms, userRole, isUpdating]
   );
 
   // Remove a term
   const handleRemoveTerm = useCallback(
-    (termId: string) => {
-      if (userRole === 'reader') return;
+    async (termId: string) => {
+      if (userRole === 'reader' || isUpdating) return;
 
       const updatedTerms = terms.filter((term) => term.id !== termId);
-      updateTerms(updatedTerms);
+      await updateTerms(updatedTerms);
     },
-    [terms, updateTerms, userRole]
+    [terms, updateTerms, userRole, isUpdating]
   );
 
   // Add a new term
-  const handleAddTerm = useCallback(() => {
-    if (!newTermText.trim() || userRole === 'reader') return;
+  const handleAddTerm = useCallback(async () => {
+    if (!newTermText.trim() || userRole === 'reader' || isUpdating) return;
 
     // Check if term already exists
     const termExists = terms.some(
@@ -130,10 +150,10 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
       type: newTermType,
     };
 
-    updateTerms([...terms, newTerm]);
+    await updateTerms([...terms, newTerm]);
     setNewTermText('');
     setIsAddingTerm(false);
-  }, [newTermText, newTermType, terms, updateTerms, userRole]);
+  }, [newTermText, newTermType, terms, updateTerms, userRole, isUpdating]);
 
   // Cancel adding new term
   const handleCancelAdd = useCallback(() => {
@@ -154,6 +174,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
   );
 
   const canEdit = userRole === 'editor' || userRole === 'admin';
+  const isDisabled = isLoading || isUpdating;
 
   return (
     <Box
@@ -166,6 +187,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
       borderRadius='md'
       display='flex'
       flexDirection='column'
+      opacity={isDisabled ? 0.7 : 1}
     >
       {/* Header */}
       <Box p={4} borderBottom='1px solid' borderBottomColor='border.muted'>
@@ -178,6 +200,11 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
               fontFamily='body'
             >
               Include/Exclude Terms
+              {isUpdating && (
+                <Text as='span' fontSize='xs' color='fg.muted' ml={2}>
+                  (updating...)
+                </Text>
+              )}
             </Text>
 
             <Text fontSize='xs' color='fg.muted' fontFamily='body'>
@@ -243,7 +270,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                   }}
                   onKeyDown={handleKeyPress}
                   fontFamily='body'
-                  disabled={isLoading}
+                  disabled={isDisabled}
                 />
                 <HStack gap={2} w='100%'>
                   <Button
@@ -264,7 +291,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                       bg: newTermType === 'include' ? '#2F8B49' : 'bg.hover',
                       opacity: newTermType === 'include' ? 1 : 1,
                     }}
-                    disabled={isLoading}
+                    disabled={isDisabled}
                   >
                     Include
                   </Button>
@@ -284,7 +311,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                       bg: newTermType === 'exclude' ? 'error' : 'bg.hover',
                       opacity: newTermType === 'exclude' ? 0.9 : 1,
                     }}
-                    disabled={isLoading}
+                    disabled={isDisabled}
                   >
                     Exclude
                   </Button>
@@ -296,7 +323,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                     color='success'
                     onClick={handleAddTerm}
                     aria-label='Confirm add term'
-                    disabled={!newTermText.trim() || isLoading}
+                    disabled={!newTermText.trim() || isDisabled}
                     flex='1'
                     _hover={{ bg: 'bg.hover' }}
                   >
@@ -311,7 +338,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                     _hover={{ bg: 'bg.hover', color: 'fg' }}
                     fontSize='xs'
                     fontFamily='body'
-                    disabled={isLoading}
+                    disabled={isDisabled}
                   >
                     Cancel
                   </Button>
@@ -330,7 +357,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                   setIsAddingTerm(true);
                 }}
                 aria-label='Add new term'
-                disabled={isLoading || isAddingTerm}
+                disabled={isDisabled || isAddingTerm}
               >
                 <FiPlus size={12} />
               </IconButton>
@@ -348,7 +375,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                 borderRadius='md'
                 bg={term.type === 'include' ? 'successSubtle' : 'errorSubtle'}
                 transition='all 0.2s'
-                opacity={isLoading ? 0.7 : 1}
+                opacity={isDisabled ? 0.7 : 1}
               >
                 <HStack justify='space-between' align='center'>
                   <Text
@@ -381,7 +408,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                             aria-label={`Toggle to ${
                               term.type === 'include' ? 'exclude' : 'include'
                             }`}
-                            disabled={isLoading}
+                            disabled={isDisabled}
                           >
                             {term.type === 'include' ? (
                               <FiEye size={10} />
@@ -412,7 +439,7 @@ export const IncludeExcludeTerms: React.FC<IncludeExcludeTermsProps> = ({
                             _hover={{ color: 'error', bg: 'bg.hover' }}
                             onClick={() => handleRemoveTerm(term.id)}
                             aria-label='Delete term'
-                            disabled={isLoading}
+                            disabled={isDisabled}
                           >
                             <FiTrash2 size={10} />
                           </IconButton>

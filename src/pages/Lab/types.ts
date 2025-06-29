@@ -22,49 +22,49 @@ export interface MongoInt {
 // Lab API Types (API Response Format)
 // ============================================================================
 
+// Updated to match the actual API response structure
 export interface ApiLabData {
-  _id?: { $oid: string }; // Added the lab ID field (optional for backwards compatibility)
-  isArchived: boolean;
-  isDeleted: boolean;
+  _id: string; // Changed: The API returns a simple string, not a MongoDB ObjectId
+  isArchived: number; // Changed: API returns 0/1 instead of boolean
+  isDeleted: number; // Changed: API returns 0/1 instead of boolean
   deletedAt: string | null;
   ent_name: string;
   ent_summary: string;
-  kbid: { $uuid: string };
+  kbid: string; // Changed: API returns simple string, not MongoDB UUID
   teamspace_id: string | null;
+  picture_url: string | null;
+  thumb_url: string | null;
+  owner_guid: string;
+  user_access_level?: string; // Added: API includes this field
   members: Array<{
-    fullname: string;
-    user_guid: string;
-    role: 'admin' | 'editor' | 'reader';
+    user_id: string; // Changed: API uses user_id instead of user_guid
+    role: string; // Changed: API uses generic string instead of specific roles
   }>;
   categories: Array<{
-    id: { $uuid: string };
+    id: string; // Changed: API returns simple string, not MongoDB UUID
     name: string;
   }>;
   exclude_terms: string[];
   include_terms: string[];
   subjects: Array<{
-    subject_id: { $oid: string };
-    subject_slug: string;
-    subject_name: string;
-    category: { $uuid: string };
+    subject_id: string; // ObjectId as string
+    subject_name?: string; // Some subjects use this
+    name?: string; // Some subjects use this instead
+    category: string | null; // UUID as string, null means uncategorized
+    ent_fsid: string; // Subject slug with fsid_ prefix
   }>;
-  analyses: Array<{ $oid: string }>;
+  analyses: string[]; // Changed: API returns array of strings, not MongoDB ObjectIds
   goals: Array<{
-    id: { $uuid: string };
-    target_user_groups: Array<{
-      name: string;
-      number: { $numberInt: string };
-    }>;
+    id: string; // Changed: API returns simple string, not MongoDB UUID
+    target_user_group: string; // Changed: API uses different structure
     problem_statement: string;
-    goal_statement: string;
-    impact_score: { $numberInt: string };
-    weight: { $numberInt: string };
-    goal_year: { $date: string };
+    impact_score: number; // Changed: API returns simple number, not MongoDB Int
   }>;
   miro_board_url: string;
-  idea_seeds: Array<{ $oid: string }>;
+  idea_seeds: any[]; // Changed: API returns different structure
 }
 
+// Legacy types for backward compatibility with your existing API service
 export interface ApiLabCategory {
   id: { $uuid: string };
   name: string;
@@ -116,9 +116,9 @@ export interface SubjectData {
   ent_fsid: string;
   ent_summary: string;
   indexes?: Array<{
-    HR: number;
-    TT: number;
-    WS: number;
+    HR: number; // Horizon Rank (0-10 scale)
+    TT: number; // Tech Transfer
+    WS: number; // White Space
   }>;
 }
 
@@ -151,7 +151,7 @@ export type AnalysisType = 'patent' | 'taxonomy' | 'research' | 'investment';
 
 export interface HorizonItem {
   name: string;
-  horizon: 1 | 2 | 3 | 4;
+  horizon: number; // This is the actual HR value (0-10 scale) from the API
   category: 1 | 2 | 3 | 4 | 5;
   type: 1 | 2 | 3;
   categoryName?: string;
@@ -257,6 +257,10 @@ export interface LabSubject {
   addedAt: string;
   addedById: string;
   notes?: string;
+  // Add horizon rank data from API
+  horizonRank?: number; // HR value from indexes[0].HR (0-10 scale)
+  techTransfer?: number; // TT value from indexes[0].TT
+  whiteSpace?: number; // WS value from indexes[0].WS
 }
 
 export interface SubjectCategory {
@@ -328,17 +332,36 @@ export interface CategoryValidation {
 // API Request/Response Types
 // ============================================================================
 
+// This should match exactly what the API expects for updates
 export interface LabUpdateRequest {
-  categories?: ApiLabCategory[];
-  subjects?: ApiLabSubject[];
-  include_terms?: string[];
-  exclude_terms?: string[];
   ent_name?: string;
   ent_summary?: string;
-  isArchived?: boolean;
-  isDeleted?: boolean;
+  kbid?: string;
+  categories?: Array<{
+    id: string;
+    name: string;
+  }>;
+  exclude_terms?: string[];
+  include_terms?: string[];
+  subjects?: Array<{
+    subject_id: string; // ObjectId as string
+    subject_name?: string; // Some subjects use this
+    name?: string; // Some subjects use this instead
+    category: string | null; // UUID as string, null for uncategorized
+    ent_fsid: string; // Subject slug with fsid_ prefix
+  }>;
+  analyses?: string[];
+  goals?: Array<{
+    id: string;
+    target_user_group: string;
+    problem_statement: string;
+    impact_score: number;
+  }>;
+  miro_board_url?: string;
+  idea_seeds?: any[];
+  isArchived?: number;
+  isDeleted?: number;
   deletedAt?: string | null;
-  [key: string]: any;
 }
 
 export interface CreateCategoryRequest {
@@ -417,7 +440,10 @@ export class ApiTransformUtils {
   /**
    * Transform MongoDB ObjectId to string
    */
-  static objectIdToString(objectId: MongoObjectId): string {
+  static objectIdToString(objectId: MongoObjectId | string): string {
+    if (typeof objectId === 'string') {
+      return objectId;
+    }
     return objectId.$oid;
   }
 
@@ -431,7 +457,10 @@ export class ApiTransformUtils {
   /**
    * Transform MongoDB UUID to string
    */
-  static uuidToString(uuid: MongoUUID): string {
+  static uuidToString(uuid: MongoUUID | string): string {
+    if (typeof uuid === 'string') {
+      return uuid;
+    }
     return uuid.$uuid;
   }
 
@@ -452,7 +481,10 @@ export class ApiTransformUtils {
   /**
    * Transform MongoDB Int to number
    */
-  static mongoIntToNumber(mongoInt: MongoInt): number {
+  static mongoIntToNumber(mongoInt: MongoInt | number): number {
+    if (typeof mongoInt === 'number') {
+      return mongoInt;
+    }
     return parseInt(mongoInt.$numberInt, 10);
   }
 
@@ -477,7 +509,7 @@ export class ApiTransformUtils {
       },
       // Add custom categories from API
       ...apiData.categories.map((category) => ({
-        id: this.uuidToString(category.id),
+        id: category.id, // API returns simple string
         name: category.name,
         type: 'custom' as const,
         subjects: [] as LabSubject[], // Will be populated below
@@ -487,8 +519,19 @@ export class ApiTransformUtils {
     // Transform subjects and assign to categories
     const transformedSubjects: LabSubject[] = [];
     for (const apiSubject of apiData.subjects) {
-      const subjectId = this.objectIdToString(apiSubject.subject_id);
-      const categoryId = this.uuidToString(apiSubject.category);
+      const subjectId = apiSubject.subject_id; // ObjectId as string
+
+      // Get subject name - could be in subject_name or name field
+      const subjectName =
+        apiSubject.subject_name || apiSubject.name || 'Unknown Subject';
+
+      // Parse slug from ent_fsid by removing fsid_ prefix
+      const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
+        ? apiSubject.ent_fsid.substring(5) // Remove 'fsid_' prefix
+        : apiSubject.ent_fsid;
+
+      // Handle category - null means uncategorized
+      const categoryId = apiSubject.category || 'uncategorized';
 
       // Find the category or default to uncategorized
       const targetCategory = transformedCategories.find(
@@ -499,12 +542,16 @@ export class ApiTransformUtils {
       const transformedSubject: LabSubject = {
         id: `lab-subj-${subjectId}`, // Frontend-generated ID
         subjectId: subjectId,
-        subjectName: apiSubject.subject_name,
-        subjectSlug: apiSubject.subject_slug,
+        subjectName: subjectName,
+        subjectSlug: subjectSlug,
         categoryId: finalCategoryId,
         addedAt: new Date().toISOString(), // Default since not in API
         addedById: 'unknown', // Default since not in API
-        notes: '', // Default since not in API
+        notes: '', // No notes in API, default to empty
+        // Horizon rank data will be populated separately when detailed subject data is fetched
+        horizonRank: undefined,
+        techTransfer: undefined,
+        whiteSpace: undefined,
       };
 
       transformedSubjects.push(transformedSubject);
@@ -520,11 +567,9 @@ export class ApiTransformUtils {
 
     // Transform analyses
     const transformedAnalyses: LabAnalysis[] = [];
-    for (const analysisRef of apiData.analyses) {
+    for (const analysisId of apiData.analyses) {
       try {
-        const analysisData = await fetchAnalysisData(
-          this.objectIdToString(analysisRef)
-        );
+        const analysisData = await fetchAnalysisData(analysisId); // API returns simple string
         transformedAnalyses.push({
           id: analysisData.id,
           title: analysisData.title,
@@ -535,47 +580,63 @@ export class ApiTransformUtils {
           createdById: analysisData.createdById,
         });
       } catch (error) {
-        console.warn(
-          `Failed to load analysis ${this.objectIdToString(analysisRef)}:`,
-          error
-        );
+        console.warn(`Failed to load analysis ${analysisId}:`, error);
       }
     }
 
     // Transform goals
     const transformedGoals: LabGoal[] = apiData.goals.map((goal) => ({
-      id: this.uuidToString(goal.id),
-      targetUserGroups: goal.target_user_groups.map((group) => ({
-        name: group.name,
-        number: this.mongoIntToNumber(group.number),
-      })),
+      id: goal.id, // API returns simple string
+      targetUserGroups: [
+        {
+          name: goal.target_user_group, // API uses different structure
+          number: 1, // Default since API doesn't provide this
+        },
+      ],
       problemStatement: goal.problem_statement,
-      goalStatement: goal.goal_statement,
-      impactScore: this.mongoIntToNumber(goal.impact_score),
-      weight: this.mongoIntToNumber(goal.weight),
-      goalYear: this.mongoDateToString(goal.goal_year),
+      goalStatement: '', // Default since not in API
+      impactScore: goal.impact_score, // API returns simple number
+      weight: 1, // Default since not in API
+      goalYear: new Date().toISOString(), // Default since not in API
     }));
 
     // Extract member information
-    const memberIds = apiData.members.map((member) => member.user_guid);
-    const adminIds = apiData.members
-      .filter((member) => member.role === 'admin')
-      .map((member) => member.user_guid);
-    const editorIds = apiData.members
-      .filter((member) => member.role === 'editor')
-      .map((member) => member.user_guid);
-    const readerIds = apiData.members
-      .filter((member) => member.role === 'reader')
-      .map((member) => member.user_guid);
+    const memberIds = apiData.members.map((member) => member.user_id); // API uses user_id
+
+    // Determine admin based on role or owner_guid
+    const adminIds: string[] = [];
+    const editorIds: string[] = [];
+    const readerIds: string[] = [];
+
+    apiData.members.forEach((member) => {
+      if (member.role === 'owner' || member.role === 'admin') {
+        adminIds.push(member.user_id);
+      } else if (member.role === 'editor') {
+        editorIds.push(member.user_id);
+      } else {
+        readerIds.push(member.user_id);
+      }
+    });
+
+    // If no admins found but there's an owner_guid, add it
+    if (adminIds.length === 0 && apiData.owner_guid) {
+      // Find the member with the owner_guid or add it
+      const ownerMember = apiData.members.find(
+        (m) => m.user_id === apiData.owner_guid
+      );
+      if (ownerMember) {
+        adminIds.push(ownerMember.user_id);
+      }
+    }
 
     return {
       id: labId,
       name: apiData.ent_name,
       description: apiData.ent_summary,
-      isArchived: apiData.isArchived,
-      isDeleted: apiData.isDeleted,
+      isArchived: apiData.isArchived === 1, // Convert number to boolean
+      isDeleted: apiData.isDeleted === 1, // Convert number to boolean
       deletedAt: apiData.deletedAt,
-      kbid: this.uuidToString(apiData.kbid),
+      kbid: apiData.kbid, // API returns simple string
       teamspaceId: apiData.teamspace_id,
       memberIds,
       adminIds,
@@ -588,7 +649,7 @@ export class ApiTransformUtils {
       includeTerms: apiData.include_terms,
       excludeTerms: apiData.exclude_terms,
       miroBoardUrl: apiData.miro_board_url,
-      ideaSeeds: apiData.idea_seeds.map((seed) => this.objectIdToString(seed)),
+      ideaSeeds: [], // API returns different structure, defaulting to empty
       createdAt: new Date().toISOString(), // Default since not in API
       updatedAt: new Date().toISOString(), // Default since not in API
     };
@@ -596,30 +657,92 @@ export class ApiTransformUtils {
 
   /**
    * Transform frontend lab data back to API format for updates
+   * CRITICAL: This must match exactly what the API expects
    */
-  static transformLabToApiFormat(lab: Lab): Partial<ApiLabData> {
-    return {
+  static transformLabToApiFormat(lab: Lab): LabUpdateRequest {
+    // Log for debugging
+    console.log('Transforming lab to API format:', lab);
+
+    const transformed: LabUpdateRequest = {
       ent_name: lab.name,
       ent_summary: lab.description,
-      isArchived: lab.isArchived,
-      isDeleted: lab.isDeleted,
-      deletedAt: lab.deletedAt,
+      kbid: lab.kbid,
       categories: lab.categories
         .filter(CategoryUtils.isCustom)
         .map((category) => ({
-          id: this.stringToUUID(category.id),
+          id: category.id, // API expects simple string
           name: category.name,
         })),
       subjects: lab.subjects.map((subject) => ({
-        subject_id: this.stringToObjectId(subject.subjectId),
-        subject_slug: subject.subjectSlug,
-        subject_name: subject.subjectName,
-        category: this.stringToUUID(subject.categoryId),
+        subject_id: subject.subjectId, // ObjectId as string
+        subject_name: subject.subjectName, // Use subject_name field
+        category:
+          subject.categoryId === 'uncategorized' ? null : subject.categoryId, // null for uncategorized
+        ent_fsid: subject.subjectSlug.startsWith('fsid_')
+          ? subject.subjectSlug
+          : `fsid_${subject.subjectSlug}`, // Ensure fsid_ prefix
       })),
       include_terms: lab.includeTerms,
       exclude_terms: lab.excludeTerms,
+      analyses: lab.analyses.map((a) => a.id),
+      goals: lab.goals.map((goal) => ({
+        id: goal.id,
+        target_user_group: goal.targetUserGroups[0]?.name || '',
+        problem_statement: goal.problemStatement,
+        impact_score: goal.impactScore,
+      })),
       miro_board_url: lab.miroBoardUrl,
-      idea_seeds: lab.ideaSeeds.map((seed) => this.stringToObjectId(seed)),
+      idea_seeds: [], // Default to empty array
+      isArchived: lab.isArchived ? 1 : 0, // Convert boolean to number
+      isDeleted: lab.isDeleted ? 1 : 0, // Convert boolean to number
+      deletedAt: lab.deletedAt,
+    };
+
+    console.log('Transformed to API format:', transformed);
+    return transformed;
+  }
+
+  /**
+   * Create a minimal update payload for subject operations
+   */
+  static createSubjectUpdatePayload(
+    subjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>
+  ): Partial<LabUpdateRequest> {
+    return {
+      subjects: subjects,
+    };
+  }
+
+  /**
+   * Create a minimal update payload for category operations
+   */
+  static createCategoryUpdatePayload(
+    categories: Array<{
+      id: string;
+      name: string;
+    }>
+  ): Partial<LabUpdateRequest> {
+    return {
+      categories: categories,
+    };
+  }
+
+  /**
+   * Create a minimal update payload for terms operations
+   */
+  static createTermsUpdatePayload(
+    includeTerms: string[],
+    excludeTerms: string[]
+  ): Partial<LabUpdateRequest> {
+    return {
+      include_terms: includeTerms,
+      exclude_terms: excludeTerms,
     };
   }
 }

@@ -191,113 +191,114 @@ const Lab: React.FC = () => {
   }, [setPageContext, clearPageContext, labPageContext]);
 
   // Fetch lab data with real API
-  useEffect(() => {
-    const fetchLabData = async (): Promise<void> => {
-      console.log('Starting to fetch lab data for id:', id);
-      setLoading(true);
-      setError(null);
+  const fetchLabData = useCallback(async (): Promise<void> => {
+    console.log('Starting to fetch lab data for id:', id);
+    setLoading(true);
+    setError(null);
 
-      if (!id) {
-        setError('Missing lab ID');
+    if (!id) {
+      setError('Missing lab ID');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      let apiLabData: ApiLabData | undefined;
+      let useRealAPI = false;
+
+      // Try to fetch from real API first if token is available
+      if (token) {
+        try {
+          // Fixed: Use the correct endpoint with query parameter
+          const response = await fetch(
+            `https://tools.futurity.science/api/lab/view?lab_id=${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (response.ok) {
+            // Use real API data
+            apiLabData = await response.json();
+            useRealAPI = true;
+            console.log('Successfully fetched lab data from API');
+          } else if (response.status === 401) {
+            setError('Session expired. Please log in again.');
+            setLoading(false);
+            return;
+          } else if (response.status === 403) {
+            setError('You do not have permission to access this lab.');
+            setLoading(false);
+            return;
+          } else {
+            // API failed, will fallback to mock data
+            console.warn(
+              `API responded with ${response.status}, falling back to mock data`
+            );
+          }
+        } catch (apiError) {
+          // Network error or other API issue, will fallback to mock data
+          console.warn(
+            'API request failed, falling back to mock data:',
+            apiError
+          );
+        }
+      }
+
+      // Fallback to mock data if API didn't work or no token
+      if (!useRealAPI || !apiLabData) {
+        console.log('Using mock data for lab ID:', id);
+
+        // Import mock data
+        const { mockFetchLabData } = await import('./mockData');
+
+        try {
+          apiLabData = await mockFetchLabData(id);
+          console.log('Successfully loaded mock lab data');
+        } catch (mockError) {
+          console.error('Mock data also failed:', mockError);
+          setError(`Lab with ID "${id}" not found. Please check the URL.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Ensure we have data before proceeding
+      if (!apiLabData) {
+        setError('No lab data available');
         setLoading(false);
         return;
       }
 
-      try {
-        let apiLabData: ApiLabData | undefined;
-        let useRealAPI = false;
+      // Transform API data to frontend format
+      const transformedLab = await ApiTransformUtils.transformLab(
+        apiLabData,
+        id, // Use the actual lab ID from the URL
+        fetchSubjectData,
+        fetchAnalysisData
+      );
 
-        // Try to fetch from real API first if token is available
-        if (token) {
-          try {
-            const response = await fetch(
-              `https://tools.futurity.science/api/lab/${id}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
+      setLab(transformedLab);
+      setEditForm({
+        name: transformedLab.name,
+        description: transformedLab.description,
+      });
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch lab:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to load lab data'
+      );
+      setLoading(false);
+    }
+  }, [id, token, fetchSubjectData, fetchAnalysisData]);
 
-            if (response.ok) {
-              // Use real API data
-              apiLabData = await response.json();
-              useRealAPI = true;
-              console.log('Successfully fetched lab data from API');
-            } else if (response.status === 401) {
-              setError('Session expired. Please log in again.');
-              setLoading(false);
-              return;
-            } else if (response.status === 403) {
-              setError('You do not have permission to access this lab.');
-              setLoading(false);
-              return;
-            } else {
-              // API failed, will fallback to mock data
-              console.warn(
-                `API responded with ${response.status}, falling back to mock data`
-              );
-            }
-          } catch (apiError) {
-            // Network error or other API issue, will fallback to mock data
-            console.warn(
-              'API request failed, falling back to mock data:',
-              apiError
-            );
-          }
-        }
-
-        // Fallback to mock data if API didn't work or no token
-        if (!useRealAPI || !apiLabData) {
-          console.log('Using mock data for lab ID:', id);
-
-          // Import mock data
-          const { mockFetchLabData } = await import('./mockData');
-
-          try {
-            apiLabData = await mockFetchLabData(id);
-            console.log('Successfully loaded mock lab data');
-          } catch (mockError) {
-            console.error('Mock data also failed:', mockError);
-            setError(`Lab with ID "${id}" not found. Please check the URL.`);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Ensure we have data before proceeding
-        if (!apiLabData) {
-          setError('No lab data available');
-          setLoading(false);
-          return;
-        }
-
-        // Transform API data to frontend format
-        const transformedLab = await ApiTransformUtils.transformLab(
-          apiLabData,
-          id, // Use the actual lab ID from the URL
-          fetchSubjectData,
-          fetchAnalysisData
-        );
-
-        setLab(transformedLab);
-        setEditForm({
-          name: transformedLab.name,
-          description: transformedLab.description,
-        });
-        setLoading(false);
-      } catch (error) {
-        console.error('Failed to fetch lab:', error);
-        setError(
-          error instanceof Error ? error.message : 'Failed to load lab data'
-        );
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchLabData();
-  }, [id, token]);
+  }, [fetchLabData]);
 
   // Check if current user is admin of this lab
   const isLabAdmin = (): boolean => {
@@ -830,6 +831,7 @@ const Lab: React.FC = () => {
             onCategoriesUpdate={(categories) => {
               setLab((prev) => (prev ? { ...prev, categories } : null));
             }}
+            onRefreshLab={fetchLabData}
           />
         )}
         {activeTab === 'analyze' && <Analyze labId={lab.id} />}
