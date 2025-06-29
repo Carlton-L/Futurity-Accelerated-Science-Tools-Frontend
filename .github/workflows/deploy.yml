@@ -48,3 +48,18 @@ jobs:
           push: true
           tags: |
             ${{ env.ECR_REPO_NAME }}:${{ github.sha }}
+
+      - name: Render Amazon ECS task definition
+        id: render-web-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition-family: fullstack-main-site-staging
+          container-name: frontend
+          image: ${{ env.ECR_REPO_NAME }}:${{ github.sha }}
+
+      - name: Deploy to Amazon ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-web-container.outputs.task-definition }}
+          service: fullstack-main-site-staging
+          cluster: fullstack-main-site-staging
