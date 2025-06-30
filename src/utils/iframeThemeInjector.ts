@@ -150,14 +150,14 @@ export const createThemeCSS = (): string => {
         font-family: 'JetBrains Mono', monospace !important;
       }
       
-      /* Blockquotes */
-      blockquote {
-        border-left: 4px solid var(--theme-brand) !important;
-        margin: 16px 0 !important;
-        padding-left: 16px !important;
-        background-color: var(--theme-bg) !important;
-        color: var(--theme-fg) !important;
-      }
+      // /* Blockquotes */
+      // blockquote {
+      //   border-left: 4px solid var(--theme-brand) !important;
+      //   margin: 16px 0 !important;
+      //   padding-left: 16px !important;
+      //   background-color: var(--theme-bg) !important;
+      //   color: var(--theme-fg) !important;
+      // }
       
       /* Horizontal rules */
       hr {
@@ -173,24 +173,56 @@ export const createThemeCSS = (): string => {
       
       /* Plotly/Chart containers - common class names */
       .plotly, .plotly-graph-div, .chart-container, .js-plotly-plot {
-        background-color: var(--theme-bg) !important;
+        color: var(--theme-fg) !important;
+      }
+
+      img {
+      background-color: #eee !important
+      }
+
+      .xtick text {
+fill: var(--theme-fg) !important;
       }
       
-      /* Plotly specific styling */
-      .plotly .main-svg {
-        background-color: var(--theme-bg) !important;
+      .ytick text {
+       fill: var(--theme-fg) !important;
       }
+
+      .gtitle {
+      fill: var(--theme-fg) !important;
+      }
+
+      .xtitle {
+      fill: var(--theme-fg) !important;
+      }
+
+      .ytitle {
+      fill: var(--theme-fg) !important;
+      }
+
+      .x2tick text {
+      fill: var(--theme-fg) !important;
+      }
+
+      .y2tick text {
+      fill: var(--theme-fg) !important;
+      }
+
+      // /* Plotly specific styling */
+      // .plotly .main-svg {
+      //   background-color: var(--theme-bg) !important;
+      // }
       
-      /* SVG elements */
-      svg {
-        background-color: var(--theme-bg) !important;
-      }
+      // /* SVG elements */
+      // svg {
+      //   background-color: var(--theme-bg) !important;
+      // }
       
-      /* Common data visualization elements */
-      .tick text, .axis text, .legend text {
-        fill: var(--theme-fg) !important;
-        font-family: 'JetBrains Mono', monospace !important;
-      }
+      // /* Common data visualization elements */
+      // .tick text, .axis text, .legend text {
+      //   fill: var(--theme-fg) !important;
+      //   font-family: 'JetBrains Mono', monospace !important;
+      // }
       
       .axis path, .axis line, .tick line {
         stroke: var(--theme-fg) !important;

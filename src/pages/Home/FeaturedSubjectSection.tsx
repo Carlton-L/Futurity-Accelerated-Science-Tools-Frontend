@@ -46,8 +46,8 @@ const FeaturedSubjectSection: React.FC = () => {
   const [hoveredStatType, setHoveredStatType] = useState<string | null>(null);
 
   // Hard-coded subject for the featured section
-  const featuredSubject = 'computer-vision';
-  const featuredSubjectDisplay = 'Computer Vision';
+  const featuredSubject = 'fandom';
+  const featuredSubjectDisplay = 'Fandom';
 
   // Get the correct background color from theme
   const appBgColor = theme.isDark ? '#111111' : '#FAFAFA';
