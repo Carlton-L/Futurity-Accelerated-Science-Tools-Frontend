@@ -181,9 +181,22 @@ const FuturityLabsDirectory: React.FC = () => {
       <VStack gap='8' align='stretch'>
         {/* Header */}
         <Box>
+          <HStack gap='2' fontSize='sm' color='fg.secondary' mb='4'>
+            <Text
+              as='button'
+              onClick={() => navigate('/')}
+              _hover={{ color: 'fg' }}
+              cursor='pointer'
+            >
+              Home
+            </Text>
+            <Text>/</Text>
+            <Text color='fg'>Futurity Labs</Text>
+          </HStack>
+
           <Button variant='ghost' onClick={handleBackToHome} mb='4'>
             <FiArrowLeft />
-            Back to Home
+            Back
           </Button>
           <Heading as='h1' size='2xl' mb='2'>
             All Futurity Labs

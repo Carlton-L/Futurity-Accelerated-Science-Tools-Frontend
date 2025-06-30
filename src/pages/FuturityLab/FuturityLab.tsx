@@ -191,13 +191,32 @@ const FuturityLab: React.FC = () => {
       <VStack gap='8' align='stretch'>
         {/* Header */}
         <Box>
-          <Button
-            onClick={() => navigate('/')}
-            variant='ghost'
-            size='sm'
-            mb='4'
-          >
-            ← Back to Home
+          <HStack gap='2' fontSize='sm' color='fg.secondary' mb='4'>
+            <Text
+              as='button'
+              onClick={() => navigate('/')}
+              _hover={{ color: 'fg' }}
+              cursor='pointer'
+            >
+              Home
+            </Text>
+            <Text>/</Text>
+            <Text
+              as='button'
+              onClick={() => navigate('/futuritylabs')}
+              _hover={{ color: 'fg' }}
+              cursor='pointer'
+            >
+              Futurity Labs
+            </Text>
+            <Text>/</Text>
+            <Text color='fg' lineClamp={1}>
+              {lab.ent_name}
+            </Text>
+          </HStack>
+
+          <Button onClick={() => navigate(-1)} variant='ghost' size='sm' mb='4'>
+            ← Back
           </Button>
 
           <HStack gap='4' align='start'>

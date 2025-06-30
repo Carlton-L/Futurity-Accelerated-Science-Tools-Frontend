@@ -27,57 +27,49 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
-import { labAPIService } from '../../../services/labAPIService';
-import type { Lab, TeamspaceListItem } from '../../../context/AuthContext';
+import { labService, type Lab } from '../../../services/labService';
 import FastIcon from '../../../assets/fast_icon.svg';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
 import LabsIcon from '../../../assets/labs.svg';
 import SearchField from './SearchField';
 import WorkspaceManageDialog from './WorkspaceManageDialog';
 
-// TeamSelector Component - Updated to use real data
+// TeamSelector Component - Updated to use relationship data
 interface TeamSelectorProps {
   isCompact: boolean;
   navigate: (path: string) => void;
 }
 
 const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
-  const { workspace, currentTeamspace, teamspaces, setCurrentTeamspace } =
+  const { userRelationships, currentTeam, setCurrentTeam, isTeamAdmin } =
     useAuth();
 
-  if (!workspace || !currentTeamspace) {
+  if (!userRelationships || !currentTeam) {
     return null;
   }
 
-  // Filter out the current teamspace from the switch options
-  const otherTeamspaces = teamspaces.filter(
-    (team) => team._id !== currentTeamspace._id
+  // Filter out the current team from the switch options
+  const otherTeams = userRelationships.teams.filter(
+    (team) => team._id !== currentTeam._id
   );
   const teamFontSize = isCompact ? '16px' : '24px';
 
-  // Check if user is workspace admin/owner
-  const isWorkspaceAdmin =
-    workspace.user_access_level === 'owner' ||
-    workspace.user_access_level === 'admin';
-
-  // Check if user is team admin/owner
-  const isTeamAdmin =
-    currentTeamspace.user_access_level === 'owner' ||
-    currentTeamspace.user_access_level === 'admin';
+  // Check if user is team admin for current team
+  const isCurrentTeamAdmin = isTeamAdmin(currentTeam.uniqueID);
 
   // Handle team switching with smart navigation
-  const handleTeamChange = (newTeamspace: TeamspaceListItem) => {
-    setCurrentTeamspace(newTeamspace);
+  const handleTeamChange = (newTeam: typeof currentTeam) => {
+    setCurrentTeam(newTeam);
 
     // Check current URL to determine if we should navigate to the same page type for the new team
     const currentPath = window.location.pathname;
 
     if (currentPath.includes('/team/') && currentPath.includes('/manage')) {
       // User is on team manage page, navigate to manage page for new team
-      navigate(`/team/${newTeamspace._id}/manage`);
+      navigate(`/team/${newTeam.uniqueID}/manage`);
     } else if (currentPath.includes('/team/')) {
       // User is on team view page, navigate to view page for new team
-      navigate(`/team/${newTeamspace._id}`);
+      navigate(`/team/${newTeam.uniqueID}`);
     }
     // Otherwise, stay on current page (home, lab, etc.)
   };
@@ -112,7 +104,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
               </Text>
               <HStack gap={2} align='center'>
                 <Text fontSize={teamFontSize} fontFamily='body' color='fg'>
-                  {currentTeamspace.name}
+                  {currentTeam.ent_name}
                 </Text>
                 <LuChevronDown size={16} />
               </HStack>
@@ -123,7 +115,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                 team:
               </Text>
               <Text fontSize={teamFontSize} fontFamily='body' color='fg'>
-                {currentTeamspace.name}
+                {currentTeam.ent_name}
               </Text>
               <LuChevronDown size={16} />
             </HStack>
@@ -141,11 +133,11 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
           >
             {/* Admin Controls Section */}
             <Box p={3}>
-              {isTeamAdmin || isWorkspaceAdmin ? (
+              {isCurrentTeamAdmin ? (
                 <HStack gap={2} align='stretch'>
                   {/* View Team Button */}
                   <Button
-                    onClick={() => navigate(`/team/${currentTeamspace._id}`)}
+                    onClick={() => navigate(`/team/${currentTeam.uniqueID}`)}
                     flex='1'
                     size='sm'
                     bg='#0005E9'
@@ -171,10 +163,10 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                     View Team
                   </Button>
 
-                  {/* Manage Button - only show for team/workspace admins */}
+                  {/* Manage Button - only show for team admins */}
                   <Button
                     onClick={() =>
-                      navigate(`/team/${currentTeamspace._id}/manage`)
+                      navigate(`/team/${currentTeam.uniqueID}/manage`)
                     }
                     flex='1'
                     size='sm'
@@ -192,7 +184,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
               ) : (
                 // Single View Team Button for non-admin users
                 <Button
-                  onClick={() => navigate(`/team/${currentTeamspace._id}`)}
+                  onClick={() => navigate(`/team/${currentTeam.uniqueID}`)}
                   width='100%'
                   size='sm'
                   bg='#0005E9'
@@ -221,7 +213,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
             </Box>
 
             {/* Switch Teams Section - only show if there are other teams */}
-            {otherTeamspaces.length > 0 && (
+            {otherTeams.length > 0 && (
               <>
                 <Menu.Separator borderColor='border.muted' />
 
@@ -238,7 +230,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                   </Box>
                 </Menu.ItemGroup>
 
-                {otherTeamspaces.map((team) => (
+                {otherTeams.map((team) => (
                   <Menu.Item
                     key={team._id}
                     value={team._id}
@@ -250,7 +242,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                       bg: 'bg.hover',
                     }}
                   >
-                    {team.name}
+                    {team.ent_name}
                   </Menu.Item>
                 ))}
               </>
@@ -264,7 +256,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
 
 const Navbar: React.FC = () => {
   const { isDark, toggleColorMode } = useTheme();
-  const { user, logout, currentTeamspace, token } = useAuth();
+  const { user, logout, currentTeam, token, isOrgAdmin } = useAuth();
   const navigate = useNavigate();
 
   // State for labs management
@@ -293,10 +285,10 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch labs when current teamspace changes - UPDATED to use only real API data
+  // Fetch labs when current team changes - UPDATED to use new lab API
   useEffect(() => {
     const fetchTeamLabs = async () => {
-      if (!currentTeamspace || !token) {
+      if (!currentTeam || !token) {
         setTeamLabs([]);
         return;
       }
@@ -304,27 +296,17 @@ const Navbar: React.FC = () => {
       try {
         setIsLoadingLabs(true);
 
-        // Fetch real lab data from API using existing labAPIService
-        const apiLabs = await labAPIService.listLabs(
-          currentTeamspace._id,
-          token
+        // Fetch lab data using the new lab service
+        const labs = await labService.getLabsForTeam(
+          currentTeam.uniqueID,
+          token,
+          false // don't include archived labs
         );
-
-        // Convert API response to our Lab type
-        const labs: Lab[] = apiLabs.map((lab) => ({
-          _id: lab._id,
-          ent_name: lab.ent_name,
-          ent_summary: lab.ent_summary,
-          teamspace_id: lab.teamspace_id,
-          isArchived: lab.isArchived,
-          isDeleted: lab.isDeleted,
-          deletedAt: lab.deletedAt,
-        }));
 
         setTeamLabs(labs);
       } catch (error) {
         console.error('Failed to fetch team labs:', error);
-        // Set empty array on error - no fallback hardcoded lab
+        // Set empty array on error
         setTeamLabs([]);
       } finally {
         setIsLoadingLabs(false);
@@ -332,30 +314,24 @@ const Navbar: React.FC = () => {
     };
 
     fetchTeamLabs();
-  }, [currentTeamspace, token]);
+  }, [currentTeam, token]);
 
-  const handleLabSelect = (labId: string) => {
-    navigate(`/lab/${labId}`);
+  const handleLabSelect = (labUniqueId: string) => {
+    navigate(`/lab/${labUniqueId}`);
   };
 
   const refreshLabsList = async () => {
-    if (!currentTeamspace || !token) return;
+    if (!currentTeam || !token) return;
 
     try {
       setIsLoadingLabs(true);
 
-      // Re-fetch labs using the same logic as the main effect
-      const apiLabs = await labAPIService.listLabs(currentTeamspace._id, token);
-
-      const labs: Lab[] = apiLabs.map((lab) => ({
-        _id: lab._id,
-        ent_name: lab.ent_name,
-        ent_summary: lab.ent_summary,
-        teamspace_id: lab.teamspace_id,
-        isArchived: lab.isArchived,
-        isDeleted: lab.isDeleted,
-        deletedAt: lab.deletedAt,
-      }));
+      // Re-fetch labs using the new lab service
+      const labs = await labService.getLabsForTeam(
+        currentTeam.uniqueID,
+        token,
+        false
+      );
 
       setTeamLabs(labs);
     } catch (error) {
@@ -365,7 +341,7 @@ const Navbar: React.FC = () => {
     }
   };
 
-  const hasNoTeam = !currentTeamspace;
+  const hasNoTeam = !currentTeam;
   const isCompact = windowWidth <= 1100;
   const navHeight = isCompact ? '58px' : '64px';
 
@@ -412,10 +388,10 @@ const Navbar: React.FC = () => {
           {/* TASK 1: Reordered navigation items - Team → Labs → My Whiteboard → Profile */}
 
           {/* Team Selector - MOVED TO FIRST POSITION */}
-          {currentTeamspace ? (
+          {currentTeam ? (
             <TeamSelector isCompact={isCompact} navigate={navigate} />
           ) : (
-            // No team button for when there's no current teamspace
+            // No team button for when there's no current team
             <Button
               variant='outline'
               size='sm'
@@ -539,7 +515,7 @@ const Navbar: React.FC = () => {
                           color='fg.secondary'
                           fontFamily='body'
                         >
-                          {`${currentTeamspace.name} labs`}
+                          {`${currentTeam?.ent_name} labs`}
                         </Text>
                         <Button
                           onClick={refreshLabsList}
@@ -576,7 +552,7 @@ const Navbar: React.FC = () => {
                           <Menu.Item
                             key={lab._id}
                             value={lab._id}
-                            onClick={() => handleLabSelect(lab._id)}
+                            onClick={() => handleLabSelect(lab.uniqueID)}
                             color='fg'
                             fontFamily='body'
                             fontSize='sm'
@@ -736,8 +712,8 @@ const Navbar: React.FC = () => {
                     </Menu.ItemGroupLabel>
                   </Menu.ItemGroup>
 
-                  {/* Admin Workspace Management - only show for admin users */}
-                  {user?.role === 'admin' && (
+                  {/* Organization Management - only show for organization admin users */}
+                  {isOrgAdmin() && (
                     <>
                       <Box p={2}>
                         <Button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -9,6 +9,7 @@ import {
   Text,
   Button,
   Alert,
+  createToaster,
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiCheck } from 'react-icons/fi';
 
@@ -17,7 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 
 // Components
 import LabCreationWizard from './LabCreationWizard';
-import LabCreationLoadingModal from './LabCreationLoadingModal';
+import LabCreationSuccessModal from './LabCreationSuccessModal';
 
 // Types and utils
 import type {
@@ -37,29 +38,39 @@ interface CreateLabProps {
   initialLabSeed?: WhiteboardLabSeed; // If coming from whiteboard
 }
 
+// Updated API request interface to match the actual endpoint
 interface CreateLabAPIRequest {
   ent_name: string;
   team_id: string;
   ent_summary?: string;
   picture_url?: string;
   thumbnail_url?: string;
-  subcategories: string[];
-  subjects: string[];
-  new_terms: string[];
+  subject_fsids: string[];
+  new_subject_terms: string[];
   exclude_terms: string[];
   include_terms: string[];
-  goals: any[];
-  metadata: Record<string, any>;
+  goals: unknown[];
+  metadata: Record<string, unknown>;
 }
 
 interface CreateLabAPIResponse {
-  success?: boolean;
-  lab_id?: string;
-  id?: string;
-  ent_id?: string;
-  message?: string;
-  error?: string;
-  [key: string]: any; // Allow for any additional fields
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  _id: string;
+  kbid: string;
+  metadata: {
+    kbid: string;
+    miro_board_url: string;
+    ent_summary?: string;
+    picture_url?: string;
+    thumbnail_url?: string;
+    subject_fsids: string[];
+  };
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
 }
 
 const CreateLab: React.FC<CreateLabProps> = ({
@@ -67,11 +78,15 @@ const CreateLab: React.FC<CreateLabProps> = ({
   initialLabSeed,
 }) => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { token, user } = useAuth();
+  const { token, user, currentTeam } = useAuth();
 
-  // Get teamspace ID from props or URL params
-  const teamspaceId = propTeamspaceId || searchParams.get('teamspace_id') || '';
+  // Create toaster instance
+  const toaster = createToaster({
+    placement: 'top',
+  });
+
+  // Get team ID from current team context
+  const teamspaceId = propTeamspaceId || currentTeam?.uniqueID || '';
 
   // State management
   const [formData, setFormData] = useState<LabCreationFormData>(() => {
@@ -100,21 +115,16 @@ const CreateLab: React.FC<CreateLabProps> = ({
     isFromLabSeed: !!initialLabSeed,
   });
 
-  // Loading modal state
-  const [loadingModal, setLoadingModal] = useState<{
+  // Success modal state
+  const [successModal, setSuccessModal] = useState<{
     isOpen: boolean;
-    stage: 'creating' | 'processing' | 'completed' | 'error';
-    message: string;
-    progress: number;
-    errorMessage?: string;
+    labData?: CreateLabAPIResponse;
   }>({
     isOpen: false,
-    stage: 'creating',
-    message: '',
-    progress: 0,
   });
 
   const [error, setError] = useState<string>('');
+  const [isCreating, setIsCreating] = useState(false);
 
   // Validation
   const validation = validateAllSteps(formData);
@@ -144,7 +154,7 @@ const CreateLab: React.FC<CreateLabProps> = ({
       ...prev,
       estimatedProcessingTime: estimatedTime,
     }));
-  }, [formData.categories, formData.processTerms, setFormData]);
+  }, [formData.categories, formData.processTerms]);
 
   // Handle step navigation
   const handleStepChange = useCallback(
@@ -194,33 +204,36 @@ const CreateLab: React.FC<CreateLabProps> = ({
     []
   );
 
-  // Transform form data to API format
+  // Transform form data to match the actual API format
   const transformToAPIFormat = useCallback(
     (formData: LabCreationFormData): CreateLabAPIRequest => {
-      // Get all new terms (subjects that need processing)
-      const newTerms = formData.categories
+      // Get all manually entered or CSV imported terms (not from Lab Seeds)
+      const newSubjectTerms = formData.categories
         .flatMap((cat) => cat.subjects)
-        .filter((subject) => subject.isNewTerm)
+        .filter(
+          (subject) =>
+            subject.source === 'manual' ||
+            subject.source === 'csv' ||
+            subject.isNewTerm
+        )
         .map((subject) => subject.subjectName);
 
-      // Get existing subjects (those with ent_fsid)
-      const existingSubjects = formData.categories
+      // Get Lab Seed subjects (these would be subject_fsids when implemented)
+      const labSeedSubjects = formData.categories
         .flatMap((cat) => cat.subjects)
-        .filter((subject) => !subject.isNewTerm && subject.subjectSlug)
+        .filter(
+          (subject) => subject.source === 'lab_seed' && subject.subjectSlug
+        )
         .map((subject) => subject.subjectSlug!);
-
-      // Get custom category names
-      const subcategories = formData.categories
-        .filter((cat) => cat.type === 'custom' && cat.subjects.length > 0)
-        .map((cat) => cat.name);
 
       return {
         ent_name: formData.name.trim(),
-        team_id: teamspaceId || 'ef3a7358-2cbf-4e6a-adf3-b0f640f60f47', // Fallback team ID
+        team_id: teamspaceId, // Using currentTeam.uniqueID from auth context
         ent_summary: formData.summary.trim() || undefined,
-        subcategories,
-        subjects: existingSubjects,
-        new_terms: newTerms,
+        picture_url: undefined,
+        thumbnail_url: undefined,
+        subject_fsids: labSeedSubjects, // Lab Seed subjects (when implemented)
+        new_subject_terms: newSubjectTerms, // Manual/CSV terms
         exclude_terms: formData.excludeTerms.map((term) => term.text),
         include_terms: formData.includeTerms.map((term) => term.text),
         goals: [],
@@ -230,37 +243,30 @@ const CreateLab: React.FC<CreateLabProps> = ({
     [teamspaceId]
   );
 
-  // Handle lab creation with loading modal
+  // Handle lab creation with the correct API endpoint
   const handleCreateLab = useCallback(async () => {
     if (!token || !user) {
       setError('Missing authentication information');
       return;
     }
 
-    // Show loading modal
-    setLoadingModal({
-      isOpen: true,
-      stage: 'creating',
-      message: 'Setting up your lab...',
-      progress: 10,
-    });
+    if (!teamspaceId || !currentTeam) {
+      setError('No team selected. Please select a team before creating a lab.');
+      return;
+    }
+
+    setIsCreating(true);
+    setError('');
 
     try {
       // Transform form data to API format
       const apiData = transformToAPIFormat(formData);
 
-      // Update progress
-      setLoadingModal((prev) => ({
-        ...prev,
-        message: 'Sending lab data...',
-        progress: 30,
-      }));
-
       console.log('Creating lab with data:', apiData); // Debug log
 
-      // Make API call
+      // Make API call to the correct endpoint
       const response = await fetch(
-        'http://fast.futurity.science/management/labs/',
+        'https://fast.futurity.science/management/labs/',
         {
           method: 'POST',
           headers: {
@@ -270,13 +276,6 @@ const CreateLab: React.FC<CreateLabProps> = ({
           body: JSON.stringify(apiData),
         }
       );
-
-      // Update progress
-      setLoadingModal((prev) => ({
-        ...prev,
-        message: 'Processing response...',
-        progress: 70,
-      }));
 
       console.log('API Response status:', response.status, response.statusText); // Debug log
 
@@ -288,57 +287,22 @@ const CreateLab: React.FC<CreateLabProps> = ({
         );
       }
 
-      const result = await response.json();
+      const result: CreateLabAPIResponse = await response.json();
       console.log('API Success Response:', result); // Debug log
 
-      // The API might not return a "success" field, so let's check for lab_id or similar
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      // Show success toast
+      toaster.create({
+        title: 'Lab Created Successfully!',
+        description: `"${result.ent_name}" is being set up. Check the Labs menu to see when it's ready.`,
+        type: 'success',
+        duration: 6000,
+      });
 
-      // If we get here, assume success (API returned 200/201 and parsed JSON)
-      const labId = result.lab_id || result.id || result.ent_id;
-
-      // Simulate processing time if there are new terms
-      const hasNewTerms = formData.categories
-        .flatMap((cat) => cat.subjects)
-        .some((subject) => subject.isNewTerm);
-
-      if (hasNewTerms && formData.processTerms) {
-        setLoadingModal((prev) => ({
-          ...prev,
-          stage: 'processing',
-          message: 'Processing new terms...',
-          progress: 80,
-        }));
-
-        // Simulate processing delay
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        setLoadingModal((prev) => ({
-          ...prev,
-          progress: 95,
-        }));
-      }
-
-      // Show success
-      setLoadingModal((prev) => ({
-        ...prev,
-        stage: 'completed',
-        message: 'Lab created successfully!',
-        progress: 100,
-      }));
-
-      // Navigate after showing success
-      setTimeout(() => {
-        if (labId) {
-          console.log('Navigating to lab:', labId); // Debug log
-          navigate(`/lab/${labId}`);
-        } else {
-          console.log('No lab ID, navigating to labs list'); // Debug log
-          navigate(`/teamspace/${teamspaceId}/labs`);
-        }
-      }, 2000);
+      // Show success modal
+      setSuccessModal({
+        isOpen: true,
+        labData: result,
+      });
     } catch (error) {
       console.error('Lab creation failed:', error);
       console.error('Error details:', {
@@ -349,20 +313,27 @@ const CreateLab: React.FC<CreateLabProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to create lab';
 
-      setLoadingModal({
-        isOpen: true,
-        stage: 'error',
-        message: 'Failed to create lab',
-        progress: 0,
-        errorMessage,
-      });
+      setError(errorMessage);
 
-      // Auto-close error modal after 10 seconds (increased from 5)
-      setTimeout(() => {
-        setLoadingModal((prev) => ({ ...prev, isOpen: false }));
-      }, 10000);
+      // Show error toast
+      toaster.create({
+        title: 'Lab Creation Failed',
+        description: errorMessage,
+        type: 'error',
+        duration: 10000,
+      });
+    } finally {
+      setIsCreating(false);
     }
-  }, [token, user, formData, transformToAPIFormat, navigate, teamspaceId]);
+  }, [
+    token,
+    user,
+    teamspaceId,
+    currentTeam,
+    formData,
+    transformToAPIFormat,
+    toaster,
+  ]);
 
   // Handle back navigation
   const handleBack = useCallback(() => {
@@ -370,10 +341,16 @@ const CreateLab: React.FC<CreateLabProps> = ({
       // If we came from a Lab Seed, go back to whiteboard
       navigate('/whiteboard');
     } else {
-      // Otherwise go back to labs list
-      navigate(`/teamspace/${teamspaceId}/labs`);
+      // Otherwise go back to homepage or labs list
+      navigate('/');
     }
-  }, [navigate, initialLabSeed, teamspaceId]);
+  }, [navigate, initialLabSeed]);
+
+  // Handle success modal close
+  const handleSuccessModalClose = useCallback(() => {
+    setSuccessModal({ isOpen: false });
+    navigate('/'); // Go back to homepage
+  }, [navigate]);
 
   return (
     <Container maxW='6xl' py={6}>
@@ -478,6 +455,18 @@ const CreateLab: React.FC<CreateLabProps> = ({
           </Alert.Root>
         )}
 
+        {/* No team warning */}
+        {!currentTeam && (
+          <Alert.Root status='warning'>
+            <Alert.Indicator />
+            <Alert.Title>No Team Selected</Alert.Title>
+            <Alert.Description fontFamily='body'>
+              Please select a team from the navbar before creating a lab. Labs
+              must be associated with a team.
+            </Alert.Description>
+          </Alert.Root>
+        )}
+
         {/* Validation warnings */}
         {currentStepValidation.warnings.length > 0 && (
           <Alert.Root status='warning'>
@@ -504,18 +493,16 @@ const CreateLab: React.FC<CreateLabProps> = ({
           onPreviousStep={handlePreviousStep}
           onCreateLab={handleCreateLab}
           canProceed={wizardState.canProceed}
-          isCreating={loadingModal.isOpen}
+          isCreating={isCreating}
           validation={validation}
           initialLabSeed={initialLabSeed}
         />
 
-        {/* Lab Creation Loading Modal */}
-        <LabCreationLoadingModal
-          isOpen={loadingModal.isOpen}
-          stage={loadingModal.stage}
-          message={loadingModal.message}
-          progress={loadingModal.progress}
-          errorMessage={loadingModal.errorMessage}
+        {/* Success Modal */}
+        <LabCreationSuccessModal
+          isOpen={successModal.isOpen}
+          labData={successModal.labData}
+          onClose={handleSuccessModalClose}
         />
       </VStack>
     </Container>
