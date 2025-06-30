@@ -27,20 +27,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePage } from '../../context/PageContext';
 import GlassCard from '../../components/shared/GlassCard';
-import type {
-  Lab as LabType,
-  ApiLabData,
-  SubjectData,
-  AnalysisData,
-} from './types';
-import { ApiTransformUtils } from './types';
+import type { Lab as LabType, SubjectCategory, LabSubject } from './types';
 import type { LabTab } from '../../context/PageContext/pageTypes';
 import Plan from './Plan';
 import Gather from './Gather';
 import Analyze from './Analyze';
 import Forecast from './Forecast';
 import Invent from './Invent';
-import { labAPIService } from '../../services/labAPIService';
+import { labService, type Lab as ApiLab } from '../../services/labService';
 
 const Lab: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,107 +59,69 @@ const Lab: React.FC = () => {
   const [activeTab, setActiveTab] = useState<LabTab>('plan');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
-  // Real API functions for fetching related data
-  const fetchSubjectData = useCallback(
-    async (objectId: string): Promise<SubjectData> => {
-      try {
-        // Try real API first if token is available
-        if (token) {
-          try {
-            const response = await fetch(
-              `https://tools.futurity.science/api/subject/${objectId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
+  // Transform API lab data to frontend format
+  const transformApiLabToFrontend = useCallback((apiLab: ApiLab): LabType => {
+    // Transform subcategories to frontend categories
+    const categories: SubjectCategory[] = apiLab.subcategories.map(
+      (subcat) => ({
+        id: subcat.id,
+        name: subcat.name,
+        type: subcat.metadata?.deletable === false ? 'default' : 'custom',
+        subjects: [],
+        description: subcat.metadata?.description,
+      })
+    );
 
-            if (response.ok) {
-              return await response.json();
-            }
-          } catch (apiError) {
-            console.warn(
-              'Subject API failed, falling back to mock data:',
-              apiError
-            );
-          }
-        }
+    // Transform subjects_config to frontend subjects and assign to categories
+    const subjects: LabSubject[] = apiLab.subjects_config.map(
+      (subjectConfig, index) => ({
+        id: `subj-${index}-${subjectConfig.subject_fsid}`,
+        subjectId: subjectConfig.subject_fsid, // Use fsid as the ID for association
+        subjectName: subjectConfig.subject_name,
+        subjectSlug: subjectConfig.subject_fsid,
+        addedAt: new Date().toISOString(),
+        addedById: 'unknown',
+        notes: '', // Will be filled from separate API call
+        categoryId:
+          categories.find((cat) => cat.name === subjectConfig.subcategory_name)
+            ?.id || 'uncategorized',
+      })
+    );
 
-        // Fallback to mock data
-        const { mockFetchSubjectData } = await import('./mockData');
-        return await mockFetchSubjectData(objectId);
-      } catch (error) {
-        console.error('Failed to fetch subject data:', error);
-        // Return default subject data if both API and mock fail
-        return {
-          _id: objectId,
-          Google_hitcounts: 0,
-          Papers_hitcounts: 0,
-          Books_hitcounts: 0,
-          Gnews_hitcounts: 0,
-          Related_terms: '',
-          wikipedia_definition: '',
-          wiktionary_definition: '',
-          FST: '',
-          labs: '',
-          wikipedia_url: '',
-          ent_name: 'Unknown Subject',
-          ent_fsid: 'unknown',
-          ent_summary: 'Subject data not found',
-        };
+    // Distribute subjects to their categories
+    subjects.forEach((subject) => {
+      const category = categories.find((cat) => cat.id === subject.categoryId);
+      if (category) {
+        category.subjects.push(subject);
       }
-    },
-    [token]
-  );
+    });
 
-  const fetchAnalysisData = useCallback(
-    async (objectId: string): Promise<AnalysisData> => {
-      try {
-        // Try real API first if token is available
-        if (token) {
-          try {
-            const response = await fetch(
-              `https://tools.futurity.science/api/analysis/${objectId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (response.ok) {
-              return await response.json();
-            }
-          } catch (apiError) {
-            console.warn(
-              'Analysis API failed, falling back to mock data:',
-              apiError
-            );
-          }
-        }
-
-        // Fallback to mock data
-        const { mockFetchAnalysisData } = await import('./mockData');
-        return await mockFetchAnalysisData(objectId);
-      } catch (error) {
-        console.error('Failed to fetch analysis data:', error);
-        // Return default analysis data if both API and mock fail
-        return {
-          id: objectId,
-          title: 'Unknown Analysis',
-          description: 'Analysis data not found',
-          status: 'Unknown',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdById: 'unknown',
-        };
-      }
-    },
-    [token]
-  );
+    return {
+      id: apiLab._id,
+      uniqueID: apiLab.uniqueID,
+      name: apiLab.ent_name,
+      description: apiLab.ent_summary || '',
+      teamspaceId: 'unknown', // Not provided in new API
+      createdAt: apiLab.createdAt,
+      updatedAt: apiLab.updatedAt,
+      isArchived: apiLab.status === 'archived',
+      isDeleted: apiLab.status === 'deleted',
+      deletedAt: apiLab.status === 'deleted' ? apiLab.updatedAt : null,
+      adminIds: ['current-user'], // TODO: Get from team management API
+      editorIds: [],
+      memberIds: ['current-user'],
+      goals: [], // TODO: Extract from metadata if available
+      subjects: subjects,
+      categories: categories,
+      analyses: [], // Will be loaded separately
+      includeTerms: [], // TODO: Get from metadata if available
+      excludeTerms: [], // TODO: Get from metadata if available
+      miroUrl: apiLab.miro_board_url,
+      knowledgebaseId: apiLab.kbid,
+      pictureUrl: apiLab.picture_url,
+      thumbnailUrl: apiLab.thumbnail_url,
+    };
+  }, []);
 
   // Memoize the page context to prevent infinite re-renders
   const labPageContext = useMemo(() => {
@@ -194,94 +150,29 @@ const Lab: React.FC = () => {
 
   // Fetch lab data with real API
   const fetchLabData = useCallback(async (): Promise<void> => {
-    console.log('Starting to fetch lab data for id:', id);
+    console.log('Starting to fetch lab data for uniqueID:', id);
     setLoading(true);
     setError(null);
 
     if (!id) {
-      setError('Missing lab ID');
+      setError('Missing lab unique ID');
+      setLoading(false);
+      return;
+    }
+
+    if (!token) {
+      setError('Authentication required. Please log in.');
       setLoading(false);
       return;
     }
 
     try {
-      let apiLabData: ApiLabData | undefined;
-      let useRealAPI = false;
-
-      // Try to fetch from real API first if token is available
-      if (token) {
-        try {
-          // Fixed: Use the correct endpoint with query parameter
-          const response = await fetch(
-            `https://tools.futurity.science/api/lab/view?lab_id=${id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-
-          if (response.ok) {
-            // Use real API data
-            apiLabData = await response.json();
-            useRealAPI = true;
-            console.log('Successfully fetched lab data from API');
-          } else if (response.status === 401) {
-            setError('Session expired. Please log in again.');
-            setLoading(false);
-            return;
-          } else if (response.status === 403) {
-            setError('You do not have permission to access this lab.');
-            setLoading(false);
-            return;
-          } else {
-            // API failed, will fallback to mock data
-            console.warn(
-              `API responded with ${response.status}, falling back to mock data`
-            );
-          }
-        } catch (apiError) {
-          // Network error or other API issue, will fallback to mock data
-          console.warn(
-            'API request failed, falling back to mock data:',
-            apiError
-          );
-        }
-      }
-
-      // Fallback to mock data if API didn't work or no token
-      if (!useRealAPI || !apiLabData) {
-        console.log('Using mock data for lab ID:', id);
-
-        // Import mock data
-        const { mockFetchLabData } = await import('./mockData');
-
-        try {
-          apiLabData = await mockFetchLabData(id);
-          console.log('Successfully loaded mock lab data');
-        } catch (mockError) {
-          console.error('Mock data also failed:', mockError);
-          setError(`Lab with ID "${id}" not found. Please check the URL.`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Ensure we have data before proceeding
-      if (!apiLabData) {
-        setError('No lab data available');
-        setLoading(false);
-        return;
-      }
+      // Use the new lab service with the uniqueID from URL params
+      const apiLabData = await labService.getLabById(id, token);
+      console.log('Successfully fetched lab data from API:', apiLabData);
 
       // Transform API data to frontend format
-      const transformedLab = await ApiTransformUtils.transformLab(
-        apiLabData,
-        id, // Use the actual lab ID from the URL
-        fetchSubjectData,
-        fetchAnalysisData
-      );
+      const transformedLab = transformApiLabToFrontend(apiLabData);
 
       setLab(transformedLab);
       setEditForm({
@@ -291,12 +182,14 @@ const Lab: React.FC = () => {
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch lab:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to load lab data'
-      );
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Failed to load lab data');
+      }
       setLoading(false);
     }
-  }, [id, token, fetchSubjectData, fetchAnalysisData]);
+  }, [id, token, transformApiLabToFrontend]);
 
   useEffect(() => {
     fetchLabData();
@@ -341,21 +234,13 @@ const Lab: React.FC = () => {
     setSaving(true);
 
     try {
-      // Use the real API service to update lab info
-      const updatedApiData = await labAPIService.updateLabInfo(
-        lab.id,
-        editForm.name.trim(),
-        editForm.description.trim(),
-        token
-      );
-
-      // Transform the response back to frontend format
-      const updatedLab = await ApiTransformUtils.transformLab(
-        updatedApiData,
-        lab.id,
-        fetchSubjectData,
-        fetchAnalysisData
-      );
+      // TODO: Need update endpoint in labService
+      // For now, just update local state
+      const updatedLab = {
+        ...lab,
+        name: editForm.name.trim(),
+        description: editForm.description.trim(),
+      };
 
       setLab(updatedLab);
       setIsEditing(false);
@@ -683,23 +568,16 @@ const Lab: React.FC = () => {
         {activeTab === 'gather' && (
           <Gather
             labId={lab.id}
-            // Remove includeTerms and excludeTerms since they're now handled in Plan tab
-            // includeTerms={lab.includeTerms || []}
-            // excludeTerms={lab.excludeTerms || []}
             categories={lab.categories || []}
-            // Remove onTermsUpdate since terms are now handled in Plan tab
-            // onTermsUpdate={(includeTerms, excludeTerms) => {
-            //   setLab((prev) =>
-            //     prev ? { ...prev, includeTerms, excludeTerms } : null
-            //   );
-            // }}
             onCategoriesUpdate={(categories) => {
               setLab((prev) => (prev ? { ...prev, categories } : null));
             }}
             onRefreshLab={fetchLabData}
           />
         )}
-        {activeTab === 'analyze' && <Analyze labId={lab.id} />}
+        {activeTab === 'analyze' && (
+          <Analyze labId={lab.id} labUniqueID={lab.uniqueID} />
+        )}
         {activeTab === 'forecast' && <Forecast labId={lab.id} />}
         {activeTab === 'invent' && <Invent labId={lab.id} />}
       </Box>

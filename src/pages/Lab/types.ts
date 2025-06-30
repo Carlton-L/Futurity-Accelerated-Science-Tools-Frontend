@@ -225,27 +225,28 @@ export interface KnowledgebaseUploadResponse {
 
 export interface Lab {
   id: string;
+  uniqueID?: string; // Added to match new API structure
   name: string;
   description: string;
+  teamspaceId: string;
+  createdAt: string;
+  updatedAt: string;
   isArchived: boolean;
   isDeleted: boolean;
   deletedAt: string | null;
-  kbid: string;
-  teamspaceId: string | null;
-  memberIds: string[];
   adminIds: string[];
   editorIds: string[];
-  viewerIds: string[];
-  categories: SubjectCategory[];
-  subjects: LabSubject[];
-  analyses: LabAnalysis[];
+  memberIds: string[];
   goals: LabGoal[];
+  subjects: LabSubject[];
+  categories: SubjectCategory[];
+  analyses: MockAnalysis[];
   includeTerms: string[];
   excludeTerms: string[];
-  miroBoardUrl: string;
-  ideaSeeds: string[];
-  createdAt: string;
-  updatedAt: string;
+  miroUrl?: string;
+  knowledgebaseId?: string;
+  pictureUrl?: string; // Added for lab images
+  thumbnailUrl?: string; // Added for lab thumbnails
 }
 
 export interface LabSubject {

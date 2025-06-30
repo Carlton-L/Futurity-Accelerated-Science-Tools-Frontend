@@ -395,7 +395,8 @@ const Gather: React.FC<GatherProps> = ({
 
   // Fetch detailed subject data for horizon chart
   const fetchSubjectData = useCallback(
-    async (objectId: string): Promise<SubjectData> => {
+    async (objectId: string) => {
+      // TODO: This still uses tools.futurity.science - need fast.futurity.science equivalent
       try {
         if (token) {
           const response = await fetch(
@@ -412,28 +413,10 @@ const Gather: React.FC<GatherProps> = ({
             return await response.json();
           }
         }
-
-        // Fallback to mock data if API fails
-        const { mockFetchSubjectData } = await import('./mockData');
-        return await mockFetchSubjectData(objectId);
+        throw new Error('Subject data not available');
       } catch (error) {
         console.error('Failed to fetch subject data:', error);
-        return {
-          _id: objectId,
-          Google_hitcounts: 0,
-          Papers_hitcounts: 0,
-          Books_hitcounts: 0,
-          Gnews_hitcounts: 0,
-          Related_terms: '',
-          wikipedia_definition: '',
-          wiktionary_definition: '',
-          FST: '',
-          labs: '',
-          wikipedia_url: '',
-          ent_name: 'Unknown Subject',
-          ent_fsid: 'unknown',
-          ent_summary: 'Subject data not found',
-        };
+        throw error;
       }
     },
     [token]
