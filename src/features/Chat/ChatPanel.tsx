@@ -224,7 +224,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
 
   // URL generation methods (kept for potential future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getIframeUrlWithParams = () => {
+  const _getIframeUrlWithParams = () => {
     const baseUrl = 'https://agents.futurity.science/';
     const params = new URLSearchParams();
 
@@ -271,7 +271,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getIframeUrlWithHash = () => {
+  const _getIframeUrlWithHash = () => {
     const baseUrl = 'https://agents.futurity.science/';
     const contextHash = encodeURIComponent(
       JSON.stringify({

@@ -67,6 +67,7 @@ const GlassCard: React.FC<GlassCardProps> = ({
   return (
     <Box
       {...cardStyles}
+      bg='bg.canvas'
       borderRadius='8px'
       fontFamily='body'
       color={{ base: '#FFFFFF', _light: '#000000' }} // Explicit text colors

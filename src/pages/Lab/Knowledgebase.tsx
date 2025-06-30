@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import {
   Box,
   Button,
@@ -76,13 +76,14 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
     ref
   ) => {
     return (
-      <Card.Root ref={ref} borderWidth='1px' borderColor='border.emphasized'>
+      <Card.Root
+        ref={ref}
+        borderWidth='1px'
+        borderColor='border.emphasized'
+        bg='bg.canvas'
+      >
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
-            <Heading as='h3' size='md' fontFamily='heading' color='fg'>
-              Knowledgebase
-            </Heading>
-
             <Text color='fg.muted' fontSize='sm' fontFamily='body'>
               Upload documents to build your knowledge base, then query across
               all documents to find relevant information. The system uses
@@ -122,6 +123,9 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                     onClick={onKbQuery}
                     loading={kbQueryLoading}
                     disabled={!kbQuery.trim() || kbQueryLoading}
+                    bg='brand'
+                    color='white'
+                    _hover={{ bg: 'brand.hover' }}
                   >
                     <HiSearch size={16} />
                     Query
@@ -130,7 +134,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
 
                 {kbQueryError && (
                   <Box
-                    p={2}
+                    p={3}
                     bg='red.50'
                     borderRadius='md'
                     border='1px solid'
@@ -142,8 +146,8 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   </Box>
                 )}
 
-                {/* Query Results */}
-                {kbQueryResults && (
+                {/* Query Results Placeholder / Results */}
+                {kbQueryResults ? (
                   <Box
                     border='1px solid'
                     borderColor='border.emphasized'
@@ -151,6 +155,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                     p={4}
                     maxH='500px'
                     overflowY='auto'
+                    bg='bg.canvas'
                   >
                     <VStack gap={4} align='stretch'>
                       <Text
@@ -195,7 +200,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                                   border='1px solid'
                                   borderColor='border.emphasized'
                                   borderRadius='md'
-                                  bg={{ base: '#1a1a1a', _light: '#f8f8f8' }}
+                                  bg='bg.subtle'
                                 >
                                   <VStack gap={2} align='stretch'>
                                     <HStack
@@ -266,6 +271,36 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                       )}
                     </VStack>
                   </Box>
+                ) : (
+                  /* Query Results Placeholder - Always visible when no results */
+                  <Flex
+                    height='150px'
+                    align='center'
+                    justify='center'
+                    border='2px dashed'
+                    borderColor='border.muted'
+                    borderRadius='md'
+                    bg='bg.subtle'
+                  >
+                    <VStack gap={2}>
+                      <HiSearch
+                        size={32}
+                        color='var(--chakra-colors-fg-muted)'
+                      />
+                      <Text
+                        color='fg.muted'
+                        fontSize='sm'
+                        textAlign='center'
+                        fontFamily='body'
+                      >
+                        {kbQuery.trim()
+                          ? kbQueryLoading
+                            ? 'Searching...'
+                            : 'Enter a query above to search your documents'
+                          : 'Enter a query above to search your documents'}
+                      </Text>
+                    </VStack>
+                  </Flex>
                 )}
               </VStack>
             </Box>
@@ -382,6 +417,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   borderColor='border.emphasized'
                   borderRadius='md'
                   p={3}
+                  bg='bg.canvas'
                 >
                   <VStack gap={2} align='stretch'>
                     {filteredKbDocuments.map((doc) => {
@@ -396,9 +432,9 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                           border='1px solid'
                           borderColor='border.emphasized'
                           borderRadius='md'
-                          bg={{ base: '#1a1a1a', _light: 'white' }}
+                          bg='bg.subtle'
                           _hover={{
-                            bg: { base: '#222222', _light: '#f8f8f8' },
+                            bg: 'bg.hover',
                           }}
                           opacity={isDeleting ? 0.6 : 1}
                           position='relative'
@@ -518,6 +554,7 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                   borderColor='border.emphasized'
                   border='2px dashed'
                   borderRadius='md'
+                  bg='bg.canvas'
                   _hover={{
                     borderColor: 'brand.400',
                     bg: 'bg.subtle',
@@ -530,6 +567,13 @@ const Knowledgebase = forwardRef<HTMLDivElement, KnowledgebaseProps>(
                         loading={kbUploadLoading}
                         disabled={kbUploadLoading}
                         size='lg'
+                        bg='bg.canvas'
+                        borderColor='border.emphasized'
+                        color='fg'
+                        _hover={{
+                          bg: 'bg.hover',
+                          borderColor: 'brand.400',
+                        }}
                       >
                         <HiCloudUpload size={20} />
                         {kbUploadLoading

@@ -1,0 +1,12 @@
+{
+  "user_guid": "d9983-e04eab95-a9c8-4a02-bef3-f74252f8afeb",
+  "subjects": [
+    {
+      "subject_id": { "$oid": "685a7649a6627dbb0a2e0003" },
+      "ent_fsid": "fsid_ansible",
+      "subject_name": "ansible",
+      "category": { "$uuid": "c27b2599-7468-4b67-bb9a-99b17eaa683e" }
+    }
+  ],
+  "drafts": [{ "$oid": "685c95e1e583f120efbc86eb" }]
+}

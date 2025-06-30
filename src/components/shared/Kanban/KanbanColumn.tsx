@@ -11,7 +11,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   allowDrop = true,
   onDrop,
   onColumnRename,
-  onColumnDelete,
+  _onColumnDelete,
   renderItem,
   renderHeader,
   renderFooter,
@@ -62,8 +62,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       minW='280px'
       maxW='320px'
       h='calc(100vh - 250px)'
-      bg={isOver ? '#2a2a2a' : '#1a1a1a'}
-      borderColor={isOver ? 'blue.400' : 'gray.600'}
+      bg={isOver ? 'bg.hover' : 'bg.canvas'}
+      borderColor={isOver ? 'brand' : 'border.emphasized'}
       borderWidth='1px'
       borderRadius='md'
       transition='all 0.2s'
@@ -72,7 +72,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       className={className}
     >
       {/* Column Header */}
-      <Box p={4} borderBottom='1px solid' borderBottomColor='gray.600'>
+      <Box p={4} borderBottom='1px solid' borderBottomColor='border.muted'>
         {renderHeader ? (
           renderHeader()
         ) : (
@@ -86,35 +86,42 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                   onKeyDown={handleKeyPress}
                   size='sm'
                   autoFocus
-                  bg='gray.700'
-                  borderColor='gray.500'
-                  color='white'
-                  _focus={{ borderColor: 'blue.400' }}
+                  bg='bg'
+                  borderColor='border.muted'
+                  color='fg'
+                  _placeholder={{ color: 'fg.muted' }}
+                  _focus={{
+                    borderColor: 'brand',
+                    boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                  }}
                   fontSize='sm'
+                  fontFamily='body'
                 />
               ) : (
                 <Text
                   fontSize='sm'
                   fontWeight='medium'
-                  color='white'
+                  color='fg'
                   cursor={isDefault ? 'default' : 'pointer'}
                   onClick={handleTitleClick}
-                  _hover={isDefault ? {} : { color: 'blue.300' }}
+                  _hover={isDefault ? {} : { color: 'fg.hover' }}
                   transition='color 0.2s'
                   flex='1'
+                  fontFamily='heading'
                 >
                   {title}
                 </Text>
               )}
               <Box
-                bg='gray.600'
-                color='gray.200'
+                bg='bg.muted'
+                color='fg.muted'
                 fontSize='xs'
                 px={2}
                 py={1}
                 borderRadius='md'
                 minW='20px'
                 textAlign='center'
+                fontFamily='body'
               >
                 {items.length}
               </Box>
@@ -124,7 +131,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       </Box>
 
       {/* Items List */}
-      <Box flex='1' p={3} overflowY='auto'>
+      <Box flex='1' p={3} overflowX='visible' overflowY='scroll'>
         {items.length > 0 ? (
           <VStack gap={0} align='stretch'>
             {items.map((item) => (
@@ -137,12 +144,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
             align='center'
             justify='center'
             border='2px dashed'
-            borderColor={isOver ? 'blue.400' : 'gray.600'}
+            borderColor={isOver ? 'brand' : 'border.muted'}
             borderRadius='md'
-            bg={isOver ? 'gray.700' : 'gray.800'}
+            bg={isOver ? 'bg.active' : 'bg.subtle'}
             transition='all 0.2s'
           >
-            <Text color='gray.400' fontSize='sm' textAlign='center'>
+            <Text
+              color='fg.muted'
+              fontSize='sm'
+              textAlign='center'
+              fontFamily='body'
+            >
               {isOver ? emptyDropMessage : emptyMessage}
             </Text>
           </Flex>
@@ -151,7 +163,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
       {/* Footer */}
       {renderFooter && (
-        <Box p={3} borderTop='1px solid' borderTopColor='gray.600'>
+        <Box p={3} borderTop='1px solid' borderTopColor='border.muted'>
           {renderFooter()}
         </Box>
       )}

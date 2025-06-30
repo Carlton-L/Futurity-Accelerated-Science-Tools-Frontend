@@ -16,11 +16,12 @@ class AuthService {
     return headers;
   }
 
-  private getStoredToken(): string | null {
+  // Make these methods public so AuthProvider can use them
+  public getStoredToken(): string | null {
     return localStorage.getItem('auth_token');
   }
 
-  private setStoredToken(token: string): void {
+  public setStoredToken(token: string): void {
     localStorage.setItem('auth_token', token);
   }
 
@@ -73,6 +74,9 @@ class AuthService {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: Unauthorized - Token is invalid or expired');
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -92,6 +96,9 @@ class AuthService {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: Unauthorized - Token is invalid or expired');
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

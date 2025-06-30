@@ -1,503 +1,748 @@
 // ============================================================================
-// Lab-related Types
+// MongoDB API Types (Raw API Response Format)
 // ============================================================================
 
-/**
- * Main lab interface
- * TODO: Confirm exact structure with backend team
- */
-export interface Lab {
-  id: string;
+export interface MongoObjectId {
+  $oid: string;
+}
+
+export interface MongoUUID {
+  $uuid: string;
+}
+
+export interface MongoDate {
+  $date: string;
+}
+
+export interface MongoInt {
+  $numberInt: string;
+}
+
+// ============================================================================
+// Lab API Types (API Response Format)
+// ============================================================================
+
+// Updated to match the actual API response structure
+export interface ApiLabData {
+  _id: string; // Changed: The API returns a simple string, not a MongoDB ObjectId
+  isArchived: number; // Changed: API returns 0/1 instead of boolean
+  isDeleted: number; // Changed: API returns 0/1 instead of boolean
+  deletedAt: string | null;
+  ent_name: string;
+  ent_summary: string;
+  kbid: string; // Changed: API returns simple string, not MongoDB UUID
+  teamspace_id: string | null;
+  picture_url: string | null;
+  thumb_url: string | null;
+  owner_guid: string;
+  user_access_level?: string; // Added: API includes this field
+  members: Array<{
+    user_id: string; // Changed: API uses user_id instead of user_guid
+    role: string; // Changed: API uses generic string instead of specific roles
+  }>;
+  categories: Array<{
+    id: string; // Changed: API returns simple string, not MongoDB UUID
+    name: string;
+  }>;
+  exclude_terms: string[];
+  include_terms: string[];
+  subjects: Array<{
+    subject_id: string; // ObjectId as string
+    subject_name?: string; // Some subjects use this
+    name?: string; // Some subjects use this instead
+    category: string | null; // UUID as string, null means uncategorized
+    ent_fsid: string; // Subject slug with fsid_ prefix
+  }>;
+  analyses: string[]; // Changed: API returns array of strings, not MongoDB ObjectIds
+  goals: Array<{
+    id: string; // Changed: API returns simple string, not MongoDB UUID
+    target_user_group: string; // Changed: API uses different structure
+    problem_statement: string;
+    impact_score: number; // Changed: API returns simple number, not MongoDB Int
+  }>;
+  miro_board_url: string;
+  idea_seeds: any[]; // Changed: API returns different structure
+}
+
+// Legacy types for backward compatibility with your existing API service
+export interface ApiLabCategory {
+  id: { $uuid: string };
   name: string;
-  description: string;
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
-  ownerId: string;
-  adminIds: string[];
-  memberIds: string[];
-  subjects: LabSubject[];
-  analyses: LabAnalysis[];
-  // TODO: Add categories field once backend structure is confirmed
-  // categories?: SubjectCategory[];
 }
 
-/**
- * Subject within a lab context
- * NOTE: This represents a subject that has been added to a specific lab
- */
-export interface LabSubject {
-  id: string; // Unique ID for this lab-subject relationship
-  subjectId: string; // Reference to the actual subject in 'fst-subject' collection
-  subjectName: string;
-  subjectSlug: string;
-  addedAt: string; // ISO date string
-  addedById: string;
-  notes?: string; // Optional notes specific to this lab
-  // TODO: Confirm if categoryId is stored here or in category documents
-  // categoryId?: string;
+export interface ApiLabSubject {
+  subject_id: { $oid: string };
+  subject_slug: string;
+  subject_name: string;
+  category: { $uuid: string };
 }
 
-/**
- * Lab analysis/project
- * TODO: Determine if this is used in the Gather component
- */
-export interface LabAnalysis {
+export interface ApiLabMember {
+  fullname: string;
+  user_guid: string;
+  role: 'admin' | 'editor' | 'viewer';
+}
+
+export interface ApiLabGoal {
+  id: { $uuid: string };
+  target_user_groups: Array<{
+    name: string;
+    number: { $numberInt: string };
+  }>;
+  problem_statement: string;
+  goal_statement: string;
+  impact_score: { $numberInt: string };
+  weight: { $numberInt: string };
+  goal_year: { $date: string };
+}
+
+// ============================================================================
+// Subject API Types
+// ============================================================================
+
+export interface SubjectData {
+  _id: string;
+  Google_hitcounts: number;
+  Papers_hitcounts: number;
+  Books_hitcounts: number;
+  Gnews_hitcounts: number;
+  Related_terms: string;
+  wikipedia_definition: string;
+  wiktionary_definition: string;
+  FST: string;
+  labs: string;
+  wikipedia_url: string;
+  ent_name: string;
+  ent_fsid: string;
+  ent_summary: string;
+  indexes?: Array<{
+    HR: number; // Horizon Rank (0-10 scale)
+    TT: number; // Tech Transfer
+    WS: number; // White Space
+  }>;
+}
+
+export interface SubjectSearchResult {
+  _id: { $oid: string };
+  ent_name: string;
+  ent_fsid: string;
+  ent_summary: string;
+}
+
+// ============================================================================
+// Analysis API Types
+// ============================================================================
+
+export interface AnalysisData {
   id: string;
   title: string;
   description: string;
-  status: 'Draft' | 'In Progress' | 'Review' | 'Complete' | 'Archived';
-  createdAt: string; // ISO date string
-  updatedAt: string; // ISO date string
+  status: string;
+  createdAt: string;
+  updatedAt: string;
   createdById: string;
-  assignedToIds: string[];
-  subjects: string[]; // Subject IDs related to this analysis
-  tags: string[];
-}
-
-/**
- * Lab member with role information
- * Used for permission checking in the UI
- */
-export interface LabMember {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  role: 'reader' | 'editor' | 'admin'; // NOTE: Different from backend which uses 'Owner' | 'Admin' | 'Member' | 'Viewer'
-  joinedAt: string; // ISO date string
-  invitedById?: string;
 }
 
 // ============================================================================
-// Subject Search Types
+// Analysis Types for Analyze Tab
 // ============================================================================
 
-/**
- * Search result from the 'fst-subject' MongoDB collection
- * This represents subjects available to add to labs
- */
-export interface SubjectSearchResult {
-  id: string; // Subject ID in the database
-  name: string;
-  slug: string;
-  description: string;
-  horizonRanking: number; // Numerical ranking/score for the subject
-  // TODO: Add any other fields returned by the search API
-}
-
-// ============================================================================
-// Category Types (Frontend Organization)
-// ============================================================================
-
-/**
- * Category type enumeration for special handling
- */
-export type CategoryType = 'default' | 'exclude' | 'custom';
-
-/**
- * Subject category for organizing subjects within a lab
- * TODO: Confirm if this structure matches backend category documents
- */
-export interface SubjectCategory {
-  id: string;
-  name: string;
-  type: CategoryType; // Replaces isDefault boolean for more flexibility
-  subjects: LabSubject[]; // Subjects in this category
-  description?: string; // Optional description for special categories
-  // TODO: Add labId reference if categories are separate documents
-  // labId?: string;
-  // TODO: Add order/position field for custom sorting
-  // order?: number;
-}
-
-// ============================================================================
-// Analysis Types
-// ============================================================================
-
-/**
- * Analysis type options
- */
 export type AnalysisType = 'patent' | 'taxonomy' | 'research' | 'investment';
 
-/**
- * Analysis status options
- */
-export type AnalysisStatus = 'Complete' | 'In Progress' | 'Review';
-
-/**
- * Mock analysis item for the analyses list
- */
-export interface MockAnalysis {
-  id: string;
-  title: string;
-  description: string;
-  status: AnalysisStatus;
-  imageUrl: string;
-  updatedAt: string;
-}
-
-// ============================================================================
-// Horizon Chart Types
-// ============================================================================
-
-/**
- * Horizon chart data structure
- */
 export interface HorizonItem {
   name: string;
-  horizon: 1 | 2 | 3 | 4;
+  horizon: number; // This is the actual HR value (0-10 scale) from the API
   category: 1 | 2 | 3 | 4 | 5;
   type: 1 | 2 | 3;
-  categoryName?: string; // Optional category name for display
+  categoryName?: string;
 }
 
 // ============================================================================
 // Knowledgebase Types
 // ============================================================================
 
-/**
- * Knowledgebase document metadata
- */
+export type KnowledgebaseFileType =
+  | 'pdf'
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'txt'
+  | 'raw_text';
+
 export interface KnowledgebaseDocument {
   document_uuid: string;
-  kb_uuid: string;
   title: string;
-  authors: string[];
-  publication_year: number | null;
-  summary: string;
-  keywords: string[];
-  file_type: 'pdf' | 'image' | 'audio' | 'video' | 'txt' | 'raw_text';
-  original_filename: string | null;
-  classification_format: string;
-  source_classification: string;
+  file_type: KnowledgebaseFileType;
+  summary?: string;
   ingestion_time: string;
-  last_updated_time: string;
+  content?: string;
+  metadata?: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+  file_size?: number;
+  file_name?: string;
 }
 
-/**
- * Knowledgebase documents API response
- */
 export interface KnowledgebaseDocumentsResponse {
   items: KnowledgebaseDocument[];
   total: number;
   page: number;
   size: number;
-  kb_uuid: string;
-  file_type: string;
 }
 
-/**
- * Query snippet from knowledgebase search
- */
-export interface QuerySnippet {
-  score: number;
-  document_snippet: string;
-  chunk_id: string;
-}
-
-/**
- * Query result for a single document
- */
-export interface QueryResult {
-  library_card: KnowledgebaseDocument;
-  snippets: QuerySnippet[];
-  max_score: number;
-}
-
-/**
- * Grouped query results by file type
- */
-export interface QueryGroupedResults {
-  file_type: string;
-  results: QueryResult[];
-}
-
-/**
- * Knowledgebase query API response
- */
 export interface KnowledgebaseQueryResponse {
   query_text: string;
-  kb_uuid: string;
-  grouped_results: QueryGroupedResults[];
+  grouped_results: Array<{
+    file_type: string;
+    results: Array<{
+      library_card: {
+        document_uuid: string;
+        title: string;
+      };
+      max_score: number;
+      snippets: Array<{
+        chunk_id: string;
+        document_snippet: string;
+        score: number;
+      }>;
+    }>;
+  }>;
+}
+
+// Alternative name for backward compatibility - use KnowledgebaseQueryResponse instead
+export type KnowledgebaseQueryResult = KnowledgebaseQueryResponse;
+
+export interface KnowledgebaseUploadResponse {
+  success: boolean;
+  document_uuid?: string;
+  message?: string;
+  error?: string;
 }
 
 // ============================================================================
-// Navigation Types
+// Frontend Types (Transformed from API)
 // ============================================================================
 
-/**
- * Navigation item for section scrolling
- */
+export interface Lab {
+  id: string;
+  name: string;
+  description: string;
+  isArchived: boolean;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  kbid: string;
+  teamspaceId: string | null;
+  memberIds: string[];
+  adminIds: string[];
+  editorIds: string[];
+  viewerIds: string[];
+  categories: SubjectCategory[];
+  subjects: LabSubject[];
+  analyses: LabAnalysis[];
+  goals: LabGoal[];
+  includeTerms: string[];
+  excludeTerms: string[];
+  miroBoardUrl: string;
+  ideaSeeds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LabSubject {
+  id: string; // Frontend generated ID
+  subjectId: string; // MongoDB ObjectId as string
+  subjectName: string;
+  subjectSlug: string;
+  categoryId: string; // Frontend category ID (UUID as string)
+  addedAt: string;
+  addedById: string;
+  notes?: string;
+  // Add horizon rank data from API
+  horizonRank?: number; // HR value from indexes[0].HR (0-10 scale)
+  techTransfer?: number; // TT value from indexes[0].TT
+  whiteSpace?: number; // WS value from indexes[0].WS
+}
+
+export interface SubjectCategory {
+  id: string; // UUID as string for frontend
+  name: string;
+  type: 'default' | 'custom' | 'exclude';
+  subjects: LabSubject[];
+  description?: string;
+}
+
+export interface LabAnalysis {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  createdById: string;
+}
+
+export interface LabGoal {
+  id: string;
+  targetUserGroups: Array<{
+    name: string;
+    number: number;
+  }>;
+  problemStatement: string;
+  goalStatement: string;
+  impactScore: number;
+  weight: number;
+  goalYear: string;
+}
+
+export interface LabMember {
+  id: string;
+  fullname: string;
+  userGuid: string;
+  role: 'admin' | 'editor' | 'viewer';
+}
+
+// ============================================================================
+// UI Component Types
+// ============================================================================
+
+export interface MockAnalysis {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  imageUrl: string;
+  updatedAt: string;
+}
+
 export interface NavigationItem {
   id: string;
   label: string;
 }
 
 // ============================================================================
-// API Request/Response Types
+// Validation Types
 // ============================================================================
 
-/**
- * Lab update request payload
- * TODO: Update based on actual GraphQL mutation schema
- */
-export interface LabUpdateRequest {
-  name: string;
-  description: string;
-}
-
-/**
- * Lab creation request payload
- * TODO: Update based on actual GraphQL mutation schema
- */
-export interface LabCreateRequest {
-  name: string;
-  description: string;
-  visibility: 'Private' | 'Internal' | 'Public';
-}
-
-/**
- * Subject addition request
- * TODO: Define based on actual API structure
- */
-export interface AddSubjectToLabRequest {
-  labId: string;
-  subjectId: string;
-  categoryId?: string; // Optional, defaults to "uncategorized"
-  notes?: string;
-}
-
-/**
- * Subject movement request
- * TODO: Define based on actual API structure
- */
-export interface MoveSubjectRequest {
-  labId: string;
-  subjectId: string;
-  newCategoryId: string;
-}
-
-/**
- * Category creation request
- * TODO: Define based on actual API structure
- */
-export interface CreateCategoryRequest {
-  labId: string;
-  name: string;
-}
-
-/**
- * Category update request
- * TODO: Define based on actual API structure
- */
-export interface UpdateCategoryRequest {
-  labId: string;
-  categoryId: string;
-  name?: string;
-  // TODO: Add other updatable fields
-}
-
-/**
- * Category deletion request
- * TODO: Define based on actual API structure
- */
-export interface DeleteCategoryRequest {
-  labId: string;
-  categoryId: string;
-  moveSubjectsToUncategorized: boolean;
-}
-
-// ============================================================================
-// GraphQL Response Types
-// ============================================================================
-
-/**
- * Standard GraphQL response wrapper
- * TODO: Update based on actual GraphQL schema
- */
-export interface GraphQLResponse<T> {
-  data?: T;
-  errors?: Array<{
-    message: string;
-    path?: string[];
-    extensions?: Record<string, any>;
-  }>;
-}
-
-/**
- * Lab query response
- * TODO: Update based on actual GraphQL schema
- */
-export interface LabQueryResult {
-  lab: Lab;
-}
-
-/**
- * Subject search query response
- * TODO: Update based on actual GraphQL schema
- */
-export interface SubjectSearchQueryResult {
-  searchSubjects: SubjectSearchResult[];
-}
-
-/**
- * Mutation response for lab operations
- * TODO: Update based on actual GraphQL schema
- */
-export interface LabMutationResult {
-  success: boolean;
-  message: string;
-  lab?: Lab;
-}
-
-/**
- * Mutation response for subject operations
- * TODO: Update based on actual GraphQL schema
- */
-export interface SubjectMutationResult {
-  success: boolean;
-  message: string;
-  subject?: LabSubject;
-}
-
-/**
- * Mutation response for category operations
- * TODO: Update based on actual GraphQL schema
- */
-export interface CategoryMutationResult {
-  success: boolean;
-  message: string;
-  category?: SubjectCategory;
-}
-
-// ============================================================================
-// Drag and Drop Types (react-dnd)
-// ============================================================================
-
-/**
- * Drag item interface for react-dnd
- * Used in the kanban board for subject movement
- */
-export interface DragItem {
-  type: string;
-  id: string;
-  columnId: string;
-}
-
-// ============================================================================
-// Form Validation Types
-// ============================================================================
-
-/**
- * Category name validation result
- */
 export interface CategoryValidation {
   isValid: boolean;
   error?: string;
 }
 
-/**
- * Search input validation
- */
-export interface SearchValidation {
-  isValid: boolean;
-  minLength: number;
-  maxLength: number;
+// ============================================================================
+// API Request/Response Types
+// ============================================================================
+
+// This should match exactly what the API expects for updates
+export interface LabUpdateRequest {
+  ent_name?: string;
+  ent_summary?: string;
+  kbid?: string;
+  categories?: Array<{
+    id: string;
+    name: string;
+  }>;
+  exclude_terms?: string[];
+  include_terms?: string[];
+  subjects?: Array<{
+    subject_id: string; // ObjectId as string
+    subject_name?: string; // Some subjects use this
+    name?: string; // Some subjects use this instead
+    category: string | null; // UUID as string, null for uncategorized
+    ent_fsid: string; // Subject slug with fsid_ prefix
+  }>;
+  analyses?: string[];
+  goals?: Array<{
+    id: string;
+    target_user_group: string;
+    problem_statement: string;
+    impact_score: number;
+  }>;
+  miro_board_url?: string;
+  idea_seeds?: any[];
+  isArchived?: number;
+  isDeleted?: number;
+  deletedAt?: string | null;
+}
+
+export interface CreateCategoryRequest {
+  name: string;
+}
+
+export interface CreateSubjectRequest {
+  subject_id: string;
+  subject_slug: string;
+  subject_name: string;
+  category: string;
 }
 
 // ============================================================================
-// Permission Types
+// Utility Classes and Functions
 // ============================================================================
 
-/**
- * User permissions within a lab
- */
-export interface LabPermissions {
-  canView: boolean;
-  canAddSubjects: boolean;
-  canRemoveSubjects: boolean;
-  canMoveSubjects: boolean;
-  canCreateCategories: boolean;
-  canEditCategories: boolean;
-  canDeleteCategories: boolean;
-  canEditLab: boolean;
-  canManageMembers: boolean;
+export class CategoryUtils {
+  /**
+   * Check if a category is the default "Uncategorized" category
+   */
+  static isDefault(category: SubjectCategory): boolean {
+    return category.type === 'default' || category.id === 'uncategorized';
+  }
+
+  /**
+   * Check if a category is a custom user-created category
+   */
+  static isCustom(category: SubjectCategory): boolean {
+    return category.type === 'custom' && !this.isDefault(category);
+  }
+
+  /**
+   * Check if a category is an exclude category
+   */
+  static isExclude(category: SubjectCategory): boolean {
+    return category.type === 'exclude';
+  }
+
+  /**
+   * Check if a category is special (default categories that cannot be deleted)
+   */
+  static isSpecial(category: SubjectCategory): boolean {
+    return this.isDefault(category) || this.isExclude(category);
+  }
+
+  /**
+   * Check if a category can be renamed
+   */
+  static canRename(category: SubjectCategory): boolean {
+    return this.isCustom(category);
+  }
+
+  /**
+   * Check if a category can be deleted
+   */
+  static canDelete(category: SubjectCategory): boolean {
+    return this.isCustom(category);
+  }
+
+  /**
+   * Get the display color for a category based on its type
+   */
+  static getDisplayColor(category: SubjectCategory): string {
+    if (this.isDefault(category)) {
+      return 'gray';
+    }
+    if (this.isExclude(category)) {
+      return 'red';
+    }
+    return 'blue';
+  }
 }
 
-// ============================================================================
-// Error Types
-// ============================================================================
+export class ApiTransformUtils {
+  /**
+   * Transform MongoDB ObjectId to string
+   */
+  static objectIdToString(objectId: MongoObjectId | string): string {
+    if (typeof objectId === 'string') {
+      return objectId;
+    }
+    return objectId.$oid;
+  }
 
-/**
- * API error response
- * TODO: Update based on actual error response structure
- */
-export interface ApiError {
-  code: string;
-  message: string;
-  details?: Record<string, any>;
+  /**
+   * Transform string to MongoDB ObjectId
+   */
+  static stringToObjectId(id: string): MongoObjectId {
+    return { $oid: id };
+  }
+
+  /**
+   * Transform MongoDB UUID to string
+   */
+  static uuidToString(uuid: MongoUUID | string): string {
+    if (typeof uuid === 'string') {
+      return uuid;
+    }
+    return uuid.$uuid;
+  }
+
+  /**
+   * Transform string to MongoDB UUID
+   */
+  static stringToUUID(id: string): MongoUUID {
+    return { $uuid: id };
+  }
+
+  /**
+   * Transform MongoDB Date to string
+   */
+  static mongoDateToString(date: MongoDate): string {
+    return date.$date;
+  }
+
+  /**
+   * Transform MongoDB Int to number
+   */
+  static mongoIntToNumber(mongoInt: MongoInt | number): number {
+    if (typeof mongoInt === 'number') {
+      return mongoInt;
+    }
+    return parseInt(mongoInt.$numberInt, 10);
+  }
+
+  /**
+   * Transform API lab data to frontend Lab interface
+   */
+  static async transformLab(
+    apiData: ApiLabData,
+    labId: string,
+    _fetchSubjectData: (objectId: string) => Promise<SubjectData>,
+    fetchAnalysisData: (objectId: string) => Promise<AnalysisData>
+  ): Promise<Lab> {
+    // Transform categories
+    const transformedCategories: SubjectCategory[] = [
+      // Always include default "Uncategorized" category
+      {
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        type: 'default',
+        subjects: [],
+        description: 'Default category for new subjects',
+      },
+      // Add custom categories from API
+      ...apiData.categories.map((category) => ({
+        id: category.id, // API returns simple string
+        name: category.name,
+        type: 'custom' as const,
+        subjects: [] as LabSubject[], // Will be populated below
+      })),
+    ];
+
+    // Transform subjects and assign to categories
+    const transformedSubjects: LabSubject[] = [];
+    for (const apiSubject of apiData.subjects) {
+      const subjectId = apiSubject.subject_id; // ObjectId as string
+
+      // Get subject name - could be in subject_name or name field
+      const subjectName =
+        apiSubject.subject_name || apiSubject.name || 'Unknown Subject';
+
+      // Parse slug from ent_fsid by removing fsid_ prefix
+      const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
+        ? apiSubject.ent_fsid.substring(5) // Remove 'fsid_' prefix
+        : apiSubject.ent_fsid;
+
+      // Handle category - null means uncategorized
+      const categoryId = apiSubject.category || 'uncategorized';
+
+      // Find the category or default to uncategorized
+      const targetCategory = transformedCategories.find(
+        (cat) => cat.id === categoryId
+      );
+      const finalCategoryId = targetCategory ? categoryId : 'uncategorized';
+
+      const transformedSubject: LabSubject = {
+        id: `lab-subj-${subjectId}`, // Frontend-generated ID
+        subjectId: subjectId,
+        subjectName: subjectName,
+        subjectSlug: subjectSlug,
+        categoryId: finalCategoryId,
+        addedAt: new Date().toISOString(), // Default since not in API
+        addedById: 'unknown', // Default since not in API
+        notes: '', // No notes in API, default to empty
+        // Horizon rank data will be populated separately when detailed subject data is fetched
+        horizonRank: undefined,
+        techTransfer: undefined,
+        whiteSpace: undefined,
+      };
+
+      transformedSubjects.push(transformedSubject);
+
+      // Add to the appropriate category
+      const category = transformedCategories.find(
+        (cat) => cat.id === finalCategoryId
+      );
+      if (category) {
+        category.subjects.push(transformedSubject);
+      }
+    }
+
+    // Transform analyses
+    const transformedAnalyses: LabAnalysis[] = [];
+    for (const analysisId of apiData.analyses) {
+      try {
+        const analysisData = await fetchAnalysisData(analysisId); // API returns simple string
+        transformedAnalyses.push({
+          id: analysisData.id,
+          title: analysisData.title,
+          description: analysisData.description,
+          status: analysisData.status,
+          createdAt: analysisData.createdAt,
+          updatedAt: analysisData.updatedAt,
+          createdById: analysisData.createdById,
+        });
+      } catch (error) {
+        console.warn(`Failed to load analysis ${analysisId}:`, error);
+      }
+    }
+
+    // Transform goals
+    const transformedGoals: LabGoal[] = apiData.goals.map((goal) => ({
+      id: goal.id, // API returns simple string
+      targetUserGroups: [
+        {
+          name: goal.target_user_group, // API uses different structure
+          number: 1, // Default since API doesn't provide this
+        },
+      ],
+      problemStatement: goal.problem_statement,
+      goalStatement: '', // Default since not in API
+      impactScore: goal.impact_score, // API returns simple number
+      weight: 1, // Default since not in API
+      goalYear: new Date().toISOString(), // Default since not in API
+    }));
+
+    // Extract member information
+    const memberIds = apiData.members.map((member) => member.user_id); // API uses user_id
+
+    // Determine admin based on role or owner_guid
+    const adminIds: string[] = [];
+    const editorIds: string[] = [];
+    const viewerIds: string[] = [];
+
+    apiData.members.forEach((member) => {
+      if (member.role === 'owner' || member.role === 'admin') {
+        adminIds.push(member.user_id);
+      } else if (member.role === 'editor') {
+        editorIds.push(member.user_id);
+      } else {
+        viewerIds.push(member.user_id);
+      }
+    });
+
+    // If no admins found but there's an owner_guid, add it
+    if (adminIds.length === 0 && apiData.owner_guid) {
+      // Find the member with the owner_guid or add it
+      const ownerMember = apiData.members.find(
+        (m) => m.user_id === apiData.owner_guid
+      );
+      if (ownerMember) {
+        adminIds.push(ownerMember.user_id);
+      }
+    }
+
+    return {
+      id: labId,
+      name: apiData.ent_name,
+      description: apiData.ent_summary,
+      isArchived: apiData.isArchived === 1, // Convert number to boolean
+      isDeleted: apiData.isDeleted === 1, // Convert number to boolean
+      deletedAt: apiData.deletedAt,
+      kbid: apiData.kbid, // API returns simple string
+      teamspaceId: apiData.teamspace_id,
+      memberIds,
+      adminIds,
+      editorIds,
+      viewerIds,
+      categories: transformedCategories,
+      subjects: transformedSubjects,
+      analyses: transformedAnalyses,
+      goals: transformedGoals,
+      includeTerms: apiData.include_terms,
+      excludeTerms: apiData.exclude_terms,
+      miroBoardUrl: apiData.miro_board_url,
+      ideaSeeds: [], // API returns different structure, defaulting to empty
+      createdAt: new Date().toISOString(), // Default since not in API
+      updatedAt: new Date().toISOString(), // Default since not in API
+    };
+  }
+
+  /**
+   * Transform frontend lab data back to API format for updates
+   * CRITICAL: This must match exactly what the API expects
+   */
+  static transformLabToApiFormat(lab: Lab): LabUpdateRequest {
+    // Log for debugging
+    console.log('Transforming lab to API format:', lab);
+
+    const transformed: LabUpdateRequest = {
+      ent_name: lab.name,
+      ent_summary: lab.description,
+      kbid: lab.kbid,
+      categories: lab.categories
+        .filter(CategoryUtils.isCustom)
+        .map((category) => ({
+          id: category.id, // API expects simple string
+          name: category.name,
+        })),
+      subjects: lab.subjects.map((subject) => ({
+        subject_id: subject.subjectId, // ObjectId as string
+        subject_name: subject.subjectName, // Use subject_name field
+        category:
+          subject.categoryId === 'uncategorized' ? null : subject.categoryId, // null for uncategorized
+        ent_fsid: subject.subjectSlug.startsWith('fsid_')
+          ? subject.subjectSlug
+          : `fsid_${subject.subjectSlug}`, // Ensure fsid_ prefix
+      })),
+      include_terms: lab.includeTerms,
+      exclude_terms: lab.excludeTerms,
+      analyses: lab.analyses.map((a) => a.id),
+      goals: lab.goals.map((goal) => ({
+        id: goal.id,
+        target_user_group: goal.targetUserGroups[0]?.name || '',
+        problem_statement: goal.problemStatement,
+        impact_score: goal.impactScore,
+      })),
+      miro_board_url: lab.miroBoardUrl,
+      idea_seeds: [], // Default to empty array
+      isArchived: lab.isArchived ? 1 : 0, // Convert boolean to number
+      isDeleted: lab.isDeleted ? 1 : 0, // Convert boolean to number
+      deletedAt: lab.deletedAt,
+    };
+
+    console.log('Transformed to API format:', transformed);
+    return transformed;
+  }
+
+  /**
+   * Create a minimal update payload for subject operations
+   */
+  static createSubjectUpdatePayload(
+    subjects: Array<{
+      subject_id: string;
+      subject_name?: string;
+      name?: string;
+      category: string | null;
+      ent_fsid: string;
+    }>
+  ): Partial<LabUpdateRequest> {
+    return {
+      subjects: subjects,
+    };
+  }
+
+  /**
+   * Create a minimal update payload for category operations
+   */
+  static createCategoryUpdatePayload(
+    categories: Array<{
+      id: string;
+      name: string;
+    }>
+  ): Partial<LabUpdateRequest> {
+    return {
+      categories: categories,
+    };
+  }
+
+  /**
+   * Create a minimal update payload for terms operations
+   */
+  static createTermsUpdatePayload(
+    includeTerms: string[],
+    excludeTerms: string[]
+  ): Partial<LabUpdateRequest> {
+    return {
+      include_terms: includeTerms,
+      exclude_terms: excludeTerms,
+    };
+  }
 }
-
-/**
- * Validation error for forms
- */
-export interface ValidationError {
-  field: string;
-  message: string;
-}
-
-// ============================================================================
-// Loading State Types
-// ============================================================================
-
-/**
- * Loading states for different operations
- */
-export interface LoadingStates {
-  lab: boolean;
-  subjects: boolean;
-  categories: boolean;
-  search: boolean;
-  addSubject: boolean;
-  moveSubject: boolean;
-  createCategory: boolean;
-  updateCategory: boolean;
-  deleteCategory: boolean;
-}
-
-// ============================================================================
-// Utility Types
-// ============================================================================
-
-/**
- * Partial update type for optimistic updates
- */
-export type PartialUpdate<T> = Partial<T> & { id: string };
-
-/**
- * Async operation result
- */
-export interface AsyncResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-// ============================================================================
-// Helper Functions for Category Types
-// ============================================================================
-
-/**
- * Type guards and utility functions for working with category types
- */
-export const CategoryUtils = {
-  isDefault: (category: SubjectCategory): boolean =>
-    category.type === 'default',
-  isExclude: (category: SubjectCategory): boolean =>
-    category.type === 'exclude',
-  isCustom: (category: SubjectCategory): boolean => category.type === 'custom',
-  isSpecial: (category: SubjectCategory): boolean =>
-    category.type === 'default' || category.type === 'exclude',
-  canDelete: (category: SubjectCategory): boolean => category.type === 'custom',
-  canRename: (category: SubjectCategory): boolean => category.type === 'custom',
-};

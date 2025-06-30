@@ -16,7 +16,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   renderAddColumnButton,
   scrollShadows = true,
   className,
-  dragType = 'KANBAN_ITEM',
+  _dragType = 'KANBAN_ITEM',
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [shadows, setShadows] = useState({
@@ -131,21 +131,30 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
       maxW='320px'
       h='200px'
       border='2px dashed'
-      borderColor='gray.400'
+      borderColor='border.muted'
       borderRadius='md'
       display='flex'
       alignItems='center'
       justifyContent='center'
       cursor='pointer'
-      _hover={{ borderColor: 'blue.400', bg: 'gray.50' }}
+      _hover={{
+        borderColor: 'brand',
+        bg: 'bg.hover',
+      }}
       onClick={onColumnAdd}
       transition='all 0.2s'
+      bg='bg.canvas'
     >
       <VStack gap={2}>
-        <Box color='gray.400'>
+        <Box color='fg.muted'>
           <FiPlus size={24} />
         </Box>
-        <Text color='gray.500' fontSize='sm' fontWeight='medium'>
+        <Text
+          color='fg.muted'
+          fontSize='sm'
+          fontWeight='medium'
+          fontFamily='heading'
+        >
           Add Column
         </Text>
       </VStack>
@@ -154,7 +163,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <Box position='relative' w='100%' className={className}>
+      <Box
+        position='relative'
+        w='100%'
+        overflow='visible'
+        className={className}
+      >
         {/* Scroll shadows */}
         {scrollShadows && shadows.left && (
           <Box
@@ -163,7 +177,11 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
             top='0'
             bottom='0'
             width='20px'
-            background='linear-gradient(to right, rgba(0,0,0,0.15), transparent)'
+            background={{
+              _light:
+                'linear-gradient(to right, rgba(0,0,0,0.15), transparent)',
+              _dark: 'linear-gradient(to right, rgba(0,0,0,0.3), transparent)',
+            }}
             zIndex='10'
             pointerEvents='none'
           />
@@ -176,7 +194,10 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
             top='0'
             bottom='0'
             width='20px'
-            background='linear-gradient(to left, rgba(0,0,0,0.15), transparent)'
+            background={{
+              _light: 'linear-gradient(to left, rgba(0,0,0,0.15), transparent)',
+              _dark: 'linear-gradient(to left, rgba(0,0,0,0.3), transparent)',
+            }}
             zIndex='10'
             pointerEvents='none'
           />
@@ -186,7 +207,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
           ref={scrollContainerRef}
           w='100%'
           overflowX='auto'
-          overflowY='hidden'
+          overflowY='visible'
           pb={4}
           pt={2}
           css={{
@@ -194,15 +215,15 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
               height: '8px',
             },
             '&::-webkit-scrollbar-track': {
-              background: '#2d3748',
+              background: 'var(--chakra-colors-bg-subtle)',
               borderRadius: '4px',
             },
             '&::-webkit-scrollbar-thumb': {
-              background: '#4a5568',
+              background: 'var(--chakra-colors-border-muted)',
               borderRadius: '4px',
             },
             '&::-webkit-scrollbar-thumb:hover': {
-              background: '#718096',
+              background: 'var(--chakra-colors-border-emphasized)',
             },
           }}
         >

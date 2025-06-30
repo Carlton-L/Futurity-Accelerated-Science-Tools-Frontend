@@ -55,6 +55,7 @@ import {
   generateTaxonomySuggestions,
   validateDraftForPublishing,
 } from './types';
+import IconSubject from '../../components/shared/IconSubject';
 
 // Import visualization components
 import { ListView } from './visualizations';
@@ -187,14 +188,14 @@ const ItemTypes = {
 interface DragItem {
   type: string;
   id: string;
-  sourceType: 'unpooled' | 'draft';
+  sourceType: 'unpooled' | 'labSeed';
   sourceDraftId?: string;
 }
 
 // Draggable Subject Card Component
 const DraggableSubjectCard: React.FC<{
   subject: WhiteboardSubject;
-  sourceType: 'unpooled' | 'draft';
+  sourceType: 'unpooled' | 'labSeed';
   sourceDraftId?: string;
   showQuickAdd?: boolean;
   onRemove?: (subjectId: string) => void;
@@ -258,14 +259,17 @@ const DraggableSubjectCard: React.FC<{
       <Card.Body p={3}>
         <VStack gap={2} align='stretch'>
           <HStack justify='space-between' align='flex-start'>
-            <Text
-              fontSize='sm'
-              fontWeight='medium'
-              color={{ base: '#8285FF', _light: 'blue.600' }}
-              flex='1'
-            >
-              {subject.name}
-            </Text>
+            <HStack gap={2} flex='1' align='start'>
+              <IconSubject size='md' />
+              <Text
+                fontSize='sm'
+                fontWeight='medium'
+                color={{ base: 'white', _light: 'black' }}
+                flex='1'
+              >
+                {subject.name}
+              </Text>
+            </HStack>
             <Menu.Root>
               <Menu.Trigger asChild>
                 <IconButton
@@ -288,7 +292,7 @@ const DraggableSubjectCard: React.FC<{
                       onClick={() => onQuickAdd(subject.id)}
                     >
                       <FiPlus size={14} />
-                      Quick Add to Draft
+                      Quick Add to Lab Seed
                     </Menu.Item>
                   )}
                   {onRemoveFromWhiteboard && (
@@ -429,30 +433,30 @@ const DraggableSubjectCard: React.FC<{
   );
 };
 
-// Drop Zone for Drafts
-const DroppableDraftArea: React.FC<{
-  draftId: string;
+// Drop Zone for Lab Seeds (formerly Drafts)
+const DroppableLabSeedArea: React.FC<{
+  labSeedId: string;
   children: React.ReactNode;
   onDrop: (
     subjectId: string,
-    targetDraftId: string,
-    sourceType: 'unpooled' | 'draft',
-    sourceDraftId?: string
+    targetLabSeedId: string,
+    sourceType: 'unpooled' | 'labSeed',
+    sourceLabSeedId?: string
   ) => void;
   existingSubjectIds: string[];
-}> = ({ draftId, children, onDrop, existingSubjectIds }) => {
+}> = ({ labSeedId, children, onDrop, existingSubjectIds }) => {
   const [{ isOver, canDrop }, drop] = useDrop(
     () => ({
       accept: ItemTypes.SUBJECT,
       drop: (item: DragItem) => {
-        // Check if subject already exists in this draft
+        // Check if subject already exists in this lab seed
         if (existingSubjectIds.includes(item.id)) {
           return; // Don't allow drop
         }
-        onDrop(item.id, draftId, item.sourceType, item.sourceDraftId);
+        onDrop(item.id, labSeedId, item.sourceType, item.sourceDraftId);
       },
       canDrop: (item: DragItem) => {
-        // Don't allow dropping if subject already exists in this draft
+        // Don't allow dropping if subject already exists in this lab seed
         return !existingSubjectIds.includes(item.id);
       },
       collect: (monitor) => ({
@@ -494,9 +498,9 @@ const Whiteboard: React.FC = () => {
   >(
     mockSubjects // Include all mock subjects in available
   );
-  const [drafts, setDrafts] = useState<WhiteboardDraft[]>([
+  const [labSeeds, setLabSeeds] = useState<WhiteboardDraft[]>([
     {
-      id: 'draft-1',
+      id: 'labSeed-1',
       name: 'Future Cities',
       description: 'Technologies for sustainable urban development',
       subjects: [mockSubjects[3], mockSubjects[4]],
@@ -519,20 +523,20 @@ const Whiteboard: React.FC = () => {
     Record<string, VisualizationType>
   >({});
 
-  // Filter and sort states for Available Subjects
+  // Filter and sort states for Subjects of Interest
   const [sortMethod, setSortMethod] = useState<string>('horizon-high');
   const [filterText, setFilterText] = useState<string>('');
 
   // Dialog states
-  const [isCreateDraftOpen, setIsCreateDraftOpen] = useState(false);
-  const [newDraftName, setNewDraftName] = useState('');
-  const [newDraftDescription, setNewDraftDescription] = useState('');
+  const [isCreateLabSeedOpen, setIsCreateLabSeedOpen] = useState(false);
+  const [newLabSeedName, setNewLabSeedName] = useState('');
+  const [newLabSeedDescription, setNewLabSeedDescription] = useState('');
 
   // Delete confirmation modal states
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] =
     useState<WhiteboardSubject | null>(null);
-  const [draftsContainingSubject, setDraftsContainingSubject] = useState<
+  const [labSeedsContainingSubject, setLabSeedsContainingSubject] = useState<
     WhiteboardDraft[]
   >([]);
 
@@ -550,10 +554,10 @@ const Whiteboard: React.FC = () => {
   const overallMetrics = useMemo((): DraftMetrics => {
     const allSubjects = [
       ...availableSubjects,
-      ...drafts.flatMap((d) => d.subjects),
+      ...labSeeds.flatMap((d) => d.subjects),
     ];
     return calculateDraftMetrics(allSubjects);
-  }, [availableSubjects, drafts]);
+  }, [availableSubjects, labSeeds]);
 
   // Filter and sort available subjects
   const getFilteredAndSortedSubjects = useCallback((): WhiteboardSubject[] => {
@@ -633,32 +637,32 @@ const Whiteboard: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Memoize the transformed drafts to prevent recreation on every render
-  const transformedDrafts = useMemo(() => {
-    return drafts.map((draft) => ({
-      id: draft.id,
-      name: draft.name,
-      subjects: draft.subjects.map((subject) => ({
+  // Memoize the transformed lab seeds to prevent recreation on every render
+  const transformedLabSeeds = useMemo(() => {
+    return labSeeds.map((labSeed) => ({
+      id: labSeed.id,
+      name: labSeed.name,
+      subjects: labSeed.subjects.map((subject) => ({
         id: subject.id,
         name: subject.name,
         title: subject.name, // Use name as title if title doesn't exist
       })),
-      terms: draft.terms.map((termString, index) => ({
-        id: `term-${draft.id}-${index}`, // Generate unique ID
+      terms: labSeed.terms.map((termString, index) => ({
+        id: `term-${labSeed.id}-${index}`, // Generate unique ID
         name: termString,
         text: termString, // Use the string as both name and text
       })),
     }));
-  }, [drafts]);
+  }, [labSeeds]);
 
   // Memoize the whiteboard context to prevent recreation
   const whiteboardContext = useMemo(
     () => ({
       pageType: 'whiteboard' as const,
       pageTitle: 'Whiteboard',
-      drafts: transformedDrafts,
+      drafts: transformedLabSeeds,
     }),
-    [transformedDrafts]
+    [transformedLabSeeds]
   );
 
   useEffect(() => {
@@ -666,14 +670,14 @@ const Whiteboard: React.FC = () => {
     return () => clearPageContext();
   }, [setPageContext, clearPageContext, whiteboardContext]);
 
-  // Draft management
-  const handleCreateDraft = useCallback(() => {
-    if (!newDraftName.trim()) return;
+  // Lab Seed management
+  const handleCreateLabSeed = useCallback(() => {
+    if (!newLabSeedName.trim()) return;
 
-    const newDraft: WhiteboardDraft = {
-      id: `draft-${Date.now()}`,
-      name: newDraftName.trim(),
-      description: newDraftDescription.trim() || undefined,
+    const newLabSeed: WhiteboardDraft = {
+      id: `labSeed-${Date.now()}`,
+      name: newLabSeedName.trim(),
+      description: newLabSeedDescription.trim() || undefined,
       subjects: [],
       metrics: calculateDraftMetrics([]),
       createdAt: new Date().toISOString(),
@@ -683,100 +687,106 @@ const Whiteboard: React.FC = () => {
       terms: [],
     };
 
-    setDrafts((prev) => [...prev, newDraft]);
-    setNewDraftName('');
-    setNewDraftDescription('');
-    setIsCreateDraftOpen(false);
-  }, [newDraftName, newDraftDescription]);
+    setLabSeeds((prev) => [...prev, newLabSeed]);
+    setNewLabSeedName('');
+    setNewLabSeedDescription('');
+    setIsCreateLabSeedOpen(false);
+  }, [newLabSeedName, newLabSeedDescription]);
 
   // Handle subject movement via drag and drop
   const handleSubjectDrop = useCallback(
     (
       subjectId: string,
-      targetDraftId: string,
-      sourceType: 'unpooled' | 'draft',
-      sourceDraftId?: string
+      targetLabSeedId: string,
+      sourceType: 'unpooled' | 'labSeed',
+      sourceLabSeedId?: string
     ) => {
       if (sourceType === 'unpooled') {
-        // Copy from available to draft (don't remove from available)
+        // Copy from available to lab seed (don't remove from available)
         const subject = availableSubjects.find((s) => s.id === subjectId);
         if (!subject) return;
 
-        // Check if subject already exists in target draft
-        const targetDraft = drafts.find((d) => d.id === targetDraftId);
-        if (targetDraft?.subjects.some((s) => s.id === subjectId)) {
-          // Subject already exists in draft, don't add
+        // Check if subject already exists in target lab seed
+        const targetLabSeed = labSeeds.find((d) => d.id === targetLabSeedId);
+        if (targetLabSeed?.subjects.some((s) => s.id === subjectId)) {
+          // Subject already exists in lab seed, don't add
           return;
         }
 
-        setDrafts((prev) =>
-          prev.map((draft) =>
-            draft.id === targetDraftId
+        setLabSeeds((prev) =>
+          prev.map((labSeed) =>
+            labSeed.id === targetLabSeedId
               ? {
-                  ...draft,
-                  subjects: [...draft.subjects, subject],
-                  metrics: calculateDraftMetrics([...draft.subjects, subject]),
+                  ...labSeed,
+                  subjects: [...labSeed.subjects, subject],
+                  metrics: calculateDraftMetrics([
+                    ...labSeed.subjects,
+                    subject,
+                  ]),
                   updatedAt: new Date().toISOString(),
                 }
-              : draft
+              : labSeed
           )
         );
       } else if (
-        sourceType === 'draft' &&
-        sourceDraftId &&
-        sourceDraftId !== targetDraftId
+        sourceType === 'labSeed' &&
+        sourceLabSeedId &&
+        sourceLabSeedId !== targetLabSeedId
       ) {
-        // Move between drafts (existing logic)
+        // Move between lab seeds (existing logic)
         let subjectToMove: WhiteboardSubject | undefined;
 
-        // Check if subject already exists in target draft
-        const targetDraft = drafts.find((d) => d.id === targetDraftId);
-        const sourceDraft = drafts.find((d) => d.id === sourceDraftId);
-        const subject = sourceDraft?.subjects.find((s) => s.id === subjectId);
+        // Check if subject already exists in target lab seed
+        const targetLabSeed = labSeeds.find((d) => d.id === targetLabSeedId);
+        const sourceLabSeed = labSeeds.find((d) => d.id === sourceLabSeedId);
+        const subject = sourceLabSeed?.subjects.find((s) => s.id === subjectId);
 
-        if (subject && targetDraft?.subjects.some((s) => s.id === subjectId)) {
-          // Subject already exists in target draft, don't move
+        if (
+          subject &&
+          targetLabSeed?.subjects.some((s) => s.id === subjectId)
+        ) {
+          // Subject already exists in target lab seed, don't move
           return;
         }
 
-        setDrafts((prev) =>
-          prev.map((draft) => {
-            if (draft.id === sourceDraftId) {
-              subjectToMove = draft.subjects.find((s) => s.id === subjectId);
-              const newSubjects = draft.subjects.filter(
+        setLabSeeds((prev) =>
+          prev.map((labSeed) => {
+            if (labSeed.id === sourceLabSeedId) {
+              subjectToMove = labSeed.subjects.find((s) => s.id === subjectId);
+              const newSubjects = labSeed.subjects.filter(
                 (s) => s.id !== subjectId
               );
               return {
-                ...draft,
+                ...labSeed,
                 subjects: newSubjects,
                 metrics: calculateDraftMetrics(newSubjects),
                 updatedAt: new Date().toISOString(),
               };
             }
-            return draft;
+            return labSeed;
           })
         );
 
         if (subjectToMove) {
-          setDrafts((prev) =>
-            prev.map((draft) =>
-              draft.id === targetDraftId
+          setLabSeeds((prev) =>
+            prev.map((labSeed) =>
+              labSeed.id === targetLabSeedId
                 ? {
-                    ...draft,
-                    subjects: [...draft.subjects, subjectToMove!],
+                    ...labSeed,
+                    subjects: [...labSeed.subjects, subjectToMove!],
                     metrics: calculateDraftMetrics([
-                      ...draft.subjects,
+                      ...labSeed.subjects,
                       subjectToMove!,
                     ]),
                     updatedAt: new Date().toISOString(),
                   }
-                : draft
+                : labSeed
             )
           );
         }
       }
     },
-    [availableSubjects, drafts]
+    [availableSubjects, labSeeds]
   );
 
   // Handle adding subject from search - keeping for future implementation
@@ -808,22 +818,22 @@ const Whiteboard: React.FC = () => {
       const subject = availableSubjects.find((s) => s.id === subjectId);
       if (!subject) return;
 
-      // Find which drafts contain this subject
-      const containingDrafts = drafts.filter((draft) =>
-        draft.subjects.some((s) => s.id === subjectId)
+      // Find which lab seeds contain this subject
+      const containingLabSeeds = labSeeds.filter((labSeed) =>
+        labSeed.subjects.some((s) => s.id === subjectId)
       );
 
-      if (containingDrafts.length > 0) {
-        // Show confirmation modal if subject is in drafts
+      if (containingLabSeeds.length > 0) {
+        // Show confirmation modal if subject is in lab seeds
         setSubjectToDelete(subject);
-        setDraftsContainingSubject(containingDrafts);
+        setLabSeedsContainingSubject(containingLabSeeds);
         setIsDeleteConfirmOpen(true);
       } else {
-        // Remove directly if not in any drafts
+        // Remove directly if not in any lab seeds
         setAvailableSubjects((prev) => prev.filter((s) => s.id !== subjectId));
       }
     },
-    [availableSubjects, drafts]
+    [availableSubjects, labSeeds]
   );
 
   // Confirm deletion from whiteboard
@@ -835,13 +845,13 @@ const Whiteboard: React.FC = () => {
       prev.filter((s) => s.id !== subjectToDelete.id)
     );
 
-    // Remove from all drafts
-    setDrafts((prev) =>
-      prev.map((draft) => ({
-        ...draft,
-        subjects: draft.subjects.filter((s) => s.id !== subjectToDelete.id),
+    // Remove from all lab seeds
+    setLabSeeds((prev) =>
+      prev.map((labSeed) => ({
+        ...labSeed,
+        subjects: labSeed.subjects.filter((s) => s.id !== subjectToDelete.id),
         metrics: calculateDraftMetrics(
-          draft.subjects.filter((s) => s.id !== subjectToDelete.id)
+          labSeed.subjects.filter((s) => s.id !== subjectToDelete.id)
         ),
         updatedAt: new Date().toISOString(),
       }))
@@ -850,36 +860,36 @@ const Whiteboard: React.FC = () => {
     // Reset modal state
     setIsDeleteConfirmOpen(false);
     setSubjectToDelete(null);
-    setDraftsContainingSubject([]);
+    setLabSeedsContainingSubject([]);
   }, [subjectToDelete]);
 
-  // Handle publishing draft
-  const handlePublishDraft = useCallback(
-    (draftId: string) => {
-      const draft = drafts.find((d) => d.id === draftId);
-      if (draft) {
-        const validation = validateDraftForPublishing(draft);
+  // Handle publishing lab seed
+  const handlePublishLabSeed = useCallback(
+    (labSeedId: string) => {
+      const labSeed = labSeeds.find((d) => d.id === labSeedId);
+      if (labSeed) {
+        const validation = validateDraftForPublishing(labSeed);
         if (validation.isValid) {
-          // Navigate to lab creation with draft data
-          console.log('Publishing draft to lab creation:', draft);
+          // Navigate to lab creation with lab seed data
+          console.log('Publishing lab seed to lab creation:', labSeed);
           alert(
-            `Would navigate to lab creation with ${draft.subjects.length} subjects from "${draft.name}"`
+            `Would navigate to lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`
           );
         } else {
           alert(`Cannot publish: ${validation.errors.join(', ')}`);
         }
       }
     },
-    [drafts]
+    [labSeeds]
   );
 
-  // Remove subject from draft
-  const handleRemoveSubjectFromDraft = useCallback(
-    (draftId: string, subjectId: string) => {
-      // Simply remove from draft (subject stays in available subjects)
-      setDrafts((prev) =>
+  // Remove subject from lab seed
+  const handleRemoveSubjectFromLabSeed = useCallback(
+    (labSeedId: string, subjectId: string) => {
+      // Simply remove from lab seed (subject stays in available subjects)
+      setLabSeeds((prev) =>
         prev.map((d) =>
-          d.id === draftId
+          d.id === labSeedId
             ? {
                 ...d,
                 subjects: d.subjects.filter((s) => s.id !== subjectId),
@@ -895,30 +905,30 @@ const Whiteboard: React.FC = () => {
     []
   );
 
-  // Delete draft entirely
-  const handleDeleteDraft = useCallback((draftId: string) => {
-    // Just remove the draft (subjects stay in available subjects)
-    setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+  // Delete lab seed entirely
+  const handleDeleteLabSeed = useCallback((labSeedId: string) => {
+    // Just remove the lab seed (subjects stay in available subjects)
+    setLabSeeds((prev) => prev.filter((d) => d.id !== labSeedId));
   }, []);
 
-  // Update draft AI taxonomy when subjects change
-  const draftSubjectsKey = useMemo(
-    () => drafts.map((d) => d.subjects.map((s) => s.id).join(',')).join('|'),
-    [drafts]
+  // Update lab seed AI taxonomy when subjects change
+  const labSeedSubjectsKey = useMemo(
+    () => labSeeds.map((d) => d.subjects.map((s) => s.id).join(',')).join('|'),
+    [labSeeds]
   );
 
   useEffect(() => {
-    setDrafts((prev) =>
-      prev.map((draft) => ({
-        ...draft,
-        aiTaxonomy: generateTaxonomySuggestions(draft.subjects),
+    setLabSeeds((prev) =>
+      prev.map((labSeed) => ({
+        ...labSeed,
+        aiTaxonomy: generateTaxonomySuggestions(labSeed.subjects),
       }))
     );
-  }, [draftSubjectsKey]);
+  }, [labSeedSubjectsKey]);
 
-  // Draft Card Component
-  const DraftCard: React.FC<{ draft: WhiteboardDraft }> = ({ draft }) => {
-    const currentViz = selectedVisualization[draft.id] || 'list';
+  // Lab Seed Card Component
+  const LabSeedCard: React.FC<{ labSeed: WhiteboardDraft }> = ({ labSeed }) => {
+    const currentViz = selectedVisualization[labSeed.id] || 'list';
 
     return (
       <Card.Root
@@ -930,10 +940,10 @@ const Whiteboard: React.FC = () => {
         borderColor={{ base: 'white', _light: 'gray.200' }}
       >
         <Card.Body p={4}>
-          <DroppableDraftArea
-            draftId={draft.id}
+          <DroppableLabSeedArea
+            labSeedId={labSeed.id}
             onDrop={handleSubjectDrop}
-            existingSubjectIds={draft.subjects.map((s) => s.id)}
+            existingSubjectIds={labSeed.subjects.map((s) => s.id)}
           >
             <VStack gap={3} align='stretch'>
               {/* Header */}
@@ -941,27 +951,27 @@ const Whiteboard: React.FC = () => {
                 <VStack gap={1} align='start' flex='1'>
                   <HStack gap={2} align='center'>
                     <Text fontSize='md' fontWeight='semibold'>
-                      {draft.name}
+                      {labSeed.name}
                     </Text>
                     <Badge size='sm' colorScheme='blue'>
-                      {draft.subjects.length}
+                      {labSeed.subjects.length}
                     </Badge>
                   </HStack>
-                  {draft.description && (
+                  {labSeed.description && (
                     <Text fontSize='xs' color='fg.muted'>
-                      {draft.description}
+                      {labSeed.description}
                     </Text>
                   )}
-                  {draft.aiTaxonomy && (
+                  {labSeed.aiTaxonomy && (
                     <HStack gap={1}>
                       <Text fontSize='xs' color='purple.400'>
                         🤖
                       </Text>
                       <Text fontSize='xs' fontWeight='medium'>
-                        {draft.aiTaxonomy.primaryCategory}
+                        {labSeed.aiTaxonomy.primaryCategory}
                       </Text>
                       <Badge size='sm' colorScheme='purple'>
-                        {draft.aiTaxonomy.confidence}%
+                        {labSeed.aiTaxonomy.confidence}%
                       </Badge>
                     </HStack>
                   )}
@@ -972,7 +982,7 @@ const Whiteboard: React.FC = () => {
                       <IconButton
                         size='sm'
                         variant='ghost'
-                        aria-label='Draft settings'
+                        aria-label='Lab Seed settings'
                       >
                         <FiSettings size={14} />
                       </IconButton>
@@ -981,14 +991,14 @@ const Whiteboard: React.FC = () => {
                       <Menu.Content>
                         <Menu.Item value='edit'>
                           <FiEdit size={14} />
-                          Edit Draft
+                          Edit Lab Seed
                         </Menu.Item>
                         <Menu.Item
                           value='delete'
-                          onClick={() => handleDeleteDraft(draft.id)}
+                          onClick={() => handleDeleteLabSeed(labSeed.id)}
                         >
                           <FiTrash2 size={14} />
-                          Delete Draft
+                          Delete Lab Seed
                         </Menu.Item>
                       </Menu.Content>
                     </Menu.Positioner>
@@ -997,8 +1007,8 @@ const Whiteboard: React.FC = () => {
                     size='sm'
                     colorScheme='green'
                     variant='outline'
-                    onClick={() => handlePublishDraft(draft.id)}
-                    disabled={draft.subjects.length === 0}
+                    onClick={() => handlePublishLabSeed(labSeed.id)}
+                    disabled={labSeed.subjects.length === 0}
                   >
                     <FiSend size={14} />
                     Publish
@@ -1023,7 +1033,7 @@ const Whiteboard: React.FC = () => {
                       fontWeight='bold'
                       color={{ base: 'white', _light: 'black' }}
                     >
-                      {draft.metrics.avgHorizonRank.toFixed(2)}
+                      {labSeed.metrics.avgHorizonRank.toFixed(2)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
@@ -1034,7 +1044,7 @@ const Whiteboard: React.FC = () => {
                       fontWeight='bold'
                       color={{ base: 'white', _light: 'black' }}
                     >
-                      {Math.round(draft.metrics.avgTechTransfer)}
+                      {Math.round(labSeed.metrics.avgTechTransfer)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
@@ -1045,7 +1055,7 @@ const Whiteboard: React.FC = () => {
                       fontWeight='bold'
                       color={{ base: 'white', _light: 'black' }}
                     >
-                      {Math.round(draft.metrics.avgWhiteSpace)}
+                      {Math.round(labSeed.metrics.avgWhiteSpace)}
                     </Text>
                   </VStack>
                   <VStack gap={0}>
@@ -1056,7 +1066,7 @@ const Whiteboard: React.FC = () => {
                       fontWeight='bold'
                       color={{ base: 'white', _light: 'black' }}
                     >
-                      {Math.round(draft.metrics.innovationPotential)}
+                      {Math.round(labSeed.metrics.innovationPotential)}
                     </Text>
                   </VStack>
                 </Grid>
@@ -1083,7 +1093,7 @@ const Whiteboard: React.FC = () => {
                     onClick={() =>
                       setSelectedVisualization((prev) => ({
                         ...prev,
-                        [draft.id]: id,
+                        [labSeed.id]: id,
                       }))
                     }
                   >
@@ -1096,13 +1106,13 @@ const Whiteboard: React.FC = () => {
               {/* Visualization Area */}
               <Box flex='1' minH='250px'>
                 <ListView
-                  subjects={draft.subjects}
+                  subjects={labSeed.subjects}
                   onRemoveSubject={(subjectId: string) =>
-                    handleRemoveSubjectFromDraft(draft.id, subjectId)
+                    handleRemoveSubjectFromLabSeed(labSeed.id, subjectId)
                   }
                 />
 
-                {draft.subjects.length === 0 && (
+                {labSeed.subjects.length === 0 && (
                   <Flex
                     align='center'
                     justify='center'
@@ -1110,17 +1120,17 @@ const Whiteboard: React.FC = () => {
                     color={{ base: 'gray.400', _light: 'gray.600' }}
                   >
                     <VStack gap={2}>
-                      <FiTarget size={24} />
+                      <FiTarget size='md' />
                       <Text fontSize='sm' textAlign='center'>
-                        Drag subjects here to build your draft
+                        Drag subjects here to build your lab seed
                       </Text>
                     </VStack>
                   </Flex>
                 )}
               </Box>
 
-              {/* Coherence & Risk Indicators */}
-              {draft.subjects.length > 0 && (
+              {/* Cluster Coefficient & Risk Indicators */}
+              {labSeed.subjects.length > 0 && (
                 <HStack
                   justify='space-between'
                   align='center'
@@ -1131,17 +1141,17 @@ const Whiteboard: React.FC = () => {
                 >
                   <HStack gap={2}>
                     <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Coherence:
+                      Cluster Coefficient:
                     </Text>
                     <HStack gap={1}>
                       <Progress.Root
-                        value={draft.metrics.coherenceScore}
+                        value={labSeed.metrics.coherenceScore}
                         size='sm'
                         width='40px'
                         colorPalette={
-                          draft.metrics.coherenceScore > 70
+                          labSeed.metrics.coherenceScore > 70
                             ? 'green'
-                            : draft.metrics.coherenceScore > 40
+                            : labSeed.metrics.coherenceScore > 40
                             ? 'orange'
                             : 'red'
                         }
@@ -1151,7 +1161,7 @@ const Whiteboard: React.FC = () => {
                         </Progress.Track>
                       </Progress.Root>
                       <Text fontWeight='bold'>
-                        {Math.round(draft.metrics.coherenceScore)}%
+                        {Math.round(labSeed.metrics.coherenceScore)}%
                       </Text>
                     </HStack>
                   </HStack>
@@ -1163,20 +1173,21 @@ const Whiteboard: React.FC = () => {
                     <Badge
                       size='sm'
                       colorScheme={
-                        draft.metrics.competitionRisk > 70
+                        labSeed.metrics.competitionRisk > 70
                           ? 'red'
-                          : draft.metrics.competitionRisk > 40
+                          : labSeed.metrics.competitionRisk > 40
                           ? 'orange'
                           : 'green'
                       }
                     >
-                      Competition: {Math.round(draft.metrics.competitionRisk)}%
+                      Competition: {Math.round(labSeed.metrics.competitionRisk)}
+                      %
                     </Badge>
                   </HStack>
                 </HStack>
               )}
             </VStack>
-          </DroppableDraftArea>
+          </DroppableLabSeedArea>
         </Card.Body>
       </Card.Root>
     );
@@ -1202,7 +1213,8 @@ const Whiteboard: React.FC = () => {
                   Whiteboard
                 </Heading>
                 <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                  Collect snapshots, organize into drafts, and publish to labs
+                  Collect snapshots, organize into lab seeds, and publish to
+                  labs
                 </Text>
               </VStack>
             </Card.Body>
@@ -1337,9 +1349,12 @@ const Whiteboard: React.FC = () => {
                                 }
                               >
                                 <VStack gap={1} align='start' flex='1'>
-                                  <Text fontSize='sm' fontWeight='medium'>
-                                    {result.name}
-                                  </Text>
+                                  <HStack gap={2}>
+                                    <IconSubject size={20} />
+                                    <Text fontSize='sm' fontWeight='medium'>
+                                      {result.name}
+                                    </Text>
+                                  </HStack>
                                   <Text
                                     fontSize='xs'
                                     color={{
@@ -1393,10 +1408,10 @@ const Whiteboard: React.FC = () => {
                   <Button
                     colorScheme='blue'
                     variant='outline'
-                    onClick={() => setIsCreateDraftOpen(true)}
+                    onClick={() => setIsCreateLabSeedOpen(true)}
                   >
                     <FiPlus size={16} />
-                    New Draft
+                    New Lab Seed
                   </Button>
                 </HStack>
               </VStack>
@@ -1405,7 +1420,7 @@ const Whiteboard: React.FC = () => {
 
           {/* Main Content */}
           <HStack gap={6} align='flex-start'>
-            {/* Available Subjects Sidebar */}
+            {/* Subjects of Interest Sidebar */}
             <Box minW='280px' maxW='320px'>
               <Card.Root
                 bg={{ base: '#1a1a1a', _light: 'white' }}
@@ -1415,7 +1430,7 @@ const Whiteboard: React.FC = () => {
                 <Card.Body p={4}>
                   <VStack gap={3} align='stretch'>
                     <HStack justify='space-between' align='center'>
-                      <Text fontWeight='medium'>Available Subjects</Text>
+                      <Text fontWeight='medium'>Subjects of Interest</Text>
                       <Badge colorScheme='gray'>
                         {availableSubjects.length}
                       </Badge>
@@ -1540,11 +1555,11 @@ const Whiteboard: React.FC = () => {
                           color={{ base: 'gray.400', _light: 'gray.500' }}
                         >
                           <VStack gap={2}>
-                            <FiSearch size={24} />
+                            <FiSearch size='md' />
                             <Text fontSize='sm' textAlign='center'>
                               {filterText || sortMethod !== 'horizon-high'
                                 ? 'No subjects match your filters.'
-                                : 'No available subjects. Search to add more.'}
+                                : 'No subjects of interest. Search to add more.'}
                             </Text>
                           </VStack>
                         </Flex>
@@ -1569,9 +1584,9 @@ const Whiteboard: React.FC = () => {
               </Card.Root>
             </Box>
 
-            {/* Drafts Area */}
+            {/* Lab Seeds Area */}
             <Box flex='1'>
-              {drafts.length === 0 ? (
+              {labSeeds.length === 0 ? (
                 <Card.Root
                   bg={{ base: '#1a1a1a', _light: 'white' }}
                   border='1px solid'
@@ -1587,20 +1602,21 @@ const Whiteboard: React.FC = () => {
                             fontWeight='medium'
                             color={{ base: 'gray.400', _light: 'gray.600' }}
                           >
-                            No drafts yet
+                            No lab seeds yet
                           </Text>
                           <Text
                             color={{ base: 'gray.400', _light: 'gray.500' }}
                           >
-                            Create your first draft to start organizing subjects
+                            Create your first lab seed to start organizing
+                            subjects
                           </Text>
                         </VStack>
                         <Button
                           colorScheme='blue'
-                          onClick={() => setIsCreateDraftOpen(true)}
+                          onClick={() => setIsCreateLabSeedOpen(true)}
                         >
                           <FiPlus size={16} />
-                          Create First Draft
+                          Create First Lab Seed
                         </Button>
                       </VStack>
                     </Flex>
@@ -1611,18 +1627,18 @@ const Whiteboard: React.FC = () => {
                   templateColumns='repeat(auto-fit, minmax(450px, 1fr))'
                   gap={6}
                 >
-                  {drafts.map((draft) => (
-                    <DraftCard key={draft.id} draft={draft} />
+                  {labSeeds.map((labSeed) => (
+                    <LabSeedCard key={labSeed.id} labSeed={labSeed} />
                   ))}
                 </Grid>
               )}
             </Box>
           </HStack>
 
-          {/* Create Draft Dialog */}
+          {/* Create Lab Seed Dialog */}
           <Dialog.Root
-            open={isCreateDraftOpen}
-            onOpenChange={({ open }) => setIsCreateDraftOpen(open)}
+            open={isCreateLabSeedOpen}
+            onOpenChange={({ open }) => setIsCreateLabSeedOpen(open)}
           >
             <Dialog.Backdrop />
             <Dialog.Positioner>
@@ -1632,7 +1648,7 @@ const Whiteboard: React.FC = () => {
                 borderColor={{ base: 'white', _light: 'gray.200' }}
               >
                 <Dialog.Header>
-                  <Dialog.Title>Create New Draft</Dialog.Title>
+                  <Dialog.Title>Create New Lab Seed</Dialog.Title>
                   <Dialog.CloseTrigger asChild>
                     <IconButton size='sm' variant='ghost'>
                       <FiX />
@@ -1643,19 +1659,21 @@ const Whiteboard: React.FC = () => {
                 <Dialog.Body>
                   <VStack gap={4} align='stretch'>
                     <Field.Root>
-                      <Field.Label>Draft Name</Field.Label>
+                      <Field.Label>Lab Seed Name</Field.Label>
                       <Input
-                        value={newDraftName}
-                        onChange={(e) => setNewDraftName(e.target.value)}
-                        placeholder='Enter draft name...'
+                        value={newLabSeedName}
+                        onChange={(e) => setNewLabSeedName(e.target.value)}
+                        placeholder='Enter lab seed name...'
                       />
                     </Field.Root>
 
                     <Field.Root>
                       <Field.Label>Description (Optional)</Field.Label>
                       <Textarea
-                        value={newDraftDescription}
-                        onChange={(e) => setNewDraftDescription(e.target.value)}
+                        value={newLabSeedDescription}
+                        onChange={(e) =>
+                          setNewLabSeedDescription(e.target.value)
+                        }
                         placeholder='Enter description...'
                         rows={3}
                       />
@@ -1667,16 +1685,16 @@ const Whiteboard: React.FC = () => {
                   <HStack gap={3}>
                     <Button
                       variant='outline'
-                      onClick={() => setIsCreateDraftOpen(false)}
+                      onClick={() => setIsCreateLabSeedOpen(false)}
                     >
                       Cancel
                     </Button>
                     <Button
                       colorScheme='blue'
-                      onClick={handleCreateDraft}
-                      disabled={!newDraftName.trim()}
+                      onClick={handleCreateLabSeed}
+                      disabled={!newLabSeedName.trim()}
                     >
-                      Create Draft
+                      Create Lab Seed
                     </Button>
                   </HStack>
                 </Dialog.Footer>
@@ -1691,7 +1709,7 @@ const Whiteboard: React.FC = () => {
               setIsDeleteConfirmOpen(open);
               if (!open) {
                 setSubjectToDelete(null);
-                setDraftsContainingSubject([]);
+                setLabSeedsContainingSubject([]);
               }
             }}
           >
@@ -1718,7 +1736,7 @@ const Whiteboard: React.FC = () => {
                       from the whiteboard?
                     </Text>
 
-                    {draftsContainingSubject.length > 0 && (
+                    {labSeedsContainingSubject.length > 0 && (
                       <Box
                         p={3}
                         bg={{
@@ -1736,16 +1754,16 @@ const Whiteboard: React.FC = () => {
                           mb={2}
                         >
                           ⚠️ This subject is currently in{' '}
-                          {draftsContainingSubject.length} draft(s):
+                          {labSeedsContainingSubject.length} lab seed(s):
                         </Text>
                         <VStack gap={1} align='start'>
-                          {draftsContainingSubject.map((draft) => (
+                          {labSeedsContainingSubject.map((labSeed) => (
                             <Text
-                              key={draft.id}
+                              key={labSeed.id}
                               fontSize='sm'
                               color={{ base: '#E07B91', _light: 'red.700' }}
                             >
-                              • {draft.name}
+                              • {labSeed.name}
                             </Text>
                           ))}
                         </VStack>
@@ -1755,7 +1773,7 @@ const Whiteboard: React.FC = () => {
                           mt={2}
                         >
                           Removing it from the whiteboard will also remove it
-                          from these drafts.
+                          from these lab seeds.
                         </Text>
                       </Box>
                     )}

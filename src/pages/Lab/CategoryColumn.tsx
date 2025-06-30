@@ -9,12 +9,12 @@ import {
   Dialog,
   Button,
   Checkbox,
-  Tooltip,
 } from '@chakra-ui/react';
-import { FiTag, FiEdit2, FiTrash2, FiInfo, FiEyeOff } from 'react-icons/fi';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi'; // Changed from FiTag to FaFolderTree
 import { KanbanColumn } from '../../components/shared/Kanban';
 import type { LabSubject, SubjectCategory } from './types';
 import { CategoryUtils } from './types';
+import { FaFolderTree } from 'react-icons/fa6';
 
 interface CategoryColumnProps {
   category: SubjectCategory;
@@ -104,17 +104,29 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     }
   }, [category.id, moveSubjectsToUncategorized, onCategoryDelete]);
 
+  // CRITICAL: Handle drag-and-drop properly
+  const handleDrop = useCallback(
+    async (itemId: string, fromColumnId: string, toColumnId: string) => {
+      console.log('CategoryColumn: Drop event', {
+        itemId,
+        fromColumnId,
+        toColumnId,
+      });
+
+      // Find the subject that's being moved in any category (not just this one)
+      // The itemId is the frontend ID, we need to find the actual subject
+      // We'll let the parent component handle finding the subject
+      await onSubjectMove(itemId, fromColumnId, toColumnId);
+    },
+    [onSubjectMove]
+  );
+
   const renderHeader = useCallback(
     () => (
       <HStack justify='space-between' align='center'>
         <HStack gap={2} flex='1'>
-          {/* Category Icon - different for exclude vs default/custom */}
-          {CategoryUtils.isExclude(category) ? (
-            <FiEyeOff size={14} color='orange.400' />
-          ) : (
-            <FiTag size={14} color='gray.400' />
-          )}
-
+          {/* Changed from FiTag to FaFolderTree for Categories/Subcategories */}
+          <FaFolderTree size={14} color='var(--chakra-colors-fg-muted)' />
           {isEditing ? (
             <Input
               value={editName}
@@ -123,11 +135,16 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               onKeyDown={handleKeyPress}
               size='sm'
               autoFocus
-              bg='gray.700'
-              borderColor='gray.500'
-              color='white'
-              _focus={{ borderColor: 'blue.400' }}
+              bg='bg'
+              borderColor='border.muted'
+              color='fg'
+              _placeholder={{ color: 'fg.muted' }}
+              _focus={{
+                borderColor: 'brand',
+                boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+              }}
               fontSize='sm'
+              fontFamily='body'
               disabled={isRenaming}
             />
           ) : (
@@ -135,63 +152,29 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               <Text
                 fontSize='sm'
                 fontWeight='medium'
-                color={
-                  CategoryUtils.isExclude(category) ? 'orange.300' : 'white'
-                }
+                color='fg'
                 cursor={canRename ? 'pointer' : 'default'}
                 onClick={handleTitleClick}
-                _hover={canRename ? { color: 'blue.300' } : {}}
+                _hover={canRename ? { color: 'brand' } : {}}
                 transition='color 0.2s'
                 flex='1'
+                fontFamily='heading'
               >
                 {category.name}
               </Text>
-
-              {/* Info tooltip for exclude category */}
-              {CategoryUtils.isExclude(category) && (
-                <Tooltip.Root>
-                  <Tooltip.Trigger asChild>
-                    <Box
-                      color='orange.400'
-                      cursor='help'
-                      _hover={{ color: 'orange.300' }}
-                    >
-                      <FiInfo size={12} />
-                    </Box>
-                  </Tooltip.Trigger>
-                  <Tooltip.Positioner>
-                    <Tooltip.Content>
-                      <Tooltip.Arrow />
-                      <Box maxW='250px' p={2}>
-                        <Text fontSize='sm' fontWeight='medium' mb={1}>
-                          Exclude from Analysis
-                        </Text>
-                        <Text fontSize='xs' lineHeight='1.4'>
-                          Subjects in this category will be excluded from search
-                          results and analysis. Use this to filter out
-                          irrelevant topics (e.g., exclude "food" when
-                          researching oil if you only want petroleum-related
-                          results).
-                        </Text>
-                      </Box>
-                    </Tooltip.Content>
-                  </Tooltip.Positioner>
-                </Tooltip.Root>
-              )}
             </HStack>
           )}
 
           <Box
-            bg={CategoryUtils.isExclude(category) ? 'orange.600' : 'gray.600'}
-            color={
-              CategoryUtils.isExclude(category) ? 'orange.100' : 'gray.200'
-            }
+            bg='bg.muted'
+            color='fg.muted'
             fontSize='xs'
             px={2}
             py={1}
             borderRadius='md'
             minW='20px'
             textAlign='center'
+            fontFamily='body'
           >
             {category.subjects.length}
           </Box>
@@ -204,8 +187,8 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               <IconButton
                 size='xs'
                 variant='ghost'
-                color='gray.400'
-                _hover={{ color: 'blue.300', bg: 'gray.700' }}
+                color='fg.muted'
+                _hover={{ color: 'brand', bg: 'bg.hover' }}
                 onClick={() => setIsEditing(true)}
                 aria-label='Edit category name'
                 disabled={isLoading || isRenaming}
@@ -219,8 +202,8 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               <IconButton
                 size='xs'
                 variant='ghost'
-                color='red.400'
-                _hover={{ color: 'red.300', bg: 'red.900' }}
+                color='fg.muted'
+                _hover={{ color: 'red.500', bg: 'bg.hover' }}
                 onClick={() => setIsDeleteDialogOpen(true)}
                 aria-label='Delete category'
                 disabled={isLoading || isDeleting}
@@ -251,14 +234,13 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
   const renderFooter = useCallback(() => {
     if (CategoryUtils.isDefault(category)) {
       return (
-        <Text fontSize='xs' color='gray.500' textAlign='center'>
+        <Text
+          fontSize='xs'
+          color='fg.muted'
+          textAlign='center'
+          fontFamily='body'
+        >
           New subjects added here
-        </Text>
-      );
-    } else if (CategoryUtils.isExclude(category)) {
-      return (
-        <Text fontSize='xs' color='orange.500' textAlign='center'>
-          Excluded from analysis
         </Text>
       );
     }
@@ -272,16 +254,12 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
         title={category.name}
         items={category.subjects}
         isDefault={CategoryUtils.isDefault(category)}
-        onDrop={onSubjectMove}
+        onDrop={handleDrop} // Use our custom handler
         renderItem={(item) => renderSubjectCard(item as LabSubject)}
         renderHeader={renderHeader}
         renderFooter={renderFooter}
         emptyMessage='No subjects'
-        emptyDropMessage={
-          CategoryUtils.isExclude(category)
-            ? 'Drop to exclude'
-            : 'Drop subject here'
-        }
+        emptyDropMessage='Drop subject here'
       />
 
       {/* Delete Confirmation Dialog */}
@@ -291,21 +269,28 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
       >
         <Dialog.Backdrop />
         <Dialog.Positioner>
-          <Dialog.Content>
+          <Dialog.Content bg='bg.canvas' borderColor='border.emphasized'>
             <Dialog.Header>
-              <Dialog.Title>Delete Category</Dialog.Title>
+              <Dialog.Title color='fg' fontFamily='heading'>
+                Delete Category
+              </Dialog.Title>
             </Dialog.Header>
 
             <Dialog.Body>
               <VStack gap={4} align='stretch'>
-                <Text>
+                <Text color='fg' fontFamily='body'>
                   Are you sure you want to delete the category "{category.name}
                   "?
                 </Text>
 
                 {category.subjects.length > 0 && (
                   <Box>
-                    <Text fontSize='sm' color='gray.600' mb={2}>
+                    <Text
+                      fontSize='sm'
+                      color='fg.muted'
+                      mb={2}
+                      fontFamily='body'
+                    >
                       This category contains {category.subjects.length} subject
                       {category.subjects.length !== 1 ? 's' : ''}.
                     </Text>
@@ -319,12 +304,21 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                       <Checkbox.Control>
                         <Checkbox.Indicator />
                       </Checkbox.Control>
-                      <Checkbox.Label fontSize='sm'>
+                      <Checkbox.Label
+                        fontSize='sm'
+                        color='fg'
+                        fontFamily='body'
+                      >
                         Move subjects to "Uncategorized" category
                       </Checkbox.Label>
                     </Checkbox.Root>
                     {!moveSubjectsToUncategorized && (
-                      <Text fontSize='xs' color='red.500' mt={1}>
+                      <Text
+                        fontSize='xs'
+                        color='red.500'
+                        mt={1}
+                        fontFamily='body'
+                      >
                         Warning: Subjects will be permanently removed from this
                         lab.
                       </Text>
@@ -340,13 +334,22 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                   variant='outline'
                   onClick={() => setIsDeleteDialogOpen(false)}
                   disabled={isDeleting}
+                  color='fg'
+                  borderColor='border.emphasized'
+                  bg='bg.canvas'
+                  _hover={{ bg: 'bg.hover' }}
+                  fontFamily='body'
                 >
                   Cancel
                 </Button>
                 <Button
-                  colorScheme='red'
+                  variant='solid'
                   onClick={handleDeleteConfirm}
                   disabled={isDeleting}
+                  bg='red.500'
+                  color='white'
+                  _hover={{ bg: 'red.600' }}
+                  fontFamily='body'
                 >
                   Delete Category
                 </Button>

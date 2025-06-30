@@ -65,6 +65,8 @@ export interface NetworkGraphRef {
   pulseNodesByType: (nodeType: string | null) => void;
 }
 
+import { getApiUrl } from '../../../utils/api';
+
 // Updated node colors to match your theme
 const nodeColors: { [key: string]: string } = {
   Organization: '#E07B91',
@@ -309,7 +311,7 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
       };
     }, [isScrollCaptured, showTemporaryOverlay]);
 
-    // PERFORMANCE FIX: Enhanced fetch with request cancellation
+    // PERFORMANCE FIX: Enhanced fetch with request cancellation and CORS handling
     useEffect(() => {
       async function fetchGraphData() {
         // Cancel previous request
@@ -322,21 +324,32 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
 
         try {
           const limit = '1000';
-          const subjects = params.subjects || params.subject || 'metaverse';
+          const subjects = params.subjects || params.subject;
 
-          // const response = await fetch(
-          //   `https://api.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`,
-          //   { signal: abortControllerRef.current.signal }
-          // );
-          const response = await fetch(
-            `https://fast.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`,
-            { signal: abortControllerRef.current.signal }
-          );
+          const originalUrl = `https://fast.futurity.science/graphs/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
+          const apiUrl = getApiUrl(originalUrl);
+
+          console.log('Fetching graph data from:', apiUrl);
+          console.log('Original URL would be:', originalUrl);
+
+          const response = await fetch(apiUrl, {
+            signal: abortControllerRef.current.signal,
+          });
+
+          console.log('Response status:', response.status);
+          console.log('Response headers:', response.headers);
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Try to get error details
+            const errorText = await response.text();
+            console.error('API Error Response:', errorText);
+            throw new Error(
+              `HTTP error! status: ${response.status}, message: ${errorText}`
+            );
           }
+
           const data = await response.json();
+          console.log('Graph data received:', data);
 
           // Apply colors to nodes based on their type
           data.nodes.forEach((node: NodeObject) => {
@@ -392,6 +405,19 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
         } catch (error) {
           if (error instanceof Error && error.name !== 'AbortError') {
             console.error('Failed to fetch graph data:', error);
+
+            // Enhanced error handling with CORS-specific messaging
+            if (
+              error.message.includes('NetworkError') ||
+              error.message.includes('CORS')
+            ) {
+              console.error(
+                'CORS Error - This is likely due to the API server not allowing cross-origin requests.'
+              );
+              console.error(
+                'Solutions: 1) Use development proxy, 2) Contact API maintainer, 3) Use CORS browser extension for development'
+              );
+            }
           }
         } finally {
           setIsLoading(false);

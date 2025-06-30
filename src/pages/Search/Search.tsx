@@ -36,7 +36,7 @@ const Search: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const searchQuery = query || 'computer vision';
+  const searchQuery = query || '';
 
   // Helper function to convert title to URL-friendly slug
   const createSlug = (title: string): string => {
@@ -254,7 +254,7 @@ const Search: React.FC = () => {
       <Box maxW='7xl' mx='auto' px={6} py={8}>
         <VStack gap={8} align='stretch'>
           {/* Exact Match Section */}
-          <Card.Root>
+          <Card.Root bg='bg.canvas'>
             <Card.Body p={8}>
               {exactMatch ? (
                 <VStack gap={6} align='stretch'>
@@ -457,7 +457,7 @@ const Search: React.FC = () => {
 
           {/* Related Subjects - Single unified list with match percentages */}
           {searchResults.subjects.length > 0 && (
-            <Card.Root>
+            <Card.Root bg='bg.canvas'>
               <Card.Body p={6}>
                 <Heading as='h2' size='lg' mb={4} color='fg'>
                   Related Subjects (
@@ -575,7 +575,7 @@ const Search: React.FC = () => {
 
           {/* Analysis Results */}
           {analyses.length > 0 && (
-            <Card.Root>
+            <Card.Root bg='bg.canvas'>
               <Card.Body p={6}>
                 <HStack gap={2} mb={4}>
                   <FiExternalLink size={20} color='var(--chakra-colors-fg)' />
@@ -644,7 +644,7 @@ const Search: React.FC = () => {
 
           {/* Organization Results */}
           {organizations.length > 0 && (
-            <Card.Root>
+            <Card.Root bg='bg.canvas'>
               <Card.Body p={6}>
                 <HStack gap={2} mb={4}>
                   <Box as='span' fontSize='lg'>

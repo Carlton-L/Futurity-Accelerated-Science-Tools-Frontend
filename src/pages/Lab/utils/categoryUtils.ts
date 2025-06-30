@@ -1,8 +1,16 @@
-import type { SubjectCategory, LabSubject, CategoryValidation } from '../types';
-import { CategoryUtils } from '../types';
+import type {
+  SubjectCategory,
+  LabSubject,
+  CategoryValidation,
+  ApiLabCategory,
+  ApiLabSubject,
+  CreateCategoryRequest,
+  LabUpdateRequest,
+} from '../types';
+import { CategoryUtils, ApiTransformUtils } from '../types';
 
 /**
- * Utility functions for category management
+ * Utility functions for category management with API integration
  * These functions help with validation, organization, and data transformation
  */
 
@@ -69,17 +77,6 @@ export const findDefaultCategory = (
 };
 
 /**
- * Finds the exclude category
- * @param categories - Array of categories to search
- * @returns The exclude category or undefined if not found
- */
-export const findExcludeCategory = (
-  categories: SubjectCategory[]
-): SubjectCategory | undefined => {
-  return categories.find((category) => CategoryUtils.isExclude(category));
-};
-
-/**
  * Finds which category contains a specific subject
  * @param subject - The subject to find
  * @param categories - Array of categories to search
@@ -130,6 +127,9 @@ export const moveSubjectBetweenCategories = (
   // Move the subject
   const subject = fromCategory.subjects[subjectIndex];
   fromCategory.subjects.splice(subjectIndex, 1);
+
+  // Update the subject's categoryId to match the new category
+  subject.categoryId = toCategoryId;
   toCategory.subjects.push(subject);
 
   return newCategories;
@@ -168,9 +168,12 @@ export const addSubjectToDefaultCategory = (
     return categories;
   }
 
+  // Update subject's categoryId to match default category
+  const updatedSubject = { ...subject, categoryId: defaultCategory.id };
+
   return categories.map((category) =>
     CategoryUtils.isDefault(category)
-      ? { ...category, subjects: [...category.subjects, subject] }
+      ? { ...category, subjects: [...category.subjects, updatedSubject] }
       : category
   );
 };
@@ -182,21 +185,14 @@ export const addSubjectToDefaultCategory = (
  * @returns Updated categories array
  */
 export const addSubjectToExcludeCategory = (
-  subject: LabSubject,
+  _subject: LabSubject,
   categories: SubjectCategory[]
 ): SubjectCategory[] => {
-  const excludeCategory = findExcludeCategory(categories);
-
-  if (!excludeCategory) {
-    console.error('No exclude category found');
-    return categories;
-  }
-
-  return categories.map((category) =>
-    CategoryUtils.isExclude(category)
-      ? { ...category, subjects: [...category.subjects, subject] }
-      : category
+  // No longer using exclude categories - return categories unchanged
+  console.warn(
+    'Exclude categories are no longer supported. Use include/exclude terms instead.'
   );
+  return categories;
 };
 
 /**
@@ -220,7 +216,7 @@ export const deleteCategory = (
   }
 
   if (CategoryUtils.isSpecial(categoryToDelete)) {
-    console.error('Cannot delete special categories (default or exclude)');
+    console.error('Cannot delete special categories (default)');
     return categories;
   }
 
@@ -236,7 +232,13 @@ export const deleteCategory = (
       CategoryUtils.isDefault(category)
         ? {
             ...category,
-            subjects: [...category.subjects, ...categoryToDelete.subjects],
+            subjects: [
+              ...category.subjects,
+              ...categoryToDelete.subjects.map((subject) => ({
+                ...subject,
+                categoryId: category.id,
+              })),
+            ],
           }
         : category
     );
@@ -250,8 +252,6 @@ export const deleteCategory = (
  * @param name - Name for the new category
  * @param categories - Existing categories array
  * @returns New category object
- *
- * TODO: This should integrate with the backend to get a real ID
  */
 export const createNewCategory = (
   name: string,
@@ -263,8 +263,11 @@ export const createNewCategory = (
     throw new Error(validation.error);
   }
 
+  // Generate a UUID for the new category (in production, this would come from the API)
+  const newId = `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   return {
-    id: `cat-${Date.now()}`, // TODO: Replace with actual backend-generated ID
+    id: newId,
     name: name.trim(),
     type: 'custom',
     subjects: [],
@@ -294,8 +297,7 @@ export const getCategoryStats = (categories: SubjectCategory[]) => {
   const defaultCategorySubjects =
     findDefaultCategory(categories)?.subjects.length || 0;
 
-  const excludeCategorySubjects =
-    findExcludeCategory(categories)?.subjects.length || 0;
+  const excludeCategorySubjects = 0; // No longer using exclude categories
 
   const customCategories = categories.filter(CategoryUtils.isCustom).length;
 
@@ -324,10 +326,6 @@ export const sortCategories = (
     if (CategoryUtils.isDefault(a) && !CategoryUtils.isDefault(b)) return -1;
     if (!CategoryUtils.isDefault(a) && CategoryUtils.isDefault(b)) return 1;
 
-    // Exclude category comes second
-    if (CategoryUtils.isExclude(a) && !CategoryUtils.isExclude(b)) return -1;
-    if (!CategoryUtils.isExclude(a) && CategoryUtils.isExclude(b)) return 1;
-
     // Then sort alphabetically by name
     return a.name.localeCompare(b.name);
   });
@@ -349,18 +347,6 @@ export const subjectExistsInLab = (
 };
 
 /**
- * Gets all subjects from exclude category
- * @param categories - Array of categories to search
- * @returns Array of excluded subjects
- */
-export const getExcludedSubjects = (
-  categories: SubjectCategory[]
-): LabSubject[] => {
-  const excludeCategory = findExcludeCategory(categories);
-  return excludeCategory?.subjects || [];
-};
-
-/**
  * Gets all subjects except those in exclude category
  * @param categories - Array of categories to search
  * @returns Array of non-excluded subjects
@@ -368,9 +354,8 @@ export const getExcludedSubjects = (
 export const getIncludedSubjects = (
   categories: SubjectCategory[]
 ): LabSubject[] => {
-  return categories
-    .filter((category) => !CategoryUtils.isExclude(category))
-    .flatMap((category) => category.subjects);
+  // Since we no longer have exclude categories, return all subjects
+  return categories.flatMap((category) => category.subjects);
 };
 
 /**
@@ -381,16 +366,132 @@ export const getIncludedSubjects = (
  */
 export const filterCategoriesByType = (
   categories: SubjectCategory[],
-  type: 'default' | 'exclude' | 'custom'
+  type: 'default' | 'custom'
 ): SubjectCategory[] => {
   switch (type) {
     case 'default':
       return categories.filter(CategoryUtils.isDefault);
-    case 'exclude':
-      return categories.filter(CategoryUtils.isExclude);
     case 'custom':
       return categories.filter(CategoryUtils.isCustom);
     default:
       return categories;
   }
+};
+
+// ============================================================================
+// API Integration Functions
+// ============================================================================
+
+/**
+ * Converts frontend categories to API format for updates
+ * @param categories - Frontend categories array
+ * @returns API-formatted categories array
+ */
+export const categoriesToApiFormat = (
+  categories: SubjectCategory[]
+): ApiLabCategory[] => {
+  return categories
+    .filter(CategoryUtils.isCustom) // Only custom categories are stored in the API
+    .map((category) => ({
+      id: ApiTransformUtils.stringToUUID(category.id),
+      name: category.name,
+    }));
+};
+
+/**
+ * Converts frontend subjects to API format for updates
+ * Note: This requires the subjects to be organized by their categoryId
+ * @param categories - Frontend categories array with subjects
+ * @returns API-formatted subjects array
+ */
+export const subjectsToApiFormat = (
+  categories: SubjectCategory[]
+): ApiLabSubject[] => {
+  const allSubjects: LabSubject[] = categories.flatMap((cat) => cat.subjects);
+
+  return allSubjects.map((subject) => ({
+    subject_id: ApiTransformUtils.stringToObjectId(subject.subjectId),
+    subject_slug: subject.subjectSlug,
+    subject_name: subject.subjectName,
+    category: ApiTransformUtils.stringToUUID(subject.categoryId),
+  }));
+};
+
+/**
+ * Prepares a lab update request for category and subject changes
+ * @param categories - Updated categories array
+ * @param includeTerms - Updated include terms
+ * @param excludeTerms - Updated exclude terms
+ * @returns Lab update request for the API
+ */
+export const prepareCategoryUpdateRequest = (
+  categories: SubjectCategory[],
+  includeTerms: string[],
+  excludeTerms: string[]
+): LabUpdateRequest => {
+  return {
+    categories: categoriesToApiFormat(categories),
+    subjects: subjectsToApiFormat(categories),
+    include_terms: includeTerms,
+    exclude_terms: excludeTerms,
+  };
+};
+
+/**
+ * Creates a new category API request
+ * @param name - Category name
+ * @returns API request for creating a category
+ */
+export const createCategoryApiRequest = (
+  name: string
+): CreateCategoryRequest => {
+  return {
+    name: name.trim(),
+  };
+};
+
+/**
+ * Generates a temporary UUID for optimistic updates
+ * In production, the real UUID will come from the API response
+ * @returns Temporary UUID string
+ */
+export const generateTempCategoryId = (): string => {
+  return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+/**
+ * Updates category IDs after API response
+ * This is used for optimistic updates where we need to replace temporary IDs
+ * @param categories - Categories with temporary IDs
+ * @param tempId - Temporary ID to replace
+ * @param realId - Real ID from API response
+ * @returns Updated categories array
+ */
+export const updateCategoryIds = (
+  categories: SubjectCategory[],
+  tempId: string,
+  realId: string
+): SubjectCategory[] => {
+  return categories.map((category) => {
+    if (category.id === tempId) {
+      return {
+        ...category,
+        id: realId,
+        subjects: category.subjects.map((subject) => ({
+          ...subject,
+          categoryId:
+            subject.categoryId === tempId ? realId : subject.categoryId,
+        })),
+      };
+    }
+
+    // Update any subjects that reference the old category ID
+    return {
+      ...category,
+      subjects: category.subjects.map((subject) => ({
+        ...subject,
+        categoryId: subject.categoryId === tempId ? realId : subject.categoryId,
+      })),
+    };
+  });
 };
