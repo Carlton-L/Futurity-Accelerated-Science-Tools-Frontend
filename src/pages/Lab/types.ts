@@ -80,7 +80,7 @@ export interface ApiLabSubject {
 export interface ApiLabMember {
   fullname: string;
   user_guid: string;
-  role: 'admin' | 'editor' | 'reader';
+  role: 'admin' | 'editor' | 'viewer';
 }
 
 export interface ApiLabGoal {
@@ -235,7 +235,7 @@ export interface Lab {
   memberIds: string[];
   adminIds: string[];
   editorIds: string[];
-  readerIds: string[];
+  viewerIds: string[];
   categories: SubjectCategory[];
   subjects: LabSubject[];
   analyses: LabAnalysis[];
@@ -298,7 +298,7 @@ export interface LabMember {
   id: string;
   fullname: string;
   userGuid: string;
-  role: 'admin' | 'editor' | 'reader';
+  role: 'admin' | 'editor' | 'viewer';
 }
 
 // ============================================================================
@@ -606,7 +606,7 @@ export class ApiTransformUtils {
     // Determine admin based on role or owner_guid
     const adminIds: string[] = [];
     const editorIds: string[] = [];
-    const readerIds: string[] = [];
+    const viewerIds: string[] = [];
 
     apiData.members.forEach((member) => {
       if (member.role === 'owner' || member.role === 'admin') {
@@ -614,7 +614,7 @@ export class ApiTransformUtils {
       } else if (member.role === 'editor') {
         editorIds.push(member.user_id);
       } else {
-        readerIds.push(member.user_id);
+        viewerIds.push(member.user_id);
       }
     });
 
@@ -641,7 +641,7 @@ export class ApiTransformUtils {
       memberIds,
       adminIds,
       editorIds,
-      readerIds,
+      viewerIds,
       categories: transformedCategories,
       subjects: transformedSubjects,
       analyses: transformedAnalyses,

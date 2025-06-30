@@ -161,9 +161,6 @@ const config = defineConfig({
           },
           subtle: { value: '{colors.brand.400}' },
           contrast: { value: '#FFFFFF' }, // Always white text on brand colors
-          400: { value: '{colors.brand.400}' },
-          500: { value: '{colors.brand.500}' },
-          600: { value: '{colors.brand.600}' },
         },
 
         // Secondary brand semantic tokens

@@ -13,6 +13,25 @@ import { FiTrash2 } from 'react-icons/fi';
 import type { WhiteboardSubject, DraftMetrics } from './types';
 import { getInnovationQuadrant } from './types';
 
+// Blue hexagon icon component for subjects
+const SubjectHexagonIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+  >
+    <path
+      d='M12 2L20.196 7V17L12 22L3.804 17V7L12 2Z'
+      fill='#0005E9'
+      stroke='#0005E9'
+      strokeWidth='1'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
+
 // Utility function for color mapping
 const getMetricColor = (
   value: number,
@@ -38,7 +57,7 @@ export const ListView: React.FC<{
   if (subjects.length === 0) {
     return (
       <Flex align='center' justify='center' minH='150px' color='gray.500'>
-        <Text fontSize='sm'>No subjects in this draft</Text>
+        <Text fontSize='sm'>No subjects in this lab seed</Text>
       </Flex>
     );
   }
@@ -56,14 +75,17 @@ export const ListView: React.FC<{
         >
           <VStack gap={2} align='stretch'>
             <HStack justify='space-between' align='start'>
-              <VStack gap={1} align='start' flex='1'>
-                <Text fontSize='sm' fontWeight='medium' color='white'>
-                  {subject.name}
-                </Text>
-                <Text fontSize='xs' color='gray.300' lineClamp={2}>
-                  {subject.description}
-                </Text>
-              </VStack>
+              <HStack gap={2} flex='1' align='start'>
+                <SubjectHexagonIcon size={24} />
+                <VStack gap={1} align='start' flex='1'>
+                  <Text fontSize='sm' fontWeight='medium' color='white'>
+                    {subject.name}
+                  </Text>
+                  <Text fontSize='xs' color='gray.300' lineClamp={2}>
+                    {subject.description}
+                  </Text>
+                </VStack>
+              </HStack>
               {onRemoveSubject && (
                 <IconButton
                   size='xs'
@@ -352,7 +374,7 @@ export const MetricsRadar: React.FC<{
       value: metrics.innovationPotential,
       max: 100,
     },
-    { name: 'Coherence', value: metrics.coherenceScore, max: 100 },
+    { name: 'Cluster Coefficient', value: metrics.coherenceScore, max: 100 },
     { name: 'Tech Velocity', value: metrics.avgTechTransfer, max: 100 },
     { name: 'Market Opportunity', value: metrics.avgWhiteSpace, max: 100 },
     {
@@ -365,7 +387,7 @@ export const MetricsRadar: React.FC<{
   return (
     <VStack gap={3} align='stretch'>
       <Text fontSize='sm' fontWeight='medium' textAlign='center'>
-        Draft Performance Radar
+        Lab Seed Performance Radar
       </Text>
 
       {radarMetrics.map((metric) => (
@@ -401,13 +423,13 @@ export const MetricsRadar: React.FC<{
 };
 
 // Placeholder components for missing visualizations
-export const CoherenceHeatmap: React.FC<{
+export const ClusterCoefficientHeatmap: React.FC<{
   subjects: WhiteboardSubject[];
 }> = ({ subjects }) => {
   return (
     <VStack gap={3} align='center' justify='center' minH='200px'>
       <Text fontSize='sm' color='gray.500'>
-        Coherence Heatmap
+        Cluster Coefficient Heatmap
       </Text>
       <Text fontSize='xs' color='gray.400'>
         {subjects.length} subjects analyzed

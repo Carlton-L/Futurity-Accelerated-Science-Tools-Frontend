@@ -7,9 +7,9 @@ const colors = defineTokens.colors({
     100: { value: '#e0eaff' },
     200: { value: '#c7d7fe' },
     300: { value: '#a5bcfc' },
-    400: { value: '#8285FF' }, // Lighter brand
-    500: { value: '#0005E9' }, // Main brand
-    600: { value: '#000383' }, // Darker brand
+    400: { value: '#8285FF' },
+    500: { value: '#0005E9' },
+    600: { value: '#000383' },
     700: { value: '#000266' },
     800: { value: '#00024d' },
     900: { value: '#000133' },

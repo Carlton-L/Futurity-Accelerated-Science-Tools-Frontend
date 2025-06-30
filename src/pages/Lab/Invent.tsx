@@ -10,10 +10,8 @@ import {
   Grid,
   Badge,
   Tabs,
-  Input,
 } from '@chakra-ui/react';
 import {
-  FiTarget,
   FiCpu,
   FiEye,
   FiMap,
@@ -28,7 +26,6 @@ import {
   FiTrendingUp,
   FiExternalLink,
   FiCheck,
-  FiAlertCircle,
 } from 'react-icons/fi';
 import { FaLightbulb } from 'react-icons/fa';
 
@@ -50,13 +47,6 @@ interface IdeaSeed {
   personas?: string[];
   roadmap?: string[];
   createdAt: string;
-}
-
-interface LabGoal {
-  id: string;
-  problem: string;
-  userGroup: string;
-  impact: number;
 }
 
 interface MiroTemplate {
@@ -114,17 +104,8 @@ interface InventProps {
 const Invent: React.FC<InventProps> = ({ labId }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [ideaSeeds, setIdeaSeeds] = useState<IdeaSeed[]>([]);
-  const [labGoals, setLabGoals] = useState<LabGoal[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('generation');
-
-  // Lab Goals state
-  const [labGoalsCompleted, setLabGoalsCompleted] = useState<boolean>(false);
-  const [newGoal, setNewGoal] = useState({
-    problem: '',
-    userGroup: '',
-    impact: 50,
-  });
 
   // Brainstorm Starter state
   const [brainstormCompleted, setBrainstormCompleted] =
@@ -345,26 +326,8 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
         },
       ];
 
-      // Mock lab goals - check if they exist
-      const mockLabGoals: LabGoal[] = [
-        {
-          id: 'goal-1',
-          problem: 'Reduce fashion waste',
-          userGroup: 'Eco-conscious consumers',
-          impact: 85,
-        },
-        {
-          id: 'goal-2',
-          problem: 'Combat counterfeiting',
-          userGroup: 'Luxury buyers',
-          impact: 92,
-        },
-      ];
-
       setSubjects(mockSubjects);
       setIdeaSeeds(mockIdeaSeeds);
-      setLabGoals(mockLabGoals);
-      setLabGoalsCompleted(mockLabGoals.length > 0);
       setLoading(false);
     };
 
@@ -377,30 +340,6 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
     { id: 'template-2', name: 'Synthesizing Futures', type: 'synthesizing' },
     { id: 'template-3', name: 'Innovation Canvas', type: 'custom' },
   ];
-
-  // Lab Goals handlers
-  const addLabGoal = () => {
-    if (!newGoal.problem || !newGoal.userGroup) return;
-
-    const goal: LabGoal = {
-      id: `goal-${Date.now()}`,
-      ...newGoal,
-    };
-
-    setLabGoals((prev) => [...prev, goal]);
-    setNewGoal({ problem: '', userGroup: '', impact: 50 });
-
-    if (labGoals.length === 0) {
-      setLabGoalsCompleted(true);
-    }
-  };
-
-  const removeLabGoal = (goalId: string) => {
-    setLabGoals((prev) => prev.filter((goal) => goal.id !== goalId));
-    if (labGoals.length <= 1) {
-      setLabGoalsCompleted(false);
-    }
-  };
 
   // Brainstorm Starter handlers
   const runBrainstormStarter = async () => {
@@ -674,146 +613,8 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
           </Card.Body>
         </Card.Root>
 
-        {/* Lab Goals - Required Foundation */}
-        <Card.Root
-          borderColor={labGoalsCompleted ? 'green.200' : 'orange.200'}
-          borderWidth='2px'
-        >
-          <Card.Body p={6}>
-            <HStack justify='space-between' align='start' mb={4}>
-              <VStack gap={1} align='start'>
-                <HStack>
-                  <FiTarget size={20} />
-                  <Heading as='h3' size='md'>
-                    Lab Goals
-                  </Heading>
-                  {labGoalsCompleted ? (
-                    <Badge colorScheme='green'>
-                      <FiCheck size={12} /> Complete
-                    </Badge>
-                  ) : (
-                    <Badge colorScheme='orange'>
-                      <FiAlertCircle size={12} /> Required
-                    </Badge>
-                  )}
-                </HStack>
-                <Text color='gray.600' fontSize='sm'>
-                  Define the problems your lab aims to solve. This is required
-                  before using other invention tools.
-                </Text>
-              </VStack>
-            </HStack>
-
-            {/* Existing Lab Goals */}
-            {labGoals.length > 0 && (
-              <VStack gap={2} align='stretch' mb={4}>
-                <Text fontWeight='medium' fontSize='sm'>
-                  Current Lab Goals:
-                </Text>
-                {labGoals.map((goal) => (
-                  <HStack
-                    key={goal.id}
-                    p={3}
-                    bg={{ base: '#1a1a1a', _light: '#f8f8f8' }}
-                    borderRadius='md'
-                    justify='space-between'
-                    border='1px solid'
-                    borderColor='border.emphasized'
-                  >
-                    <VStack gap={1} align='start' flex='1'>
-                      <Text fontSize='sm' fontWeight='medium' color='fg'>
-                        {goal.problem}
-                      </Text>
-                      <Text fontSize='xs' color='fg.muted'>
-                        Target: {goal.userGroup} • Impact Score: {goal.impact}
-                        /100
-                      </Text>
-                    </VStack>
-                    <Button
-                      size='xs'
-                      colorScheme='red'
-                      variant='ghost'
-                      onClick={() => removeLabGoal(goal.id)}
-                    >
-                      Remove
-                    </Button>
-                  </HStack>
-                ))}
-              </VStack>
-            )}
-
-            {/* Add New Lab Goal */}
-            <VStack gap={3} align='stretch'>
-              <Text fontWeight='medium' fontSize='sm'>
-                Add New Lab Goal:
-              </Text>
-              <Grid templateColumns='2fr 2fr 1fr auto' gap={3} alignItems='end'>
-                <Box>
-                  <Text fontSize='xs' mb={1}>
-                    Problem Statement
-                  </Text>
-                  <Input
-                    size='sm'
-                    placeholder='e.g., Reduce fashion waste'
-                    value={newGoal.problem}
-                    onChange={(e) =>
-                      setNewGoal((prev) => ({
-                        ...prev,
-                        problem: e.target.value,
-                      }))
-                    }
-                  />
-                </Box>
-                <Box>
-                  <Text fontSize='xs' mb={1}>
-                    Target User Group
-                  </Text>
-                  <Input
-                    size='sm'
-                    placeholder='e.g., Eco-conscious consumers'
-                    value={newGoal.userGroup}
-                    onChange={(e) =>
-                      setNewGoal((prev) => ({
-                        ...prev,
-                        userGroup: e.target.value,
-                      }))
-                    }
-                  />
-                </Box>
-                <Box>
-                  <Text fontSize='xs' mb={1}>
-                    Impact Score
-                  </Text>
-                  <Input
-                    size='sm'
-                    type='number'
-                    min='1'
-                    max='100'
-                    value={newGoal.impact}
-                    onChange={(e) =>
-                      setNewGoal((prev) => ({
-                        ...prev,
-                        impact: parseInt(e.target.value) || 50,
-                      }))
-                    }
-                  />
-                </Box>
-                <Button
-                  size='sm'
-                  colorScheme='blue'
-                  onClick={addLabGoal}
-                  disabled={!newGoal.problem || !newGoal.userGroup}
-                >
-                  Add Goal
-                </Button>
-              </Grid>
-            </VStack>
-          </Card.Body>
-        </Card.Root>
-
         {/* Brainstorm Starter - One-time Lab Setup */}
         <Card.Root
-          opacity={!labGoalsCompleted ? 0.6 : 1}
           borderColor={brainstormCompleted ? 'green.200' : 'blue.200'}
           borderWidth='2px'
         >
@@ -857,7 +658,6 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                       size='sm'
                       onClick={() => setSelectedMiroTemplate(template.id)}
                       justifyContent='flex-start'
-                      disabled={!labGoalsCompleted}
                     >
                       {template.name}
                     </Button>
@@ -870,11 +670,7 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                   colorScheme='blue'
                   onClick={runBrainstormStarter}
                   loading={toolLoading['brainstorm-starter']}
-                  disabled={
-                    !labGoalsCompleted ||
-                    !selectedMiroTemplate ||
-                    brainstormCompleted
-                  }
+                  disabled={!selectedMiroTemplate || brainstormCompleted}
                 >
                   <FiPlay size={16} />
                   {brainstormCompleted ? 'Board Created' : 'Create Board'}
@@ -902,7 +698,7 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
         </Card.Root>
 
         {/* Tool Categories */}
-        <Card.Root opacity={!labGoalsCompleted ? 0.6 : 1}>
+        <Card.Root>
           <Card.Body p={6}>
             <Tabs.Root
               value={activeTab}
@@ -1163,36 +959,21 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
         </Card.Root>
 
         {/* Quick Actions */}
-        <Card.Root opacity={!labGoalsCompleted ? 0.6 : 1}>
+        <Card.Root>
           <Card.Body p={6}>
             <Heading as='h3' size='md' mb={4}>
               Quick Actions
             </Heading>
             <HStack gap={4} wrap='wrap'>
-              <Button
-                size='sm'
-                variant='outline'
-                colorScheme='gray'
-                disabled={!labGoalsCompleted}
-              >
+              <Button size='sm' variant='outline' colorScheme='gray'>
                 <FiRefreshCw size={14} />
                 Refresh Data
               </Button>
-              <Button
-                size='sm'
-                variant='outline'
-                colorScheme='gray'
-                disabled={!labGoalsCompleted}
-              >
+              <Button size='sm' variant='outline' colorScheme='gray'>
                 <FiDownload size={14} />
                 Export All Results
               </Button>
-              <Button
-                size='sm'
-                variant='outline'
-                colorScheme='gray'
-                disabled={!labGoalsCompleted}
-              >
+              <Button size='sm' variant='outline' colorScheme='gray'>
                 <FiShare size={14} />
                 Share Lab Innovations
               </Button>

@@ -1,3 +1,5 @@
+// AuthContext/authTypes.ts
+
 export type User = {
   _id: string;
   username: string;
@@ -18,6 +20,40 @@ export type User = {
   team_id?: string;
   changing_email?: string | null;
   displayName?: string;
+  // Extended fields from management API
+  last_login?: number;
+  preferences?: Record<string, any>;
+  permissions?: string[];
+};
+
+// New relationship types
+export type UserOrganization = {
+  _id: string;
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  metadata: Record<string, any>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  user_relationships: string[];
+};
+
+export type UserTeam = {
+  _id: string;
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  metadata: Record<string, any>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  user_relationships: string[];
+};
+
+export type UserRelationships = {
+  organizations: UserOrganization[];
+  teams: UserTeam[];
 };
 
 export type WorkspaceMember = {
@@ -109,16 +145,56 @@ export type LoginResponse = {
   errors: string[];
 };
 
+// Extended user data type from management API
+export type ExtendedUserData = {
+  _id: string;
+  username: string;
+  email: string;
+  fullname: string;
+  role: string;
+  status: number;
+  debug_mode: number;
+  research_team: number;
+  email_validated: number;
+  auth_key: string;
+  created_at: number;
+  updated_at: number;
+  guid: string;
+  biography?: string;
+  picture_url?: string;
+  thumb_url?: string;
+  team_id?: string;
+  changing_email?: string | null;
+  displayName?: string;
+  // Additional fields that might come from the management API
+  last_login?: number;
+  preferences?: Record<string, any>;
+  permissions?: string[];
+};
+
 export type AuthContextType = {
   user: User | null;
+  extendedUser: ExtendedUserData | null;
   token: string | null;
   workspace: Workspace | null;
   currentTeamspace: TeamspaceListItem | null;
   teamspaces: TeamspaceListItem[];
+  // New relationship data
+  userRelationships: UserRelationships | null;
+  currentTeam: UserTeam | null;
+  currentOrganization: UserOrganization | null;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
   setCurrentTeamspace: (teamspace: TeamspaceListItem | null) => void;
+  setCurrentTeam: (team: UserTeam | null) => void;
   refreshWorkspace: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  refreshRelationships: () => Promise<void>;
+  // Helper methods for checking permissions
+  isOrgAdmin: () => boolean;
+  isTeamAdmin: (teamId?: string) => boolean;
+  isTeamEditor: (teamId?: string) => boolean;
+  isTeamViewer: (teamId?: string) => boolean;
   isLoading: boolean;
   isAuthenticated: boolean;
 };

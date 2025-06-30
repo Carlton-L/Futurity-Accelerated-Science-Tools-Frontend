@@ -35,6 +35,7 @@ import type {
 } from './types';
 import { ApiTransformUtils } from './types';
 import type { LabTab } from '../../context/PageContext/pageTypes';
+import Plan from './Plan';
 import Gather from './Gather';
 import Analyze from './Analyze';
 import Forecast from './Forecast';
@@ -60,7 +61,8 @@ const Lab: React.FC = () => {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
-  const [activeTab, setActiveTab] = useState<LabTab>('gather');
+  // Changed default tab to 'plan' and updated valid tabs
+  const [activeTab, setActiveTab] = useState<LabTab>('plan');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
   // Real API functions for fetching related data
@@ -371,9 +373,15 @@ const Lab: React.FC = () => {
     navigate(`/lab/${id}/admin`);
   };
 
-  // Handle tab change with proper typing
+  // Handle tab change with proper typing - updated to include 'plan'
   const handleTabChange = (value: string): void => {
-    const validTabs: LabTab[] = ['gather', 'analyze', 'forecast', 'invent'];
+    const validTabs: LabTab[] = [
+      'plan',
+      'gather',
+      'analyze',
+      'forecast',
+      'invent',
+    ];
     if (validTabs.includes(value as LabTab)) {
       setActiveTab(value as LabTab);
     }
@@ -398,6 +406,17 @@ const Lab: React.FC = () => {
     );
     window.location.href = `mailto:fasthelp@futurity.systems?subject=${subject}&body=${body}`;
   };
+
+  // Handle terms update for Plan tab
+  const handleTermsUpdate = useCallback(
+    async (includeTerms: string[], excludeTerms: string[]) => {
+      if (!lab) return;
+
+      // Update local state optimistically
+      setLab((prev) => (prev ? { ...prev, includeTerms, excludeTerms } : null));
+    },
+    [lab]
+  );
 
   // Error handling
   if (error) {
@@ -460,6 +479,7 @@ const Lab: React.FC = () => {
           <GlassCard variant='glass' w='100%' bg='bg.canvas'>
             <Box p={4}>
               <HStack gap={4}>
+                <Skeleton height='32px' width='60px' />
                 <Skeleton height='32px' width='80px' />
                 <Skeleton height='32px' width='80px' />
                 <Skeleton height='32px' width='80px' />
@@ -469,181 +489,10 @@ const Lab: React.FC = () => {
           </GlassCard>
         </Box>
 
-        {/* Gather page content skeleton */}
+        {/* Content skeleton */}
         <VStack gap={4} align='stretch'>
-          {/* Header with search bar skeleton */}
-          <HStack justify='space-between' align='center'>
-            <HStack gap={4} flex='1'>
-              <Skeleton height='32px' width='100px' />{' '}
-              {/* "Subjects" heading */}
-              <Skeleton height='40px' width='400px' /> {/* Search input */}
-            </HStack>
-            <Skeleton height='40px' width='140px' />{' '}
-            {/* "New Category" button */}
-          </HStack>
-
-          {/* Kanban board skeleton */}
-          <Box position='relative' w='100%'>
-            <Box w='100%' overflowX='auto' overflowY='hidden' pb={4} pt={2}>
-              <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
-                {/* Include/Exclude Terms column skeleton */}
-                <Box
-                  minW='200px'
-                  maxW='250px'
-                  h='calc(100vh - 250px)'
-                  bg='bg.canvas'
-                  borderColor='border.emphasized'
-                  borderWidth='1px'
-                  borderRadius='md'
-                  display='flex'
-                  flexDirection='column'
-                >
-                  {/* Header */}
-                  <Box
-                    p={4}
-                    borderBottom='1px solid'
-                    borderBottomColor='border.muted'
-                  >
-                    <VStack gap={2} align='stretch'>
-                      <Skeleton height='16px' width='150px' />
-                      <Skeleton height='12px' width='100px' />
-                    </VStack>
-                  </Box>
-                  {/* Content */}
-                  <Box flex='1' p={3}>
-                    <VStack gap={2}>
-                      <Skeleton height='40px' width='100%' />
-                      <Skeleton height='32px' width='80%' />
-                      <Skeleton height='32px' width='90%' />
-                    </VStack>
-                  </Box>
-                </Box>
-
-                {/* Category columns skeleton */}
-                {[1, 2, 3].map((i) => (
-                  <Box
-                    key={i}
-                    minW='280px'
-                    maxW='320px'
-                    h='calc(100vh - 250px)'
-                    bg='bg.canvas'
-                    borderColor='border.emphasized'
-                    borderWidth='1px'
-                    borderRadius='md'
-                    display='flex'
-                    flexDirection='column'
-                  >
-                    {/* Column header */}
-                    <Box
-                      p={4}
-                      borderBottom='1px solid'
-                      borderBottomColor='border.muted'
-                    >
-                      <HStack justify='space-between' align='center'>
-                        <HStack gap={2} flex='1'>
-                          <Skeleton height='16px' width='80px' />
-                          <Skeleton
-                            height='20px'
-                            width='24px'
-                            borderRadius='md'
-                          />
-                        </HStack>
-                        <HStack gap={1}>
-                          <Skeleton
-                            height='24px'
-                            width='24px'
-                            borderRadius='md'
-                          />
-                          <Skeleton
-                            height='24px'
-                            width='24px'
-                            borderRadius='md'
-                          />
-                        </HStack>
-                      </HStack>
-                    </Box>
-
-                    {/* Subject cards */}
-                    <Box flex='1' p={3} overflowY='auto'>
-                      <VStack gap={3} align='stretch'>
-                        {[1, 2].map((j) => (
-                          <Box
-                            key={j}
-                            p={3}
-                            border='1px solid'
-                            borderColor='border.emphasized'
-                            borderRadius='md'
-                            w='100%'
-                            bg='bg.subtle'
-                          >
-                            <VStack gap={2} align='stretch'>
-                              {/* Subject title and actions */}
-                              <HStack
-                                justify='space-between'
-                                align='flex-start'
-                              >
-                                <Skeleton height='16px' width='70%' />
-                                <HStack gap={1}>
-                                  <Skeleton
-                                    height='20px'
-                                    width='20px'
-                                    borderRadius='sm'
-                                  />
-                                  <Skeleton
-                                    height='20px'
-                                    width='20px'
-                                    borderRadius='sm'
-                                  />
-                                </HStack>
-                              </HStack>
-                              {/* Subject description */}
-                              <Skeleton height='12px' width='100%' />
-                              <Skeleton height='12px' width='60%' />
-                              {/* Subject metadata */}
-                              <HStack justify='space-between' mt={2}>
-                                <Skeleton height='10px' width='40%' />
-                                <Skeleton height='10px' width='30%' />
-                              </HStack>
-                            </VStack>
-                          </Box>
-                        ))}
-                      </VStack>
-                    </Box>
-
-                    {/* Column footer (if any) */}
-                    {i === 1 && (
-                      <Box
-                        p={3}
-                        borderTop='1px solid'
-                        borderTopColor='border.muted'
-                      >
-                        <Skeleton height='12px' width='120px' />
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-
-                {/* Add category column skeleton */}
-                <Box
-                  minW='280px'
-                  maxW='320px'
-                  h='200px'
-                  border='2px dashed'
-                  borderColor='border.muted'
-                  borderRadius='md'
-                  display='flex'
-                  alignItems='center'
-                  justifyContent='center'
-                  bg='bg.canvas'
-                >
-                  <VStack gap={2}>
-                    <Skeleton height='24px' width='24px' borderRadius='full' />
-                    <Skeleton height='16px' width='80px' />
-                  </VStack>
-                </Box>
-              </HStack>
-            </Box>
-          </Box>
+          <Skeleton height='200px' width='100%' />
+          <Skeleton height='300px' width='100%' />
         </VStack>
       </Box>
     );
@@ -791,12 +640,15 @@ const Lab: React.FC = () => {
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
                 Analyses: {lab.analyses.length}
               </Text>
+              <Text fontSize='sm' color='fg.muted' fontFamily='body'>
+                Goals: {lab.goals.length}
+              </Text>
             </HStack>
           </VStack>
         </Box>
       </GlassCard>
 
-      {/* Sticky Tab Navigation */}
+      {/* Sticky Tab Navigation - Updated with Plan tab first */}
       <Box position='sticky' top='64px' zIndex='10' mb={6}>
         <GlassCard variant='glass' w='100%' bg='bg.canvas'>
           <Box p={4}>
@@ -805,6 +657,7 @@ const Lab: React.FC = () => {
               onValueChange={(details) => handleTabChange(details.value)}
             >
               <Tabs.List>
+                <Tabs.Trigger value='plan'>Plan</Tabs.Trigger>
                 <Tabs.Trigger value='gather'>Gather</Tabs.Trigger>
                 <Tabs.Trigger value='analyze'>Analyze</Tabs.Trigger>
                 <Tabs.Trigger value='forecast'>Forecast</Tabs.Trigger>
@@ -817,17 +670,29 @@ const Lab: React.FC = () => {
 
       {/* Tab Content */}
       <Box>
+        {activeTab === 'plan' && (
+          <Plan
+            labId={lab.id}
+            lab={lab}
+            includeTerms={lab.includeTerms || []}
+            excludeTerms={lab.excludeTerms || []}
+            onTermsUpdate={handleTermsUpdate}
+            onRefreshLab={fetchLabData}
+          />
+        )}
         {activeTab === 'gather' && (
           <Gather
             labId={lab.id}
-            includeTerms={lab.includeTerms || []}
-            excludeTerms={lab.excludeTerms || []}
+            // Remove includeTerms and excludeTerms since they're now handled in Plan tab
+            // includeTerms={lab.includeTerms || []}
+            // excludeTerms={lab.excludeTerms || []}
             categories={lab.categories || []}
-            onTermsUpdate={(includeTerms, excludeTerms) => {
-              setLab((prev) =>
-                prev ? { ...prev, includeTerms, excludeTerms } : null
-              );
-            }}
+            // Remove onTermsUpdate since terms are now handled in Plan tab
+            // onTermsUpdate={(includeTerms, excludeTerms) => {
+            //   setLab((prev) =>
+            //     prev ? { ...prev, includeTerms, excludeTerms } : null
+            //   );
+            // }}
             onCategoriesUpdate={(categories) => {
               setLab((prev) => (prev ? { ...prev, categories } : null));
             }}
