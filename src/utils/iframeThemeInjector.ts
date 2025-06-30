@@ -139,7 +139,28 @@ export const createThemeCSS = (): string => {
         color: white !important;
         font-weight: bold !important;
       }
+
+      td {
+      background-color: var(--theme-bg);
+      }
+
+      .sorting_1 {
+      background-color: var(--theme-fg) !important;
+      color: var(--theme-bg) !important;
+      }
+
+      .odd {
+        background-color: rgba(200, 200, 200, 0.1) !important;
+      }
+
+      thead {
+        font-size: 20px !important;
+      }
       
+.even {
+background-color: transparent !important;
+}
+
       /* Code blocks */
       pre, code {
         background-color: var(--theme-bg) !important;
@@ -150,14 +171,14 @@ export const createThemeCSS = (): string => {
         font-family: 'JetBrains Mono', monospace !important;
       }
       
-      // /* Blockquotes */
-      // blockquote {
-      //   border-left: 4px solid var(--theme-brand) !important;
-      //   margin: 16px 0 !important;
-      //   padding-left: 16px !important;
-      //   background-color: var(--theme-bg) !important;
-      //   color: var(--theme-fg) !important;
-      // }
+      /* Blockquotes */
+      blockquote {
+        border-left: 4px solid var(--theme-brand) !important;
+        margin: 16px 0 !important;
+        padding-left: 16px !important;
+        background-color: var(--theme-bg) !important;
+        color: var(--theme-fg) !important;
+      }
       
       /* Horizontal rules */
       hr {
