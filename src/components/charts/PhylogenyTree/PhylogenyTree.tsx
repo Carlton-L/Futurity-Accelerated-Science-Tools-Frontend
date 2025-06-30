@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text, Card } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -70,20 +70,24 @@ function calculateSubcategoryPositions(
   itemSpacing: number
 ) {
   const positions: { [key: string]: number } = {};
-  let currentY = 80; // Increased starting Y position for more top space
+  let currentY = 80; // Starting Y position
 
   subcategories.forEach((subcategory) => {
-    positions[subcategory.id] = currentY;
-
     if (expandedCategories.has(subcategory.id)) {
       // Calculate the space needed for this expanded category's items
       const itemCount = subcategory.items.length;
       const itemsSpan = Math.max(0, (itemCount - 1) * itemSpacing);
-      // Move to next position accounting for the expanded items plus some padding
-      // Ensure minimum spacing even for single items (including empty items)
-      currentY += Math.max(nodeSpacing, itemsSpan + 60); // Increased padding from 40 to 60
+
+      // Position the subcategory node in the center of its expanded items
+      // The category should be centered vertically among its items
+      const categoryY = currentY + itemsSpan / 2;
+      positions[subcategory.id] = categoryY;
+
+      // Move to next position accounting for the full span of expanded items plus padding
+      currentY += itemsSpan + 80; // Increased padding between expanded sections
     } else {
       // Regular spacing for non-expanded categories
+      positions[subcategory.id] = currentY;
       currentY += nodeSpacing;
     }
   });
@@ -110,25 +114,44 @@ function calculateTreeDimensions(
 
   // Calculate the actual bottom extent of the tree
   let maxBottomY = 0;
+  let minTopY = Infinity;
 
   subcategories.forEach((subcategory) => {
     const subcategoryY = subcategoryPositions[subcategory.id];
 
     if (expandedCategories.has(subcategory.id)) {
-      // For expanded categories, find the bottom-most item
+      // For expanded categories, find the top-most and bottom-most items
       const itemCount = subcategory.items.length;
       const itemsSpan = Math.max(0, (itemCount - 1) * itemSpacing);
+
+      // Items are centered around the subcategory position
+      const topMostItemY = subcategoryY - itemsSpan / 2;
       const bottomMostItemY = subcategoryY + itemsSpan / 2;
-      maxBottomY = Math.max(maxBottomY, bottomMostItemY + 30); // Consistent padding for items
+
+      minTopY = Math.min(minTopY, topMostItemY - 15); // Account for item size
+      maxBottomY = Math.max(maxBottomY, bottomMostItemY + 15); // Account for item size
     } else {
       // For collapsed categories, just account for the subcategory node
+      minTopY = Math.min(minTopY, subcategoryY - 15);
       maxBottomY = Math.max(maxBottomY, subcategoryY + 15);
     }
   });
 
-  // Ensure minimum bottom padding and consistent height calculation
-  const totalHeight = maxBottomY + 30; // Consistent bottom padding
-  const height = Math.max(300, totalHeight); // Increased minimum height to prevent shrinking
+  // Ensure we don't have negative starting position and add padding
+  const topPadding = Math.max(60, 80 - minTopY); // Ensure minimum top padding
+  const bottomPadding = 60; // Bottom padding
+
+  // Adjust all positions if we need top padding
+  if (minTopY < 80) {
+    const adjustment = 80 - minTopY;
+    Object.keys(subcategoryPositions).forEach((key) => {
+      subcategoryPositions[key] += adjustment;
+    });
+    maxBottomY += adjustment;
+  }
+
+  const totalHeight = maxBottomY + bottomPadding;
+  const height = Math.max(300, totalHeight);
 
   return {
     width,
@@ -172,6 +195,9 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
     new Set()
   );
 
+  // Track previous positions for smooth transitions
+  const previousPositions = useRef<{ [key: string]: number }>({});
+
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories((prev) => {
       const newSet = new Set(prev);
@@ -197,6 +223,17 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
 
   // Calculate positions
   const positions = calculatePositions(dimensions.subcategoryPositions);
+
+  // Update previous positions after calculation
+  useEffect(() => {
+    Object.keys(dimensions.subcategoryPositions).forEach((categoryId) => {
+      if (previousPositions.current[categoryId] === undefined) {
+        // First time seeing this category, set it to current position
+        previousPositions.current[categoryId] =
+          dimensions.subcategoryPositions[categoryId];
+      }
+    });
+  });
 
   return (
     <MotionCard
@@ -252,27 +289,29 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
               const rootWidth = rootTextWidth + 48; // Doubled padding from 24 to 48
               return (
                 <>
-                  <rect
+                  <motion.rect
                     x={80 - rootWidth / 2}
-                    y={positions.rootY - 15}
+                    animate={{ y: positions.rootY - 15 }}
                     width={rootWidth}
                     height={30}
                     rx={6}
                     fill='var(--chakra-colors-bg-canvas)'
                     stroke='var(--chakra-colors-border-emphasized)'
                     strokeWidth='2'
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
                   />
-                  <text
+                  <motion.text
                     x={80}
-                    y={positions.rootY + 4}
+                    animate={{ y: positions.rootY + 4 }}
                     textAnchor='middle'
                     fill='var(--chakra-colors-fg)'
                     fontSize='12'
                     fontWeight='600'
                     fontFamily='var(--chakra-fonts-heading)'
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
                   >
                     {data.root.name}
-                  </text>
+                  </motion.text>
                 </>
               );
             })()}
@@ -283,25 +322,28 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
             const rootTextWidth = getTextWidth(data.root.name, 12);
             const rootWidth = rootTextWidth + 48; // Updated to match rect width
             return (
-              <line
+              <motion.line
                 x1={80 + rootWidth / 2}
-                y1={positions.rootY}
+                animate={{ y1: positions.rootY, y2: positions.rootY }}
                 x2={levelSpacing - 40}
-                y2={positions.rootY}
                 stroke='var(--chakra-colors-border-muted)'
                 strokeWidth='2'
+                transition={{ duration: 0.4, ease: 'easeOut' }}
               />
             );
           })()}
 
           {/* Vertical connector line */}
-          <line
+          <motion.line
             x1={levelSpacing - 40}
-            y1={positions.verticalLineStart}
-            y2={positions.verticalLineEnd}
+            animate={{
+              y1: positions.verticalLineStart,
+              y2: positions.verticalLineEnd,
+            }}
             x2={levelSpacing - 40}
             stroke='var(--chakra-colors-border-muted)'
             strokeWidth='2'
+            transition={{ duration: 0.4, ease: 'easeOut' }}
           />
 
           {/* Subcategory Nodes */}
@@ -311,6 +353,14 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
             const subcategoryTextWidth = getTextWidth(subcategory.name, 12);
             const subcategoryWidth = Math.max(subcategoryTextWidth + 60, 120); // Reduced padding since no icon needed
 
+            // Get previous position for this category
+            const prevPos = previousPositions.current[subcategory.id] || yPos;
+
+            // Update previous position for next render
+            useEffect(() => {
+              previousPositions.current[subcategory.id] = yPos;
+            });
+
             return (
               <MotionG
                 key={subcategory.id}
@@ -319,23 +369,25 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
                 {/* Horizontal line to subcategory */}
-                <line
+                <motion.line
                   x1={levelSpacing - 40}
-                  y1={yPos}
+                  animate={{ y1: yPos, y2: yPos }}
                   x2={levelSpacing - 20}
-                  y2={yPos}
                   stroke='var(--chakra-colors-border-muted)'
                   strokeWidth='2'
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
                 />
 
                 {/* Subcategory Node */}
-                <g
+                <motion.g
                   style={{ cursor: 'pointer' }}
                   onClick={() => toggleCategory(subcategory.id)}
+                  animate={{ y: 0 }} // Keep at 0 since we're animating the individual elements
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
                 >
-                  <rect
+                  <motion.rect
                     x={levelSpacing - 20}
-                    y={yPos - 15}
+                    animate={{ y: yPos - 15 }}
                     width={subcategoryWidth}
                     height={30}
                     rx={6}
@@ -343,19 +395,34 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                     stroke='var(--chakra-colors-border-emphasized)'
                     strokeWidth='2'
                     filter='url(#dropShadow)'
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
                   />
-                  <text
+                  <motion.text
                     x={levelSpacing - 20 + subcategoryWidth / 2}
-                    y={yPos + 4}
+                    animate={{ y: yPos + 4 }}
                     textAnchor='middle'
                     fill='var(--chakra-colors-bg-canvas)' // Contrast text
                     fontSize='12'
                     fontWeight='600'
                     fontFamily='var(--chakra-fonts-heading)'
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
                   >
                     {subcategory.name}
-                  </text>
-                </g>
+                  </motion.text>
+                </motion.g>
+
+                {/* Horizontal line to items - moves with branch using y1/y2 animation */}
+                {isExpanded && (
+                  <motion.line
+                    x1={levelSpacing - 20 + subcategoryWidth}
+                    x2={levelSpacing - 20 + subcategoryWidth + 40}
+                    initial={{ y1: prevPos, y2: prevPos }}
+                    animate={{ y1: yPos, y2: yPos }}
+                    stroke='var(--chakra-colors-border-muted)'
+                    strokeWidth='2'
+                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                  />
+                )}
 
                 {/* Items (when expanded) */}
                 <AnimatePresence>
@@ -366,20 +433,11 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {/* Horizontal line to items */}
-                      <motion.line
-                        x1={levelSpacing - 20 + subcategoryWidth}
-                        animate={{ y1: yPos, y2: yPos }}
-                        x2={levelSpacing - 20 + subcategoryWidth + 40}
-                        stroke='var(--chakra-colors-border-muted)'
-                        strokeWidth='2'
-                        transition={{ duration: 0.3 }}
-                      />
-
                       {/* Vertical connector for items */}
                       {subcategory.items.length > 1 && (
                         <motion.line
                           x1={levelSpacing - 20 + subcategoryWidth + 40}
+                          x2={levelSpacing - 20 + subcategoryWidth + 40}
                           animate={{
                             y1:
                               yPos -
@@ -390,7 +448,6 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                               ((subcategory.items.length - 1) * itemSpacing) /
                                 2,
                           }}
-                          x2={levelSpacing - 20 + subcategoryWidth + 40}
                           stroke='var(--chakra-colors-border-muted)'
                           strokeWidth='2'
                           transition={{ duration: 0.3 }}
