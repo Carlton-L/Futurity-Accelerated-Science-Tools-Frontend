@@ -1,3 +1,23 @@
+/* Local Font Face Declarations - TT Norms Pro only */
+@font-face {
+  font-family: 'TT Norms Pro Normal';
+  src: url('./assets/TT_Norms_Pro_Normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap; /* Improves loading performance */
+}
+
+@font-face {
+  font-family: 'TT Norms Pro Compact';
+  src: url('./assets/TT_Norms_Pro_Compact_Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* JetBrains Mono is loaded via Google Fonts in index.html */
+
+/* Root and Base Styles */
 #root {
   width: 100%;
   height: 100%;
@@ -6,7 +26,7 @@
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
   line-height: 1.5;
   font-weight: 400;
 
