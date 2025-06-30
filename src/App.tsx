@@ -19,6 +19,8 @@ import TeamView from './pages/TeamView';
 import TeamManage from './pages/TeamManage';
 import CreateLab from './pages/CreateLab';
 import { Profile } from './pages/Profile';
+import FuturityAnalysis from './pages/FuturityAnalysis';
+import FuturityAnalysesDirectory from './pages/FuturityAnalysesDirectory';
 
 function App() {
   return (
@@ -36,6 +38,15 @@ function App() {
                 <Route element={<Layout />}>
                   <Route path='/' element={<Home />} />
                   <Route path='/profile' element={<Profile />} />
+                  {/* Analysis routes */}
+                  <Route
+                    path='/futurity-analysis/:slug'
+                    element={<FuturityAnalysis />}
+                  />
+                  <Route
+                    path='/futurity-analyses'
+                    element={<FuturityAnalysesDirectory />}
+                  />
                   {/* Dynamic lab route - this will catch any lab ID */}
                   <Route path='/lab/:id' element={<Lab />} />
                   <Route path='/lab/create' element={<CreateLab />} />

@@ -6,4 +6,6 @@ export { authService } from './authService';
 export { workspaceService } from '../../services/workspaceService';
 export { teamspaceService } from '../../services/teamspaceService';
 export { userService } from '../../services/userService';
+export { relationshipService } from '../../services/relationshipService';
+export { labService } from '../../services/labService';
 export * from './authTypes';

@@ -2,6 +2,7 @@ import React from 'react';
 import { Container, VStack } from '@chakra-ui/react';
 import FuturityLabsSection from './FuturityLabsSection';
 import FeaturedSubjectSection from './FeaturedSubjectSection';
+import AnalysesSection from './AnalysesSection';
 
 const Home: React.FC = () => {
   return (
@@ -9,6 +10,9 @@ const Home: React.FC = () => {
       <VStack gap='12' align='stretch'>
         {/* Featured Subject Section */}
         <FeaturedSubjectSection />
+
+        {/* Analyses Section */}
+        <AnalysesSection />
 
         {/* Futurity Labs Section */}
         <FuturityLabsSection />

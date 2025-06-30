@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Box,
-  Text,
-  Spinner,
-  Button,
-  Flex,
-  Skeleton,
-  HStack,
-} from '@chakra-ui/react';
+import { Box, Text, Button, Flex, Skeleton, HStack } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { futurityLabsAPIService } from '../../services/futurityLabsAPIService';
@@ -185,12 +177,7 @@ const FuturityLabsSection: React.FC = () => {
                 width='calc(25% - 18px)' // Assume 4 cards initially
                 minWidth='280px'
               >
-                <Skeleton
-                  height='200px'
-                  borderRadius='md'
-                  startColor='bg.muted'
-                  endColor='bg.hover'
-                />
+                <Skeleton height='200px' borderRadius='md' />
               </Box>
             ))}
           </Flex>

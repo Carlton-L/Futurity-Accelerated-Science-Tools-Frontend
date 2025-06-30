@@ -1,3 +1,5 @@
+// AuthContext/authTypes.ts
+
 export type User = {
   _id: string;
   username: string;
@@ -22,6 +24,36 @@ export type User = {
   last_login?: number;
   preferences?: Record<string, any>;
   permissions?: string[];
+};
+
+// New relationship types
+export type UserOrganization = {
+  _id: string;
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  metadata: Record<string, any>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  user_relationships: string[];
+};
+
+export type UserTeam = {
+  _id: string;
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  metadata: Record<string, any>;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  user_relationships: string[];
+};
+
+export type UserRelationships = {
+  organizations: UserOrganization[];
+  teams: UserTeam[];
 };
 
 export type WorkspaceMember = {
@@ -147,11 +179,22 @@ export type AuthContextType = {
   workspace: Workspace | null;
   currentTeamspace: TeamspaceListItem | null;
   teamspaces: TeamspaceListItem[];
+  // New relationship data
+  userRelationships: UserRelationships | null;
+  currentTeam: UserTeam | null;
+  currentOrganization: UserOrganization | null;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
   setCurrentTeamspace: (teamspace: TeamspaceListItem | null) => void;
+  setCurrentTeam: (team: UserTeam | null) => void;
   refreshWorkspace: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshRelationships: () => Promise<void>;
+  // Helper methods for checking permissions
+  isOrgAdmin: () => boolean;
+  isTeamAdmin: (teamId?: string) => boolean;
+  isTeamEditor: (teamId?: string) => boolean;
+  isTeamViewer: (teamId?: string) => boolean;
   isLoading: boolean;
   isAuthenticated: boolean;
 };
