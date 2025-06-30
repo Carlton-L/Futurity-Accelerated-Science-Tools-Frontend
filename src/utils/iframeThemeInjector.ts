@@ -157,9 +157,9 @@ export const createThemeCSS = (): string => {
         font-size: 20px !important;
       }
       
-.even {
-background-color: transparent !important;
-}
+      .even {
+        background-color: transparent !important;
+      }
 
       /* Code blocks */
       pre, code {
@@ -198,7 +198,9 @@ background-color: transparent !important;
       }
 
       img {
-      background-color: #eee !important
+        background-color: #eee !important;
+        padding: 4px;
+        border-radius: 8px;
       }
 
       .xtick text {
