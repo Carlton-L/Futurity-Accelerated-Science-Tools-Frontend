@@ -114,7 +114,7 @@ class LabService {
 
   // Get a specific lab by ID
   async getLabById(labId: string, token: string): Promise<Lab> {
-    const response = await fetch(`${API_BASE_URL}/${labId}`, {
+    const response = await fetch(`${API_BASE_URL}${labId}`, {
       method: 'GET',
       headers: this.getAuthHeaders(token),
     });
