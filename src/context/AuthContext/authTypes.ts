@@ -56,6 +56,71 @@ export type UserRelationships = {
   teams: UserTeam[];
 };
 
+// Lab types imported from labService
+export type Lab = {
+  _id: string;
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  kbid?: string;
+  miro_board_url?: string;
+  ent_summary?: string;
+  picture_url?: string;
+  thumbnail_url?: string;
+  subjects_config: Array<{
+    subject_name: string;
+    subject_fsid: string;
+    subcategory_name: string;
+    subcategory_fsid: string;
+  }>;
+  subjects: Array<{
+    subject_name: string;
+    subject_fsid: string;
+    subject_summary: string;
+    subject_indexes: any[];
+  }>;
+  subcategories: Array<{
+    id: string;
+    name: string;
+    fsid: string;
+    subject_count: number;
+    metadata?: {
+      description?: string;
+      deletable?: boolean;
+    };
+    status?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
+  metadata: {
+    kbid?: string;
+    miro_board_url?: string;
+    ent_summary?: string;
+    subject_fsids?: string[];
+    exclude_terms?: string[];
+    include_terms?: string[];
+    picture_url?: string;
+    [key: string]: any;
+  };
+  exclude_terms?: string[];
+  include_terms?: string[];
+  goals?: Array<{
+    name: string;
+    description: string;
+    user_groups: Array<{
+      description: string;
+      size: number;
+    }>;
+    problem_statements: Array<{
+      description: string;
+    }>;
+    impact_level: number;
+  }>;
+};
+
 export type WorkspaceMember = {
   user_id: string;
   role: 'owner' | 'admin';
@@ -125,7 +190,7 @@ export type Workspace = {
   user_access_level: 'owner' | 'admin';
 };
 
-export type Lab = {
+export type LabOld = {
   _id: string;
   ent_name: string;
   ent_summary: string | null;
@@ -185,13 +250,18 @@ export type AuthContextType = {
   currentOrganization: UserOrganization | null;
   // Whiteboard data - just the uniqueID
   whiteboardId: string | null;
+  // Lab data for current team
+  currentTeamLabs: Lab[];
+  isLoadingLabs: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
   setCurrentTeamspace: (teamspace: TeamspaceListItem | null) => void;
   setCurrentTeam: (team: UserTeam | null) => void;
   refreshWorkspace: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  refreshRelationships: () => Promise<void>;
   refreshWhiteboard: () => Promise<void>;
+  refreshLabs: () => Promise<void>;
   // Helper methods for checking permissions
   isOrgAdmin: () => boolean;
   isTeamAdmin: (teamId?: string) => boolean;

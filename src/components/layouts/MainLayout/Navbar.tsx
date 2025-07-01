@@ -27,7 +27,6 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
-import { labService, type Lab } from '../../../services/labService';
 // import FastIcon from '../../../assets/fast_icon.svg';
 import AnimatedHypercube from '../../shared/AnimatedHypercube';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
@@ -59,8 +58,8 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
   const isCurrentTeamAdmin = isTeamAdmin(currentTeam.uniqueID);
 
   // Enhanced team change handler with smart navigation
-  const handleTeamChange = (newTeam: typeof currentTeam) => {
-    setCurrentTeam(newTeam);
+  const handleTeamChange = async (newTeam: typeof currentTeam) => {
+    await setCurrentTeam(newTeam);
 
     // Get current URL to determine redirect behavior
     const currentPath = window.location.pathname;
@@ -277,12 +276,18 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
 
 const Navbar: React.FC = () => {
   const { isDark, toggleColorMode } = useTheme();
-  const { user, logout, currentTeam, token, isOrgAdmin } = useAuth();
+  const {
+    user,
+    logout,
+    currentTeam,
+    isOrgAdmin,
+    currentTeamLabs,
+    isLoadingLabs,
+    refreshLabs,
+  } = useAuth();
   const navigate = useNavigate();
 
-  // State for labs management
-  const [teamLabs, setTeamLabs] = useState<Lab[]>([]);
-  const [isLoadingLabs, setIsLoadingLabs] = useState(false);
+  // Window width state for responsive behavior
   const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
   const [isWorkspaceManageOpen, setIsWorkspaceManageOpen] = useState(false);
 
@@ -306,59 +311,15 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch labs when current team changes - UPDATED to use new lab API
-  useEffect(() => {
-    const fetchTeamLabs = async () => {
-      if (!currentTeam || !token) {
-        setTeamLabs([]);
-        return;
-      }
-
-      try {
-        setIsLoadingLabs(true);
-
-        // Fetch lab data using the new lab service
-        const labs = await labService.getLabsForTeam(
-          currentTeam.uniqueID,
-          token,
-          false // don't include archived labs
-        );
-
-        setTeamLabs(labs);
-      } catch (error) {
-        console.error('Failed to fetch team labs:', error);
-        // Set empty array on error
-        setTeamLabs([]);
-      } finally {
-        setIsLoadingLabs(false);
-      }
-    };
-
-    fetchTeamLabs();
-  }, [currentTeam, token]);
-
   const handleLabSelect = (labUniqueId: string) => {
     navigate(`/lab/${labUniqueId}`);
   };
 
   const refreshLabsList = async () => {
-    if (!currentTeam || !token) return;
-
     try {
-      setIsLoadingLabs(true);
-
-      // Re-fetch labs using the new lab service
-      const labs = await labService.getLabsForTeam(
-        currentTeam.uniqueID,
-        token,
-        false
-      );
-
-      setTeamLabs(labs);
+      await refreshLabs();
     } catch (error) {
       console.error('Failed to refresh labs:', error);
-    } finally {
-      setIsLoadingLabs(false);
     }
   };
 
@@ -462,7 +423,7 @@ const Navbar: React.FC = () => {
             </Button>
           )}
 
-          {/* Labs Button - MOVED TO SECOND POSITION */}
+          {/* Labs Button - MOVED TO SECOND POSITION - Now uses auth context data */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Button
@@ -574,7 +535,7 @@ const Navbar: React.FC = () => {
                           <Text>Loading labs...</Text>
                         </HStack>
                       </Menu.Item>
-                    ) : teamLabs.length > 0 ? (
+                    ) : currentTeamLabs.length > 0 ? (
                       <>
                         {/* Create Lab Button - moved to top with themed styling */}
                         <Box px={3} py={2}>
@@ -605,7 +566,7 @@ const Navbar: React.FC = () => {
                         <Menu.Separator borderColor='border.muted' />
 
                         {/* Sort labs alphabetically by name */}
-                        {[...teamLabs]
+                        {[...currentTeamLabs]
                           .sort((a, b) => a.ent_name.localeCompare(b.ent_name))
                           .map((lab) => (
                             <Menu.Item
