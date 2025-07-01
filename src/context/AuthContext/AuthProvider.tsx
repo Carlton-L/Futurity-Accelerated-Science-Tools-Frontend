@@ -18,6 +18,9 @@ import { workspaceService } from '../../services/workspaceService';
 import { userService, type ExtendedUserData } from '../../services/userService';
 import { relationshipService } from '../../services/relationshipService';
 
+// Constants for localStorage keys
+const CURRENT_TEAM_STORAGE_KEY = 'futurity_current_team';
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [extendedUser, setExtendedUser] = useState<ExtendedUserData | null>(
@@ -32,11 +35,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // New relationship states
   const [userRelationships, setUserRelationships] =
     useState<UserRelationships | null>(null);
-  const [currentTeam, setCurrentTeam] = useState<UserTeam | null>(null);
+  const [currentTeam, setCurrentTeamState] = useState<UserTeam | null>(null);
   const [currentOrganization, setCurrentOrganization] =
     useState<UserOrganization | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Team persistence functions
+  const saveCurrentTeamToStorage = (team: UserTeam | null) => {
+    try {
+      if (team) {
+        localStorage.setItem(
+          CURRENT_TEAM_STORAGE_KEY,
+          JSON.stringify({
+            _id: team._id,
+            uniqueID: team.uniqueID,
+            ent_name: team.ent_name,
+            ent_fsid: team.ent_fsid,
+            metadata: team.metadata,
+            status: team.status,
+            createdAt: team.createdAt,
+            updatedAt: team.updatedAt,
+            user_relationships: team.user_relationships,
+          })
+        );
+        console.log('Saved current team to localStorage:', team.ent_name);
+      } else {
+        localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
+        console.log('Removed current team from localStorage');
+      }
+    } catch (error) {
+      console.error('Failed to save current team to localStorage:', error);
+    }
+  };
+
+  const loadCurrentTeamFromStorage = (): UserTeam | null => {
+    try {
+      const storedTeam = localStorage.getItem(CURRENT_TEAM_STORAGE_KEY);
+      if (storedTeam) {
+        const parsed = JSON.parse(storedTeam);
+        console.log('Loaded team from localStorage:', parsed.ent_name);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Failed to load current team from localStorage:', error);
+    }
+    return null;
+  };
+
+  // Enhanced setCurrentTeam function with persistence
+  const setCurrentTeam = (team: UserTeam | null) => {
+    console.log('Setting current team:', team?.ent_name || 'null');
+    setCurrentTeamState(team);
+    saveCurrentTeamToStorage(team);
+  };
 
   // Load extended user data after basic auth
   const loadExtendedUserData = async (basicUser: User, userToken: string) => {
@@ -88,10 +140,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setCurrentOrganization(relationships.organizations[0]);
       }
 
-      // Set current team (use first if available)
-      if (relationships.teams.length > 0) {
-        setCurrentTeam(relationships.teams[0]);
-      }
+      // Handle team selection with persistence
+      await handleTeamSelection(relationships.teams);
 
       console.log('Relationship data loaded successfully');
     } catch (error) {
@@ -100,6 +150,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserRelationships(null);
       setCurrentTeam(null);
       setCurrentOrganization(null);
+    }
+  };
+
+  // Handle team selection with persistence logic
+  const handleTeamSelection = async (availableTeams: UserTeam[]) => {
+    if (availableTeams.length === 0) {
+      console.log('No teams available for user');
+      setCurrentTeam(null);
+      return;
+    }
+
+    // Try to restore team from localStorage
+    const storedTeam = loadCurrentTeamFromStorage();
+
+    if (storedTeam) {
+      // Verify that the stored team is still valid (user still has access)
+      const isValidTeam = availableTeams.some(
+        (team) => team.uniqueID === storedTeam.uniqueID
+      );
+
+      if (isValidTeam) {
+        // Find the full team object with current data
+        const currentTeamData = availableTeams.find(
+          (team) => team.uniqueID === storedTeam.uniqueID
+        );
+        console.log(
+          'Restored valid team from storage:',
+          currentTeamData?.ent_name
+        );
+        setCurrentTeamState(currentTeamData || null);
+        // Update storage with fresh data
+        if (currentTeamData) {
+          saveCurrentTeamToStorage(currentTeamData);
+        }
+      } else {
+        // Stored team is no longer valid, clear it and set first available team
+        console.log(
+          'Stored team is no longer accessible, using first available team'
+        );
+        localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
+        const firstTeam = availableTeams[0];
+        setCurrentTeam(firstTeam);
+      }
+    } else {
+      // No stored team, set first available team
+      console.log('No stored team, using first available team');
+      const firstTeam = availableTeams[0];
+      setCurrentTeam(firstTeam);
     }
   };
 
@@ -168,7 +266,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Load extended user data (will use reliable ID if needed)
             await loadExtendedUserData(userData, finalToken);
 
-            // Load relationship data
+            // Load relationship data (includes team persistence logic)
             await loadRelationshipData(userData, finalToken);
 
             // Load workspace data
@@ -222,7 +320,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Load extended user data after successful login
       await loadExtendedUserData(userData, authToken);
 
-      // Load relationship data after successful login
+      // Load relationship data after successful login (includes team persistence)
       await loadRelationshipData(userData, authToken);
 
       // Load workspace data after successful login
@@ -239,6 +337,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       await authService.logout();
+
+      // Clear stored team data
+      localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
+      console.log('Cleared stored team data on logout');
+
       setUser(null);
       setExtendedUser(null);
       setToken(null);
@@ -246,11 +349,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setTeamspaces([]);
       setCurrentTeamspace(null);
       setUserRelationships(null);
-      setCurrentTeam(null);
+      setCurrentTeamState(null);
       setCurrentOrganization(null);
     } catch (error) {
       console.error('Logout failed:', error);
       // Still clear local state even if API call fails
+      localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
       setUser(null);
       setExtendedUser(null);
       setToken(null);
@@ -258,7 +362,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setTeamspaces([]);
       setCurrentTeamspace(null);
       setUserRelationships(null);
-      setCurrentTeam(null);
+      setCurrentTeamState(null);
       setCurrentOrganization(null);
     } finally {
       setIsLoading(false);
@@ -307,10 +411,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const handleSetCurrentTeamspace = (teamspace: TeamspaceListItem | null) => {
     setCurrentTeamspace(teamspace);
-  };
-
-  const handleSetCurrentTeam = (team: UserTeam | null) => {
-    setCurrentTeam(team);
   };
 
   // Helper methods for checking permissions
@@ -364,7 +464,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     logout,
     setCurrentTeamspace: handleSetCurrentTeamspace,
-    setCurrentTeam: handleSetCurrentTeam,
+    setCurrentTeam, // This is the enhanced version with persistence
     refreshWorkspace,
     refreshUser,
     refreshRelationships,

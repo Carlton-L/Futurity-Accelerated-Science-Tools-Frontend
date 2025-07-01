@@ -1,5 +1,57 @@
 import { useRef, useEffect } from 'react';
 
+/**
+ * AnimatedHypercube Component
+ *
+ * A 3D animated hypercube visualization with interactive hover effects.
+ *
+ * Usage Examples:
+ *
+ * 1. Basic usage:
+ *    <AnimatedHypercube theme="dark" />
+ *
+ * 2. With onClick handler:
+ *    <AnimatedHypercube
+ *      theme="light"
+ *      onClick={() => navigate('/dashboard')}
+ *    />
+ *
+ * 3. As a React Router link (RECOMMENDED for navigation):
+ *    <RouterLink
+ *      to='/'
+ *      style={{
+ *        height: '100%',
+ *        width: 'auto',
+ *        cursor: 'pointer',
+ *        flexShrink: 0,
+ *        display: 'block',
+ *        transition: 'opacity 0.2s',
+ *      }}
+ *      onMouseEnter={(e) => {
+ *        e.currentTarget.style.opacity = '0.8';
+ *      }}
+ *      onMouseLeave={(e) => {
+ *        e.currentTarget.style.opacity = '1';
+ *      }}
+ *    >
+ *      <AnimatedHypercube theme={isDark ? 'dark' : 'light'} />
+ *    </RouterLink>
+ *
+ * The RouterLink wrapper approach provides:
+ * - Left click navigation within the app
+ * - Right-click context menu with "Open in new tab"
+ * - Ctrl/Cmd+click opens in new tab
+ * - Proper hover animations on both the link and hypercube
+ *
+ * Features:
+ * - Smooth 3D rotation animations with easing
+ * - Initial animation on component mount
+ * - Theme support (dark/light)
+ * - Hover-triggered animation states
+ * - Dynamic edge thickness based on rotation angle
+ * - Inner and outer cube visualization with connecting lines
+ */
+
 interface AnimatedHypercubeProps {
   theme?: 'dark' | 'light';
   onClick?: () => void;
@@ -525,13 +577,20 @@ const AnimatedHypercube = ({
     }
   }, []);
 
-  // Handle click events - only prevent default if we have an onClick handler
+  // Handle click events
   const handleClick = (e: React.MouseEvent) => {
-    if (onClick) {
-      e.preventDefault();
-      onClick();
+    // Only prevent default for left clicks (not middle click, right click, etc.)
+    if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      if (onClick) {
+        e.preventDefault();
+        onClick();
+      } else if (href && href.startsWith('/')) {
+        // For internal routes, prevent default and let React Router handle it
+        e.preventDefault();
+        // This will be handled by the RouterLink wrapper
+      }
     }
-    // For href links, let the default behavior happen
+    // For other cases (right-click, ctrl+click, etc.), let browser handle naturally
   };
 
   // Basic style object
@@ -543,7 +602,7 @@ const AnimatedHypercube = ({
     overflow: 'visible' as const,
     textDecoration: 'none',
     color: 'inherit',
-    cursor: 'pointer',
+    cursor: onClick || href ? 'pointer' : 'inherit',
   };
 
   const svgContent = (
@@ -551,7 +610,12 @@ const AnimatedHypercube = ({
       width='64'
       height='64'
       viewBox='-200 -200 400 400'
-      style={{ display: 'block', background: 'transparent' }}
+      style={{
+        display: 'block',
+        background: 'transparent',
+        // SVG should not capture any pointer events
+        pointerEvents: 'none',
+      }}
     >
       <style>{`
         .thick-edge {
@@ -617,9 +681,20 @@ const AnimatedHypercube = ({
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement>}
-      style={baseStyle}
-      onClick={handleClick}
-      className='cursor-pointer'
+      style={{
+        ...baseStyle,
+        // Enable pointer events to capture hover, but handle clicks conditionally
+        pointerEvents: 'auto',
+      }}
+      onClick={
+        onClick
+          ? handleClick
+          : (_e) => {
+              // When no onClick handler, don't prevent default - let RouterLink handle it
+              // Don't call preventDefault or stopPropagation
+            }
+      }
+      className={onClick ? 'cursor-pointer' : undefined}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={
