@@ -256,11 +256,11 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
             <VStack gap={0} align='stretch'>
               {searchResults.slice(0, 10).map((result) => {
                 // Show max 10 results
-                const subjectId = result._id.$oid;
-                const alreadyInLab = isSubjectInLab(subjectId);
+                const subjectFsid = result.ent_fsid; // Use fsid instead of objectId
+                const alreadyInLab = isSubjectInLab(subjectFsid);
                 return (
                   <HStack
-                    key={subjectId}
+                    key={subjectFsid}
                     p={3}
                     _hover={{ bg: 'gray.700' }}
                     justify='space-between'

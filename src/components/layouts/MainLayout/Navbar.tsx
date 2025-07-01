@@ -24,11 +24,12 @@ import {
   LuRefreshCw,
   LuPlus,
 } from 'react-icons/lu';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
 import { labService, type Lab } from '../../../services/labService';
-import FastIcon from '../../../assets/fast_icon.svg';
+// import FastIcon from '../../../assets/fast_icon.svg';
+import AnimatedHypercube from '../../shared/AnimatedHypercube';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
 import LabsIcon from '../../../assets/labs.svg';
 import SearchField from './SearchField';
@@ -366,24 +367,25 @@ const Navbar: React.FC = () => {
         >
           {/* Left Navigation Items */}
           {/* Logo */}
-          <Box
-            onClick={() => navigate('/')}
-            height='100%'
-            width='auto'
-            filter={{
-              _dark: 'brightness(0) invert(1)', // White logo in dark mode
-              _light: 'brightness(0)', // Black logo in light mode
+          <RouterLink
+            to='/'
+            style={{
+              height: '100%',
+              width: 'auto',
+              cursor: 'pointer',
+              flexShrink: 0,
+              display: 'block',
+              transition: 'opacity 0.2s',
             }}
-            _hover={{ opacity: 0.8 }}
-            cursor='pointer'
-            flexShrink={0}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
           >
-            <img
-              src={FastIcon}
-              alt='FAST Icon'
-              style={{ height: '100%', width: 'auto' }}
-            />
-          </Box>
+            <AnimatedHypercube theme={isDark ? 'dark' : 'light'} />
+          </RouterLink>
 
           {/* TASK 1: Reordered navigation items - Team → Labs → My Whiteboard → Profile */}
 

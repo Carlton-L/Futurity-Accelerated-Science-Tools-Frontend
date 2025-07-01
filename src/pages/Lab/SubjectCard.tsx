@@ -28,13 +28,37 @@ interface SubjectCardProps {
 
 interface SubjectApiData {
   _id: string;
+  Google_hitcounts: number;
+  Papers_hitcounts: number;
+  Books_hitcounts: number;
+  Gnews_hitcounts: number;
+  Related_terms: string;
+  wikipedia_definition: string;
+  wiktionary_definition: string;
+  FST: string;
+  wikipedia_url: string;
   ent_name: string;
+  FS_Cards: string;
+  subject: string;
   ent_fsid: string;
   ent_summary: string;
-  indexes?: Array<{
+  fs_card: string;
+  last_update: string;
+  category: string;
+  ent_year: number;
+  inventor: string;
+  synonyms: string[];
+  indexes: Array<{
     HR: number;
     TT: number;
     WS: number;
+  }>;
+  xRL: Array<{
+    IRL: number;
+    SRL: number;
+    ERL: number;
+    BRL: number;
+    CRL: number;
   }>;
 }
 
@@ -344,13 +368,6 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  // Extract slug from subject's ent_fsid (remove fsid_ prefix)
-  const getSubjectSlug = (subjectSlug: string): string => {
-    return subjectSlug.startsWith('fsid_')
-      ? subjectSlug.substring(5)
-      : subjectSlug;
-  };
-
   useEffect(() => {
     const fetchSubjectData = async () => {
       if (!token || !subject.subjectSlug) {
@@ -362,10 +379,15 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
       setDataError(null);
 
       try {
-        const slug = getSubjectSlug(subject.subjectSlug);
+        // UPDATED: Use the new fast.futurity.science endpoint
+        // Ensure the fsid has the fsid_ prefix for the API call
+        const subjectFsid = subject.subjectSlug.startsWith('fsid_')
+          ? subject.subjectSlug
+          : `fsid_${subject.subjectSlug}`;
+
         const response = await fetch(
-          `https://tools.futurity.science/api/subject/view?slug=${encodeURIComponent(
-            slug
+          `https://fast.futurity.science/management/subjects/${encodeURIComponent(
+            subjectFsid
           )}`,
           {
             headers: {
