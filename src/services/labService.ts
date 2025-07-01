@@ -1,6 +1,6 @@
 // services/labService.ts
 
-const API_BASE_URL = 'https://fast.futurity.science/management/labs';
+const API_BASE_URL = 'https://fast.futurity.science/management/labs/';
 
 // Type definitions for the new Labs API
 export interface SubjectConfig {
