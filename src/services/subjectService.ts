@@ -329,6 +329,11 @@ class SubjectService {
         subject: subjectFsid,
       };
 
+      console.log('Adding subject to whiteboard:', {
+        whiteboardId,
+        subjectFsid,
+      });
+
       const response = await fetch(
         `${MANAGEMENT_API_BASE_URL}/whiteboards/${whiteboardId}/subjects`,
         {
@@ -355,7 +360,23 @@ class SubjectService {
         );
       }
 
-      const data: AddToWhiteboardResponse = await response.json();
+      // Try to parse the response, but handle cases where it might be empty or not JSON
+      let data: AddToWhiteboardResponse;
+      const responseText = await response.text();
+
+      if (responseText.trim() === '') {
+        // Empty response means success
+        data = { success: true, message: 'Successfully added to whiteboard' };
+      } else {
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          // If response isn't JSON, assume success since status was ok
+          data = { success: true, message: 'Successfully added to whiteboard' };
+        }
+      }
+
+      console.log('Add to whiteboard response:', data);
       return data;
     } catch (error) {
       console.error('Add to whiteboard error:', error);

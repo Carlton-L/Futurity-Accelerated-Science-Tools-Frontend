@@ -10,6 +10,8 @@ import {
   IconButton,
   Dialog,
   Field,
+  Spinner,
+  Center,
 } from '@chakra-ui/react';
 import { FiEdit, FiSave, FiX, FiPlus, FiCheck } from 'react-icons/fi';
 import type { ApiLabGoal } from '../../services/labService';
@@ -796,185 +798,221 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
                 onClick={handleClose}
                 color='fg'
                 _hover={{ bg: 'bg.hover' }}
+                disabled={saving}
               >
                 <FiX />
               </IconButton>
             </Dialog.CloseTrigger>
           </Dialog.Header>
 
-          <Dialog.Body maxH='calc(90vh - 140px)' overflowY='auto'>
-            <VStack gap={8} align='stretch' w='100%'>
-              {/* Goal Name */}
-              <Field.Root w='100%'>
-                <Field.Label color='fg'>Goal Name</Field.Label>
-                <Input
-                  value={newGoal.name}
-                  onChange={(e) =>
-                    setNewGoal((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  placeholder='e.g., Reduce fashion waste in luxury market'
-                  size='lg'
-                  w='100%'
-                  bg='bg.canvas'
-                  borderColor='border.emphasized'
-                  color='fg'
-                  _placeholder={{ color: 'fg.muted' }}
-                  _focus={{
-                    borderColor: 'brand',
-                    boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-                  }}
-                />
-              </Field.Root>
-
-              {/* Goal Description */}
-              <Field.Root w='100%'>
-                <Field.Label color='fg'>Goal Description</Field.Label>
-                <Textarea
-                  value={newGoal.description}
-                  onChange={(e) =>
-                    setNewGoal((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder='Describe what this goal aims to achieve...'
-                  rows={4}
-                  size='lg'
-                  w='100%'
-                  bg='bg.canvas'
-                  borderColor='border.emphasized'
-                  color='fg'
-                  _placeholder={{ color: 'fg.muted' }}
-                  _focus={{
-                    borderColor: 'brand',
-                    boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-                  }}
-                />
-              </Field.Root>
-
-              {/* Impact Level - Slider first, then description */}
-              <Field.Root w='100%'>
-                <Field.Label color='fg'>
-                  Impact Level ({newGoal.impact_level}%)
-                </Field.Label>
-                <VStack gap={4} align='stretch' w='100%'>
-                  <CustomSlider
-                    value={impactSliderIndex}
-                    onChange={handleImpactChange}
-                    min={0}
-                    max={IMPACT_LEVELS.length - 1}
-                    step={1}
+          {saving ? (
+            // Loading State - Replace entire dialog content
+            <Box p={8}>
+              <Center>
+                <VStack gap={6} textAlign='center'>
+                  <Spinner
+                    size='xl'
+                    color='brand'
+                    thickness='4px'
+                    speed='0.65s'
                   />
-                  <VStack gap={0} align='start' w='100%'>
-                    <Text fontSize='lg' fontWeight='bold' color='fg'>
-                      {impactInfo.title}
+                  <VStack gap={2}>
+                    <Text
+                      fontSize='lg'
+                      fontWeight='medium'
+                      color='fg'
+                      fontFamily='heading'
+                    >
+                      {isEditing ? 'Updating Lab Goal' : 'Adding New Lab Goal'}
                     </Text>
-                    <Text fontSize='sm' color='fg.muted' lineHeight='1.4'>
-                      {impactInfo.description}
+                    <Text fontSize='sm' color='fg.muted' fontFamily='body'>
+                      Please wait while we save your goal to the lab...
                     </Text>
                   </VStack>
                 </VStack>
-              </Field.Root>
-
-              {/* User Groups */}
-              <Field.Root w='100%'>
-                <Field.Label color='fg'>User Groups</Field.Label>
-                <VStack gap={4} align='stretch' w='100%'>
-                  {newGoal.user_groups.map((group, index) => (
-                    <UserGroupItem
-                      key={index}
-                      group={group}
-                      index={index}
-                      isEditing={editingUserGroups.has(index)}
-                      onChange={updateUserGroup}
-                      onRemove={removeUserGroup}
-                      onConfirm={confirmUserGroup}
-                      onCancel={cancelUserGroup}
-                      onEdit={editUserGroup}
-                      canRemove={true}
+              </Center>
+            </Box>
+          ) : (
+            // Normal Form Content
+            <>
+              <Dialog.Body maxH='calc(90vh - 140px)' overflowY='auto'>
+                <VStack gap={8} align='stretch' w='100%'>
+                  {/* Goal Name */}
+                  <Field.Root w='100%'>
+                    <Field.Label color='fg'>Goal Name</Field.Label>
+                    <Input
+                      value={newGoal.name}
+                      onChange={(e) =>
+                        setNewGoal((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder='e.g., Reduce fashion waste in luxury market'
+                      size='lg'
+                      w='100%'
+                      bg='bg.canvas'
+                      borderColor='border.emphasized'
+                      color='fg'
+                      _placeholder={{ color: 'fg.muted' }}
+                      _focus={{
+                        borderColor: 'brand',
+                        boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                      }}
                     />
-                  ))}
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={addUserGroup}
-                    color='fg.muted'
-                    borderColor='border.muted'
-                    borderStyle='dashed'
-                    _hover={{ bg: 'bg.hover' }}
-                  >
-                    <FiPlus size={12} />
-                    <Text ml={2}>Add Another Group</Text>
-                  </Button>
-                </VStack>
-              </Field.Root>
+                  </Field.Root>
 
-              {/* Problem Statements */}
-              <Field.Root w='100%'>
-                <Field.Label color='fg'>Problem Statements</Field.Label>
-                <VStack gap={4} align='stretch' w='100%'>
-                  {newGoal.problem_statements.map((statement, index) => (
-                    <ProblemStatementItem
-                      key={index}
-                      statement={statement}
-                      index={index}
-                      isEditing={editingProblemStatements.has(index)}
-                      onChange={updateProblemStatement}
-                      onRemove={removeProblemStatement}
-                      onConfirm={confirmProblemStatement}
-                      onCancel={cancelProblemStatement}
-                      onEdit={editProblemStatement}
-                      canRemove={true}
+                  {/* Goal Description */}
+                  <Field.Root w='100%'>
+                    <Field.Label color='fg'>Goal Description</Field.Label>
+                    <Textarea
+                      value={newGoal.description}
+                      onChange={(e) =>
+                        setNewGoal((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder='Describe what this goal aims to achieve...'
+                      rows={4}
+                      size='lg'
+                      w='100%'
+                      bg='bg.canvas'
+                      borderColor='border.emphasized'
+                      color='fg'
+                      _placeholder={{ color: 'fg.muted' }}
+                      _focus={{
+                        borderColor: 'brand',
+                        boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                      }}
                     />
-                  ))}
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={addProblemStatement}
-                    color='fg.muted'
-                    borderColor='border.muted'
-                    borderStyle='dashed'
-                    _hover={{ bg: 'bg.hover' }}
-                  >
-                    <FiPlus size={12} />
-                    <Text ml={2}>Add Another Problem</Text>
-                  </Button>
-                </VStack>
-              </Field.Root>
-            </VStack>
-          </Dialog.Body>
+                  </Field.Root>
 
-          <Dialog.Footer>
-            <VStack gap={3} align='stretch' w='100%'>
-              {!hasValidUserGroups && (
-                <Text fontSize='sm' color='red.500' textAlign='center'>
-                  Please add at least one user group to save this goal.
-                </Text>
-              )}
-              <HStack gap={3} justify='center'>
-                <Button
-                  variant='outline'
-                  onClick={handleClose}
-                  color='fg'
-                  borderColor='border.emphasized'
-                  _hover={{ bg: 'bg.hover' }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  loading={saving}
-                  disabled={!canSaveGoal}
-                  bg='brand'
-                  color='white'
-                  _hover={{ bg: 'brand.hover' }}
-                >
-                  <FiSave size={14} />
-                  {isEditing ? 'Update Goal' : 'Save Goal'}
-                </Button>
-              </HStack>
-            </VStack>
-          </Dialog.Footer>
+                  {/* Impact Level - Slider first, then description */}
+                  <Field.Root w='100%'>
+                    <Field.Label color='fg'>
+                      Impact Level ({newGoal.impact_level}%)
+                    </Field.Label>
+                    <VStack gap={4} align='stretch' w='100%'>
+                      <CustomSlider
+                        value={impactSliderIndex}
+                        onChange={handleImpactChange}
+                        min={0}
+                        max={IMPACT_LEVELS.length - 1}
+                        step={1}
+                      />
+                      <VStack gap={0} align='start' w='100%'>
+                        <Text fontSize='lg' fontWeight='bold' color='fg'>
+                          {impactInfo.title}
+                        </Text>
+                        <Text fontSize='sm' color='fg.muted' lineHeight='1.4'>
+                          {impactInfo.description}
+                        </Text>
+                      </VStack>
+                    </VStack>
+                  </Field.Root>
+
+                  {/* User Groups */}
+                  <Field.Root w='100%'>
+                    <Field.Label color='fg'>User Groups</Field.Label>
+                    <VStack gap={4} align='stretch' w='100%'>
+                      {newGoal.user_groups.map((group, index) => (
+                        <UserGroupItem
+                          key={index}
+                          group={group}
+                          index={index}
+                          isEditing={editingUserGroups.has(index)}
+                          onChange={updateUserGroup}
+                          onRemove={removeUserGroup}
+                          onConfirm={confirmUserGroup}
+                          onCancel={cancelUserGroup}
+                          onEdit={editUserGroup}
+                          canRemove={true}
+                        />
+                      ))}
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={addUserGroup}
+                        color='fg.muted'
+                        borderColor='border.muted'
+                        borderStyle='dashed'
+                        _hover={{ bg: 'bg.hover' }}
+                      >
+                        <FiPlus size={12} />
+                        <Text ml={2}>Add Another Group</Text>
+                      </Button>
+                    </VStack>
+                  </Field.Root>
+
+                  {/* Problem Statements */}
+                  <Field.Root w='100%'>
+                    <Field.Label color='fg'>Problem Statements</Field.Label>
+                    <VStack gap={4} align='stretch' w='100%'>
+                      {newGoal.problem_statements.map((statement, index) => (
+                        <ProblemStatementItem
+                          key={index}
+                          statement={statement}
+                          index={index}
+                          isEditing={editingProblemStatements.has(index)}
+                          onChange={updateProblemStatement}
+                          onRemove={removeProblemStatement}
+                          onConfirm={confirmProblemStatement}
+                          onCancel={cancelProblemStatement}
+                          onEdit={editProblemStatement}
+                          canRemove={true}
+                        />
+                      ))}
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={addProblemStatement}
+                        color='fg.muted'
+                        borderColor='border.muted'
+                        borderStyle='dashed'
+                        _hover={{ bg: 'bg.hover' }}
+                      >
+                        <FiPlus size={12} />
+                        <Text ml={2}>Add Another Problem</Text>
+                      </Button>
+                    </VStack>
+                  </Field.Root>
+                </VStack>
+              </Dialog.Body>
+
+              <Dialog.Footer>
+                <VStack gap={3} align='stretch' w='100%'>
+                  {!hasValidUserGroups && (
+                    <Text fontSize='sm' color='red.500' textAlign='center'>
+                      Please add at least one user group to save this goal.
+                    </Text>
+                  )}
+                  <HStack gap={3} justify='center'>
+                    <Button
+                      variant='outline'
+                      onClick={handleClose}
+                      color='fg'
+                      borderColor='border.emphasized'
+                      _hover={{ bg: 'bg.hover' }}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={!canSaveGoal || saving}
+                      bg='brand'
+                      color='white'
+                      _hover={{ bg: 'brand.hover' }}
+                    >
+                      <FiSave size={14} />
+                      {isEditing ? 'Update Goal' : 'Save Goal'}
+                    </Button>
+                  </HStack>
+                </VStack>
+              </Dialog.Footer>
+            </>
+          )}
         </Dialog.Content>
       </Dialog.Positioner>
     </Dialog.Root>

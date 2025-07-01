@@ -12,11 +12,13 @@ import type {
   UserRelationships,
   UserTeam,
   UserOrganization,
+  Lab,
 } from './authTypes';
 import { authService } from './authService';
 import { workspaceService } from '../../services/workspaceService';
 import { userService, type ExtendedUserData } from '../../services/userService';
 import { relationshipService } from '../../services/relationshipService';
+import { labService } from '../../services/labService';
 
 // Constants for localStorage keys
 const CURRENT_TEAM_STORAGE_KEY = 'futurity_current_team';
@@ -41,6 +43,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Whiteboard state - just the uniqueID
   const [whiteboardId, setWhiteboardId] = useState<string | null>(null);
+
+  // Lab states
+  const [currentTeamLabs, setCurrentTeamLabs] = useState<Lab[]>([]);
+  const [isLoadingLabs, setIsLoadingLabs] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -86,11 +92,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  // Enhanced setCurrentTeam function with persistence
-  const setCurrentTeam = (team: UserTeam | null) => {
+  // Load labs for current team
+  const loadLabsForCurrentTeam = async (team: UserTeam, userToken: string) => {
+    if (!team || !userToken) {
+      setCurrentTeamLabs([]);
+      return;
+    }
+
+    try {
+      setIsLoadingLabs(true);
+      console.log('Loading labs for team:', team.ent_name);
+
+      const labs = await labService.getLabsForTeam(
+        team.uniqueID,
+        userToken,
+        false // don't include archived labs
+      );
+
+      setCurrentTeamLabs(labs);
+      console.log(`Loaded ${labs.length} labs for team:`, team.ent_name);
+    } catch (error) {
+      console.error('Failed to load labs for current team:', error);
+      setCurrentTeamLabs([]);
+    } finally {
+      setIsLoadingLabs(false);
+    }
+  };
+
+  // Enhanced setCurrentTeam function with persistence and lab loading
+  const setCurrentTeam = async (team: UserTeam | null) => {
     console.log('Setting current team:', team?.ent_name || 'null');
     setCurrentTeamState(team);
     saveCurrentTeamToStorage(team);
+
+    // Load labs for the new team
+    if (team && token) {
+      await loadLabsForCurrentTeam(team, token);
+    } else {
+      setCurrentTeamLabs([]);
+    }
+  };
+
+  // Refresh labs function
+  const refreshLabs = async (): Promise<void> => {
+    if (!currentTeam || !token) {
+      setCurrentTeamLabs([]);
+      return;
+    }
+
+    try {
+      await loadLabsForCurrentTeam(currentTeam, token);
+    } catch (error) {
+      console.error('Failed to refresh labs:', error);
+      throw error;
+    }
   };
 
   // Load extended user data after basic auth
@@ -176,23 +231,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Handle team selection with persistence
-      await handleTeamSelection(relationships.teams);
+      await handleTeamSelection(relationships.teams, userToken);
 
       console.log('Relationship data loaded successfully');
     } catch (error) {
       console.error('Failed to load relationship data:', error);
       // Don't throw here, just log the error
       setUserRelationships(null);
-      setCurrentTeam(null);
+      setCurrentTeamState(null);
       setCurrentOrganization(null);
+      setCurrentTeamLabs([]);
     }
   };
 
   // Handle team selection with persistence logic
-  const handleTeamSelection = async (availableTeams: UserTeam[]) => {
+  const handleTeamSelection = async (
+    availableTeams: UserTeam[],
+    userToken: string
+  ) => {
     if (availableTeams.length === 0) {
       console.log('No teams available for user');
-      setCurrentTeam(null);
+      setCurrentTeamState(null);
+      setCurrentTeamLabs([]);
       return;
     }
 
@@ -218,6 +278,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Update storage with fresh data
         if (currentTeamData) {
           saveCurrentTeamToStorage(currentTeamData);
+          // Load labs for the restored team
+          await loadLabsForCurrentTeam(currentTeamData, userToken);
         }
       } else {
         // Stored team is no longer valid, clear it and set first available team
@@ -226,13 +288,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
         localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
         const firstTeam = availableTeams[0];
-        setCurrentTeam(firstTeam);
+        setCurrentTeamState(firstTeam);
+        saveCurrentTeamToStorage(firstTeam);
+        await loadLabsForCurrentTeam(firstTeam, userToken);
       }
     } else {
       // No stored team, set first available team
       console.log('No stored team, using first available team');
       const firstTeam = availableTeams[0];
-      setCurrentTeam(firstTeam);
+      setCurrentTeamState(firstTeam);
+      saveCurrentTeamToStorage(firstTeam);
+      await loadLabsForCurrentTeam(firstTeam, userToken);
     }
   };
 
@@ -304,7 +370,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Load whiteboard data
             await loadWhiteboardData(userData, finalToken);
 
-            // Load relationship data (includes team persistence logic)
+            // Load relationship data (includes team persistence logic and lab loading)
             await loadRelationshipData(userData, finalToken);
 
             // Load workspace data
@@ -325,9 +391,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setTeamspaces([]);
             setCurrentTeamspace(null);
             setUserRelationships(null);
-            setCurrentTeam(null);
+            setCurrentTeamState(null);
             setCurrentOrganization(null);
             setWhiteboardId(null);
+            setCurrentTeamLabs([]);
           } else {
             // Network error or other issue - keep the stored token
             // but don't set user data (they'll need to retry)
@@ -362,7 +429,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Load whiteboard data after successful login
       await loadWhiteboardData(userData, authToken);
 
-      // Load relationship data after successful login (includes team persistence)
+      // Load relationship data after successful login (includes team persistence and lab loading)
       await loadRelationshipData(userData, authToken);
 
       // Load workspace data after successful login
@@ -394,6 +461,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setCurrentTeamState(null);
       setCurrentOrganization(null);
       setWhiteboardId(null);
+      setCurrentTeamLabs([]);
     } catch (error) {
       console.error('Logout failed:', error);
       // Still clear local state even if API call fails
@@ -408,6 +476,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setCurrentTeamState(null);
       setCurrentOrganization(null);
       setWhiteboardId(null);
+      setCurrentTeamLabs([]);
     } finally {
       setIsLoading(false);
     }
@@ -519,14 +588,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     currentTeam,
     currentOrganization,
     whiteboardId,
+    currentTeamLabs,
+    isLoadingLabs,
     login,
     logout,
     setCurrentTeamspace: handleSetCurrentTeamspace,
-    setCurrentTeam, // This is the enhanced version with persistence
+    setCurrentTeam, // This is the enhanced version with persistence and lab loading
     refreshWorkspace,
     refreshUser,
     refreshRelationships,
     refreshWhiteboard,
+    refreshLabs,
     isOrgAdmin,
     isTeamAdmin,
     isTeamEditor,
