@@ -2,10 +2,16 @@ import { useRef, useEffect } from 'react';
 
 interface AnimatedHypercubeProps {
   theme?: 'dark' | 'light';
+  onClick?: () => void;
+  href?: string;
 }
 
-const AnimatedHypercube = ({ theme = 'dark' }: AnimatedHypercubeProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+const AnimatedHypercube = ({
+  theme = 'dark',
+  onClick,
+  href,
+}: AnimatedHypercubeProps) => {
+  const containerRef = useRef<HTMLElement>(null); // Generic HTMLElement to work with both div and a
   const animationProgressRef = useRef(0);
   const targetProgressRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
@@ -519,67 +525,115 @@ const AnimatedHypercube = ({ theme = 'dark' }: AnimatedHypercubeProps) => {
     }
   }, []);
 
+  // Handle click events - only prevent default if we have an onClick handler
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      e.preventDefault();
+      onClick();
+    }
+    // For href links, let the default behavior happen
+  };
+
+  // Basic style object
+  const baseStyle = {
+    position: 'relative' as const,
+    background: 'transparent',
+    padding: 0,
+    margin: 0,
+    overflow: 'visible' as const,
+    textDecoration: 'none',
+    color: 'inherit',
+    cursor: 'pointer',
+  };
+
+  const svgContent = (
+    <svg
+      width='64'
+      height='64'
+      viewBox='-200 -200 400 400'
+      style={{ display: 'block', background: 'transparent' }}
+    >
+      <style>{`
+        .thick-edge {
+          stroke: ${colors.stroke};
+          stroke-width: 10.5;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .thin-edge {
+          stroke: ${colors.stroke};
+          stroke-width: 3.5;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .connection-line {
+          stroke: ${colors.stroke};
+          stroke-width: 1.75;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .inner-cube-face {
+          fill: ${colors.fill};
+          stroke: ${colors.stroke};
+          stroke-width: 2.625;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .inner-edge {
+          stroke: ${colors.stroke};
+          stroke-width: 5.25;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .silhouette-face {
+          fill: ${colors.fill};
+          stroke: none;
+        }
+      `}</style>
+      <g id='silhouette-faces'></g>
+      <g id='inner-cube-faces'></g>
+      <g id='inner-cube-edges'></g>
+      <g id='outer-cube-edges'></g>
+      <g id='connection-lines'></g>
+    </svg>
+  );
+
+  // If href is provided, render as an actual <a> tag for proper link behavior
+  if (href) {
+    return (
+      <a
+        ref={containerRef as React.RefObject<HTMLAnchorElement>}
+        href={href}
+        style={baseStyle}
+        onClick={handleClick}
+        className='cursor-pointer'
+      >
+        {svgContent}
+      </a>
+    );
+  }
+
+  // Otherwise render as div with click handler
   return (
     <div
-      ref={containerRef}
+      ref={containerRef as React.RefObject<HTMLDivElement>}
+      style={baseStyle}
+      onClick={handleClick}
       className='cursor-pointer'
-      style={{
-        position: 'relative',
-        background: 'transparent',
-        padding: 0,
-        margin: 0,
-        overflow: 'visible',
-      }}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
-      <svg
-        width='64'
-        height='64'
-        viewBox='-200 -200 400 400'
-        style={{ display: 'block', background: 'transparent' }}
-      >
-        <style>{`
-          .thick-edge {
-            stroke: ${colors.stroke};
-            stroke-width: 10.5;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .thin-edge {
-            stroke: ${colors.stroke};
-            stroke-width: 3.5;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .connection-line {
-            stroke: ${colors.stroke};
-            stroke-width: 1.75;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .inner-cube-face {
-            fill: ${colors.fill};
-            stroke: ${colors.stroke};
-            stroke-width: 2.625;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-          }
-          .inner-edge {
-            stroke: ${colors.stroke};
-            stroke-width: 5.25;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .silhouette-face {
-            fill: ${colors.fill};
-            stroke: none;
-          }
-        `}</style>
-        <g id='silhouette-faces'></g>
-        <g id='inner-cube-faces'></g>
-        <g id='inner-cube-edges'></g>
-        <g id='outer-cube-edges'></g>
-        <g id='connection-lines'></g>
-      </svg>
+      {svgContent}
     </div>
   );
 };
