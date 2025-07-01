@@ -86,11 +86,21 @@ class LabService {
     token: string,
     includeArchived: boolean = false
   ): Promise<Lab[]> {
-    const url = new URL(API_BASE_URL);
-    url.searchParams.append('team_id', teamId);
-    url.searchParams.append('include_archived', includeArchived.toString());
+    // Alternative approach - build URL string directly
+    const urlString = `${API_BASE_URL}?team_id=${encodeURIComponent(
+      teamId
+    )}&include_archived=${includeArchived}`;
 
-    const response = await fetch(url.toString(), {
+    // Debug logging
+    console.log('API_BASE_URL:', API_BASE_URL);
+    console.log('Final URL string:', urlString);
+
+    // Verify the URL starts with https
+    if (!urlString.startsWith('https://')) {
+      console.error('WARNING: URL is not HTTPS!', urlString);
+    }
+
+    const response = await fetch(urlString, {
       method: 'GET',
       headers: this.getAuthHeaders(token),
     });
@@ -132,13 +142,16 @@ class LabService {
     labUniqueId: string,
     token: string
   ): Promise<FuturityAnalysis[]> {
-    const url = new URL(
-      'https://fast.futurity.science/management/analyses/liked/by-lab'
-    );
-    url.searchParams.append('lab_uniqueID', labUniqueId);
-    url.searchParams.append('include_html', 'false');
+    const baseUrl =
+      'https://fast.futurity.science/management/analyses/liked/by-lab/';
+    const urlString = `${baseUrl}?lab_uniqueID=${encodeURIComponent(
+      labUniqueId
+    )}&include_html=false`;
 
-    const response = await fetch(url.toString(), {
+    // Debug logging
+    console.log('Lab analyses URL:', urlString);
+
+    const response = await fetch(urlString, {
       method: 'GET',
       headers: this.getAuthHeaders(token),
     });
@@ -167,12 +180,15 @@ class LabService {
     labUniqueId: string,
     token: string
   ): Promise<void> {
-    const url = new URL(
-      `https://fast.futurity.science/management/analyses/${analysisUniqueId}/like`
-    );
-    url.searchParams.append('lab_uniqueID', labUniqueId);
+    const baseUrl = `https://fast.futurity.science/management/analyses/${analysisUniqueId}/like/`;
+    const urlString = `${baseUrl}?lab_uniqueID=${encodeURIComponent(
+      labUniqueId
+    )}`;
 
-    const response = await fetch(url.toString(), {
+    // Debug logging
+    console.log('Remove analysis URL:', urlString);
+
+    const response = await fetch(urlString, {
       method: 'DELETE',
       headers: this.getAuthHeaders(token),
     });
