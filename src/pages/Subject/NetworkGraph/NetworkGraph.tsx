@@ -65,8 +65,6 @@ export interface NetworkGraphRef {
   pulseNodesByType: (nodeType: string | null) => void;
 }
 
-import { getApiUrl } from '../../../utils/api';
-
 // Updated node colors to match your theme
 const nodeColors: { [key: string]: string } = {
   Organization: '#E07B91',
@@ -311,7 +309,7 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
       };
     }, [isScrollCaptured, showTemporaryOverlay]);
 
-    // PERFORMANCE FIX: Enhanced fetch with request cancellation and CORS handling
+    // PERFORMANCE FIX: Enhanced fetch with request cancellation and direct HTTPS URL
     useEffect(() => {
       async function fetchGraphData() {
         // Cancel previous request
@@ -326,11 +324,12 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
           const limit = '1000';
           const subjects = params.subjects || params.subject;
 
-          const originalUrl = `https://fast.futurity.science/graphs/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
-          const apiUrl = getApiUrl(originalUrl);
+          // Use direct HTTPS URL with trailing slash to avoid redirect
+          const apiUrl = `https://fast.futurity.science/graphs/graph-data/?subjects=${encodeURIComponent(
+            subjects || ''
+          )}&limit=${limit}&debug=false`;
 
           console.log('Fetching graph data from:', apiUrl);
-          console.log('Original URL would be:', originalUrl);
 
           const response = await fetch(apiUrl, {
             signal: abortControllerRef.current.signal,

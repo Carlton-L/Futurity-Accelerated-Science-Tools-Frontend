@@ -2,9 +2,15 @@ import { useRef, useEffect } from 'react';
 
 interface AnimatedHypercubeProps {
   theme?: 'dark' | 'light';
+  onClick?: () => void;
+  href?: string;
 }
 
-const AnimatedHypercube = ({ theme = 'dark' }: AnimatedHypercubeProps) => {
+const AnimatedHypercube = ({
+  theme = 'dark',
+  onClick,
+  href,
+}: AnimatedHypercubeProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const animationProgressRef = useRef(0);
   const targetProgressRef = useRef(0);
@@ -519,69 +525,124 @@ const AnimatedHypercube = ({ theme = 'dark' }: AnimatedHypercubeProps) => {
     }
   }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      className='cursor-pointer'
+  // Handle click events
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
+  // Handle context menu for right-click behavior
+  const handleContextMenu = (e: React.MouseEvent) => {
+    // Allow default context menu behavior when href is provided
+    if (!href) {
+      e.preventDefault();
+    }
+  };
+
+  // Determine if this should render as a link
+  const isLink = Boolean(href || onClick);
+
+  const containerProps = {
+    ref: containerRef,
+    className: 'cursor-pointer',
+    style: {
+      position: 'relative' as const,
+      background: 'transparent',
+      padding: 0,
+      margin: 0,
+      overflow: 'visible' as const,
+    },
+    ...(isLink && {
+      onClick: handleClick,
+      onContextMenu: handleContextMenu,
+      role: 'button',
+      tabIndex: 0,
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (onClick) onClick();
+        }
+      },
+    }),
+  };
+
+  const svgContent = (
+    <svg
+      width='64'
+      height='64'
+      viewBox='-200 -200 400 400'
       style={{
-        position: 'relative',
+        display: 'block',
         background: 'transparent',
-        padding: 0,
-        margin: 0,
-        overflow: 'visible',
+        pointerEvents: 'none',
       }}
     >
-      <svg
-        width='64'
-        height='64'
-        viewBox='-200 -200 400 400'
-        style={{ display: 'block', background: 'transparent' }}
-      >
-        <style>{`
-          .thick-edge {
-            stroke: ${colors.stroke};
-            stroke-width: 10.5;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .thin-edge {
-            stroke: ${colors.stroke};
-            stroke-width: 3.5;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .connection-line {
-            stroke: ${colors.stroke};
-            stroke-width: 1.75;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .inner-cube-face {
-            fill: ${colors.fill};
-            stroke: ${colors.stroke};
-            stroke-width: 2.625;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-          }
-          .inner-edge {
-            stroke: ${colors.stroke};
-            stroke-width: 5.25;
-            stroke-linecap: round;
-            fill: none;
-          }
-          .silhouette-face {
-            fill: ${colors.fill};
-            stroke: none;
-          }
-        `}</style>
-        <g id='silhouette-faces'></g>
-        <g id='inner-cube-faces'></g>
-        <g id='inner-cube-edges'></g>
-        <g id='outer-cube-edges'></g>
-        <g id='connection-lines'></g>
-      </svg>
-    </div>
+      <style>{`
+        .thick-edge {
+          stroke: ${colors.stroke};
+          stroke-width: 10.5;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .thin-edge {
+          stroke: ${colors.stroke};
+          stroke-width: 3.5;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .connection-line {
+          stroke: ${colors.stroke};
+          stroke-width: 1.75;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .inner-cube-face {
+          fill: ${colors.fill};
+          stroke: ${colors.stroke};
+          stroke-width: 2.625;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .inner-edge {
+          stroke: ${colors.stroke};
+          stroke-width: 5.25;
+          stroke-linecap: round;
+          fill: none;
+        }
+        .silhouette-face {
+          fill: ${colors.fill};
+          stroke: none;
+        }
+      `}</style>
+      <g id='silhouette-faces'></g>
+      <g id='inner-cube-faces'></g>
+      <g id='inner-cube-edges'></g>
+      <g id='outer-cube-edges'></g>
+      <g id='connection-lines'></g>
+    </svg>
   );
+
+  // If href is provided, render as an actual <a> tag for proper link behavior
+  if (href) {
+    return (
+      <a
+        href={href}
+        {...containerProps}
+        style={{
+          ...containerProps.style,
+          textDecoration: 'none',
+          color: 'inherit',
+        }}
+      >
+        {svgContent}
+      </a>
+    );
+  }
+
+  // Otherwise render as div with click handler
+  return <div {...containerProps}>{svgContent}</div>;
 };
 
 export default AnimatedHypercube;
