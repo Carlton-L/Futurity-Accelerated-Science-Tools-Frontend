@@ -4,11 +4,12 @@ import {
   Text,
   Button,
   HStack,
-  SimpleGrid,
+  Flex,
   Card,
   Heading,
   Stat,
   Spinner,
+  SkeletonText,
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
@@ -24,6 +25,19 @@ interface SubjectStats {
   papers: number;
   books: number;
   relatedDocs: number;
+}
+
+// Interface for subject data from API
+interface SubjectData {
+  _id: string;
+  ent_name: string;
+  ent_fsid: string;
+  ent_summary: string;
+  indexes?: Array<{
+    HR?: number;
+    TT?: number;
+    WS?: number;
+  }>;
 }
 
 // Map stat types to network graph node types for highlighting
@@ -42,15 +56,47 @@ const FeaturedSubjectSection: React.FC = () => {
 
   // State for stats and loading
   const [stats, setStats] = useState<SubjectStats | null>(null);
+  const [subjectData, setSubjectData] = useState<SubjectData | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingSubject, setLoadingSubject] = useState(true);
   const [hoveredStatType, setHoveredStatType] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Hard-coded subject for the featured section
-  const featuredSubject = 'fandom';
-  const featuredSubjectDisplay = 'Fandom';
+  const featuredSubject = 'digital_twin';
+  const featuredSubjectDisplay = 'Digital Twin';
 
   // Get the correct background color from theme
   const appBgColor = theme.isDark ? '#111111' : '#FAFAFA';
+
+  // Fetch subject data for summary and details
+  useEffect(() => {
+    const fetchSubjectData = async () => {
+      try {
+        setLoadingSubject(true);
+        const response = await fetch(
+          `https://tools.futurity.science/api/subject/view?slug=${featuredSubject}`,
+          {
+            headers: {
+              Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data: SubjectData = await response.json();
+          setSubjectData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch subject data:', error);
+      } finally {
+        setLoadingSubject(false);
+      }
+    };
+
+    fetchSubjectData();
+  }, []);
 
   // Fetch stats for the featured subject
   useEffect(() => {
@@ -106,7 +152,7 @@ const FeaturedSubjectSection: React.FC = () => {
     }
   };
 
-  const handleStatCardClick = (statType: string) => {
+  const handleStatCardClick = () => {
     // Navigate to subject page - the subject page will handle scrolling to sections
     navigate(`/subject/${featuredSubject}`);
   };
@@ -115,17 +161,28 @@ const FeaturedSubjectSection: React.FC = () => {
     navigate(`/subject/${featuredSubject}`);
   };
 
-  const handleExploreMore = () => {
-    // Navigate to a subjects listing page or search page
-    // For now, we'll navigate to the whiteboard or a subjects page
-    navigate('/whiteboard');
+  // Function to truncate text to approximately 3 lines
+  const getTruncatedSummary = (
+    text: string,
+    maxLength: number = 200
+  ): string => {
+    if (text.length <= maxLength) return text;
+    const truncated = text.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > 0
+      ? truncated.substring(0, lastSpace) + '...'
+      : truncated + '...';
+  };
+
+  const shouldShowExpandButton = (text: string): boolean => {
+    return text && text.length > 200;
   };
 
   return (
     <Box>
       <Box mb='6'>
         <HStack justify='space-between' align='center' mb='4'>
-          <Box>
+          <Box flex='1' mr='4'>
             <Text
               fontSize='2xl'
               fontWeight='bold'
@@ -135,15 +192,55 @@ const FeaturedSubjectSection: React.FC = () => {
             >
               Featured Subject: {featuredSubjectDisplay}
             </Text>
-            <Text color='fg.secondary' fontSize='md'>
-              Explore the interconnected world of computer vision research,
-              organizations, and innovations
-            </Text>
+
+            {/* Subject Summary with loading state */}
+            {loadingSubject ? (
+              <Box>
+                <SkeletonText noOfLines={3} skeletonHeight='4' />
+              </Box>
+            ) : subjectData?.ent_summary ? (
+              <Box>
+                <Text
+                  color='fg.secondary'
+                  fontSize='md'
+                  lineHeight='1.6'
+                  mb={shouldShowExpandButton(subjectData.ent_summary) ? 2 : 0}
+                >
+                  {isExpanded
+                    ? subjectData.ent_summary
+                    : getTruncatedSummary(subjectData.ent_summary)}
+                </Text>
+
+                {shouldShowExpandButton(subjectData.ent_summary) && (
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    color='brand'
+                    p='0'
+                    minH='auto'
+                    h='auto'
+                    fontWeight='medium'
+                    _hover={{
+                      color: 'brand.hover',
+                      bg: 'transparent',
+                    }}
+                  >
+                    {isExpanded ? 'Show less' : 'Read more'}
+                  </Button>
+                )}
+              </Box>
+            ) : (
+              <Text color='fg.secondary' fontSize='md'>
+                {/* Show loading or error state instead of hardcoded text */}
+                {loadingSubject
+                  ? 'Loading subject details...'
+                  : 'Subject summary unavailable'}
+              </Text>
+            )}
           </Box>
-          <HStack gap='3'>
-            <Button variant='outline' size='md' onClick={handleExploreMore}>
-              Explore More Subjects
-            </Button>
+
+          <HStack gap='3' flexShrink={0}>
             <Button variant='solid' size='md' onClick={handleViewSubject}>
               View {featuredSubjectDisplay}
             </Button>
@@ -173,16 +270,19 @@ const FeaturedSubjectSection: React.FC = () => {
         />
       </Box>
 
-      {/* Stats Cards */}
-      <Box>
-        <Text fontSize='lg' fontWeight='medium' color='fg' mb='4'>
-          {featuredSubjectDisplay} by the Numbers
-        </Text>
-
+      {/* Stats Cards - Single Row */}
+      <Box mt='6'>
         {loadingStats ? (
-          <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} gap={4}>
+          <Flex gap={4} wrap='nowrap' overflowX='auto'>
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card.Root key={i} variant='outline' size='sm' minHeight='80px'>
+              <Card.Root
+                key={i}
+                variant='outline'
+                size='sm'
+                minHeight='80px'
+                minWidth='120px'
+                flex='1'
+              >
                 <Card.Body
                   display='flex'
                   alignItems='center'
@@ -192,9 +292,9 @@ const FeaturedSubjectSection: React.FC = () => {
                 </Card.Body>
               </Card.Root>
             ))}
-          </SimpleGrid>
+          </Flex>
         ) : stats ? (
-          <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} gap={4}>
+          <Flex gap={4} wrap='nowrap' overflowX='auto'>
             {[
               {
                 key: 'organizations',
@@ -224,6 +324,8 @@ const FeaturedSubjectSection: React.FC = () => {
                 variant='outline'
                 size='sm'
                 minHeight='80px'
+                minWidth='120px'
+                flex='1'
                 cursor='pointer'
                 transition='all 0.2s ease'
                 bg={hoveredStatType === key ? 'fg' : 'bg.canvas'}
@@ -234,7 +336,7 @@ const FeaturedSubjectSection: React.FC = () => {
                 boxShadow={hoveredStatType === key ? 'lg' : 'none'}
                 onMouseEnter={() => handleStatCardHover(key)}
                 onMouseLeave={() => handleStatCardHover(null)}
-                onClick={() => handleStatCardClick(key)}
+                onClick={() => handleStatCardClick()}
                 _hover={{
                   transform: 'translateY(-2px)',
                   boxShadow: 'lg',
@@ -271,7 +373,7 @@ const FeaturedSubjectSection: React.FC = () => {
                 </Card.Body>
               </Card.Root>
             ))}
-          </SimpleGrid>
+          </Flex>
         ) : (
           <Text color='fg.muted' fontSize='sm'>
             Stats unavailable
