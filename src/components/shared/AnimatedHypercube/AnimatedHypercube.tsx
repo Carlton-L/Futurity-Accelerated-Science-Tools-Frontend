@@ -689,7 +689,7 @@ const AnimatedHypercube = ({
       onClick={
         onClick
           ? handleClick
-          : (e) => {
+          : (_e) => {
               // When no onClick handler, don't prevent default - let RouterLink handle it
               // Don't call preventDefault or stopPropagation
             }

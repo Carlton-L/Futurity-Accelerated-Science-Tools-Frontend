@@ -14,66 +14,107 @@ import {
 } from '@chakra-ui/react';
 import { LuUsers, LuSettings } from 'react-icons/lu';
 import { useAuth } from '../../context/AuthContext';
-import { teamspaceService } from '../../context/AuthContext';
-import type { Teamspace } from '../../context/AuthContext';
+import {
+  relationshipService,
+  type TeamUsersResponse,
+} from '../../services/relationshipService';
 
 const TeamView: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const { token, workspace } = useAuth();
-  const [teamspace, setTeamspace] = useState<Teamspace | null>(null);
+  const { token, userRelationships, currentTeam, setCurrentTeam } = useAuth();
+  const [teamData, setTeamData] = useState<TeamUsersResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
   // Check if user can manage this team
   const canManage =
-    teamspace &&
-    (teamspace.user_access_level === 'owner' ||
-      teamspace.user_access_level === 'admin' ||
-      workspace?.user_access_level === 'owner' ||
-      workspace?.user_access_level === 'admin');
+    userRelationships?.teams
+      .find((team) => team.uniqueID === teamId)
+      ?.user_relationships.includes('admin') || false;
 
+  // Effect to handle team ID changes and sync with current team
   useEffect(() => {
-    const loadTeamspace = async () => {
-      if (!teamId || !token) {
-        setError('Missing team ID or authentication');
+    if (!teamId || !userRelationships) {
+      return;
+    }
+
+    // Find the team in user's relationships
+    const team = userRelationships.teams.find((t) => t.uniqueID === teamId);
+
+    if (!team) {
+      setError('Team not found or you do not have access to this team');
+      setIsLoading(false);
+      return;
+    }
+
+    // Update current team if it's different
+    if (!currentTeam || currentTeam.uniqueID !== teamId) {
+      console.log('Updating current team from TeamView:', team.ent_name);
+      setCurrentTeam(team);
+    }
+  }, [teamId, userRelationships, currentTeam, setCurrentTeam]);
+
+  // Effect to load team data
+  useEffect(() => {
+    const loadTeamData = async () => {
+      if (!teamId || !token || !userRelationships) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if user has access to this team
+      const hasAccess = userRelationships.teams.some(
+        (team) => team.uniqueID === teamId
+      );
+
+      if (!hasAccess) {
+        setError('You do not have access to this team');
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        const teamspaceData = await teamspaceService.getTeamspace(
+        setError('');
+
+        // Fetch team users data
+        const teamUsersData = await relationshipService.getTeamUsers(
           teamId,
           token
         );
-        setTeamspace(teamspaceData);
+        setTeamData(teamUsersData);
       } catch (err) {
-        console.error('Failed to load teamspace:', err);
+        console.error('Failed to load team data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load team');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadTeamspace();
-  }, [teamId, token]);
+    loadTeamData();
+  }, [teamId, token, userRelationships]);
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString();
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'owner':
-        return 'blue';
-      case 'admin':
-        return 'purple';
-      case 'viewer':
-        return 'gray';
-      default:
-        return 'gray';
+  const getRoleBadgeColor = (roles: string[]) => {
+    if (roles.includes('admin')) {
+      return 'purple';
+    } else if (roles.includes('editor')) {
+      return 'blue';
+    } else if (roles.includes('viewer')) {
+      return 'gray';
     }
+    return 'gray';
+  };
+
+  const getDisplayRole = (roles: string[]) => {
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('editor')) return 'editor';
+    if (roles.includes('viewer')) return 'viewer';
+    return 'unknown';
   };
 
   if (isLoading) {
@@ -106,7 +147,7 @@ const TeamView: React.FC = () => {
     );
   }
 
-  if (!teamspace) {
+  if (!teamData || !currentTeam) {
     return (
       <Box p={6} maxW='800px' mx='auto'>
         <Alert.Root status='warning'>
@@ -136,16 +177,18 @@ const TeamView: React.FC = () => {
                     color='fg'
                     fontFamily='heading'
                   >
-                    {teamspace.name}
+                    {currentTeam.ent_name}
                   </Text>
                 </HStack>
                 <Text color='fg.secondary' fontFamily='body'>
-                  Created {formatDate(teamspace.created_at)}
+                  Created {formatDate(currentTeam.createdAt)}
                 </Text>
                 <Badge
-                  colorScheme={getRoleBadgeColor(teamspace.user_access_level)}
+                  colorScheme={getRoleBadgeColor(
+                    currentTeam.user_relationships
+                  )}
                 >
-                  Your role: {teamspace.user_access_level}
+                  Your role: {getDisplayRole(currentTeam.user_relationships)}
                 </Badge>
               </VStack>
 
@@ -176,14 +219,14 @@ const TeamView: React.FC = () => {
               color='fg'
               fontFamily='heading'
             >
-              Team Members ({teamspace.member_details?.length || 0})
+              Team Members ({teamData.total_users})
             </Text>
           </Card.Header>
           <Card.Body>
             <VStack gap={4} align='stretch'>
-              {teamspace.member_details?.map((member) => (
+              {teamData.users.map((member) => (
                 <HStack
-                  key={member.user_id}
+                  key={member.uniqueID}
                   justify='space-between'
                   p={3}
                   bg='bg.subtle'
@@ -194,35 +237,34 @@ const TeamView: React.FC = () => {
                   <HStack gap={3}>
                     <Avatar.Root size='sm'>
                       <Avatar.Fallback
-                        name={member.user.fullname || member.user.username}
+                        name={member.profile.fullname || member.email}
                       />
-                      {member.user.picture_url && (
-                        <Avatar.Image src={member.user.picture_url} />
+                      {member.profile.picture_url && (
+                        <Avatar.Image src={member.profile.picture_url} />
                       )}
                     </Avatar.Root>
                     <VStack align='start' gap={1}>
                       <Text fontWeight='medium' color='fg' fontFamily='body'>
-                        {member.user.displayName ||
-                          member.user.fullname ||
-                          member.user.username}
+                        {member.profile.fullname || member.email}
                       </Text>
                       <Text
                         fontSize='sm'
                         color='fg.secondary'
                         fontFamily='body'
                       >
-                        @{member.user.username}
+                        {member.email}
                       </Text>
                     </VStack>
                   </HStack>
-                  <Badge colorScheme={getRoleBadgeColor(member.role)}>
-                    {member.role}
+                  <Badge
+                    colorScheme={getRoleBadgeColor(member.team_relationships)}
+                  >
+                    {getDisplayRole(member.team_relationships)}
                   </Badge>
                 </HStack>
               ))}
 
-              {(!teamspace.member_details ||
-                teamspace.member_details.length === 0) && (
+              {teamData.users.length === 0 && (
                 <Box textAlign='center' py={8}>
                   <Text color='fg.secondary' fontFamily='body'>
                     No members found
@@ -233,22 +275,36 @@ const TeamView: React.FC = () => {
           </Card.Body>
         </Card.Root>
 
-        {/* Team Labs - Placeholder for now */}
+        {/* Team Labs - Show a "View Labs" button that navigates to team labs page */}
         <Card.Root bg='bg.canvas' borderColor='border.emphasized'>
           <Card.Header>
-            <Text
-              fontSize='lg'
-              fontWeight='semibold'
-              color='fg'
-              fontFamily='heading'
-            >
-              Team Labs
-            </Text>
+            <HStack justify='space-between' align='center'>
+              <Text
+                fontSize='lg'
+                fontWeight='semibold'
+                color='fg'
+                fontFamily='heading'
+              >
+                Team Labs
+              </Text>
+              <Button
+                onClick={() => navigate(`/team/${teamId}/labs`)}
+                bg='brand'
+                color='white'
+                fontFamily='body'
+                _hover={{
+                  bg: 'brand.hover',
+                }}
+              >
+                <LuUsers size={16} />
+                View All Labs
+              </Button>
+            </HStack>
           </Card.Header>
           <Card.Body>
             <Box textAlign='center' py={8}>
               <Text color='fg.secondary' fontFamily='body'>
-                Lab listing functionality coming soon...
+                Click "View All Labs" to see labs for this team
               </Text>
             </Box>
           </Card.Body>

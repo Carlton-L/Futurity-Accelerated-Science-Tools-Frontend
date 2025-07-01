@@ -35,7 +35,7 @@ import LabsIcon from '../../../assets/labs.svg';
 import SearchField from './SearchField';
 import WorkspaceManageDialog from './WorkspaceManageDialog';
 
-// TeamSelector Component - Updated to use relationship data
+// TeamSelector Component - Updated with enhanced redirect logic
 interface TeamSelectorProps {
   isCompact: boolean;
   navigate: (path: string) => void;
@@ -58,21 +58,41 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
   // Check if user is team admin for current team
   const isCurrentTeamAdmin = isTeamAdmin(currentTeam.uniqueID);
 
-  // Handle team switching with smart navigation
+  // Enhanced team change handler with smart navigation
   const handleTeamChange = (newTeam: typeof currentTeam) => {
     setCurrentTeam(newTeam);
 
-    // Check current URL to determine if we should navigate to the same page type for the new team
+    // Get current URL to determine redirect behavior
     const currentPath = window.location.pathname;
 
-    if (currentPath.includes('/team/') && currentPath.includes('/manage')) {
-      // User is on team manage page, navigate to manage page for new team
+    // Extract current team ID from URL if present
+    const teamUrlMatch = currentPath.match(/\/team\/([^\/]+)/);
+    const labUrlMatch = currentPath.match(/\/lab\/([^\/]+)/);
+
+    if (labUrlMatch) {
+      // User is viewing a lab - redirect to team labs page
+      console.log('Redirecting from lab page to team labs page');
+      navigate(`/team/${newTeam.uniqueID}/labs`);
+    } else if (
+      currentPath.includes('/team/') &&
+      currentPath.includes('/manage')
+    ) {
+      // User is on team manage page - navigate to manage page for new team
+      console.log('Redirecting to manage page for new team');
       navigate(`/team/${newTeam.uniqueID}/manage`);
+    } else if (
+      currentPath.includes('/team/') &&
+      currentPath.includes('/labs')
+    ) {
+      // User is on team labs page - navigate to labs page for new team
+      console.log('Redirecting to labs page for new team');
+      navigate(`/team/${newTeam.uniqueID}/labs`);
     } else if (currentPath.includes('/team/')) {
-      // User is on team view page, navigate to view page for new team
+      // User is on team view page - navigate to view page for new team
+      console.log('Redirecting to view page for new team');
       navigate(`/team/${newTeam.uniqueID}`);
     }
-    // Otherwise, stay on current page (home, lab, etc.)
+    // Otherwise, stay on current page (home, whiteboard, etc.)
   };
 
   return (
@@ -504,20 +524,33 @@ const Navbar: React.FC = () => {
                   >
                     <Menu.ItemGroup>
                       <HStack justify='space-between' px={3} py={2}>
-                        <Text
-                          fontSize='sm'
-                          fontWeight='medium'
-                          color='fg.secondary'
+                        <Button
+                          onClick={() =>
+                            navigate(`/team/${currentTeam.uniqueID}/labs`)
+                          }
+                          variant='ghost'
+                          size='sm'
                           fontFamily='body'
+                          fontSize='md'
+                          fontWeight='medium'
+                          color='fg'
+                          _hover={{
+                            bg: 'bg.hover',
+                          }}
                         >
                           {`${currentTeam?.ent_name} labs`}
-                        </Text>
+                        </Button>
                         <Button
                           onClick={refreshLabsList}
                           variant='ghost'
                           size='xs'
                           disabled={isLoadingLabs}
                           fontFamily='body'
+                          color='fg.muted'
+                          _hover={{
+                            color: 'fg',
+                            bg: 'bg.hover',
+                          }}
                         >
                           {isLoadingLabs ? (
                             <Spinner size='xs' />
@@ -543,39 +576,52 @@ const Navbar: React.FC = () => {
                       </Menu.Item>
                     ) : teamLabs.length > 0 ? (
                       <>
-                        {teamLabs.map((lab) => (
-                          <Menu.Item
-                            key={lab._id}
-                            value={lab._id}
-                            onClick={() => handleLabSelect(lab.uniqueID)}
-                            color='fg'
+                        {/* Create Lab Button - moved to top with themed styling */}
+                        <Box px={3} py={2}>
+                          <Button
+                            onClick={() => navigate('/lab/create')}
+                            variant='outline'
+                            size='sm'
+                            width='100%'
                             fontFamily='body'
-                            fontSize='sm'
+                            bg='bg.canvas'
+                            borderColor='border.muted'
+                            color='fg'
                             _hover={{
                               bg: 'bg.hover',
+                              borderColor: 'border.hover',
+                            }}
+                            _active={{
+                              bg: 'bg.active',
                             }}
                           >
-                            {lab.ent_name}
-                          </Menu.Item>
-                        ))}
+                            <HStack gap={2}>
+                              <LuPlus size={14} />
+                              <Text>Create New Lab</Text>
+                            </HStack>
+                          </Button>
+                        </Box>
 
                         <Menu.Separator borderColor='border.muted' />
 
-                        <Menu.Item
-                          value='create-lab'
-                          onClick={() => navigate('/lab/create')}
-                          color='brand'
-                          fontFamily='body'
-                          fontSize='sm'
-                          _hover={{
-                            bg: 'bg.hover',
-                          }}
-                        >
-                          <HStack gap={2}>
-                            <LuPlus size={14} />
-                            <Text>Create New Lab</Text>
-                          </HStack>
-                        </Menu.Item>
+                        {/* Sort labs alphabetically by name */}
+                        {[...teamLabs]
+                          .sort((a, b) => a.ent_name.localeCompare(b.ent_name))
+                          .map((lab) => (
+                            <Menu.Item
+                              key={lab._id}
+                              value={lab._id}
+                              onClick={() => handleLabSelect(lab.uniqueID)}
+                              color='fg'
+                              fontFamily='body'
+                              fontSize='sm'
+                              _hover={{
+                                bg: 'bg.hover',
+                              }}
+                            >
+                              {lab.ent_name}
+                            </Menu.Item>
+                          ))}
                       </>
                     ) : (
                       <>
@@ -591,21 +637,30 @@ const Navbar: React.FC = () => {
 
                         <Menu.Separator borderColor='border.muted' />
 
-                        <Menu.Item
-                          value='create-lab'
-                          onClick={() => navigate('/lab/create')}
-                          color='brand'
-                          fontFamily='body'
-                          fontSize='sm'
-                          _hover={{
-                            bg: 'bg.hover',
-                          }}
-                        >
-                          <HStack gap={2}>
-                            <LuPlus size={14} />
-                            <Text>Create New Lab</Text>
-                          </HStack>
-                        </Menu.Item>
+                        <Box px={3} py={2}>
+                          <Button
+                            onClick={() => navigate('/lab/create')}
+                            variant='outline'
+                            size='sm'
+                            width='100%'
+                            fontFamily='body'
+                            bg='bg.canvas'
+                            borderColor='border.muted'
+                            color='fg'
+                            _hover={{
+                              bg: 'bg.hover',
+                              borderColor: 'border.hover',
+                            }}
+                            _active={{
+                              bg: 'bg.active',
+                            }}
+                          >
+                            <HStack gap={2}>
+                              <LuPlus size={14} />
+                              <Text>Create New Lab</Text>
+                            </HStack>
+                          </Button>
+                        </Box>
                       </>
                     )}
                   </Menu.Content>

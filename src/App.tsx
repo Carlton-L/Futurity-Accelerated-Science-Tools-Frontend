@@ -17,6 +17,7 @@ import FuturityLabsDirectory from './pages/FuturityLabsDirectory';
 import Whiteboard from './pages/Whiteboard';
 import TeamView from './pages/TeamView';
 import TeamManage from './pages/TeamManage';
+import TeamLabs from './pages/TeamLabs'; // Add the new TeamLabs import
 import CreateLab from './pages/CreateLab';
 import { Profile } from './pages/Profile';
 import FuturityAnalysis from './pages/FuturityAnalysis';
@@ -65,6 +66,7 @@ function App() {
                   {/* Team routes */}
                   <Route path='/team/:teamId' element={<TeamView />} />
                   <Route path='/team/:teamId/manage' element={<TeamManage />} />
+                  <Route path='/team/:teamId/labs' element={<TeamLabs />} />
                 </Route>
               </Route>
 

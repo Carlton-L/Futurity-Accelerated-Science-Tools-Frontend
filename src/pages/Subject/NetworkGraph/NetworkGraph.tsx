@@ -325,7 +325,7 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
           const subjects = params.subjects || params.subject;
 
           // Use direct HTTPS URL with trailing slash to avoid redirect
-          const apiUrl = `https://fast.futurity.science/graphs/graph-data/?subjects=${encodeURIComponent(
+          const apiUrl = `https://fast.futurity.science/graphs/graph-data?subjects=${encodeURIComponent(
             subjects || ''
           )}&limit=${limit}&debug=false`;
 
