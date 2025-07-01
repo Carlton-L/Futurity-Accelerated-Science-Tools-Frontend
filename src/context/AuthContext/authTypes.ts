@@ -183,13 +183,15 @@ export type AuthContextType = {
   userRelationships: UserRelationships | null;
   currentTeam: UserTeam | null;
   currentOrganization: UserOrganization | null;
+  // Whiteboard data - just the uniqueID
+  whiteboardId: string | null;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => void;
   setCurrentTeamspace: (teamspace: TeamspaceListItem | null) => void;
   setCurrentTeam: (team: UserTeam | null) => void;
   refreshWorkspace: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  refreshRelationships: () => Promise<void>;
+  refreshWhiteboard: () => Promise<void>;
   // Helper methods for checking permissions
   isOrgAdmin: () => boolean;
   isTeamAdmin: (teamId?: string) => boolean;

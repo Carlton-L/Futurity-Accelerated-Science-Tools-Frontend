@@ -39,6 +39,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentOrganization, setCurrentOrganization] =
     useState<UserOrganization | null>(null);
 
+  // Whiteboard state - just the uniqueID
+  const [whiteboardId, setWhiteboardId] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Team persistence functions
@@ -116,6 +119,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log(
         'Using basic user data only due to extended data fetch failure'
       );
+    }
+  };
+
+  // Load whiteboard data after user is authenticated
+  const loadWhiteboardData = async (basicUser: User, userToken: string) => {
+    try {
+      console.log('Loading whiteboard data for user ID:', basicUser._id);
+
+      const whiteboardData = await userService.getUserWhiteboard(
+        basicUser._id,
+        userToken
+      );
+
+      setWhiteboardId(whiteboardData.uniqueID);
+
+      console.log(
+        'Whiteboard data loaded successfully:',
+        whiteboardData.uniqueID
+      );
+    } catch (error) {
+      console.error('Failed to load whiteboard data:', error);
+
+      // If whiteboard doesn't exist (404), we could optionally create one
+      if (error instanceof Error && error.message.includes('not found')) {
+        console.log(
+          'No whiteboard found for user, this is normal for new users'
+        );
+      }
+
+      // Don't throw here, just log the error
+      // User can still use the app without whiteboard data
+      setWhiteboardId(null);
     }
   };
 
@@ -266,6 +301,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Load extended user data (will use reliable ID if needed)
             await loadExtendedUserData(userData, finalToken);
 
+            // Load whiteboard data
+            await loadWhiteboardData(userData, finalToken);
+
             // Load relationship data (includes team persistence logic)
             await loadRelationshipData(userData, finalToken);
 
@@ -289,6 +327,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUserRelationships(null);
             setCurrentTeam(null);
             setCurrentOrganization(null);
+            setWhiteboardId(null);
           } else {
             // Network error or other issue - keep the stored token
             // but don't set user data (they'll need to retry)
@@ -319,6 +358,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Load extended user data after successful login
       await loadExtendedUserData(userData, authToken);
+
+      // Load whiteboard data after successful login
+      await loadWhiteboardData(userData, authToken);
 
       // Load relationship data after successful login (includes team persistence)
       await loadRelationshipData(userData, authToken);
@@ -351,6 +393,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserRelationships(null);
       setCurrentTeamState(null);
       setCurrentOrganization(null);
+      setWhiteboardId(null);
     } catch (error) {
       console.error('Logout failed:', error);
       // Still clear local state even if API call fails
@@ -364,6 +407,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserRelationships(null);
       setCurrentTeamState(null);
       setCurrentOrganization(null);
+      setWhiteboardId(null);
     } finally {
       setIsLoading(false);
     }
@@ -405,6 +449,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await loadRelationshipData(user, token);
     } catch (error) {
       console.error('Failed to refresh relationship data:', error);
+      throw error;
+    }
+  };
+
+  const refreshWhiteboard = async (): Promise<void> => {
+    if (!user || !token) {
+      return;
+    }
+
+    try {
+      await loadWhiteboardData(user, token);
+    } catch (error) {
+      console.error('Failed to refresh whiteboard data:', error);
       throw error;
     }
   };
@@ -461,6 +518,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     userRelationships,
     currentTeam,
     currentOrganization,
+    whiteboardId,
     login,
     logout,
     setCurrentTeamspace: handleSetCurrentTeamspace,
@@ -468,6 +526,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     refreshWorkspace,
     refreshUser,
     refreshRelationships,
+    refreshWhiteboard,
     isOrgAdmin,
     isTeamAdmin,
     isTeamEditor,
