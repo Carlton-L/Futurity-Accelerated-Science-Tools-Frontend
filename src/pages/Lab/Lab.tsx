@@ -14,6 +14,11 @@ import {
   Tabs,
   Skeleton,
   Alert,
+  MenuRoot,
+  MenuTrigger,
+  MenuContent,
+  MenuItem,
+  Field,
 } from '@chakra-ui/react';
 import {
   FiEdit,
@@ -22,6 +27,7 @@ import {
   FiSettings,
   FiMail,
   FiArrowLeft,
+  FiMoreVertical,
 } from 'react-icons/fi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -43,10 +49,11 @@ const Lab: React.FC = () => {
   const { setPageContext, clearPageContext } = usePage();
 
   const [lab, setLab] = useState<LabType | null>(null);
+  const [apiLabData, setApiLabData] = useState<ApiLab | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editForm, setEditForm] = useState<{
+  const [isEditingHeader, setIsEditingHeader] = useState<boolean>(false);
+  const [headerForm, setHeaderForm] = useState<{
     name: string;
     description: string;
   }>({
@@ -71,6 +78,17 @@ const Lab: React.FC = () => {
         description: subcat.metadata?.description,
       })
     );
+
+    // Add default uncategorized category if not present
+    if (!categories.find((cat) => cat.name.toLowerCase() === 'uncategorized')) {
+      categories.unshift({
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        type: 'default',
+        subjects: [],
+        description: 'Default category for new subjects',
+      });
+    }
 
     // Transform subjects_config to frontend subjects and assign to categories
     const subjects: LabSubject[] = apiLab.subjects_config.map(
@@ -101,7 +119,7 @@ const Lab: React.FC = () => {
       uniqueID: apiLab.uniqueID,
       name: apiLab.ent_name,
       description: apiLab.ent_summary || '',
-      teamspaceId: 'unknown', // Not provided in new API
+      teamspaceId: 'unknown', // Not provided in new API - will need to get from context
       createdAt: apiLab.createdAt,
       updatedAt: apiLab.updatedAt,
       isArchived: apiLab.status === 'archived',
@@ -110,12 +128,12 @@ const Lab: React.FC = () => {
       adminIds: ['current-user'], // TODO: Get from team management API
       editorIds: [],
       memberIds: ['current-user'],
-      goals: [], // TODO: Extract from metadata if available
+      goals: [], // TODO: Transform API goals to frontend format
       subjects: subjects,
       categories: categories,
       analyses: [], // Will be loaded separately
-      includeTerms: [], // TODO: Get from metadata if available
-      excludeTerms: [], // TODO: Get from metadata if available
+      includeTerms: apiLab.include_terms || [],
+      excludeTerms: apiLab.exclude_terms || [],
       miroUrl: apiLab.miro_board_url,
       knowledgebaseId: apiLab.kbid,
       pictureUrl: apiLab.picture_url,
@@ -167,15 +185,18 @@ const Lab: React.FC = () => {
     }
 
     try {
-      // Use the new lab service with the uniqueID from URL params
+      // Use the enhanced lab service with the uniqueID from URL params
       const apiLabData = await labService.getLabById(id, token);
       console.log('Successfully fetched lab data from API:', apiLabData);
+
+      // Store the raw API data
+      setApiLabData(apiLabData);
 
       // Transform API data to frontend format
       const transformedLab = transformApiLabToFrontend(apiLabData);
 
       setLab(transformedLab);
-      setEditForm({
+      setHeaderForm({
         name: transformedLab.name,
         description: transformedLab.description,
       });
@@ -201,17 +222,17 @@ const Lab: React.FC = () => {
     return lab.adminIds.includes(user._id);
   };
 
-  // Handle edit mode toggle
-  const handleEditToggle = (): void => {
-    if (isEditing) {
-      setEditForm({
+  // Handle header edit mode toggle
+  const handleHeaderEditToggle = (): void => {
+    if (isEditingHeader) {
+      setHeaderForm({
         name: lab?.name || '',
         description: lab?.description || '',
       });
-      setIsEditing(false);
+      setIsEditingHeader(false);
       setIsEditDialogOpen(false);
     } else {
-      setIsEditing(true);
+      setIsEditingHeader(true);
       setIsEditDialogOpen(true);
     }
   };
@@ -221,7 +242,7 @@ const Lab: React.FC = () => {
     field: 'name' | 'description',
     value: string
   ): void => {
-    setEditForm((prev) => ({
+    setHeaderForm((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -229,23 +250,29 @@ const Lab: React.FC = () => {
 
   // Handle save changes using real API
   const handleSave = async (): Promise<void> => {
-    if (!lab || !token) return;
+    if (!lab || !token || !id) return;
 
     setSaving(true);
 
     try {
-      // TODO: Need update endpoint in labService
-      // For now, just update local state
-      const updatedLab = {
-        ...lab,
-        name: editForm.name.trim(),
-        description: editForm.description.trim(),
-      };
+      // Use the enhanced lab service to update
+      const updatedApiLab = await labService.updateLabInfo(
+        id,
+        headerForm.name.trim(),
+        headerForm.description.trim(),
+        token
+      );
 
+      // Update both the API data and transformed lab
+      setApiLabData(updatedApiLab);
+      const updatedLab = transformApiLabToFrontend(updatedApiLab);
       setLab(updatedLab);
-      setIsEditing(false);
+
+      setIsEditingHeader(false);
       setSaving(false);
       setIsEditDialogOpen(false);
+
+      console.log('Successfully updated lab info');
     } catch (error) {
       console.error('Failed to update lab:', error);
       setError(error instanceof Error ? error.message : 'Failed to update lab');
@@ -295,12 +322,31 @@ const Lab: React.FC = () => {
   // Handle terms update for Plan tab
   const handleTermsUpdate = useCallback(
     async (includeTerms: string[], excludeTerms: string[]) => {
-      if (!lab) return;
+      if (!lab || !token || !id) return;
 
-      // Update local state optimistically
-      setLab((prev) => (prev ? { ...prev, includeTerms, excludeTerms } : null));
+      try {
+        // Update via API
+        const updatedApiLab = await labService.updateLabTerms(
+          id,
+          includeTerms,
+          excludeTerms,
+          token
+        );
+
+        // Update both the API data and transformed lab
+        setApiLabData(updatedApiLab);
+        const updatedLab = transformApiLabToFrontend(updatedApiLab);
+        setLab(updatedLab);
+
+        console.log('Successfully updated lab terms');
+      } catch (error) {
+        console.error('Failed to update terms:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to update terms'
+        );
+      }
     },
-    [lab]
+    [lab, token, id, transformApiLabToFrontend]
   );
 
   // Error handling
@@ -467,11 +513,17 @@ const Lab: React.FC = () => {
 
   return (
     <Box p={6} bg='bg' minHeight='calc(100vh - 64px)' color='fg'>
-      {/* Main Lab Card */}
-      <GlassCard variant='outline' w='100%' mb={6} bg='bg.canvas'>
+      {/* Main Lab Card with Three-Dot Menu */}
+      <GlassCard
+        variant='outline'
+        w='100%'
+        mb={6}
+        bg='bg.canvas'
+        borderColor='border.emphasized'
+      >
         <Box p={6}>
           <VStack gap={4} align='stretch'>
-            {/* Header with Title and Actions */}
+            {/* Header with Title and Three-Dot Menu */}
             <Flex justify='space-between' align='flex-start'>
               <VStack gap={2} align='stretch' flex='1' mr={4}>
                 <Heading as='h1' size='xl' fontFamily='heading' color='fg'>
@@ -483,18 +535,6 @@ const Lab: React.FC = () => {
               </VStack>
 
               <HStack gap={2}>
-                {/* Edit Lab Button - Only show for admins */}
-                {isLabAdmin() && (
-                  <Button
-                    size='md'
-                    variant='outline'
-                    onClick={handleEditToggle}
-                  >
-                    <FiEdit size={16} />
-                    Edit Lab
-                  </Button>
-                )}
-
                 {/* Lab Settings Button - Only show for admins */}
                 {isLabAdmin() && (
                   <IconButton
@@ -502,9 +542,38 @@ const Lab: React.FC = () => {
                     variant='ghost'
                     onClick={handleNavigateToSettings}
                     aria-label='Lab Settings'
+                    color='fg'
+                    _hover={{ bg: 'bg.hover' }}
                   >
                     <FiSettings size={16} />
                   </IconButton>
+                )}
+
+                {/* Three-Dot Menu - Only show for admins */}
+                {isLabAdmin() && (
+                  <MenuRoot>
+                    <MenuTrigger asChild>
+                      <IconButton
+                        size='md'
+                        variant='ghost'
+                        aria-label='Lab Options'
+                        color='fg.muted'
+                        _hover={{ bg: 'bg.hover' }}
+                      >
+                        <FiMoreVertical size={16} />
+                      </IconButton>
+                    </MenuTrigger>
+                    <MenuContent bg='bg.canvas' borderColor='border.emphasized'>
+                      <MenuItem
+                        onClick={handleHeaderEditToggle}
+                        color='fg'
+                        _hover={{ bg: 'bg.hover' }}
+                      >
+                        <FiEdit size={14} />
+                        Edit lab title and description
+                      </MenuItem>
+                    </MenuContent>
+                  </MenuRoot>
                 )}
               </HStack>
             </Flex>
@@ -526,7 +595,7 @@ const Lab: React.FC = () => {
                 Analyses: {lab.analyses.length}
               </Text>
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                Goals: {lab.goals.length}
+                Goals: {apiLabData?.goals?.length || 0}
               </Text>
             </HStack>
           </VStack>
@@ -557,10 +626,10 @@ const Lab: React.FC = () => {
       <Box>
         {activeTab === 'plan' && (
           <Plan
-            labId={lab.id}
+            labId={id || ''}
             lab={lab}
-            includeTerms={lab.includeTerms || []}
-            excludeTerms={lab.excludeTerms || []}
+            includeTerms={apiLabData?.include_terms || lab.includeTerms || []}
+            excludeTerms={apiLabData?.exclude_terms || lab.excludeTerms || []}
             onTermsUpdate={handleTermsUpdate}
             onRefreshLab={fetchLabData}
           />
@@ -595,7 +664,12 @@ const Lab: React.FC = () => {
                 Edit Lab Details
               </Dialog.Title>
               <Dialog.CloseTrigger asChild>
-                <IconButton size='sm' variant='ghost'>
+                <IconButton
+                  size='sm'
+                  variant='ghost'
+                  color='fg'
+                  _hover={{ bg: 'bg.hover' }}
+                >
                   <FiX />
                 </IconButton>
               </Dialog.CloseTrigger>
@@ -614,11 +688,11 @@ const Lab: React.FC = () => {
                     Lab Name
                   </Text>
                   <Input
-                    value={editForm.name}
+                    value={headerForm.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder='Enter lab name...'
-                    bg='bg'
-                    borderColor='border.muted'
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
                     color='fg'
                     _placeholder={{ color: 'fg.muted' }}
                     _focus={{
@@ -639,15 +713,15 @@ const Lab: React.FC = () => {
                     Lab Description
                   </Text>
                   <Textarea
-                    value={editForm.description}
+                    value={headerForm.description}
                     onChange={(e) =>
                       handleInputChange('description', e.target.value)
                     }
                     placeholder='Enter lab description...'
                     rows={6}
                     resize='vertical'
-                    bg='bg'
-                    borderColor='border.muted'
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
                     color='fg'
                     _placeholder={{ color: 'fg.muted' }}
                     _focus={{
@@ -663,7 +737,7 @@ const Lab: React.FC = () => {
               <HStack gap={3}>
                 <Button
                   variant='outline'
-                  onClick={handleEditToggle}
+                  onClick={handleHeaderEditToggle}
                   disabled={saving}
                   color='fg'
                   borderColor='border.emphasized'
