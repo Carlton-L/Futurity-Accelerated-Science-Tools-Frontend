@@ -43,6 +43,16 @@ export interface PasswordChangeRequest {
   newPassword: string;
 }
 
+export interface UserWhiteboardResponse {
+  uniqueID: string;
+  userID: string;
+  subjects: any[];
+  labSeeds: any[];
+  createdAt: string;
+  updatedAt: string;
+  _id: string;
+}
+
 class UserService {
   private getAuthHeaders(token?: string): HeadersInit {
     const headers: HeadersInit = {
@@ -163,6 +173,46 @@ class UserService {
     const userData: ExtendedUserData = await response.json();
     console.log('Successfully fetched reliable user data');
     return userData;
+  }
+
+  /**
+   * Fetch user's whiteboard data
+   */
+  async getUserWhiteboard(
+    userId: string,
+    token?: string
+  ): Promise<UserWhiteboardResponse> {
+    try {
+      console.log('Attempting to fetch whiteboard for user ID:', userId);
+
+      const response = await fetch(
+        `${MANAGEMENT_API_BASE_URL}/whiteboards/user/${userId}`,
+        {
+          method: 'GET',
+          headers: this.getAuthHeaders(token),
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('401: Unauthorized - Token is invalid or expired');
+        }
+        if (response.status === 404) {
+          throw new Error('404: Whiteboard not found for this user');
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const whiteboardData: UserWhiteboardResponse = await response.json();
+      console.log(
+        'Successfully fetched whiteboard data:',
+        whiteboardData.uniqueID
+      );
+      return whiteboardData;
+    } catch (error) {
+      console.error('Get user whiteboard error:', error);
+      throw error;
+    }
   }
 
   /**

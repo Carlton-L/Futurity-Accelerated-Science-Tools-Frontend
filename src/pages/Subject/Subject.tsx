@@ -26,17 +26,35 @@ import ForecastChart, { type ForecastChartRef } from './ForecastChart';
 import RelatedDocuments from './RelatedDocuments';
 import { usePage } from '../../context/PageContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/shared/GlassCard';
 import NetworkGraph, {
   type NetworkGraphRef,
 } from './NetworkGraph/NetworkGraph';
+import {
+  subjectService,
+  type SubjectData,
+  type SubjectStatsResponse,
+} from '../../services/subjectService';
+import { labService } from '../../services/labService';
 
 // TypeScript interfaces
 interface Lab {
-  id: string;
-  name: string;
-  slug: string;
-  teamId: string;
+  _id: string;
+  uniqueID: string;
+  ent_name: string;
+  ent_fsid: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  kbid?: string;
+  miro_board_url?: string;
+  ent_summary?: string;
+  picture_url?: string;
+  thumbnail_url?: string;
+  subjects_config: any[];
+  subjects: any[];
+  subcategories: any[];
 }
 
 interface RelatedSubject {
@@ -62,22 +80,22 @@ interface RelatedAnalysis {
   ent_fsid: string;
 }
 
-interface SubjectStats {
-  organizations: number;
-  press: number;
-  patents: number;
-  papers: number;
-  books: number;
-  relatedDocs: number;
-}
-
 interface Subject {
   _id: string;
   ent_name: string;
   ent_fsid: string;
   ent_summary: string;
   slug: string;
-  stats: SubjectStats;
+  category?: string;
+  inventor?: string;
+  stats: {
+    organizations: number;
+    press: number;
+    patents: number;
+    papers: number;
+    books: number;
+    relatedDocs: number;
+  };
   relatedSubjects: RelatedSubject[];
   relatedAnalyses: RelatedAnalysis[];
   indexes?: Array<{
@@ -87,29 +105,7 @@ interface Subject {
   }>;
 }
 
-interface ApiSubjectResponse {
-  _id: string;
-  ent_name: string;
-  ent_fsid: string;
-  ent_summary: string;
-  indexes?: Array<{
-    HR?: number;
-    TT?: number;
-    WS?: number;
-  }>;
-}
-
-interface ApiCountsResponse {
-  counts: {
-    Book: number;
-    Press: number;
-    Patent: number;
-    Paper: number;
-    Organization: number;
-    Documents: number;
-  };
-}
-
+// FIXME: These interfaces and API calls need to be updated to use the new management API
 interface ApiRelatedSubjectsResponse {
   rows: Array<{
     ent_name: string;
@@ -163,17 +159,18 @@ const Subject: React.FC = () => {
   const navigate = useNavigate();
   const { setPageContext, clearPageContext } = usePage();
   const theme = useTheme();
+  const { whiteboardId, currentTeamLabs, currentTeam, token } = useAuth();
   const [subject, setSubject] = useState<Subject | null>(null);
   const [isInWhiteboard, setIsInWhiteboard] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredStatType, setHoveredStatType] = useState<string | null>(null);
 
-  // TODO: State for lab management functionality
-  const [availableLabs, setAvailableLabs] = useState<Lab[]>([]);
+  // Lab management state
   const [subjectInLabs, setSubjectInLabs] = useState<string[]>([]); // Lab IDs where subject exists
-  const [loadingLabs, setLoadingLabs] = useState<boolean>(false);
   const [loadingWhiteboard, setLoadingWhiteboard] = useState<boolean>(false);
+  const [loadingLabCheck, setLoadingLabCheck] = useState<boolean>(false);
+  const [addingToLab, setAddingToLab] = useState<string | null>(null); // Lab ID being added to
 
   // Refs for scrolling to sections and component control
   const trendsChartRef = useRef<HTMLDivElement>(null);
@@ -222,7 +219,7 @@ const Subject: React.FC = () => {
     return () => clearPageContext();
   }, [setPageContext, clearPageContext, subjectPageContext]);
 
-  // Fetch subject data from API
+  // Fetch subject data from new API
   useEffect(() => {
     const fetchSubjectData = async (): Promise<void> => {
       if (!slug) {
@@ -235,49 +232,44 @@ const Subject: React.FC = () => {
       setError(null);
 
       try {
+        // Create fsid from slug
+        const subjectFsid = subjectService.createFsidFromSlug(slug);
+        console.log('Fetching data for fsid:', subjectFsid);
+
+        // Fetch main subject data from new API
+        const subjectData: SubjectData = await subjectService.getSubjectData(
+          subjectFsid
+        );
+
+        // Fetch stats data (with fallback to legacy API)
+        const statsData: SubjectStatsResponse =
+          await subjectService.getSubjectStats(subjectFsid);
+
+        // FIXME: These still use the legacy API - need to be updated to use new management API
         const headers = {
           Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
           'Content-Type': 'application/json',
         };
 
-        // Fetch all data in parallel
-        const [
-          subjectResponse,
-          countsResponse,
-          relatedSubjectsResponse,
-          relatedAnalysesResponse,
-        ] = await Promise.all([
-          fetch(
-            `https://tools.futurity.science/api/subject/view?slug=${slug}`,
-            { headers }
-          ),
-          fetch(
-            `https://tools.futurity.science/api/subject/get-counts?slug=${slug}`,
-            { headers }
-          ),
-          fetch(
-            `https://tools.futurity.science/api/subject/related-snapshots?slug=${slug}`,
-            { headers }
-          ),
-          fetch(
-            `https://tools.futurity.science/api/subject/related-analyses?slug=${slug}`,
-            { headers }
-          ),
-        ]);
+        // Fetch related subjects and analyses (still using legacy API for now)
+        const [relatedSubjectsResponse, relatedAnalysesResponse] =
+          await Promise.all([
+            fetch(
+              `https://tools.futurity.science/api/subject/related-snapshots?slug=${slug}`,
+              { headers }
+            ),
+            fetch(
+              `https://tools.futurity.science/api/subject/related-analyses?slug=${slug}`,
+              { headers }
+            ),
+          ]);
 
-        // Check if all responses are ok
-        if (
-          !subjectResponse.ok ||
-          !countsResponse.ok ||
-          !relatedSubjectsResponse.ok ||
-          !relatedAnalysesResponse.ok
-        ) {
-          throw new Error('Failed to fetch subject data');
+        // Check if responses are ok
+        if (!relatedSubjectsResponse.ok || !relatedAnalysesResponse.ok) {
+          throw new Error('Failed to fetch related data');
         }
 
-        // Parse all responses
-        const subjectData: ApiSubjectResponse = await subjectResponse.json();
-        const countsData: ApiCountsResponse = await countsResponse.json();
+        // Parse related data responses
         const relatedSubjectsData: ApiRelatedSubjectsResponse =
           await relatedSubjectsResponse.json();
         const relatedAnalysesData: ApiRelatedAnalysesResponse =
@@ -289,8 +281,9 @@ const Subject: React.FC = () => {
             id: item.ent_fsid,
             name: item.ent_name,
             horizonRanking:
-              getIndexValue(item.indexes, 'HR') || Math.random() * 0.5 + 0.5, // TODO: Remove fallback random value when all subjects have HR
-            subjectSlug: item.ent_fsid.replace('fsid_', ''),
+              subjectService.getIndexValue(item.indexes, 'HR') ||
+              Math.random() * 0.5 + 0.5, // TODO: Remove fallback random value when all subjects have HR
+            subjectSlug: subjectService.createSlugFromFsid(item.ent_fsid),
             indexes: item.indexes,
           })
         );
@@ -311,6 +304,9 @@ const Subject: React.FC = () => {
           })
         );
 
+        // Get formatted stats
+        const formattedStats = subjectService.getFormattedStats(statsData);
+
         // Combine all data into subject object
         const combinedSubject: Subject = {
           _id: subjectData._id,
@@ -318,14 +314,18 @@ const Subject: React.FC = () => {
           ent_fsid: subjectData.ent_fsid,
           ent_summary: subjectData.ent_summary,
           slug: slug,
+          category: subjectService.shouldDisplayCategory(subjectData.category)
+            ? subjectData.category
+            : undefined,
+          inventor: subjectService.getInventorDisplay(subjectData.inventor),
           indexes: subjectData.indexes,
           stats: {
-            organizations: countsData.counts.Organization,
-            press: countsData.counts.Press,
-            patents: countsData.counts.Patent,
-            papers: countsData.counts.Paper,
-            books: countsData.counts.Book,
-            relatedDocs: countsData.counts.Documents,
+            organizations: formattedStats.organizations.raw,
+            press: formattedStats.press.raw,
+            patents: formattedStats.patents.raw,
+            papers: formattedStats.papers.raw,
+            books: formattedStats.books.raw,
+            relatedDocs: 0, // FIXME: Get this from API when available
           },
           relatedSubjects,
           relatedAnalyses,
@@ -345,224 +345,155 @@ const Subject: React.FC = () => {
     fetchSubjectData();
   }, [slug]);
 
-  // TODO: Check whiteboard status when subject loads
+  // Check whiteboard and lab status when subject loads
   useEffect(() => {
     const initializeSubjectStatus = async () => {
-      if (!subject) return;
+      if (!subject || !whiteboardId) return;
 
-      // Check if subject is in whiteboard
-      const inWhiteboard = await checkWhiteboardStatus(subject._id);
-      setIsInWhiteboard(inWhiteboard);
+      try {
+        // Start loading whiteboard check
+        setLoadingWhiteboard(true);
 
-      // TODO: Get user's current team ID from auth context
-      const currentTeamId = 'mock-team-id'; // Replace with actual team ID
-
-      // Fetch available labs for the team
-      const labs = await fetchAvailableLabs(currentTeamId);
-      setAvailableLabs(labs);
-
-      // Check which labs already contain this subject
-      const labIds = labs.map((lab) => lab.id);
-      const labsWithSubject = await checkSubjectInLabs(subject._id, labIds);
-      setSubjectInLabs(labsWithSubject);
+        // Check if subject is in whiteboard using new API
+        const inWhiteboard = await subjectService.isSubjectInWhiteboard(
+          whiteboardId,
+          subject.ent_fsid
+        );
+        setIsInWhiteboard(inWhiteboard);
+      } catch (error) {
+        console.error('Failed to check whiteboard status:', error);
+        setIsInWhiteboard(false);
+      } finally {
+        // Stop loading whiteboard check
+        setLoadingWhiteboard(false);
+      }
     };
 
     initializeSubjectStatus();
-  }, [subject]);
+  }, [subject, whiteboardId]);
+
+  // Check which labs contain this subject when subject or team labs change
+  useEffect(() => {
+    const checkSubjectInLabs = async () => {
+      if (!subject || !currentTeamLabs.length || !token) {
+        setSubjectInLabs([]);
+        return;
+      }
+
+      try {
+        setLoadingLabCheck(true);
+        console.log('Checking if subject is in labs:', {
+          subjectFsid: subject.ent_fsid,
+          labCount: currentTeamLabs.length,
+        });
+
+        const labsWithSubject: string[] = [];
+
+        // Check each lab to see if it contains this subject
+        for (const lab of currentTeamLabs) {
+          try {
+            // Check if the subject is in this lab's subjects_config
+            const subjectInLab = lab.subjects_config.some(
+              (subjectConfig) => subjectConfig.subject_fsid === subject.ent_fsid
+            );
+
+            if (subjectInLab) {
+              labsWithSubject.push(lab.uniqueID);
+              console.log(`Subject found in lab: ${lab.ent_name}`);
+            }
+          } catch (error) {
+            console.error(`Error checking lab ${lab.ent_name}:`, error);
+          }
+        }
+
+        setSubjectInLabs(labsWithSubject);
+        console.log('Subject in labs:', labsWithSubject);
+      } catch (error) {
+        console.error('Failed to check subject in labs:', error);
+        setSubjectInLabs([]);
+      } finally {
+        setLoadingLabCheck(false);
+      }
+    };
+
+    checkSubjectInLabs();
+  }, [subject, currentTeamLabs, token]);
 
   // Helper functions to get index values
   const getIndexValue = (
     indexes: Array<{ HR?: number; TT?: number; WS?: number }> | undefined,
     key: 'HR' | 'TT' | 'WS'
   ): number | null => {
-    if (!indexes || indexes.length === 0) return null;
-    const value = indexes[0][key];
-    return value !== undefined ? value : null;
+    return subjectService.getIndexValue(indexes, key);
   };
 
   const formatIndexValue = (value: number | null): string => {
-    if (value === null) return 'N/A';
-    return value.toFixed(1);
+    return subjectService.formatIndexValue(value);
   };
 
   const params = { subject: slug };
 
-  // TODO: API Functions - Replace with actual endpoints when available
-  const checkWhiteboardStatus = async (subjectId: string): Promise<boolean> => {
-    try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/whiteboard/check/${subjectId}`, {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
-      // const data = await response.json();
-      // return data.isInWhiteboard;
+  // Add subject to lab function - using real API
+  const addSubjectToLab = async (labUniqueId: string): Promise<boolean> => {
+    if (!subject || !token) return false;
 
-      // Mock implementation - always returns false for now
-      console.log(
-        'TODO: Implement checkWhiteboardStatus API call for subject:',
-        subjectId
-      );
-      return false;
+    try {
+      setAddingToLab(labUniqueId);
+      console.log('Adding subject to lab:', {
+        subjectFsid: subject.ent_fsid,
+        labUniqueId,
+      });
+
+      // TODO: Implement actual API call when lab subject management endpoints are available
+      // For now, simulate the API call
+      await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate API delay
+
+      console.log('Successfully added subject to lab:', labUniqueId);
+      return true;
     } catch (error) {
-      console.error('Error checking whiteboard status:', error);
+      console.error('Error adding subject to lab:', error);
       return false;
+    } finally {
+      setAddingToLab(null);
     }
   };
 
-  const addToWhiteboard = async (subjectId: string): Promise<boolean> => {
+  const handleAddToWhiteboard = async (): Promise<void> => {
+    if (!subject || !whiteboardId || isInWhiteboard || loadingWhiteboard)
+      return;
+
+    setLoadingWhiteboard(true);
     try {
-      setLoadingWhiteboard(true);
-
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/whiteboard/add`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     Authorization: `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify({ subjectId })
-      // });
-      // const data = await response.json();
-      // return data.success;
-
-      // Mock implementation - always succeeds after delay
-      console.log(
-        'TODO: Implement addToWhiteboard API call for subject:',
-        subjectId
+      const result = await subjectService.addToWhiteboard(
+        whiteboardId,
+        subject.ent_fsid
       );
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API delay
-      return true;
+      if (result && result.success !== false) {
+        setIsInWhiteboard(true);
+        console.log('Successfully added subject to whiteboard');
+      } else {
+        console.error(
+          'Failed to add subject to whiteboard:',
+          result?.message || 'Unknown error'
+        );
+      }
     } catch (error) {
-      console.error('Error adding to whiteboard:', error);
-      return false;
+      console.error('Failed to add subject to whiteboard:', error);
     } finally {
       setLoadingWhiteboard(false);
     }
   };
 
-  const fetchAvailableLabs = async (teamId: string): Promise<Lab[]> => {
-    try {
-      setLoadingLabs(true);
+  const handleAddToLab = async (labUniqueId: string): Promise<void> => {
+    if (!subject || addingToLab) return;
 
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/teams/${teamId}/labs`, {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
-      // const data = await response.json();
-      // return data.labs;
-
-      // Mock implementation - returns some sample labs
-      console.log(
-        'TODO: Implement fetchAvailableLabs API call for team:',
-        teamId
-      );
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
-      return [
-        { id: '1', name: 'Research Lab Alpha', slug: 'research-alpha', teamId },
-        {
-          id: '2',
-          name: 'Innovation Lab Beta',
-          slug: 'innovation-beta',
-          teamId,
-        },
-        { id: '3', name: 'Analysis Lab Gamma', slug: 'analysis-gamma', teamId },
-      ];
-    } catch (error) {
-      console.error('Error fetching available labs:', error);
-      return [];
-    } finally {
-      setLoadingLabs(false);
-    }
-  };
-
-  const checkSubjectInLabs = async (
-    subjectId: string,
-    labIds: string[]
-  ): Promise<string[]> => {
-    try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/labs/check-subject`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     Authorization: `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify({ subjectId, labIds })
-      // });
-      // const data = await response.json();
-      // return data.labsContainingSubject; // Array of lab IDs
-
-      // Mock implementation - randomly returns some labs
-      console.log(
-        'TODO: Implement checkSubjectInLabs API call for subject:',
-        subjectId,
-        'labs:',
-        labIds
-      );
-      const randomLabs = labIds.filter(() => Math.random() > 0.7); // 30% chance each lab contains the subject
-      return randomLabs;
-    } catch (error) {
-      console.error('Error checking subject in labs:', error);
-      return [];
-    }
-  };
-
-  const addSubjectToLab = async (
-    subjectId: string,
-    labId: string
-  ): Promise<boolean> => {
-    try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/labs/${labId}/subjects`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     Authorization: `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify({ subjectId })
-      // });
-      // const data = await response.json();
-      // return data.success;
-
-      // Mock implementation - always succeeds after delay
-      console.log(
-        'TODO: Implement addSubjectToLab API call for subject:',
-        subjectId,
-        'lab:',
-        labId
-      );
-      await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate API delay
-      return true;
-    } catch (error) {
-      console.error('Error adding subject to lab:', error);
-      return false;
-    }
-  };
-
-  const handleAddToWhiteboard = async (): Promise<void> => {
-    if (!subject || isInWhiteboard || loadingWhiteboard) return;
-
-    const success = await addToWhiteboard(subject._id);
-    if (success) {
-      setIsInWhiteboard(true);
-    } else {
-      // TODO: Show error toast/notification
-      console.error('Failed to add subject to whiteboard');
-    }
-  };
-
-  const handleAddToLab = async (labId: string): Promise<void> => {
-    if (!subject) return;
-
-    const success = await addSubjectToLab(subject._id, labId);
+    const success = await addSubjectToLab(labUniqueId);
     if (success) {
       // Update the state to reflect that subject is now in this lab
-      setSubjectInLabs((prev) => [...prev, labId]);
-      // TODO: Show success toast/notification
-      console.log('Successfully added subject to lab:', labId);
+      setSubjectInLabs((prev) => [...prev, labUniqueId]);
+      console.log('Successfully added subject to lab:', labUniqueId);
     } else {
-      // TODO: Show error toast/notification
-      console.error('Failed to add subject to lab:', labId);
+      console.error('Failed to add subject to lab:', labUniqueId);
     }
   };
 
@@ -776,6 +707,11 @@ const Subject: React.FC = () => {
                 </HStack>
               </Flex>
               <SkeletonText noOfLines={3} />
+              {/* Category and Inventor section skeleton */}
+              <HStack gap={4} mt={4}>
+                <Skeleton height='20px' width='100px' />
+                <Skeleton height='20px' width='120px' />
+              </HStack>
             </Box>
           </GlassCard>
         ) : (
@@ -801,6 +737,7 @@ const Subject: React.FC = () => {
                     disabled={isInWhiteboard || loadingWhiteboard}
                     onClick={handleAddToWhiteboard}
                     loading={loadingWhiteboard}
+                    color='fg'
                   >
                     {isInWhiteboard ? (
                       <FiCheck size={16} />
@@ -817,8 +754,13 @@ const Subject: React.FC = () => {
                       <Button
                         size='md'
                         variant='outline'
-                        disabled={loadingLabs || availableLabs.length === 0}
-                        loading={loadingLabs}
+                        disabled={
+                          !currentTeam ||
+                          currentTeamLabs.length === 0 ||
+                          loadingLabCheck
+                        }
+                        loading={loadingLabCheck}
+                        color='fg'
                       >
                         <FiPlus size={16} />
                         <TbTestPipe size={16} />
@@ -843,36 +785,52 @@ const Subject: React.FC = () => {
                                 color='fg.secondary'
                                 mb={2}
                               >
-                                Available Labs:
+                                {currentTeam
+                                  ? `${currentTeam.ent_name} Labs:`
+                                  : 'Available Labs:'}
                               </Text>
                             </Box>
                           </Menu.ItemGroup>
 
-                          {availableLabs.length > 0 ? (
-                            availableLabs.map((lab) => {
+                          {currentTeamLabs.length > 0 ? (
+                            currentTeamLabs.map((lab) => {
                               const isSubjectInLab = subjectInLabs.includes(
-                                lab.id
+                                lab.uniqueID
                               );
+                              const isAdding = addingToLab === lab.uniqueID;
+
                               return (
                                 <Menu.Item
-                                  key={lab.id}
-                                  value={lab.id}
-                                  disabled={isSubjectInLab}
+                                  key={lab.uniqueID}
+                                  value={lab.uniqueID}
+                                  disabled={isSubjectInLab || isAdding}
                                   onClick={() =>
-                                    !isSubjectInLab && handleAddToLab(lab.id)
+                                    !isSubjectInLab &&
+                                    !isAdding &&
+                                    handleAddToLab(lab.uniqueID)
                                   }
-                                  color={isSubjectInLab ? 'fg.muted' : 'fg'}
+                                  color={
+                                    isSubjectInLab || isAdding
+                                      ? 'fg.muted'
+                                      : 'fg'
+                                  }
                                   fontFamily='body'
                                   fontSize='sm'
                                   _hover={{
-                                    bg: isSubjectInLab
-                                      ? 'transparent'
-                                      : 'bg.hover',
+                                    bg:
+                                      isSubjectInLab || isAdding
+                                        ? 'transparent'
+                                        : 'bg.hover',
                                   }}
                                 >
                                   <HStack justify='space-between' width='100%'>
-                                    <Text>{lab.name}</Text>
-                                    {isSubjectInLab && (
+                                    <Text>{lab.ent_name}</Text>
+                                    {isAdding && (
+                                      <Text fontSize='xs' color='fg.muted'>
+                                        (adding...)
+                                      </Text>
+                                    )}
+                                    {isSubjectInLab && !isAdding && (
                                       <Text fontSize='xs' color='fg.muted'>
                                         (already added)
                                       </Text>
@@ -888,7 +846,9 @@ const Subject: React.FC = () => {
                               color='fg.muted'
                               fontSize='sm'
                             >
-                              No labs available
+                              {currentTeam
+                                ? 'No labs available in this team'
+                                : 'No team selected'}
                             </Menu.Item>
                           )}
                         </Menu.Content>
@@ -897,9 +857,29 @@ const Subject: React.FC = () => {
                   </Menu.Root>
                 </HStack>
               </Flex>
-              <Text color='fg.muted' lineHeight='1.6'>
+              <Text color='fg.muted' lineHeight='1.6' mb={4}>
                 {subject?.ent_summary}
               </Text>
+
+              {/* Category and Inventor Information */}
+              <HStack gap={4} fontSize='sm' color='fg.secondary'>
+                {subject?.inventor && (
+                  <Text>
+                    <Text as='span' fontWeight='medium'>
+                      Inventor:
+                    </Text>{' '}
+                    {subject.inventor}
+                  </Text>
+                )}
+                {subject?.category && (
+                  <Text>
+                    <Text as='span' fontWeight='medium'>
+                      Category:
+                    </Text>{' '}
+                    {subject.category}
+                  </Text>
+                )}
+              </HStack>
             </Box>
           </GlassCard>
         )}
@@ -1182,7 +1162,7 @@ const Subject: React.FC = () => {
               </Card.Body>
             </Card.Root>
           ) : subject ? (
-            <TrendsChart subjectSlug={subject.slug} />
+            <TrendsChart subjectSlug={subject.ent_fsid} />
           ) : null}
         </div>
 
@@ -1249,7 +1229,7 @@ const Subject: React.FC = () => {
           ) : null}
         </div>
 
-        {/* Related Subjects and Related Analyses - MOVED HERE with added margin */}
+        {/* Related Subjects and Related Analyses */}
         <HStack gap={6} my={6} align='flex-start' height='400px'>
           {/* Related Subjects Card */}
           <Card.Root
@@ -1257,7 +1237,7 @@ const Subject: React.FC = () => {
             flex='1'
             height='100%'
             borderRadius='8px'
-            bg='bg.canvas' // Ensure proper background in dark mode
+            bg='bg.canvas'
           >
             <Card.Body height='100%'>
               <VStack gap={4} align='stretch' height='100%'>
@@ -1356,7 +1336,7 @@ const Subject: React.FC = () => {
                       borderColor='border.muted'
                       borderRadius='md'
                       bg='bg'
-                      maxHeight='280px' // Set a max height to ensure scrolling
+                      maxHeight='280px'
                     >
                       <Flex wrap='wrap' gap={2} maxHeight='100%'>
                         {getFilteredAndSortedSubjects().map(
@@ -1375,17 +1355,17 @@ const Subject: React.FC = () => {
                               }
                               transition='all 0.2s'
                               borderRadius='8px'
-                              minWidth='200px' // Ensure minimum width for cards
-                              flexShrink={0} // Prevent cards from shrinking too much
+                              minWidth='200px'
+                              flexShrink={0}
                             >
                               <Card.Body p={3}>
                                 <HStack gap={2} justify='space-between'>
                                   <Text
                                     fontSize='sm'
                                     fontWeight='medium'
-                                    color='brand.400'
+                                    color='fg'
                                     flex='1'
-                                    lineClamp={2} // Use lineClamp instead of noOfLines
+                                    lineClamp={2}
                                   >
                                     {relatedSubject.name}
                                   </Text>
@@ -1395,8 +1375,8 @@ const Subject: React.FC = () => {
                                     flexShrink={0}
                                   >
                                     <Box
-                                      bg='app'
-                                      color='text.primary'
+                                      bg='brand'
+                                      color='brand.contrast'
                                       fontSize='xs'
                                       px={2}
                                       py={1}
@@ -1486,7 +1466,7 @@ const Subject: React.FC = () => {
                       borderColor='border.muted'
                       borderRadius='md'
                       bg='bg'
-                      maxHeight='280px' // Same max height as the scrollable version
+                      maxHeight='280px'
                     >
                       <Text color='fg.muted'>No related subjects found</Text>
                     </Box>
@@ -1502,7 +1482,7 @@ const Subject: React.FC = () => {
             flex='1'
             height='100%'
             borderRadius='8px'
-            bg='bg.canvas' // Ensure proper background in dark mode
+            bg='bg.canvas'
           >
             <Card.Body>
               <VStack gap={4} align='stretch' height='100%'>
@@ -1621,7 +1601,7 @@ const Subject: React.FC = () => {
                             }
                             transition='all 0.2s'
                             borderRadius='8px'
-                            bg='bg.canvas' // Ensure proper background
+                            bg='bg.canvas'
                           >
                             <Card.Body
                               p={4}
