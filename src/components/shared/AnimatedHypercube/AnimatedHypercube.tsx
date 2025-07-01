@@ -602,7 +602,7 @@ const AnimatedHypercube = ({
     overflow: 'visible' as const,
     textDecoration: 'none',
     color: 'inherit',
-    cursor: 'pointer',
+    cursor: onClick || href ? 'pointer' : 'inherit',
   };
 
   const svgContent = (
@@ -610,7 +610,12 @@ const AnimatedHypercube = ({
       width='64'
       height='64'
       viewBox='-200 -200 400 400'
-      style={{ display: 'block', background: 'transparent' }}
+      style={{
+        display: 'block',
+        background: 'transparent',
+        // SVG should not capture any pointer events
+        pointerEvents: 'none',
+      }}
     >
       <style>{`
         .thick-edge {
@@ -676,9 +681,20 @@ const AnimatedHypercube = ({
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement>}
-      style={baseStyle}
-      onClick={handleClick}
-      className='cursor-pointer'
+      style={{
+        ...baseStyle,
+        // Enable pointer events to capture hover, but handle clicks conditionally
+        pointerEvents: 'auto',
+      }}
+      onClick={
+        onClick
+          ? handleClick
+          : (e) => {
+              // When no onClick handler, don't prevent default - let RouterLink handle it
+              // Don't call preventDefault or stopPropagation
+            }
+      }
+      className={onClick ? 'cursor-pointer' : undefined}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={

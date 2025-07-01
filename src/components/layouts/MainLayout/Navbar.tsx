@@ -367,24 +367,17 @@ const Navbar: React.FC = () => {
         >
           {/* Left Navigation Items */}
           {/* Logo */}
-          <RouterLink
-            to='/'
-            style={{
-              height: '100%',
-              width: 'auto',
-              cursor: 'pointer',
-              flexShrink: 0,
-              display: 'block',
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '0.8';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
-          >
-            <AnimatedHypercube theme={isDark ? 'dark' : 'light'} />
+          <RouterLink to='/'>
+            <Box
+              height='100%'
+              width='auto'
+              _hover={{ opacity: 0.8 }}
+              cursor='pointer'
+              flexShrink={0}
+              as='div'
+            >
+              <AnimatedHypercube theme={isDark ? 'dark' : 'light'} />
+            </Box>
           </RouterLink>
 
           {/* TASK 1: Reordered navigation items - Team → Labs → My Whiteboard → Profile */}
