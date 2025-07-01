@@ -11,7 +11,7 @@ const AnimatedHypercube = ({
   onClick,
   href,
 }: AnimatedHypercubeProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement>(null); // Generic HTMLElement to work with both div and a
   const animationProgressRef = useRef(0);
   const targetProgressRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
@@ -525,47 +525,25 @@ const AnimatedHypercube = ({
     }
   }, []);
 
-  // Handle click events
+  // Handle click events - only prevent default if we have an onClick handler
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) {
       e.preventDefault();
       onClick();
     }
+    // For href links, let the default behavior happen
   };
 
-  // Handle context menu for right-click behavior
-  const handleContextMenu = (e: React.MouseEvent) => {
-    // Allow default context menu behavior when href is provided
-    if (!href) {
-      e.preventDefault();
-    }
-  };
-
-  // Determine if this should render as a link
-  const isLink = Boolean(href || onClick);
-
-  const containerProps = {
-    ref: containerRef,
-    className: 'cursor-pointer',
-    style: {
-      position: 'relative' as const,
-      background: 'transparent',
-      padding: 0,
-      margin: 0,
-      overflow: 'visible' as const,
-    },
-    ...(isLink && {
-      onClick: handleClick,
-      onContextMenu: handleContextMenu,
-      role: 'button',
-      tabIndex: 0,
-      onKeyDown: (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          if (onClick) onClick();
-        }
-      },
-    }),
+  // Basic style object
+  const baseStyle = {
+    position: 'relative' as const,
+    background: 'transparent',
+    padding: 0,
+    margin: 0,
+    overflow: 'visible' as const,
+    textDecoration: 'none',
+    color: 'inherit',
+    cursor: 'pointer',
   };
 
   const svgContent = (
@@ -573,11 +551,7 @@ const AnimatedHypercube = ({
       width='64'
       height='64'
       viewBox='-200 -200 400 400'
-      style={{
-        display: 'block',
-        background: 'transparent',
-        pointerEvents: 'none',
-      }}
+      style={{ display: 'block', background: 'transparent' }}
     >
       <style>{`
         .thick-edge {
@@ -628,13 +602,11 @@ const AnimatedHypercube = ({
   if (href) {
     return (
       <a
+        ref={containerRef as React.RefObject<HTMLAnchorElement>}
         href={href}
-        {...containerProps}
-        style={{
-          ...containerProps.style,
-          textDecoration: 'none',
-          color: 'inherit',
-        }}
+        style={baseStyle}
+        onClick={handleClick}
+        className='cursor-pointer'
       >
         {svgContent}
       </a>
@@ -642,7 +614,28 @@ const AnimatedHypercube = ({
   }
 
   // Otherwise render as div with click handler
-  return <div {...containerProps}>{svgContent}</div>;
+  return (
+    <div
+      ref={containerRef as React.RefObject<HTMLDivElement>}
+      style={baseStyle}
+      onClick={handleClick}
+      className='cursor-pointer'
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
+      {svgContent}
+    </div>
+  );
 };
 
 export default AnimatedHypercube;
