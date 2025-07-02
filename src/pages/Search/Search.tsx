@@ -264,7 +264,7 @@ const Search: React.FC = () => {
 
   // Get formatted stats for display
   const formattedStats = subjectStats
-    ? subjectService.getFormattedStats(subjectStats)
+    ? subjectService.getSimpleFormattedStats(subjectStats)
     : null;
 
   return (
