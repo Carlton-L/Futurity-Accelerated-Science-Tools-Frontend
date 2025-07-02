@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useCallback,
-  useMemo,
-  useRef,
-  useEffect,
-} from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -24,161 +18,74 @@ import {
   Field,
   Spinner,
   Separator,
+  Skeleton,
+  SkeletonText,
 } from '@chakra-ui/react';
-import { Progress } from '@chakra-ui/react';
 import {
   FiPlus,
-  FiSearch,
   FiSettings,
   FiSend,
-  FiList,
-  FiMoreVertical,
-  FiEye,
-  FiTrash2,
   FiEdit,
+  FiTrash2,
   FiTarget,
   FiX,
+  FiSearch,
 } from 'react-icons/fi';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { createToaster } from '@chakra-ui/react';
 
-// Import types and utilities
+// Import types and services
 import type {
+  WhiteboardData,
   WhiteboardSubject,
-  WhiteboardDraft,
-  DraftMetrics,
-  VisualizationType,
+  WhiteboardLabSeed,
   SubjectSearchResult,
 } from './types';
-import {
-  calculateDraftMetrics,
-  generateTaxonomySuggestions,
-  validateDraftForPublishing,
-} from './types';
-import IconSubject from '../../components/shared/IconSubject';
-
-// Import visualization components
-import { ListView } from './visualizations';
-
+import { filterSubjects, sortSubjects } from './types';
+import { whiteboardService } from '../../services/whiteboardService';
+import { useAuth } from '../../context/AuthContext';
 import { usePage } from '../../context/PageContext';
 
-// Mock data
-const mockSubjects: WhiteboardSubject[] = [
-  {
-    id: 'subj-1',
-    subjectId: 'quantum-computing-001',
-    name: 'Quantum Computing',
-    description:
-      'Advanced quantum algorithms and quantum supremacy applications for solving complex computational problems',
-    slug: 'quantum-computing',
-    horizonRank: 0.73,
-    techTransfer: 85,
-    whiteSpace: 42,
-    addedAt: '2024-03-15T10:30:00Z',
-    source: 'search',
-    aiInsights: {
-      category: 'Advanced Computing',
-      keywords: ['quantum', 'algorithms', 'computing'],
-      confidence: 92,
-    },
-  },
-  {
-    id: 'subj-2',
-    subjectId: 'vertical-farming-001',
-    name: 'Vertical Farming',
-    description:
-      'Automated indoor agriculture systems for urban environments using hydroponic and aeroponic technologies',
-    slug: 'vertical-farming',
-    horizonRank: 0.65,
-    techTransfer: 72,
-    whiteSpace: 68,
-    addedAt: '2024-03-14T14:20:00Z',
-    source: 'browse',
-    aiInsights: {
-      category: 'Agricultural Technology',
-      keywords: ['farming', 'agriculture', 'urban'],
-      confidence: 88,
-    },
-  },
-  {
-    id: 'subj-3',
-    subjectId: 'neural-interfaces-001',
-    name: 'Neural Interfaces',
-    description:
-      'Brain-computer interfaces for medical rehabilitation and consumer applications including thought-controlled devices',
-    slug: 'neural-interfaces',
-    horizonRank: 0.45,
-    techTransfer: 58,
-    whiteSpace: 81,
-    addedAt: '2024-03-13T09:15:00Z',
-    source: 'search',
-    aiInsights: {
-      category: 'Neurotechnology',
-      keywords: ['brain', 'interfaces', 'medical'],
-      confidence: 85,
-    },
-  },
-  {
-    id: 'subj-4',
-    subjectId: 'carbon-capture-001',
-    name: 'Carbon Capture',
-    description:
-      'Direct air capture and carbon utilization technologies for climate change mitigation and industrial applications',
-    slug: 'carbon-capture',
-    horizonRank: 0.78,
-    techTransfer: 91,
-    whiteSpace: 35,
-    addedAt: '2024-03-12T16:45:00Z',
-    source: 'browse',
-    aiInsights: {
-      category: 'Climate Technology',
-      keywords: ['carbon', 'climate', 'capture'],
-      confidence: 90,
-    },
-  },
-  {
-    id: 'subj-5',
-    subjectId: 'space-solar-001',
-    name: 'Space Solar Power',
-    description:
-      'Orbital solar power satellites that beam clean energy to Earth using microwave transmission technology',
-    slug: 'space-solar-power',
-    horizonRank: 0.35,
-    techTransfer: 45,
-    whiteSpace: 85,
-    addedAt: '2024-03-11T11:20:00Z',
-    source: 'search',
-    aiInsights: {
-      category: 'Space Technology',
-      keywords: ['space', 'solar', 'energy'],
-      confidence: 82,
-    },
-  },
-];
+// Import components
+import WhiteboardSubjectCard from './SubjectCard';
+import SubjectSearch from './SubjectSearch';
 
-const mockSearchResults: SubjectSearchResult[] = [
-  {
-    id: 'search-1',
-    name: 'Fusion Energy',
-    slug: 'fusion-energy',
-    description: 'Nuclear fusion power generation for clean unlimited energy',
-    horizonRank: 0.42,
-    techTransfer: 65,
-    whiteSpace: 75,
-    source: 'Global Energy Database',
-  },
-  {
-    id: 'search-2',
-    name: 'Gene Therapy',
-    slug: 'gene-therapy',
-    description:
-      'Therapeutic genetic modification for treating inherited diseases',
-    horizonRank: 0.68,
-    techTransfer: 78,
-    whiteSpace: 52,
-    source: 'Medical Research Database',
-  },
-];
+// Toast for notifications
+const toaster = createToaster({
+  placement: 'top-right',
+});
+
+// Subject search function with correct endpoint
+const performSubjectSearch = async (
+  query: string,
+  token: string
+): Promise<SubjectSearchResult[]> => {
+  try {
+    const response = await fetch(
+      `https://tools.futurity.science/api/search/subjects?keyword=${encodeURIComponent(
+        query
+      )}&limit=10`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.status}`);
+    }
+
+    const results = await response.json();
+    return results;
+  } catch (error) {
+    console.error('Subject search error:', error);
+    return [];
+  }
+};
 
 // Drag and drop types
 const ItemTypes = {
@@ -187,284 +94,43 @@ const ItemTypes = {
 
 interface DragItem {
   type: string;
-  id: string;
-  sourceType: 'unpooled' | 'labSeed';
-  sourceDraftId?: string;
+  fsid: string;
+  sourceType: 'whiteboard' | 'labSeed';
+  sourceLabSeedId?: string;
 }
 
-// Draggable Subject Card Component
-const DraggableSubjectCard: React.FC<{
-  subject: WhiteboardSubject;
-  sourceType: 'unpooled' | 'labSeed';
-  sourceDraftId?: string;
-  showQuickAdd?: boolean;
-  onRemove?: (subjectId: string) => void;
-  onQuickAdd?: (subjectId: string) => void;
-  onRemoveFromWhiteboard?: (subjectId: string) => void;
-}> = ({
-  subject,
-  sourceType,
-  sourceDraftId,
-  showQuickAdd,
-  onRemove,
-  onQuickAdd,
-  onRemoveFromWhiteboard,
-}) => {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: ItemTypes.SUBJECT,
-    item: {
-      type: ItemTypes.SUBJECT,
-      id: subject.id,
-      sourceType,
-      sourceDraftId,
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  }));
-
-  const getMetricColor = (
-    value: number,
-    type: 'horizon' | 'techTransfer' | 'whiteSpace'
-  ) => {
-    switch (type) {
-      case 'horizon':
-        return value < 0.3 ? 'red' : value < 0.7 ? 'orange' : 'green';
-      case 'techTransfer':
-        return value < 40 ? 'red' : value < 70 ? 'orange' : 'green';
-      case 'whiteSpace':
-        return value < 30 ? 'red' : value < 60 ? 'orange' : 'green';
-      default:
-        return 'gray';
-    }
-  };
-
-  return (
-    <Card.Root
-      ref={drag}
-      size='sm'
-      variant='outline'
-      mb={3}
-      opacity={isDragging ? 0.5 : 1}
-      cursor='grab'
-      _hover={{
-        shadow: 'md',
-        borderColor: { base: '#8285FF', _light: 'blue.300' },
-      }}
-      transition='all 0.2s'
-      bg={{ base: '#1a1a1a', _light: 'white' }}
-      border='1px solid'
-      borderColor={{ base: 'white', _light: 'gray.200' }}
-    >
-      <Card.Body p={3}>
-        <VStack gap={2} align='stretch'>
-          <HStack justify='space-between' align='flex-start'>
-            <HStack gap={2} flex='1' align='start'>
-              <IconSubject size='md' />
-              <Text
-                fontSize='sm'
-                fontWeight='medium'
-                color={{ base: 'white', _light: 'black' }}
-                flex='1'
-              >
-                {subject.name}
-              </Text>
-            </HStack>
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  size='xs'
-                  variant='ghost'
-                  aria-label='Subject actions'
-                >
-                  <FiMoreVertical size={12} />
-                </IconButton>
-              </Menu.Trigger>
-              <Menu.Positioner>
-                <Menu.Content>
-                  <Menu.Item value='view'>
-                    <FiEye size={14} />
-                    View Details
-                  </Menu.Item>
-                  {showQuickAdd && onQuickAdd && (
-                    <Menu.Item
-                      value='add'
-                      onClick={() => onQuickAdd(subject.id)}
-                    >
-                      <FiPlus size={14} />
-                      Quick Add to Lab Seed
-                    </Menu.Item>
-                  )}
-                  {onRemoveFromWhiteboard && (
-                    <Menu.Item
-                      value='removeFromWhiteboard'
-                      onClick={() => onRemoveFromWhiteboard(subject.id)}
-                      color='red.600'
-                    >
-                      <FiTrash2 size={14} />
-                      Delete from Whiteboard
-                    </Menu.Item>
-                  )}
-                  {onRemove && (
-                    <Menu.Item
-                      value='remove'
-                      onClick={() => onRemove(subject.id)}
-                    >
-                      <FiTrash2 size={14} />
-                      Remove
-                    </Menu.Item>
-                  )}
-                </Menu.Content>
-              </Menu.Positioner>
-            </Menu.Root>
-          </HStack>
-
-          {/* Metrics */}
-          <VStack gap={1} align='stretch'>
-            <HStack justify='space-between'>
-              <Text
-                fontSize='xs'
-                color={{ base: 'gray.400', _light: 'gray.500' }}
-              >
-                HR:
-              </Text>
-              <HStack gap={1}>
-                <Progress.Root
-                  value={subject.horizonRank * 100}
-                  size='sm'
-                  width='60px'
-                  colorPalette={getMetricColor(subject.horizonRank, 'horizon')}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                <Text
-                  fontSize='xs'
-                  fontWeight='medium'
-                  minW='30px'
-                  color={{ base: 'white', _light: 'black' }}
-                >
-                  {subject.horizonRank.toFixed(2)}
-                </Text>
-              </HStack>
-            </HStack>
-            <HStack justify='space-between'>
-              <Text
-                fontSize='xs'
-                color={{ base: 'gray.400', _light: 'gray.500' }}
-              >
-                TT:
-              </Text>
-              <HStack gap={1}>
-                <Progress.Root
-                  value={subject.techTransfer}
-                  size='sm'
-                  width='60px'
-                  colorPalette={getMetricColor(
-                    subject.techTransfer,
-                    'techTransfer'
-                  )}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                <Text
-                  fontSize='xs'
-                  fontWeight='medium'
-                  minW='30px'
-                  color={{ base: 'white', _light: 'black' }}
-                >
-                  {subject.techTransfer}
-                </Text>
-              </HStack>
-            </HStack>
-            <HStack justify='space-between'>
-              <Text
-                fontSize='xs'
-                color={{ base: 'gray.400', _light: 'gray.500' }}
-              >
-                WS:
-              </Text>
-              <HStack gap={1}>
-                <Progress.Root
-                  value={subject.whiteSpace}
-                  size='sm'
-                  width='60px'
-                  colorPalette={getMetricColor(
-                    subject.whiteSpace,
-                    'whiteSpace'
-                  )}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                <Text
-                  fontSize='xs'
-                  fontWeight='medium'
-                  minW='30px'
-                  color={{ base: 'white', _light: 'black' }}
-                >
-                  {subject.whiteSpace}
-                </Text>
-              </HStack>
-            </HStack>
-          </VStack>
-
-          <Text
-            fontSize='xs'
-            color={{ base: 'gray.400', _light: 'gray.500' }}
-            lineHeight='1.3'
-            lineClamp={2}
-          >
-            {subject.description}
-          </Text>
-
-          {subject.aiInsights && (
-            <Badge size='sm' colorScheme='purple'>
-              {subject.aiInsights.category}
-            </Badge>
-          )}
-        </VStack>
-      </Card.Body>
-    </Card.Root>
-  );
-};
-
-// Drop Zone for Lab Seeds (formerly Drafts)
+// Drop Zone for Lab Seeds
 const DroppableLabSeedArea: React.FC<{
   labSeedId: string;
   children: React.ReactNode;
   onDrop: (
-    subjectId: string,
+    subjectFsid: string,
     targetLabSeedId: string,
-    sourceType: 'unpooled' | 'labSeed',
+    sourceType: 'whiteboard' | 'labSeed',
     sourceLabSeedId?: string
   ) => void;
-  existingSubjectIds: string[];
-}> = ({ labSeedId, children, onDrop, existingSubjectIds }) => {
+  existingSubjectFsids: string[];
+}> = ({ labSeedId, children, onDrop, existingSubjectFsids }) => {
   const [{ isOver, canDrop }, drop] = useDrop(
     () => ({
       accept: ItemTypes.SUBJECT,
       drop: (item: DragItem) => {
         // Check if subject already exists in this lab seed
-        if (existingSubjectIds.includes(item.id)) {
+        if (existingSubjectFsids.includes(item.fsid)) {
           return; // Don't allow drop
         }
-        onDrop(item.id, labSeedId, item.sourceType, item.sourceDraftId);
+        onDrop(item.fsid, labSeedId, item.sourceType, item.sourceLabSeedId);
       },
       canDrop: (item: DragItem) => {
         // Don't allow dropping if subject already exists in this lab seed
-        return !existingSubjectIds.includes(item.id);
+        return !existingSubjectFsids.includes(item.fsid);
       },
       collect: (monitor) => ({
         isOver: monitor.isOver(),
         canDrop: monitor.canDrop(),
       }),
     }),
-    [existingSubjectIds]
+    [existingSubjectFsids]
   );
 
   return (
@@ -487,175 +153,287 @@ const DroppableLabSeedArea: React.FC<{
   );
 };
 
+// Term management component
+const TermsSection: React.FC<{
+  terms: string[];
+  labSeedId: string;
+  whiteboardId: string;
+  token: string;
+  onTermsUpdate: () => void;
+}> = ({ terms, labSeedId, whiteboardId, token, onTermsUpdate }) => {
+  const [newTerm, setNewTerm] = useState('');
+  const [isAddingTerm, setIsAddingTerm] = useState(false);
+
+  const handleAddTerm = async () => {
+    if (!newTerm.trim() || isAddingTerm) return;
+
+    try {
+      setIsAddingTerm(true);
+      await whiteboardService.addTermToLabSeed(
+        whiteboardId,
+        labSeedId,
+        newTerm.trim(),
+        token
+      );
+      setNewTerm('');
+      onTermsUpdate();
+      toaster.create({
+        title: 'Term added successfully',
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to add term:', error);
+      toaster.create({
+        title: 'Failed to add term',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setIsAddingTerm(false);
+    }
+  };
+
+  const handleRemoveTerm = async (term: string) => {
+    try {
+      await whiteboardService.removeTermFromLabSeed(
+        whiteboardId,
+        labSeedId,
+        term,
+        token
+      );
+      onTermsUpdate();
+      toaster.create({
+        title: 'Term removed successfully',
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to remove term:', error);
+      toaster.create({
+        title: 'Failed to remove term',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTerm();
+    }
+  };
+
+  return (
+    <Box
+      p={2}
+      bg='bg.subtle'
+      borderRadius='md'
+      border='1px solid'
+      borderColor='border.muted'
+    >
+      <Text fontSize='xs' color='fg.muted' mb={2}>
+        Terms:
+      </Text>
+
+      {/* Add term input */}
+      <HStack gap={2} mb={2}>
+        <Input
+          size='sm'
+          placeholder='Add term...'
+          value={newTerm}
+          onChange={(e) => setNewTerm(e.target.value)}
+          onKeyDown={handleKeyPress}
+          flex='1'
+        />
+        <Button
+          size='sm'
+          onClick={handleAddTerm}
+          disabled={!newTerm.trim() || isAddingTerm}
+          loading={isAddingTerm}
+        >
+          <FiPlus size={14} />
+        </Button>
+      </HStack>
+
+      {/* Terms list */}
+      <Flex gap={1} wrap='wrap'>
+        {terms.map((term, index) => (
+          <Badge
+            key={index}
+            size='sm'
+            colorScheme='gray'
+            display='flex'
+            alignItems='center'
+            gap={1}
+          >
+            {term}
+            <IconButton
+              size='xs'
+              variant='ghost'
+              onClick={() => handleRemoveTerm(term)}
+              aria-label={`Remove ${term}`}
+              color='fg.muted'
+              _hover={{ color: 'error' }}
+            >
+              <FiX size={10} />
+            </IconButton>
+          </Badge>
+        ))}
+      </Flex>
+    </Box>
+  );
+};
+
+// Subject skeleton component
+const SubjectSkeleton: React.FC = () => (
+  <Card.Root size='sm' variant='outline' mb={3} bg='bg.canvas'>
+    <Card.Body p={3}>
+      <VStack gap={2} align='stretch'>
+        <HStack justify='space-between' align='flex-start'>
+          <HStack gap={2} flex='1' align='start'>
+            <Skeleton height='24px' width='24px' borderRadius='md' />
+            <SkeletonText noOfLines={1} width='60%' />
+          </HStack>
+          <Skeleton height='20px' width='20px' borderRadius='md' />
+        </HStack>
+        <VStack gap={1} align='stretch'>
+          <Skeleton height='8px' width='100%' />
+          <Skeleton height='8px' width='100%' />
+          <Skeleton height='8px' width='100%' />
+        </VStack>
+        <SkeletonText noOfLines={2} spacing='2' />
+      </VStack>
+    </Card.Body>
+  </Card.Root>
+);
+
+// Lab seed skeleton component
+const LabSeedSkeleton: React.FC = () => (
+  <Card.Root
+    size='lg'
+    variant='outline'
+    minH='450px'
+    bg='bg.canvas'
+    border='1px solid'
+    borderColor='border.emphasized'
+  >
+    <Card.Body p={4}>
+      <VStack gap={3} align='stretch'>
+        <HStack justify='space-between' align='flex-start'>
+          <VStack gap={1} align='start' flex='1'>
+            <SkeletonText noOfLines={1} width='40%' />
+            <SkeletonText noOfLines={1} width='60%' />
+          </VStack>
+          <HStack gap={1}>
+            <Skeleton height='32px' width='32px' borderRadius='md' />
+            <Skeleton height='32px' width='80px' borderRadius='md' />
+          </HStack>
+        </HStack>
+        <Box flex='1' minH='300px'>
+          <Flex align='center' justify='center' minH='200px'>
+            <Spinner size='lg' color='brand' />
+          </Flex>
+        </Box>
+      </VStack>
+    </Card.Body>
+  </Card.Root>
+);
+
 // Main Whiteboard Component
 const Whiteboard: React.FC = () => {
-  // Page Context
+  // Auth and Page Context
+  const { user, token } = useAuth();
   const { setPageContext, clearPageContext } = usePage();
 
   // State management
-  const [availableSubjects, setAvailableSubjects] = useState<
-    WhiteboardSubject[]
-  >(
-    mockSubjects // Include all mock subjects in available
+  const [whiteboardData, setWhiteboardData] = useState<WhiteboardData | null>(
+    null
   );
-  const [labSeeds, setLabSeeds] = useState<WhiteboardDraft[]>([
-    {
-      id: 'labSeed-1',
-      name: 'Future Cities',
-      description: 'Technologies for sustainable urban development',
-      subjects: [mockSubjects[3], mockSubjects[4]],
-      aiTaxonomy: {
-        primaryCategory: 'Urban Technology',
-        subCategories: ['Climate Solutions', 'Space Technology'],
-        confidence: 87,
-        suggestedLabName: 'Urban Innovation Lab',
-      },
-      metrics: calculateDraftMetrics([mockSubjects[3], mockSubjects[4]]),
-      createdAt: '2024-03-10T10:30:00Z',
-      updatedAt: '2024-03-15T14:20:00Z',
-      createdById: 'user-1',
-      isPublished: false,
-      terms: ['something'],
-    },
-  ]);
-
-  const [selectedVisualization, setSelectedVisualization] = useState<
-    Record<string, VisualizationType>
-  >({});
-
-  // Filter and sort states for Subjects of Interest
-  const [sortMethod, setSortMethod] = useState<string>('horizon-high');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortMethod, setSortMethod] = useState<string>('name-asc');
   const [filterText, setFilterText] = useState<string>('');
-
-  // Dialog states
   const [isCreateLabSeedOpen, setIsCreateLabSeedOpen] = useState(false);
   const [newLabSeedName, setNewLabSeedName] = useState('');
   const [newLabSeedDescription, setNewLabSeedDescription] = useState('');
-
-  // Delete confirmation modal states
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] =
     useState<WhiteboardSubject | null>(null);
   const [labSeedsContainingSubject, setLabSeedsContainingSubject] = useState<
-    WhiteboardDraft[]
+    WhiteboardLabSeed[]
   >([]);
-
-  // Search states - keeping for future implementation
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SubjectSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
-  // Refs
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Calculate overall metrics
-  const overallMetrics = useMemo((): DraftMetrics => {
-    const allSubjects = [
-      ...availableSubjects,
-      ...labSeeds.flatMap((d) => d.subjects),
-    ];
-    return calculateDraftMetrics(allSubjects);
-  }, [availableSubjects, labSeeds]);
-
-  // Filter and sort available subjects
-  const getFilteredAndSortedSubjects = useCallback((): WhiteboardSubject[] => {
-    // Filter by search text
-    const filtered = availableSubjects.filter(
-      (subject) =>
-        subject.name.toLowerCase().includes(filterText.toLowerCase()) ||
-        subject.description.toLowerCase().includes(filterText.toLowerCase())
-    );
-
-    // Sort based on selected method
-    switch (sortMethod) {
-      case 'horizon-high':
-        return filtered.sort((a, b) => b.horizonRank - a.horizonRank);
-      case 'horizon-low':
-        return filtered.sort((a, b) => a.horizonRank - b.horizonRank);
-      case 'techTransfer-high':
-        return filtered.sort((a, b) => b.techTransfer - a.techTransfer);
-      case 'techTransfer-low':
-        return filtered.sort((a, b) => a.techTransfer - b.techTransfer);
-      case 'whiteSpace-high':
-        return filtered.sort((a, b) => b.whiteSpace - a.whiteSpace);
-      case 'whiteSpace-low':
-        return filtered.sort((a, b) => a.whiteSpace - b.whiteSpace);
-      case 'a-z':
-        return filtered.sort((a, b) => a.name.localeCompare(b.name));
-      case 'z-a':
-        return filtered.sort((a, b) => b.name.localeCompare(a.name));
-      default:
-        return filtered;
-    }
-  }, [availableSubjects, filterText, sortMethod]);
-
-  // Search functionality - keeping for future implementation
-  const performSearch = useCallback(async (query: string) => {
-    setIsSearching(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const results = mockSearchResults.filter(
-      (result) =>
-        result.name.toLowerCase().includes(query.toLowerCase()) ||
-        result.description.toLowerCase().includes(query.toLowerCase())
-    );
-
-    setSearchResults(results);
-    setIsSearching(false);
-  }, []);
-
-  // Handle search input changes - keeping for future implementation
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchQuery(value);
-      if (value.trim().length > 0) {
-        setShowSearchDropdown(true);
-        performSearch(value);
-      } else {
-        setShowSearchDropdown(false);
-        setSearchResults([]);
-      }
-    },
-    [performSearch]
+  // Loading states for individual operations
+  const [isCreatingLabSeed, setIsCreatingLabSeed] = useState(false);
+  const [deletingLabSeedIds, setDeletingLabSeedIds] = useState<Set<string>>(
+    new Set()
   );
+  const [pendingSubjects, setPendingSubjects] = useState<Set<string>>(
+    new Set()
+  );
+  const [optimisticUpdates, setOptimisticUpdates] = useState<{
+    addedSubjects: Map<string, string[]>; // labSeedId -> subject fsids
+    removedSubjects: Map<string, string[]>; // labSeedId -> subject fsids
+  }>({
+    addedSubjects: new Map(),
+    removedSubjects: new Map(),
+  });
 
-  // Handle clicks outside search dropdown - keeping for future implementation
+  // Load whiteboard data from API
+  const loadWhiteboardData = useCallback(async () => {
+    if (!user || !token) return;
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Loading whiteboard data for user:', user._id);
+
+      const data = await whiteboardService.getUserWhiteboard(user._id, token);
+      setWhiteboardData(data);
+      console.log('Whiteboard data loaded:', data);
+    } catch (error) {
+      console.error('Failed to load whiteboard data:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to load whiteboard'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, token]);
+
+  // Load data on mount
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const isInsideSearchInput = searchInputRef.current?.contains(target);
-      const isInsideDropdown = searchDropdownRef.current?.contains(target);
-      if (!isInsideSearchInput && !isInsideDropdown) {
-        setShowSearchDropdown(false);
-      }
-    };
+    loadWhiteboardData();
+  }, [loadWhiteboardData]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Memoize the transformed lab seeds to prevent recreation on every render
+  // Set page context
   const transformedLabSeeds = useMemo(() => {
-    return labSeeds.map((labSeed) => ({
-      id: labSeed.id,
+    if (!whiteboardData) return [];
+
+    return whiteboardData.labSeeds.map((labSeed) => ({
+      id: labSeed.uniqueID,
       name: labSeed.name,
       subjects: labSeed.subjects.map((subject) => ({
-        id: subject.id,
-        name: subject.name,
-        title: subject.name, // Use name as title if title doesn't exist
+        id: subject.ent_fsid,
+        name: subject.ent_name,
+        title: subject.ent_name,
       })),
       terms: labSeed.terms.map((termString, index) => ({
-        id: `term-${labSeed.id}-${index}`, // Generate unique ID
+        id: `term-${labSeed.uniqueID}-${index}`,
         name: termString,
-        text: termString, // Use the string as both name and text
+        text: termString,
       })),
     }));
-  }, [labSeeds]);
+  }, [whiteboardData]);
 
-  // Memoize the whiteboard context to prevent recreation
   const whiteboardContext = useMemo(
     () => ({
       pageType: 'whiteboard' as const,
@@ -670,157 +448,168 @@ const Whiteboard: React.FC = () => {
     return () => clearPageContext();
   }, [setPageContext, clearPageContext, whiteboardContext]);
 
-  // Lab Seed management
-  const handleCreateLabSeed = useCallback(() => {
-    if (!newLabSeedName.trim()) return;
+  // Check if subject is in whiteboard
+  const isSubjectInWhiteboard = useCallback(
+    (subjectFsid: string): boolean => {
+      if (!whiteboardData) return false;
+      return whiteboardData.subjects.some((s) => s.ent_fsid === subjectFsid);
+    },
+    [whiteboardData]
+  );
 
-    const newLabSeed: WhiteboardDraft = {
-      id: `labSeed-${Date.now()}`,
-      name: newLabSeedName.trim(),
-      description: newLabSeedDescription.trim() || undefined,
-      subjects: [],
-      metrics: calculateDraftMetrics([]),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdById: 'current-user',
-      isPublished: false,
-      terms: [],
-    };
+  // Filter and sort subjects
+  const getFilteredAndSortedSubjects = useCallback((): WhiteboardSubject[] => {
+    if (!whiteboardData) return [];
 
-    setLabSeeds((prev) => [...prev, newLabSeed]);
-    setNewLabSeedName('');
-    setNewLabSeedDescription('');
-    setIsCreateLabSeedOpen(false);
-  }, [newLabSeedName, newLabSeedDescription]);
+    // Filter by search text
+    const filtered = filterSubjects(whiteboardData.subjects, filterText);
 
-  // Handle subject movement via drag and drop
-  const handleSubjectDrop = useCallback(
-    (
-      subjectId: string,
-      targetLabSeedId: string,
-      sourceType: 'unpooled' | 'labSeed',
-      sourceLabSeedId?: string
-    ) => {
-      if (sourceType === 'unpooled') {
-        // Copy from available to lab seed (don't remove from available)
-        const subject = availableSubjects.find((s) => s.id === subjectId);
-        if (!subject) return;
+    // Sort based on selected method
+    const [sortBy, sortOrder] = sortMethod.split('-') as [
+      'name' | 'addedAt',
+      'asc' | 'desc'
+    ];
+    return sortSubjects(filtered, sortBy, sortOrder);
+  }, [whiteboardData, filterText, sortMethod]);
 
-        // Check if subject already exists in target lab seed
-        const targetLabSeed = labSeeds.find((d) => d.id === targetLabSeedId);
-        if (targetLabSeed?.subjects.some((s) => s.id === subjectId)) {
-          // Subject already exists in lab seed, don't add
-          return;
-        }
+  // Search functionality
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (!token) return;
 
-        setLabSeeds((prev) =>
-          prev.map((labSeed) =>
-            labSeed.id === targetLabSeedId
-              ? {
-                  ...labSeed,
-                  subjects: [...labSeed.subjects, subject],
-                  metrics: calculateDraftMetrics([
-                    ...labSeed.subjects,
-                    subject,
-                  ]),
-                  updatedAt: new Date().toISOString(),
-                }
-              : labSeed
-          )
-        );
-      } else if (
-        sourceType === 'labSeed' &&
-        sourceLabSeedId &&
-        sourceLabSeedId !== targetLabSeedId
-      ) {
-        // Move between lab seeds (existing logic)
-        let subjectToMove: WhiteboardSubject | undefined;
-
-        // Check if subject already exists in target lab seed
-        const targetLabSeed = labSeeds.find((d) => d.id === targetLabSeedId);
-        const sourceLabSeed = labSeeds.find((d) => d.id === sourceLabSeedId);
-        const subject = sourceLabSeed?.subjects.find((s) => s.id === subjectId);
-
-        if (
-          subject &&
-          targetLabSeed?.subjects.some((s) => s.id === subjectId)
-        ) {
-          // Subject already exists in target lab seed, don't move
-          return;
-        }
-
-        setLabSeeds((prev) =>
-          prev.map((labSeed) => {
-            if (labSeed.id === sourceLabSeedId) {
-              subjectToMove = labSeed.subjects.find((s) => s.id === subjectId);
-              const newSubjects = labSeed.subjects.filter(
-                (s) => s.id !== subjectId
-              );
-              return {
-                ...labSeed,
-                subjects: newSubjects,
-                metrics: calculateDraftMetrics(newSubjects),
-                updatedAt: new Date().toISOString(),
-              };
-            }
-            return labSeed;
-          })
-        );
-
-        if (subjectToMove) {
-          setLabSeeds((prev) =>
-            prev.map((labSeed) =>
-              labSeed.id === targetLabSeedId
-                ? {
-                    ...labSeed,
-                    subjects: [...labSeed.subjects, subjectToMove!],
-                    metrics: calculateDraftMetrics([
-                      ...labSeed.subjects,
-                      subjectToMove!,
-                    ]),
-                    updatedAt: new Date().toISOString(),
-                  }
-                : labSeed
-            )
-          );
-        }
+      setIsSearching(true);
+      try {
+        const results = await performSubjectSearch(query, token);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+        setSearchResults([]);
+        toaster.create({
+          title: 'Search failed',
+          description: 'Unable to search subjects. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setIsSearching(false);
       }
     },
-    [availableSubjects, labSeeds]
+    [token]
   );
 
-  // Handle adding subject from search - keeping for future implementation
-  const handleAddSubjectFromSearch = useCallback(
-    (searchResult: SubjectSearchResult) => {
-      const newSubject: WhiteboardSubject = {
-        id: `subj-${Date.now()}`,
-        subjectId: searchResult.id,
-        name: searchResult.name,
-        description: searchResult.description,
-        slug: searchResult.slug,
-        horizonRank: searchResult.horizonRank,
-        techTransfer: searchResult.techTransfer,
-        whiteSpace: searchResult.whiteSpace,
-        addedAt: new Date().toISOString(),
-        source: 'search',
-      };
-
-      setAvailableSubjects((prev) => [...prev, newSubject]);
-      setSearchQuery('');
+  // Handle search input changes
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length === 0) {
       setShowSearchDropdown(false);
+      setSearchResults([]);
+    }
+  }, []);
+
+  // Handle search execution
+  const handleSearchExecute = useCallback(
+    (query: string) => {
+      if (query.trim().length > 0) {
+        setShowSearchDropdown(true);
+        performSearch(query);
+      }
     },
-    []
+    [performSearch]
   );
 
-  // Handle removing subject from whiteboard entirely
+  // Add subject to whiteboard from search
+  const handleAddSubjectFromSearch = useCallback(
+    async (result: SubjectSearchResult) => {
+      if (!whiteboardData || !token) return;
+
+      // Add to pending subjects (shows skeleton)
+      setPendingSubjects((prev) => new Set(prev).add(result.ent_fsid));
+
+      try {
+        await whiteboardService.addSubjectToWhiteboard(
+          whiteboardData.uniqueID,
+          result.ent_fsid,
+          token
+        );
+
+        // Reload whiteboard data to get updated state
+        await loadWhiteboardData();
+
+        // Clear search
+        setSearchQuery('');
+        setShowSearchDropdown(false);
+
+        toaster.create({
+          title: 'Subject added to whiteboard',
+          description: `${result.ent_name} has been added successfully`,
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error('Failed to add subject to whiteboard:', error);
+        toaster.create({
+          title: 'Failed to add subject',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setPendingSubjects((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(result.ent_fsid);
+          return newSet;
+        });
+      }
+    },
+    [whiteboardData, token, loadWhiteboardData]
+  );
+
+  // Actually remove subject from whiteboard
+  const removeSubjectFromWhiteboard = useCallback(
+    async (subjectFsid: string) => {
+      if (!whiteboardData || !token) return;
+
+      try {
+        await whiteboardService.removeSubjectFromWhiteboard(
+          whiteboardData.uniqueID,
+          subjectFsid,
+          token
+        );
+
+        // Reload whiteboard data
+        await loadWhiteboardData();
+
+        toaster.create({
+          title: 'Subject removed from whiteboard',
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error('Failed to remove subject from whiteboard:', error);
+        toaster.create({
+          title: 'Failed to remove subject',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      }
+    },
+    [whiteboardData, token, loadWhiteboardData]
+  );
+
+  // Remove subject from whiteboard entirely
   const handleRemoveFromWhiteboard = useCallback(
-    (subjectId: string) => {
-      const subject = availableSubjects.find((s) => s.id === subjectId);
+    async (subjectFsid: string) => {
+      if (!whiteboardData) return;
+
+      const subject = whiteboardData.subjects.find(
+        (s) => s.ent_fsid === subjectFsid
+      );
       if (!subject) return;
 
       // Find which lab seeds contain this subject
-      const containingLabSeeds = labSeeds.filter((labSeed) =>
-        labSeed.subjects.some((s) => s.id === subjectId)
+      const containingLabSeeds = whiteboardData.labSeeds.filter((labSeed) =>
+        labSeed.subjects.some((s) => s.ent_fsid === subjectFsid)
       );
 
       if (containingLabSeeds.length > 0) {
@@ -830,120 +619,373 @@ const Whiteboard: React.FC = () => {
         setIsDeleteConfirmOpen(true);
       } else {
         // Remove directly if not in any lab seeds
-        setAvailableSubjects((prev) => prev.filter((s) => s.id !== subjectId));
+        await removeSubjectFromWhiteboard(subjectFsid);
       }
     },
-    [availableSubjects, labSeeds]
+    [whiteboardData, removeSubjectFromWhiteboard]
   );
 
   // Confirm deletion from whiteboard
-  const handleConfirmDelete = useCallback(() => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!subjectToDelete) return;
 
-    // Remove from available subjects
-    setAvailableSubjects((prev) =>
-      prev.filter((s) => s.id !== subjectToDelete.id)
-    );
-
-    // Remove from all lab seeds
-    setLabSeeds((prev) =>
-      prev.map((labSeed) => ({
-        ...labSeed,
-        subjects: labSeed.subjects.filter((s) => s.id !== subjectToDelete.id),
-        metrics: calculateDraftMetrics(
-          labSeed.subjects.filter((s) => s.id !== subjectToDelete.id)
-        ),
-        updatedAt: new Date().toISOString(),
-      }))
-    );
+    await removeSubjectFromWhiteboard(subjectToDelete.ent_fsid);
 
     // Reset modal state
     setIsDeleteConfirmOpen(false);
     setSubjectToDelete(null);
     setLabSeedsContainingSubject([]);
-  }, [subjectToDelete]);
+  }, [subjectToDelete, removeSubjectFromWhiteboard]);
 
-  // Handle publishing lab seed
-  const handlePublishLabSeed = useCallback(
-    (labSeedId: string) => {
-      const labSeed = labSeeds.find((d) => d.id === labSeedId);
-      if (labSeed) {
-        const validation = validateDraftForPublishing(labSeed);
-        if (validation.isValid) {
-          // Navigate to lab creation with lab seed data
-          console.log('Publishing lab seed to lab creation:', labSeed);
-          alert(
-            `Would navigate to lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`
-          );
-        } else {
-          alert(`Cannot publish: ${validation.errors.join(', ')}`);
-        }
-      }
-    },
-    [labSeeds]
-  );
+  // Lab Seed management
+  const handleCreateLabSeed = useCallback(async () => {
+    if (!newLabSeedName.trim() || !whiteboardData || !token) return;
 
-  // Remove subject from lab seed
-  const handleRemoveSubjectFromLabSeed = useCallback(
-    (labSeedId: string, subjectId: string) => {
-      // Simply remove from lab seed (subject stays in available subjects)
-      setLabSeeds((prev) =>
-        prev.map((d) =>
-          d.id === labSeedId
-            ? {
-                ...d,
-                subjects: d.subjects.filter((s) => s.id !== subjectId),
-                metrics: calculateDraftMetrics(
-                  d.subjects.filter((s) => s.id !== subjectId)
-                ),
-                updatedAt: new Date().toISOString(),
-              }
-            : d
-        )
+    try {
+      setIsCreatingLabSeed(true);
+      await whiteboardService.createLabSeed(
+        whiteboardData.uniqueID,
+        newLabSeedName.trim(),
+        newLabSeedDescription.trim() || '',
+        token
       );
-    },
-    []
-  );
+
+      // Reload whiteboard data
+      await loadWhiteboardData();
+
+      // Reset form
+      setNewLabSeedName('');
+      setNewLabSeedDescription('');
+      setIsCreateLabSeedOpen(false);
+
+      toaster.create({
+        title: 'Lab seed created',
+        description: `"${newLabSeedName}" has been created successfully`,
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to create lab seed:', error);
+      toaster.create({
+        title: 'Failed to create lab seed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setIsCreatingLabSeed(false);
+    }
+  }, [
+    newLabSeedName,
+    newLabSeedDescription,
+    whiteboardData,
+    token,
+    loadWhiteboardData,
+  ]);
 
   // Delete lab seed entirely
-  const handleDeleteLabSeed = useCallback((labSeedId: string) => {
-    // Just remove the lab seed (subjects stay in available subjects)
-    setLabSeeds((prev) => prev.filter((d) => d.id !== labSeedId));
-  }, []);
+  const handleDeleteLabSeed = useCallback(
+    async (labSeedId: string) => {
+      if (!whiteboardData || !token) return;
 
-  // Update lab seed AI taxonomy when subjects change
-  const labSeedSubjectsKey = useMemo(
-    () => labSeeds.map((d) => d.subjects.map((s) => s.id).join(',')).join('|'),
-    [labSeeds]
+      // Add to deleting set
+      setDeletingLabSeedIds((prev) => new Set(prev).add(labSeedId));
+
+      try {
+        await whiteboardService.deleteLabSeed(
+          whiteboardData.uniqueID,
+          labSeedId,
+          token
+        );
+
+        // Reload whiteboard data
+        await loadWhiteboardData();
+
+        toaster.create({
+          title: 'Lab seed deleted',
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error('Failed to delete lab seed:', error);
+        toaster.create({
+          title: 'Failed to delete lab seed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setDeletingLabSeedIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(labSeedId);
+          return newSet;
+        });
+      }
+    },
+    [whiteboardData, token, loadWhiteboardData]
   );
 
-  useEffect(() => {
-    setLabSeeds((prev) =>
-      prev.map((labSeed) => ({
-        ...labSeed,
-        aiTaxonomy: generateTaxonomySuggestions(labSeed.subjects),
-      }))
-    );
-  }, [labSeedSubjectsKey]);
+  // Handle subject movement via drag and drop with optimistic updates
+  const handleSubjectDrop = useCallback(
+    async (
+      subjectFsid: string,
+      targetLabSeedId: string,
+      sourceType: 'whiteboard' | 'labSeed',
+      sourceLabSeedId?: string
+    ) => {
+      if (!whiteboardData || !token) return;
+
+      // Optimistic update - add to UI immediately
+      if (sourceType === 'whiteboard') {
+        setOptimisticUpdates((prev) => ({
+          ...prev,
+          addedSubjects: new Map(prev.addedSubjects).set(targetLabSeedId, [
+            ...(prev.addedSubjects.get(targetLabSeedId) || []),
+            subjectFsid,
+          ]),
+        }));
+      } else if (sourceLabSeedId && sourceLabSeedId !== targetLabSeedId) {
+        setOptimisticUpdates((prev) => ({
+          addedSubjects: new Map(prev.addedSubjects).set(targetLabSeedId, [
+            ...(prev.addedSubjects.get(targetLabSeedId) || []),
+            subjectFsid,
+          ]),
+          removedSubjects: new Map(prev.removedSubjects).set(sourceLabSeedId, [
+            ...(prev.removedSubjects.get(sourceLabSeedId) || []),
+            subjectFsid,
+          ]),
+        }));
+      }
+
+      try {
+        if (sourceType === 'whiteboard') {
+          // Copy from whiteboard to lab seed
+          await whiteboardService.addSubjectToLabSeed(
+            whiteboardData.uniqueID,
+            targetLabSeedId,
+            subjectFsid,
+            token
+          );
+        } else if (
+          sourceType === 'labSeed' &&
+          sourceLabSeedId &&
+          sourceLabSeedId !== targetLabSeedId
+        ) {
+          // Move between lab seeds - first add to target, then remove from source
+          await whiteboardService.addSubjectToLabSeed(
+            whiteboardData.uniqueID,
+            targetLabSeedId,
+            subjectFsid,
+            token
+          );
+
+          await whiteboardService.removeSubjectFromLabSeed(
+            whiteboardData.uniqueID,
+            sourceLabSeedId,
+            subjectFsid,
+            token
+          );
+        }
+
+        // Clear optimistic updates and reload data
+        setOptimisticUpdates({
+          addedSubjects: new Map(),
+          removedSubjects: new Map(),
+        });
+        await loadWhiteboardData();
+      } catch (error) {
+        console.error('Failed to move subject:', error);
+
+        // Revert optimistic update
+        setOptimisticUpdates({
+          addedSubjects: new Map(),
+          removedSubjects: new Map(),
+        });
+
+        toaster.create({
+          title: 'Failed to move subject',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      }
+    },
+    [whiteboardData, token, loadWhiteboardData]
+  );
+
+  // Remove subject from lab seed with optimistic updates
+  const handleRemoveSubjectFromLabSeed = useCallback(
+    async (labSeedId: string, subjectFsid: string) => {
+      if (!whiteboardData || !token) return;
+
+      // Optimistic update - remove from UI immediately
+      setOptimisticUpdates((prev) => ({
+        ...prev,
+        removedSubjects: new Map(prev.removedSubjects).set(labSeedId, [
+          ...(prev.removedSubjects.get(labSeedId) || []),
+          subjectFsid,
+        ]),
+      }));
+
+      try {
+        await whiteboardService.removeSubjectFromLabSeed(
+          whiteboardData.uniqueID,
+          labSeedId,
+          subjectFsid,
+          token
+        );
+
+        // Clear optimistic updates and reload data
+        setOptimisticUpdates((prev) => ({
+          ...prev,
+          removedSubjects: new Map(),
+        }));
+        await loadWhiteboardData();
+      } catch (error) {
+        console.error('Failed to remove subject from lab seed:', error);
+
+        // Revert optimistic update
+        setOptimisticUpdates((prev) => ({
+          ...prev,
+          removedSubjects: new Map(),
+        }));
+
+        toaster.create({
+          title: 'Failed to remove subject from lab seed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      }
+    },
+    [whiteboardData, token, loadWhiteboardData]
+  );
+
+  // Handle publishing lab seed (placeholder - would navigate to lab creation)
+  const handlePublishLabSeed = useCallback(
+    (labSeedId: string) => {
+      const labSeed = whiteboardData?.labSeeds.find(
+        (d) => d.uniqueID === labSeedId
+      );
+      if (labSeed) {
+        if (labSeed.subjects.length === 0) {
+          toaster.create({
+            title: 'Cannot publish lab seed',
+            description: 'Lab seed must contain at least one subject',
+            status: 'warning',
+            duration: 5000,
+          });
+          return;
+        }
+        // Navigate to lab creation with lab seed data
+        console.log('Publishing lab seed to lab creation:', labSeed);
+        toaster.create({
+          title: 'Publishing lab seed',
+          description: `Would navigate to lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`,
+          status: 'info',
+          duration: 5000,
+        });
+      }
+    },
+    [whiteboardData]
+  );
+
+  // Handle quick add to lab seed (placeholder - would show selection dialog)
+  const handleQuickAddToLabSeed = useCallback((subjectFsid: string) => {
+    console.log('Quick add subject to lab seed:', subjectFsid);
+    toaster.create({
+      title: 'Quick add functionality',
+      description: 'Quick add functionality not yet implemented',
+      status: 'info',
+      duration: 3000,
+    });
+  }, []);
+
+  // Handle go to search results (placeholder)
+  const handleGoToSearchResults = useCallback(() => {
+    console.log('Navigate to search results page');
+    toaster.create({
+      title: 'Search results page',
+      description: 'Search results page navigation not yet implemented',
+      status: 'info',
+      duration: 3000,
+    });
+  }, []);
+
+  // Get lab seed subjects with optimistic updates applied
+  const getLabSeedSubjects = useCallback(
+    (labSeed: WhiteboardLabSeed): WhiteboardSubject[] => {
+      let subjects = [...labSeed.subjects];
+
+      // Apply optimistic removals
+      const removedFsids =
+        optimisticUpdates.removedSubjects.get(labSeed.uniqueID) || [];
+      subjects = subjects.filter((s) => !removedFsids.includes(s.ent_fsid));
+
+      // Apply optimistic additions
+      const addedFsids =
+        optimisticUpdates.addedSubjects.get(labSeed.uniqueID) || [];
+      const whiteboardSubjects = whiteboardData?.subjects || [];
+
+      addedFsids.forEach((fsid) => {
+        const subject = whiteboardSubjects.find((s) => s.ent_fsid === fsid);
+        if (subject && !subjects.some((s) => s.ent_fsid === fsid)) {
+          subjects.push(subject);
+        }
+      });
+
+      return subjects;
+    },
+    [optimisticUpdates, whiteboardData]
+  );
 
   // Lab Seed Card Component
-  const LabSeedCard: React.FC<{ labSeed: WhiteboardDraft }> = ({ labSeed }) => {
-    const currentViz = selectedVisualization[labSeed.id] || 'list';
+  const LabSeedCard: React.FC<{ labSeed: WhiteboardLabSeed }> = ({
+    labSeed,
+  }) => {
+    const isDeleting = deletingLabSeedIds.has(labSeed.uniqueID);
+    const subjects = getLabSeedSubjects(labSeed);
+
+    if (isDeleting) {
+      return (
+        <Card.Root
+          size='lg'
+          variant='outline'
+          minH='450px'
+          bg='bg.canvas'
+          border='1px solid'
+          borderColor='border.emphasized'
+        >
+          <Card.Body p={4}>
+            <Flex
+              align='center'
+              justify='center'
+              minH='400px'
+              direction='column'
+              gap={4}
+            >
+              <Spinner size='xl' color='brand' />
+              <Text color='fg.muted'>Deleting lab seed...</Text>
+            </Flex>
+          </Card.Body>
+        </Card.Root>
+      );
+    }
 
     return (
       <Card.Root
         size='lg'
         variant='outline'
         minH='450px'
-        bg={{ base: '#1a1a1a', _light: 'white' }}
+        bg='bg.canvas'
         border='1px solid'
-        borderColor={{ base: 'white', _light: 'gray.200' }}
+        borderColor='border.emphasized'
       >
         <Card.Body p={4}>
           <DroppableLabSeedArea
-            labSeedId={labSeed.id}
+            labSeedId={labSeed.uniqueID}
             onDrop={handleSubjectDrop}
-            existingSubjectIds={labSeed.subjects.map((s) => s.id)}
+            existingSubjectFsids={subjects.map((s) => s.ent_fsid)}
           >
             <VStack gap={3} align='stretch'>
               {/* Header */}
@@ -954,26 +996,13 @@ const Whiteboard: React.FC = () => {
                       {labSeed.name}
                     </Text>
                     <Badge size='sm' colorScheme='blue'>
-                      {labSeed.subjects.length}
+                      {subjects.length}
                     </Badge>
                   </HStack>
                   {labSeed.description && (
                     <Text fontSize='xs' color='fg.muted'>
                       {labSeed.description}
                     </Text>
-                  )}
-                  {labSeed.aiTaxonomy && (
-                    <HStack gap={1}>
-                      <Text fontSize='xs' color='purple.400'>
-                        🤖
-                      </Text>
-                      <Text fontSize='xs' fontWeight='medium'>
-                        {labSeed.aiTaxonomy.primaryCategory}
-                      </Text>
-                      <Badge size='sm' colorScheme='purple'>
-                        {labSeed.aiTaxonomy.confidence}%
-                      </Badge>
-                    </HStack>
                   )}
                 </VStack>
                 <HStack gap={1}>
@@ -995,7 +1024,7 @@ const Whiteboard: React.FC = () => {
                         </Menu.Item>
                         <Menu.Item
                           value='delete'
-                          onClick={() => handleDeleteLabSeed(labSeed.id)}
+                          onClick={() => handleDeleteLabSeed(labSeed.uniqueID)}
                         >
                           <FiTrash2 size={14} />
                           Delete Lab Seed
@@ -1007,8 +1036,8 @@ const Whiteboard: React.FC = () => {
                     size='sm'
                     colorScheme='green'
                     variant='outline'
-                    onClick={() => handlePublishLabSeed(labSeed.id)}
-                    disabled={labSeed.subjects.length === 0}
+                    onClick={() => handlePublishLabSeed(labSeed.uniqueID)}
+                    disabled={subjects.length === 0}
                   >
                     <FiSend size={14} />
                     Publish
@@ -1016,108 +1045,14 @@ const Whiteboard: React.FC = () => {
                 </HStack>
               </HStack>
 
-              {/* Metrics Summary */}
-              <Box
-                p={2}
-                bg={{ base: '#111111', _light: 'gray.50' }}
-                borderRadius='md'
-                border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
-              >
-                <Grid templateColumns='repeat(4, 1fr)' gap={3} fontSize='xs'>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Avg HR
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {labSeed.metrics.avgHorizonRank.toFixed(2)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Avg TT
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {Math.round(labSeed.metrics.avgTechTransfer)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Avg WS
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {Math.round(labSeed.metrics.avgWhiteSpace)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Innovation
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {Math.round(labSeed.metrics.innovationPotential)}
-                    </Text>
-                  </VStack>
-                </Grid>
-              </Box>
-
-              {/* Visualization Tabs */}
-              <HStack
-                gap={1}
-                borderBottom='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
-                pb={2}
-              >
-                {[
-                  {
-                    id: 'list' as VisualizationType,
-                    icon: FiList,
-                    label: 'List',
-                  },
-                ].map(({ id, icon: Icon, label }) => (
-                  <Button
-                    key={id}
-                    size='xs'
-                    variant={currentViz === id ? 'solid' : 'ghost'}
-                    onClick={() =>
-                      setSelectedVisualization((prev) => ({
-                        ...prev,
-                        [labSeed.id]: id,
-                      }))
-                    }
-                  >
-                    <Icon size={12} />
-                    {label}
-                  </Button>
-                ))}
-              </HStack>
-
-              {/* Visualization Area */}
-              <Box flex='1' minH='250px'>
-                <ListView
-                  subjects={labSeed.subjects}
-                  onRemoveSubject={(subjectId: string) =>
-                    handleRemoveSubjectFromLabSeed(labSeed.id, subjectId)
-                  }
-                />
-
-                {labSeed.subjects.length === 0 && (
+              {/* Subject List */}
+              <Box flex='1' minH='300px'>
+                {subjects.length === 0 ? (
                   <Flex
                     align='center'
                     justify='center'
                     minH='200px'
-                    color={{ base: 'gray.400', _light: 'gray.600' }}
+                    color='fg.muted'
                   >
                     <VStack gap={2}>
                       <FiTarget size='md' />
@@ -1126,66 +1061,29 @@ const Whiteboard: React.FC = () => {
                       </Text>
                     </VStack>
                   </Flex>
+                ) : (
+                  <VStack gap={2} align='stretch'>
+                    {subjects.map((subject) => (
+                      <WhiteboardSubjectCard
+                        key={subject.ent_fsid}
+                        subject={subject}
+                        sourceType='labSeed'
+                        labSeedId={labSeed.uniqueID}
+                        onRemoveFromLabSeed={handleRemoveSubjectFromLabSeed}
+                      />
+                    ))}
+                  </VStack>
                 )}
               </Box>
 
-              {/* Cluster Coefficient & Risk Indicators */}
-              {labSeed.subjects.length > 0 && (
-                <HStack
-                  justify='space-between'
-                  align='center'
-                  fontSize='xs'
-                  pt={2}
-                  borderTop='1px solid'
-                  borderColor={{ base: 'white', _light: 'gray.200' }}
-                >
-                  <HStack gap={2}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Cluster Coefficient:
-                    </Text>
-                    <HStack gap={1}>
-                      <Progress.Root
-                        value={labSeed.metrics.coherenceScore}
-                        size='sm'
-                        width='40px'
-                        colorPalette={
-                          labSeed.metrics.coherenceScore > 70
-                            ? 'green'
-                            : labSeed.metrics.coherenceScore > 40
-                            ? 'orange'
-                            : 'red'
-                        }
-                      >
-                        <Progress.Track>
-                          <Progress.Range />
-                        </Progress.Track>
-                      </Progress.Root>
-                      <Text fontWeight='bold'>
-                        {Math.round(labSeed.metrics.coherenceScore)}%
-                      </Text>
-                    </HStack>
-                  </HStack>
-
-                  <HStack gap={2}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Risk:
-                    </Text>
-                    <Badge
-                      size='sm'
-                      colorScheme={
-                        labSeed.metrics.competitionRisk > 70
-                          ? 'red'
-                          : labSeed.metrics.competitionRisk > 40
-                          ? 'orange'
-                          : 'green'
-                      }
-                    >
-                      Competition: {Math.round(labSeed.metrics.competitionRisk)}
-                      %
-                    </Badge>
-                  </HStack>
-                </HStack>
-              )}
+              {/* Terms Section */}
+              <TermsSection
+                terms={labSeed.terms}
+                labSeedId={labSeed.uniqueID}
+                whiteboardId={whiteboardData?.uniqueID || ''}
+                token={token || ''}
+                onTermsUpdate={loadWhiteboardData}
+              />
             </VStack>
           </DroppableLabSeedArea>
         </Card.Body>
@@ -1193,102 +1091,131 @@ const Whiteboard: React.FC = () => {
     );
   };
 
-  return (
-    <DndProvider backend={HTML5Backend}>
+  // Show loading state
+  if (isLoading) {
+    return (
       <Box
         p={6}
-        bg={{ base: '#111111', _light: 'gray.50' }}
+        bg='bg'
         minHeight='calc(100vh - 64px)'
+        display='flex'
+        alignItems='center'
+        justifyContent='center'
       >
+        <VStack gap={4}>
+          <Spinner size='xl' color='brand' />
+          <Text>Loading whiteboard...</Text>
+        </VStack>
+      </Box>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <Box
+        p={6}
+        bg='bg'
+        minHeight='calc(100vh - 64px)'
+        display='flex'
+        alignItems='center'
+        justifyContent='center'
+      >
+        <VStack gap={4}>
+          <Text color='error' fontSize='lg'>
+            Failed to load whiteboard
+          </Text>
+          <Text color='fg.muted'>{error}</Text>
+          <Button onClick={loadWhiteboardData}>Try Again</Button>
+        </VStack>
+      </Box>
+    );
+  }
+
+  // Show no data state
+  if (!whiteboardData) {
+    return (
+      <Box
+        p={6}
+        bg='bg'
+        minHeight='calc(100vh - 64px)'
+        display='flex'
+        alignItems='center'
+        justifyContent='center'
+      >
+        <VStack gap={4}>
+          <Text color='fg.muted' fontSize='lg'>
+            No whiteboard data available
+          </Text>
+          <Button onClick={loadWhiteboardData}>Refresh</Button>
+        </VStack>
+      </Box>
+    );
+  }
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <Box p={6} bg='bg' minHeight='calc(100vh - 64px)'>
         <VStack gap={6} align='stretch'>
           {/* Header */}
           <Card.Root
-            bg={{ base: '#1a1a1a', _light: 'white' }}
+            bg='bg.canvas'
             border='1px solid'
-            borderColor={{ base: 'white', _light: 'gray.200' }}
+            borderColor='border.emphasized'
           >
             <Card.Body p={6}>
               <VStack gap={1} align='start'>
                 <Heading as='h1' size='xl'>
                   Whiteboard
                 </Heading>
-                <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                  Collect snapshots, organize into lab seeds, and publish to
-                  labs
+                <Text color='fg.muted'>
+                  Collect subjects, organize into lab seeds, and publish to labs
                 </Text>
               </VStack>
             </Card.Body>
           </Card.Root>
 
-          {/* Metrics Overview */}
+          {/* Overview Stats */}
           <Card.Root
-            bg={{ base: '#1a1a1a', _light: 'white' }}
+            bg='bg.canvas'
             border='1px solid'
-            borderColor={{ base: 'white', _light: 'gray.200' }}
+            borderColor='border.emphasized'
           >
             <Card.Body p={4}>
               <VStack gap={4} align='stretch'>
                 <HStack justify='space-between' align='center'>
-                  <Text fontWeight='medium'>Overall Metrics</Text>
+                  <Text fontWeight='medium'>Overview</Text>
                   <Grid
-                    templateColumns='repeat(5, 1fr)'
+                    templateColumns='repeat(3, 1fr)'
                     gap={6}
                     flex='1'
-                    maxW='600px'
+                    maxW='400px'
                   >
                     <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
+                      <Text fontSize='xs' color='fg.muted'>
                         Total Subjects
                       </Text>
                       <Text fontWeight='bold'>
-                        {overallMetrics.subjectCount}
+                        {whiteboardData.subjects.length}
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Avg Horizon Rank
+                      <Text fontSize='xs' color='fg.muted'>
+                        Lab Seeds
                       </Text>
                       <Text fontWeight='bold'>
-                        {overallMetrics.avgHorizonRank.toFixed(2)}
+                        {whiteboardData.labSeeds.length}
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Avg Tech Transfer
+                      <Text fontSize='xs' color='fg.muted'>
+                        Total Terms
                       </Text>
                       <Text fontWeight='bold'>
-                        {Math.round(overallMetrics.avgTechTransfer)}
-                      </Text>
-                    </VStack>
-                    <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Avg White Space
-                      </Text>
-                      <Text fontWeight='bold'>
-                        {Math.round(overallMetrics.avgWhiteSpace)}
-                      </Text>
-                    </VStack>
-                    <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Innovation Potential
-                      </Text>
-                      <Text fontWeight='bold'>
-                        {Math.round(overallMetrics.innovationPotential)}
+                        {whiteboardData.labSeeds.reduce(
+                          (sum, labSeed) => sum + labSeed.terms.length,
+                          0
+                        )}
                       </Text>
                     </VStack>
                   </Grid>
@@ -1298,117 +1225,31 @@ const Whiteboard: React.FC = () => {
 
                 {/* Search and Actions */}
                 <HStack gap={4} align='center'>
-                  <Box position='relative' flex='1' maxW='400px'>
-                    <Input
-                      ref={searchInputRef}
-                      placeholder='Search and add subjects...'
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      onFocus={() => searchQuery && setShowSearchDropdown(true)}
-                      size='md'
-                    />
-
-                    {/* Search Dropdown */}
-                    {showSearchDropdown && (
-                      <Box
-                        ref={searchDropdownRef}
-                        position='absolute'
-                        top='100%'
-                        left='0'
-                        right='0'
-                        mt={1}
-                        bg={{ base: '#1a1a1a', _light: 'white' }}
-                        border='1px solid'
-                        borderColor={{ base: 'white', _light: 'gray.200' }}
-                        borderRadius='md'
-                        boxShadow='lg'
-                        zIndex='20'
-                        maxH='300px'
-                        overflowY='auto'
-                      >
-                        {isSearching && (
-                          <Flex align='center' justify='center' py={4}>
-                            <Spinner size='sm' />
-                            <Text ml={2} fontSize='sm'>
-                              Searching...
-                            </Text>
-                          </Flex>
-                        )}
-
-                        {!isSearching && searchResults.length > 0 && (
-                          <VStack gap={0} align='stretch'>
-                            {searchResults.map((result) => (
-                              <HStack
-                                key={result.id}
-                                p={3}
-                                _hover={{ bg: 'bg.subtle' }}
-                                justify='space-between'
-                                cursor='pointer'
-                                onClick={() =>
-                                  handleAddSubjectFromSearch(result)
-                                }
-                              >
-                                <VStack gap={1} align='start' flex='1'>
-                                  <HStack gap={2}>
-                                    <IconSubject size={20} />
-                                    <Text fontSize='sm' fontWeight='medium'>
-                                      {result.name}
-                                    </Text>
-                                  </HStack>
-                                  <Text
-                                    fontSize='xs'
-                                    color={{
-                                      base: 'gray.400',
-                                      _light: 'gray.500',
-                                    }}
-                                    lineClamp={1}
-                                  >
-                                    {result.description}
-                                  </Text>
-                                  <HStack gap={2}>
-                                    <Badge size='sm'>
-                                      HR: {result.horizonRank.toFixed(2)}
-                                    </Badge>
-                                    <Badge size='sm'>
-                                      TT: {result.techTransfer}
-                                    </Badge>
-                                    <Badge size='sm'>
-                                      WS: {result.whiteSpace}
-                                    </Badge>
-                                  </HStack>
-                                </VStack>
-                                <IconButton
-                                  size='sm'
-                                  variant='ghost'
-                                  aria-label='Add subject'
-                                >
-                                  <FiPlus size={16} />
-                                </IconButton>
-                              </HStack>
-                            ))}
-                          </VStack>
-                        )}
-
-                        {!isSearching &&
-                          searchResults.length === 0 &&
-                          searchQuery && (
-                            <Flex align='center' justify='center' py={4}>
-                              <Text
-                                fontSize='sm'
-                                color={{ base: 'gray.400', _light: 'gray.500' }}
-                              >
-                                No subjects found for "{searchQuery}"
-                              </Text>
-                            </Flex>
-                          )}
-                      </Box>
-                    )}
-                  </Box>
+                  <SubjectSearch
+                    searchQuery={searchQuery}
+                    searchResults={searchResults}
+                    isSearching={isSearching}
+                    showSearchDropdown={showSearchDropdown}
+                    isSubjectInWhiteboard={isSubjectInWhiteboard}
+                    onSearchChange={handleSearchChange}
+                    onSearchExecute={handleSearchExecute}
+                    onSearchFocus={() => {}}
+                    onClearSearch={() => {
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setShowSearchDropdown(false);
+                    }}
+                    onAddSubject={handleAddSubjectFromSearch}
+                    onGoToSearchResults={handleGoToSearchResults}
+                    setShowSearchDropdown={setShowSearchDropdown}
+                  />
 
                   <Button
                     colorScheme='blue'
                     variant='outline'
                     onClick={() => setIsCreateLabSeedOpen(true)}
+                    disabled={isCreatingLabSeed}
+                    loading={isCreatingLabSeed}
                   >
                     <FiPlus size={16} />
                     New Lab Seed
@@ -1420,19 +1261,19 @@ const Whiteboard: React.FC = () => {
 
           {/* Main Content */}
           <HStack gap={6} align='flex-start'>
-            {/* Subjects of Interest Sidebar */}
+            {/* Subjects Sidebar */}
             <Box minW='280px' maxW='320px'>
               <Card.Root
-                bg={{ base: '#1a1a1a', _light: 'white' }}
+                bg='bg.canvas'
                 border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
+                borderColor='border.emphasized'
               >
                 <Card.Body p={4}>
                   <VStack gap={3} align='stretch'>
                     <HStack justify='space-between' align='center'>
-                      <Text fontWeight='medium'>Subjects of Interest</Text>
+                      <Text fontWeight='medium'>Subjects</Text>
                       <Badge colorScheme='gray'>
-                        {availableSubjects.length}
+                        {whiteboardData.subjects.length}
                       </Badge>
                     </HStack>
 
@@ -1442,7 +1283,7 @@ const Whiteboard: React.FC = () => {
                         <Text
                           fontSize='sm'
                           fontWeight='medium'
-                          color={{ base: 'white', _light: 'gray.700' }}
+                          color='fg'
                           whiteSpace='nowrap'
                         >
                           Sort by:
@@ -1455,85 +1296,16 @@ const Whiteboard: React.FC = () => {
                           style={{
                             padding: '4px',
                             borderRadius: '4px',
-                            border: '1px solid #FFFFFF',
+                            border:
+                              '1px solid var(--chakra-colors-border-emphasized)',
                             fontSize: '12px',
                             width: '100%',
-                            backgroundColor: '#1a1a1a',
-                            color: '#FFFFFF',
+                            backgroundColor: 'var(--chakra-colors-bg-canvas)',
+                            color: 'var(--chakra-colors-fg)',
                           }}
                         >
-                          <option
-                            value='horizon-high'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Horizon Rank (High to Low)
-                          </option>
-                          <option
-                            value='horizon-low'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Horizon Rank (Low to High)
-                          </option>
-                          <option
-                            value='techTransfer-high'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Tech Transfer (High to Low)
-                          </option>
-                          <option
-                            value='techTransfer-low'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Tech Transfer (Low to High)
-                          </option>
-                          <option
-                            value='whiteSpace-high'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            White Space (High to Low)
-                          </option>
-                          <option
-                            value='whiteSpace-low'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            White Space (Low to High)
-                          </option>
-                          <option
-                            value='a-z'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            A-Z
-                          </option>
-                          <option
-                            value='z-a'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Z-A
-                          </option>
+                          <option value='name-asc'>A-Z</option>
+                          <option value='name-desc'>Z-A</option>
                         </select>
                       </HStack>
                       <Input
@@ -1552,29 +1324,35 @@ const Whiteboard: React.FC = () => {
                           align='center'
                           justify='center'
                           minH='200px'
-                          color={{ base: 'gray.400', _light: 'gray.500' }}
+                          color='fg.muted'
                         >
                           <VStack gap={2}>
                             <FiSearch size='md' />
                             <Text fontSize='sm' textAlign='center'>
-                              {filterText || sortMethod !== 'horizon-high'
+                              {filterText
                                 ? 'No subjects match your filters.'
-                                : 'No subjects of interest. Search to add more.'}
+                                : 'No subjects in whiteboard. Search to add some.'}
                             </Text>
                           </VStack>
                         </Flex>
                       ) : (
                         <VStack gap={2} align='stretch'>
                           {getFilteredAndSortedSubjects().map((subject) => (
-                            <DraggableSubjectCard
-                              key={subject.id}
+                            <WhiteboardSubjectCard
+                              key={subject.ent_fsid}
                               subject={subject}
-                              sourceType='unpooled'
-                              showQuickAdd
+                              sourceType='whiteboard'
+                              showQuickActions
                               onRemoveFromWhiteboard={
                                 handleRemoveFromWhiteboard
                               }
+                              onQuickAddToLabSeed={handleQuickAddToLabSeed}
                             />
+                          ))}
+
+                          {/* Show pending subjects as skeletons */}
+                          {Array.from(pendingSubjects).map((fsid) => (
+                            <SubjectSkeleton key={`pending-${fsid}`} />
                           ))}
                         </VStack>
                       )}
@@ -1586,27 +1364,28 @@ const Whiteboard: React.FC = () => {
 
             {/* Lab Seeds Area */}
             <Box flex='1'>
-              {labSeeds.length === 0 ? (
+              {whiteboardData.labSeeds.length === 0 && !isCreatingLabSeed ? (
                 <Card.Root
-                  bg={{ base: '#1a1a1a', _light: 'white' }}
+                  bg='bg.canvas'
                   border='1px solid'
-                  borderColor={{ base: 'white', _light: 'gray.200' }}
+                  borderColor='border.emphasized'
                 >
                   <Card.Body p={8}>
                     <Flex align='center' justify='center' minH='400px'>
                       <VStack gap={4} textAlign='center'>
-                        <FiTarget size={48} color='#A0A0A0' />
+                        <FiTarget
+                          size={48}
+                          color='var(--chakra-colors-fg-muted)'
+                        />
                         <VStack gap={2}>
                           <Text
                             fontSize='lg'
                             fontWeight='medium'
-                            color={{ base: 'gray.400', _light: 'gray.600' }}
+                            color='fg.muted'
                           >
                             No lab seeds yet
                           </Text>
-                          <Text
-                            color={{ base: 'gray.400', _light: 'gray.500' }}
-                          >
+                          <Text color='fg.muted'>
                             Create your first lab seed to start organizing
                             subjects
                           </Text>
@@ -1614,6 +1393,7 @@ const Whiteboard: React.FC = () => {
                         <Button
                           colorScheme='blue'
                           onClick={() => setIsCreateLabSeedOpen(true)}
+                          disabled={isCreatingLabSeed}
                         >
                           <FiPlus size={16} />
                           Create First Lab Seed
@@ -1627,9 +1407,12 @@ const Whiteboard: React.FC = () => {
                   templateColumns='repeat(auto-fit, minmax(450px, 1fr))'
                   gap={6}
                 >
-                  {labSeeds.map((labSeed) => (
-                    <LabSeedCard key={labSeed.id} labSeed={labSeed} />
+                  {whiteboardData.labSeeds.map((labSeed) => (
+                    <LabSeedCard key={labSeed.uniqueID} labSeed={labSeed} />
                   ))}
+
+                  {/* Show creating lab seed skeleton */}
+                  {isCreatingLabSeed && <LabSeedSkeleton />}
                 </Grid>
               )}
             </Box>
@@ -1643,9 +1426,9 @@ const Whiteboard: React.FC = () => {
             <Dialog.Backdrop />
             <Dialog.Positioner>
               <Dialog.Content
-                bg={{ base: '#1a1a1a', _light: 'white' }}
+                bg='bg.canvas'
                 border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
+                borderColor='border.emphasized'
               >
                 <Dialog.Header>
                   <Dialog.Title>Create New Lab Seed</Dialog.Title>
@@ -1668,7 +1451,7 @@ const Whiteboard: React.FC = () => {
                     </Field.Root>
 
                     <Field.Root>
-                      <Field.Label>Description (Optional)</Field.Label>
+                      <Field.Label>Description</Field.Label>
                       <Textarea
                         value={newLabSeedDescription}
                         onChange={(e) =>
@@ -1692,7 +1475,8 @@ const Whiteboard: React.FC = () => {
                     <Button
                       colorScheme='blue'
                       onClick={handleCreateLabSeed}
-                      disabled={!newLabSeedName.trim()}
+                      disabled={!newLabSeedName.trim() || isCreatingLabSeed}
+                      loading={isCreatingLabSeed}
                     >
                       Create Lab Seed
                     </Button>
@@ -1716,9 +1500,9 @@ const Whiteboard: React.FC = () => {
             <Dialog.Backdrop />
             <Dialog.Positioner>
               <Dialog.Content
-                bg={{ base: '#1a1a1a', _light: 'white' }}
+                bg='bg.canvas'
                 border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
+                borderColor='border.emphasized'
               >
                 <Dialog.Header>
                   <Dialog.Title>Confirm Delete from Whiteboard</Dialog.Title>
@@ -1732,24 +1516,21 @@ const Whiteboard: React.FC = () => {
                 <Dialog.Body>
                   <VStack gap={3} align='stretch'>
                     <Text>
-                      Are you sure you want to delete "{subjectToDelete?.name}"
-                      from the whiteboard?
+                      Are you sure you want to delete "
+                      {subjectToDelete?.ent_name}" from the whiteboard?
                     </Text>
 
                     {labSeedsContainingSubject.length > 0 && (
                       <Box
                         p={3}
-                        bg={{
-                          base: 'rgba(224, 123, 145, 0.1)',
-                          _light: 'red.50',
-                        }}
+                        bg='errorSubtle'
                         borderRadius='md'
                         border='1px solid'
-                        borderColor={{ base: '#E07B91', _light: 'red.200' }}
+                        borderColor='error'
                       >
                         <Text
                           fontSize='sm'
-                          color={{ base: '#E07B91', _light: 'red.800' }}
+                          color='error'
                           fontWeight='medium'
                           mb={2}
                         >
@@ -1759,19 +1540,15 @@ const Whiteboard: React.FC = () => {
                         <VStack gap={1} align='start'>
                           {labSeedsContainingSubject.map((labSeed) => (
                             <Text
-                              key={labSeed.id}
+                              key={labSeed.uniqueID}
                               fontSize='sm'
-                              color={{ base: '#E07B91', _light: 'red.700' }}
+                              color='error'
                             >
                               • {labSeed.name}
                             </Text>
                           ))}
                         </VStack>
-                        <Text
-                          fontSize='sm'
-                          color={{ base: '#E07B91', _light: 'red.800' }}
-                          mt={2}
-                        >
+                        <Text fontSize='sm' color='error' mt={2}>
                           Removing it from the whiteboard will also remove it
                           from these lab seeds.
                         </Text>
