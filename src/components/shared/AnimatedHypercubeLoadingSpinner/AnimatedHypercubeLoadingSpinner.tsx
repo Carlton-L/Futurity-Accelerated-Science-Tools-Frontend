@@ -1,12 +1,17 @@
 import { useRef, useEffect } from 'react';
 
+interface AnimatedHypercubeLoadingSpinnerProps {
+  theme?: 'dark' | 'light';
+  instanceId?: string;
+}
+
 const AnimatedHypercubeLoadingSpinner = ({
   theme = 'dark',
   instanceId = 'default',
-}) => {
-  const containerRef = useRef(null);
-  const animationTimeRef = useRef(0);
-  const animationFrameRef = useRef(null);
+}: AnimatedHypercubeLoadingSpinnerProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const animationTimeRef = useRef<number>(0);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Define colors based on theme
   const colors =
@@ -23,7 +28,13 @@ const AnimatedHypercubeLoadingSpinner = ({
         };
 
   useEffect(() => {
-    function createLine(x1, y1, x2, y2, className) {
+    function createLine(
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      className: string
+    ) {
       const line = document.createElementNS(
         'http://www.w3.org/2000/svg',
         'line'
@@ -36,7 +47,10 @@ const AnimatedHypercubeLoadingSpinner = ({
       return line;
     }
 
-    function createPath(points, className) {
+    function createPath(
+      points: Array<{ x: number; y: number }>,
+      className: string
+    ) {
       const path = document.createElementNS(
         'http://www.w3.org/2000/svg',
         'path'
@@ -52,7 +66,11 @@ const AnimatedHypercubeLoadingSpinner = ({
     }
 
     class Vector3 {
-      constructor(x, y, z) {
+      x: number;
+      y: number;
+      z: number;
+
+      constructor(x: number, y: number, z: number) {
         this.x = x || 0;
         this.y = y || 0;
         this.z = z || 0;
@@ -74,7 +92,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         return this;
       }
 
-      applyMatrix4(m) {
+      applyMatrix4(m: Matrix4) {
         const x = this.x,
           y = this.y,
           z = this.z;
@@ -87,18 +105,20 @@ const AnimatedHypercubeLoadingSpinner = ({
     }
 
     class Matrix4 {
+      elements: number[];
+
       constructor() {
         this.elements = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
       }
 
-      makeRotationY(theta) {
+      makeRotationY(theta: number) {
         const c = Math.cos(theta);
         const s = Math.sin(theta);
         this.elements = [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1];
         return this;
       }
 
-      makeRotationAxis(axis, angle) {
+      makeRotationAxis(axis: Vector3, angle: number) {
         const c = Math.cos(angle);
         const s = Math.sin(angle);
         const t = 1 - c;
@@ -129,7 +149,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         return this;
       }
 
-      makeRotationFromEuler(euler) {
+      makeRotationFromEuler(euler: Euler) {
         const x = euler.x,
           y = euler.y,
           z = euler.z;
@@ -161,7 +181,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         return this;
       }
 
-      multiply(m) {
+      multiply(m: Matrix4) {
         const a = this.elements;
         const b = m.elements;
         const result = new Array(16);
@@ -179,7 +199,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         return this;
       }
 
-      multiplyMatrices(a, b) {
+      multiplyMatrices(a: Matrix4, b: Matrix4) {
         const ae = a.elements;
         const be = b.elements;
         const te = this.elements;
@@ -196,21 +216,25 @@ const AnimatedHypercubeLoadingSpinner = ({
         return this;
       }
 
-      setFromRotationMatrix(m) {
+      setFromRotationMatrix(m: Matrix4) {
         this.elements = m.elements.slice();
         return this;
       }
     }
 
     class Euler {
-      constructor(x, y, z) {
+      x: number;
+      y: number;
+      z: number;
+
+      constructor(x: number, y: number, z: number) {
         this.x = x || 0;
         this.y = y || 0;
         this.z = z || 0;
       }
     }
 
-    function project3D(point) {
+    function project3D(point: Vector3) {
       const scale = 100;
       const x = point.x * scale;
       const y = point.y * scale;
@@ -244,7 +268,7 @@ const AnimatedHypercubeLoadingSpinner = ({
       new Vector3(-0.5, 0.5, 0.5),
     ];
 
-    const allEdgePoints = [
+    const allEdgePoints: Vector3[][] = [
       [new Vector3(1, -1, 1), new Vector3(1, 1, 1)],
       [new Vector3(1, -1, -1), new Vector3(1, 1, -1)],
       [new Vector3(-1, -1, -1), new Vector3(-1, 1, -1)],
@@ -259,7 +283,7 @@ const AnimatedHypercubeLoadingSpinner = ({
       [new Vector3(-1, 1, 1), new Vector3(1, 1, 1)],
     ];
 
-    const innerEdges = [
+    const innerEdges: number[][] = [
       [0, 1],
       [1, 2],
       [2, 3],
@@ -274,7 +298,7 @@ const AnimatedHypercubeLoadingSpinner = ({
       [3, 7],
     ];
 
-    const outerFaces = [
+    const outerFaces: number[][] = [
       [0, 1, 2, 3],
       [4, 5, 6, 7],
       [0, 4, 7, 3],
@@ -287,7 +311,10 @@ const AnimatedHypercubeLoadingSpinner = ({
     const innerMatrix = new Matrix4();
     const loopDuration = 4000; // 4 seconds for full loop
 
-    function getEdgeThickness(edgeIndex, rotationDegrees) {
+    function getEdgeThickness(
+      edgeIndex: number,
+      rotationDegrees: number
+    ): string {
       if (edgeIndex >= 8) return 'thick-edge';
 
       const shouldBeThin = new Array(12).fill(false);
@@ -309,7 +336,7 @@ const AnimatedHypercubeLoadingSpinner = ({
       return shouldBeThin[edgeIndex] ? 'thin-edge' : 'thick-edge';
     }
 
-    function animate(timestamp) {
+    function animate(timestamp: number) {
       animationTimeRef.current = timestamp;
 
       // Calculate progress (0 to 1) for the current loop cycle
@@ -320,7 +347,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         (Math.sin(progress * Math.PI * 2 - Math.PI / 2) + 1) / 2;
 
       // Apply easing for smoother animation
-      const easedProgress =
+      const easedProgress: number =
         smoothProgress < 0.5
           ? 2 * smoothProgress * smoothProgress
           : 1 - Math.pow(-2 * smoothProgress + 2, 2) / 2;
@@ -358,7 +385,7 @@ const AnimatedHypercubeLoadingSpinner = ({
       animationFrameRef.current = requestAnimationFrame(animate);
     }
 
-    function updateVisualization(easedProgress) {
+    function updateVisualization(easedProgress: number) {
       const groups = [
         `silhouette-faces-${instanceId}`,
         `inner-cube-faces-${instanceId}`,
@@ -451,7 +478,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         const blueAmount = Math.pow(faceProgress, 1.5); // Slight easing for smoother transition
         if (blueAmount > 0) {
           // Calculate interpolated color
-          let baseColor = colors.fill;
+          const baseColor = colors.fill;
           if (baseColor === 'black') {
             // For dark theme, interpolate from black to blue
             const r = Math.round(0 * (1 - blueAmount) + 0 * blueAmount);
@@ -540,7 +567,7 @@ const AnimatedHypercubeLoadingSpinner = ({
         }
       };
     }
-  }, [instanceId, theme]);
+  }, [instanceId, theme, colors.fill]);
 
   return (
     <div
