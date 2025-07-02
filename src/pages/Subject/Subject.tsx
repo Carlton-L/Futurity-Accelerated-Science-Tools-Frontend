@@ -16,6 +16,7 @@ import {
   Card,
   Menu,
   Portal,
+  Spinner,
 } from '@chakra-ui/react';
 import { FiPlus, FiCheck, FiChevronDown } from 'react-icons/fi';
 import { BsSticky } from 'react-icons/bs';
@@ -36,10 +37,16 @@ import {
   type SubjectData,
   type SubjectStatsResponse,
 } from '../../services/subjectService';
-import { labService } from '../../services/labService';
 
 // TypeScript interfaces
-interface Lab {
+interface SubjectConfig {
+  subject_name: string;
+  subject_fsid: string;
+  subcategory_name: string;
+  subcategory_fsid: string;
+}
+
+interface TeamLab {
   _id: string;
   uniqueID: string;
   ent_name: string;
@@ -52,9 +59,13 @@ interface Lab {
   ent_summary?: string;
   picture_url?: string;
   thumbnail_url?: string;
-  subjects_config: any[];
-  subjects: any[];
-  subcategories: any[];
+  subjects_config: SubjectConfig[];
+  subjects: unknown[];
+  subcategories: unknown[];
+  metadata?: Record<string, unknown>;
+  exclude_terms?: string[];
+  include_terms?: string[];
+  goals?: unknown[];
 }
 
 interface RelatedSubject {
@@ -133,6 +144,14 @@ interface ApiRelatedAnalysesResponse {
   count: number;
 }
 
+// Lab status tracking interface
+interface LabStatus {
+  labId: string;
+  isChecking: boolean;
+  containsSubject: boolean;
+  isAdding: boolean;
+}
+
 // Map stat types to their corresponding forecast types
 const statTypeMapping: {
   [key: string]: 'Organizations' | 'Press' | 'Patents' | 'Papers' | 'Books';
@@ -166,11 +185,11 @@ const Subject: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hoveredStatType, setHoveredStatType] = useState<string | null>(null);
 
-  // Lab management state
-  const [subjectInLabs, setSubjectInLabs] = useState<string[]>([]); // Lab IDs where subject exists
+  // Lab management state - now tracks individual lab statuses
+  const [labStatuses, setLabStatuses] = useState<Map<string, LabStatus>>(
+    new Map()
+  );
   const [loadingWhiteboard, setLoadingWhiteboard] = useState<boolean>(false);
-  const [loadingLabCheck, setLoadingLabCheck] = useState<boolean>(false);
-  const [addingToLab, setAddingToLab] = useState<string | null>(null); // Lab ID being added to
 
   // Refs for scrolling to sections and component control
   const trendsChartRef = useRef<HTMLDivElement>(null);
@@ -195,6 +214,33 @@ const Subject: React.FC = () => {
   // Get the correct background color from theme
   const appBgColor = theme.isDark ? '#111111' : '#FAFAFA';
 
+  // Helper function to get lab status
+  const getLabStatus = (labId: string): LabStatus => {
+    return (
+      labStatuses.get(labId) || {
+        labId,
+        isChecking: false,
+        containsSubject: false,
+        isAdding: false,
+      }
+    );
+  };
+
+  // Helper function to update lab status
+  const updateLabStatus = (labId: string, updates: Partial<LabStatus>) => {
+    setLabStatuses((prev) => {
+      const newMap = new Map(prev);
+      const currentStatus = newMap.get(labId) || {
+        labId,
+        isChecking: false,
+        containsSubject: false,
+        isAdding: false,
+      };
+      newMap.set(labId, { ...currentStatus, ...updates });
+      return newMap;
+    });
+  };
+
   // Memoize the page context to prevent infinite re-renders
   const subjectPageContext = useMemo(() => {
     if (!subject) return null;
@@ -210,7 +256,7 @@ const Subject: React.FC = () => {
     };
   }, [subject]);
 
-  // Set up page context when subject data is loaded
+  // Set up page context when subject data is loaded or tab changes
   useEffect(() => {
     if (subjectPageContext) {
       setPageContext(subjectPageContext);
@@ -234,7 +280,6 @@ const Subject: React.FC = () => {
       try {
         // Create fsid from slug
         const subjectFsid = subjectService.createFsidFromSlug(slug);
-        console.log('Fetching data for fsid:', subjectFsid);
 
         // Fetch main subject data from new API
         const subjectData: SubjectData = await subjectService.getSubjectData(
@@ -334,7 +379,6 @@ const Subject: React.FC = () => {
         setSubject(combinedSubject);
         setLoading(false);
       } catch (err) {
-        console.error('Failed to fetch subject data:', err);
         setError(
           err instanceof Error ? err.message : 'Failed to load subject data'
         );
@@ -345,13 +389,12 @@ const Subject: React.FC = () => {
     fetchSubjectData();
   }, [slug]);
 
-  // Check whiteboard and lab status when subject loads
+  // Check whiteboard status when subject loads
   useEffect(() => {
     const initializeSubjectStatus = async () => {
       if (!subject || !whiteboardId) return;
 
       try {
-        // Start loading whiteboard check
         setLoadingWhiteboard(true);
 
         // Check if subject is in whiteboard using new API
@@ -361,10 +404,8 @@ const Subject: React.FC = () => {
         );
         setIsInWhiteboard(inWhiteboard);
       } catch (error) {
-        console.error('Failed to check whiteboard status:', error);
         setIsInWhiteboard(false);
       } finally {
-        // Stop loading whiteboard check
         setLoadingWhiteboard(false);
       }
     };
@@ -372,51 +413,101 @@ const Subject: React.FC = () => {
     initializeSubjectStatus();
   }, [subject, whiteboardId]);
 
-  // Check which labs contain this subject when subject or team labs change
+  // Initialize lab statuses and check labs individually
   useEffect(() => {
-    const checkSubjectInLabs = async () => {
+    const initializeLabStatuses = async () => {
       if (!subject || !currentTeamLabs.length || !token) {
-        setSubjectInLabs([]);
+        setLabStatuses(new Map());
         return;
       }
 
-      try {
-        setLoadingLabCheck(true);
-        console.log('Checking if subject is in labs:', {
-          subjectFsid: subject.ent_fsid,
-          labCount: currentTeamLabs.length,
+      // Initialize all labs with checking state
+      const initialStatuses = new Map<string, LabStatus>();
+      currentTeamLabs.forEach((lab) => {
+        initialStatuses.set(lab.uniqueID, {
+          labId: lab.uniqueID,
+          isChecking: true,
+          containsSubject: false,
+          isAdding: false,
         });
+      });
+      setLabStatuses(initialStatuses);
 
-        const labsWithSubject: string[] = [];
-
-        // Check each lab to see if it contains this subject
-        for (const lab of currentTeamLabs) {
-          try {
-            // Check if the subject is in this lab's subjects_config
-            const subjectInLab = lab.subjects_config.some(
-              (subjectConfig) => subjectConfig.subject_fsid === subject.ent_fsid
-            );
-
-            if (subjectInLab) {
-              labsWithSubject.push(lab.uniqueID);
-              console.log(`Subject found in lab: ${lab.ent_name}`);
+      // Check each lab individually and update status as we get results
+      const checkPromises = currentTeamLabs.map(async (lab) => {
+        try {
+          // Helper function to extract subjects config from various locations
+          const getSubjectsConfig = (lab: any): any[] => {
+            // Method 1: Check root level subjects_config
+            if (lab.subjects_config && Array.isArray(lab.subjects_config)) {
+              return lab.subjects_config;
             }
-          } catch (error) {
-            console.error(`Error checking lab ${lab.ent_name}:`, error);
-          }
-        }
 
-        setSubjectInLabs(labsWithSubject);
-        console.log('Subject in labs:', labsWithSubject);
-      } catch (error) {
-        console.error('Failed to check subject in labs:', error);
-        setSubjectInLabs([]);
-      } finally {
-        setLoadingLabCheck(false);
-      }
+            // Method 2: Check metadata.subjects_config
+            if (
+              lab.metadata?.subjects_config &&
+              Array.isArray(lab.metadata.subjects_config)
+            ) {
+              return lab.metadata.subjects_config;
+            }
+
+            // Method 3: Check root level subjects
+            if (lab.subjects && Array.isArray(lab.subjects)) {
+              return lab.subjects;
+            }
+
+            // Method 4: Check metadata.subjects
+            if (
+              lab.metadata?.subjects &&
+              Array.isArray(lab.metadata.subjects)
+            ) {
+              return lab.metadata.subjects;
+            }
+
+            return [];
+          };
+
+          const subjectsConfig = getSubjectsConfig(lab);
+          let containsSubject = false;
+
+          if (subjectsConfig.length > 0) {
+            containsSubject = subjectsConfig.some((subjectConfig) => {
+              // Extract fsid from various possible structures
+              let subjectFsid = '';
+
+              if (typeof subjectConfig === 'string') {
+                subjectFsid = subjectConfig;
+              } else if (subjectConfig.subject_fsid) {
+                subjectFsid = subjectConfig.subject_fsid;
+              } else if (subjectConfig.ent_fsid) {
+                subjectFsid = subjectConfig.ent_fsid;
+              } else if (subjectConfig.fsid) {
+                subjectFsid = subjectConfig.fsid;
+              }
+
+              return subjectFsid === subject.ent_fsid;
+            });
+          }
+
+          // Update this specific lab's status
+          updateLabStatus(lab.uniqueID, {
+            isChecking: false,
+            containsSubject,
+          });
+        } catch (error) {
+          // On error, mark as not checking and not containing subject
+          updateLabStatus(lab.uniqueID, {
+            isChecking: false,
+            containsSubject: false,
+          });
+        }
+      });
+
+      // Wait for all checks to complete (optional - the UI updates as each completes)
+      await Promise.allSettled(checkPromises);
     };
 
-    checkSubjectInLabs();
+    initializeLabStatuses();
   }, [subject, currentTeamLabs, token]);
 
   // Helper functions to get index values
@@ -438,23 +529,21 @@ const Subject: React.FC = () => {
     if (!subject || !token) return false;
 
     try {
-      setAddingToLab(labUniqueId);
-      console.log('Adding subject to lab:', {
-        subjectFsid: subject.ent_fsid,
-        labUniqueId,
-      });
+      updateLabStatus(labUniqueId, { isAdding: true });
 
       // TODO: Implement actual API call when lab subject management endpoints are available
       // For now, simulate the API call
       await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate API delay
 
-      console.log('Successfully added subject to lab:', labUniqueId);
+      updateLabStatus(labUniqueId, {
+        isAdding: false,
+        containsSubject: true,
+      });
+
       return true;
     } catch (error) {
-      console.error('Error adding subject to lab:', error);
+      updateLabStatus(labUniqueId, { isAdding: false });
       return false;
-    } finally {
-      setAddingToLab(null);
     }
   };
 
@@ -470,31 +559,21 @@ const Subject: React.FC = () => {
       );
       if (result && result.success !== false) {
         setIsInWhiteboard(true);
-        console.log('Successfully added subject to whiteboard');
-      } else {
-        console.error(
-          'Failed to add subject to whiteboard:',
-          result?.message || 'Unknown error'
-        );
       }
     } catch (error) {
-      console.error('Failed to add subject to whiteboard:', error);
+      // Error handling without console.error
     } finally {
       setLoadingWhiteboard(false);
     }
   };
 
   const handleAddToLab = async (labUniqueId: string): Promise<void> => {
-    if (!subject || addingToLab) return;
+    if (!subject) return;
 
-    const success = await addSubjectToLab(labUniqueId);
-    if (success) {
-      // Update the state to reflect that subject is now in this lab
-      setSubjectInLabs((prev) => [...prev, labUniqueId]);
-      console.log('Successfully added subject to lab:', labUniqueId);
-    } else {
-      console.error('Failed to add subject to lab:', labUniqueId);
-    }
+    const labStatus = getLabStatus(labUniqueId);
+    if (labStatus.isAdding || labStatus.containsSubject) return;
+
+    await addSubjectToLab(labUniqueId);
   };
 
   const handleSubjectClick = (targetSlug: string): void => {
@@ -611,6 +690,11 @@ const Subject: React.FC = () => {
       default:
         return filtered;
     }
+  };
+
+  // Determine if the lab dropdown should show loading state
+  const isLabDropdownLoading = () => {
+    return currentTeamLabs.some((lab) => getLabStatus(lab.uniqueID).isChecking);
   };
 
   // Error handling
@@ -754,12 +838,7 @@ const Subject: React.FC = () => {
                       <Button
                         size='md'
                         variant='outline'
-                        disabled={
-                          !currentTeam ||
-                          currentTeamLabs.length === 0 ||
-                          loadingLabCheck
-                        }
-                        loading={loadingLabCheck}
+                        disabled={!currentTeam || currentTeamLabs.length === 0}
                         color='fg'
                       >
                         <FiPlus size={16} />
@@ -794,23 +873,27 @@ const Subject: React.FC = () => {
 
                           {currentTeamLabs.length > 0 ? (
                             currentTeamLabs.map((lab) => {
-                              const isSubjectInLab = subjectInLabs.includes(
-                                lab.uniqueID
-                              );
-                              const isAdding = addingToLab === lab.uniqueID;
+                              const labStatus = getLabStatus(lab.uniqueID);
 
                               return (
                                 <Menu.Item
                                   key={lab.uniqueID}
                                   value={lab.uniqueID}
-                                  disabled={isSubjectInLab || isAdding}
+                                  disabled={
+                                    labStatus.containsSubject ||
+                                    labStatus.isAdding ||
+                                    labStatus.isChecking
+                                  }
                                   onClick={() =>
-                                    !isSubjectInLab &&
-                                    !isAdding &&
+                                    !labStatus.containsSubject &&
+                                    !labStatus.isAdding &&
+                                    !labStatus.isChecking &&
                                     handleAddToLab(lab.uniqueID)
                                   }
                                   color={
-                                    isSubjectInLab || isAdding
+                                    labStatus.containsSubject ||
+                                    labStatus.isAdding ||
+                                    labStatus.isChecking
                                       ? 'fg.muted'
                                       : 'fg'
                                   }
@@ -818,23 +901,31 @@ const Subject: React.FC = () => {
                                   fontSize='sm'
                                   _hover={{
                                     bg:
-                                      isSubjectInLab || isAdding
+                                      labStatus.containsSubject ||
+                                      labStatus.isAdding ||
+                                      labStatus.isChecking
                                         ? 'transparent'
                                         : 'bg.hover',
                                   }}
                                 >
                                   <HStack justify='space-between' width='100%'>
                                     <Text>{lab.ent_name}</Text>
-                                    {isAdding && (
-                                      <Text fontSize='xs' color='fg.muted'>
-                                        (adding...)
-                                      </Text>
+                                    {labStatus.isChecking && (
+                                      <Spinner size='xs' />
                                     )}
-                                    {isSubjectInLab && !isAdding && (
-                                      <Text fontSize='xs' color='fg.muted'>
-                                        (already added)
-                                      </Text>
-                                    )}
+                                    {labStatus.isAdding &&
+                                      !labStatus.isChecking && (
+                                        <Text fontSize='xs' color='fg.muted'>
+                                          (adding...)
+                                        </Text>
+                                      )}
+                                    {labStatus.containsSubject &&
+                                      !labStatus.isAdding &&
+                                      !labStatus.isChecking && (
+                                        <Text fontSize='xs' color='success'>
+                                          ✓ added
+                                        </Text>
+                                      )}
                                   </HStack>
                                 </Menu.Item>
                               );

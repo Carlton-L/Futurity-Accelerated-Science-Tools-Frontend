@@ -158,16 +158,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
       setExtendedUser(extendedData);
 
-      // Merge extended data with basic user data
+      // CRITICAL: Merge extended data with basic user data BUT NEVER overwrite the _id
       const mergedUser: User = {
         ...basicUser,
         ...extendedData,
-        // Preserve the auth-specific fields from the basic user
+        // ALWAYS preserve the original auth context user ID
+        _id: basicUser._id,
+        // Preserve other auth-specific fields from the basic user
         auth_key: basicUser.auth_key,
+        guid: basicUser.guid,
       };
       setUser(mergedUser);
 
-      console.log('Extended user data loaded successfully');
+      console.log(
+        'Extended user data loaded successfully, preserved original _id:',
+        basicUser._id
+      );
     } catch (error) {
       console.error('Failed to load extended user data:', error);
       // Keep the basic user data if extended fetch fails

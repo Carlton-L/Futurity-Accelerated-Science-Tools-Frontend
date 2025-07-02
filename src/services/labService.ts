@@ -109,7 +109,7 @@ export interface Lab {
   ent_summary?: string;
   picture_url?: string;
   thumbnail_url?: string;
-  subjects_config: SubjectConfig[];
+  subjects_config: SubjectConfig[]; // Always an array, defaults to empty
   subjects: Subject[];
   subcategories: Subcategory[];
   metadata: Metadata;

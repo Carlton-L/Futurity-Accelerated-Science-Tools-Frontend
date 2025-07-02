@@ -31,9 +31,12 @@ export interface ValidationErrors {
 }
 
 export interface ProfileUpdateRequest {
-  fullname?: string;
-  biography?: string;
-  email?: string;
+  email: string;
+  fullname: string;
+  biography: string;
+  picture_url: string;
+  thumb_url: string;
+  email_validated: boolean;
 }
 
 export interface PasswordChangeRequest {
