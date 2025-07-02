@@ -80,7 +80,7 @@ export interface NetworkGraphData {
 }
 
 // Whiteboard types
-export interface WhiteboardSubjectsResponse extends Array<string> {}
+export type WhiteboardSubjectsResponse = string[];
 
 export interface AddToWhiteboardRequest {
   subject: string; // fsid format
@@ -370,7 +370,7 @@ class SubjectService {
       } else {
         try {
           data = JSON.parse(responseText);
-        } catch (parseError) {
+        } catch (_parseError) {
           // If response isn't JSON, assume success since status was ok
           data = { success: true, message: 'Successfully added to whiteboard' };
         }
@@ -382,6 +382,18 @@ class SubjectService {
       console.error('Add to whiteboard error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Create fsid from search query by adding "fsid_" prefix and normalizing
+   * @param query - The search query
+   * @returns string - The formatted fsid
+   */
+  createFsidFromQuery(query: string): string {
+    return `fsid_${query
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^\w_]/g, '')}`;
   }
 
   /**
@@ -441,6 +453,21 @@ class SubjectService {
         raw: stats.Books || 0,
         formatted: this.formatStatValue(stats.Books),
       },
+    };
+  }
+
+  /**
+   * Get simple formatted stats for Search page display
+   * @param stats - Raw stats response
+   * @returns Object with simple string values for React rendering
+   */
+  getSimpleFormattedStats(stats: SubjectStatsResponse) {
+    return {
+      organizations: this.formatStatValue(stats.Organizations),
+      press: this.formatStatValue(stats.Press),
+      patents: this.formatStatValue(stats.Patents),
+      papers: this.formatStatValue(stats.Papers),
+      books: this.formatStatValue(stats.Books),
     };
   }
 

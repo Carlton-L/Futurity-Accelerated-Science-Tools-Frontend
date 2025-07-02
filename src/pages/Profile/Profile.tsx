@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -19,6 +19,7 @@ import {
   Skeleton,
   SkeletonText,
   SkeletonCircle,
+  Alert,
 } from '@chakra-ui/react';
 import {
   FiEdit2,
@@ -32,9 +33,15 @@ import {
   FiLock,
   FiCamera,
   FiUpload,
+  FiUsers,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
-import { userService } from '../../services/userService';
+import {
+  userService,
+  type ExtendedUserData,
+  type UserRelationshipsResponse,
+  type ProfileUpdateRequest,
+} from '../../services/userService';
 import { useToast, ToastDisplay } from '../Lab/ToastSystem';
 import type {
   EditingState,
@@ -56,7 +63,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({
   <Card.Root bg={bg} borderColor='border.emphasized'>
     <Card.Header>
       <HStack gap={3}>
-        <Icon size={20} color='var(--chakra-colors-brand-500)' />
+        <Icon size={20} color='var(--chakra-colors-fg)' />
         <Heading size='md' color='fg'>
           {title}
         </Heading>
@@ -72,6 +79,7 @@ const EditableField: React.FC<
     formData: FormData;
     errors: ValidationErrors;
     isLoading: boolean;
+    isUpdating: boolean;
     onEdit: () => void;
     onCancel: () => void;
     onSave: () => void;
@@ -89,6 +97,7 @@ const EditableField: React.FC<
   formData,
   errors,
   isLoading,
+  isUpdating,
   onEdit,
   onCancel,
   onSave,
@@ -105,6 +114,7 @@ const EditableField: React.FC<
             placeholder={placeholder}
             rows={4}
             bg='bg.canvas'
+            disabled={isLoading}
           />
         ) : (
           <Input
@@ -113,6 +123,7 @@ const EditableField: React.FC<
             onChange={(e) => onFormChange(field, e.target.value)}
             placeholder={placeholder}
             bg='bg.canvas'
+            disabled={isLoading}
           />
         )}
         <HStack gap={2}>
@@ -122,11 +133,17 @@ const EditableField: React.FC<
             onClick={onSave}
             loading={isLoading}
           >
-            <FiSave size={16} />
+            <FiSave size={16} color='white' />
             Save
           </Button>
-          <Button size='sm' variant='outline' onClick={onCancel}>
-            <FiX size={16} />
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={onCancel}
+            color='fg'
+            disabled={isLoading}
+          >
+            <FiX size={16} color='currentColor' />
             Cancel
           </Button>
         </HStack>
@@ -135,7 +152,13 @@ const EditableField: React.FC<
     ) : (
       <HStack gap={2} align='start'>
         <Box flex={1}>
-          {value ? (
+          {isUpdating ? (
+            isTextarea ? (
+              <SkeletonText noOfLines={3} gap={2} />
+            ) : (
+              <Skeleton height='20px' />
+            )
+          ) : value ? (
             <Text color='fg' wordBreak='break-word'>
               {value}
             </Text>
@@ -144,17 +167,22 @@ const EditableField: React.FC<
               Not provided
             </Text>
           )}
-          {helper && <Field.HelperText>{helper}</Field.HelperText>}
+          {helper && !isUpdating && (
+            <Field.HelperText>{helper}</Field.HelperText>
+          )}
         </Box>
-        <IconButton
-          size='sm'
-          variant='ghost'
-          onClick={onEdit}
-          aria-label={`Edit ${label}`}
-          alignSelf='flex-start'
-        >
-          <FiEdit2 size={16} />
-        </IconButton>
+        {!isUpdating && (
+          <IconButton
+            size='sm'
+            variant='ghost'
+            onClick={onEdit}
+            aria-label={`Edit ${label}`}
+            alignSelf='flex-start'
+            color='fg'
+          >
+            <FiEdit2 size={16} />
+          </IconButton>
+        )}
       </HStack>
     )}
   </Field.Root>
@@ -211,8 +239,14 @@ const PasswordField: React.FC<
 );
 
 const Profile: React.FC = () => {
-  const { user, workspace, token, refreshUser } = useAuth();
+  const { user: authUser, workspace, token, refreshUser } = useAuth();
   const { toast, toasts, removeToast, executeUndo } = useToast();
+
+  // State for extended user data
+  const [user, setUser] = useState<ExtendedUserData | null>(null);
+  const [relationships, setRelationships] =
+    useState<UserRelationshipsResponse | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Initialize all hooks first (React hooks rules)
   const [isEditing, setIsEditing] = useState<EditingState>({
@@ -223,9 +257,9 @@ const Profile: React.FC = () => {
   });
 
   const [formData, setFormData] = useState<FormData>({
-    fullname: user?.fullname || '',
-    biography: user?.biography || '',
-    email: user?.email || '',
+    fullname: '',
+    biography: '',
+    email: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -237,15 +271,97 @@ const Profile: React.FC = () => {
     confirm: false,
   });
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // State for tracking which sections are updating
+  const [isUpdating, setIsUpdating] = useState<{
+    fullname: boolean;
+    biography: boolean;
+    email: boolean;
+    password: boolean;
+  }>({
+    fullname: false,
+    biography: false,
+    email: false,
+    password: false,
+  });
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [profilePictureFile, setProfilePictureFile] = useState<File | null>(
     null
   );
   const [isUploadingPicture, setIsUploadingPicture] = useState<boolean>(false);
 
+  // Load user data and relationships
+  useEffect(() => {
+    const loadUserData = async () => {
+      console.log('=== Profile useEffect triggered ===');
+      console.log('authUser:', authUser);
+      console.log('authUser._id:', authUser?._id);
+      console.log('token exists:', !!token);
+
+      if (!authUser?._id || !token) {
+        console.log('❌ Missing auth user or token:', {
+          userId: authUser?._id,
+          hasToken: !!token,
+          authUser: authUser,
+        });
+        return;
+      }
+
+      setIsLoadingData(true);
+      console.log('🚀 Loading user data for auth user ID:', authUser._id);
+
+      try {
+        // Load extended user data from management API (this will handle the user ID mapping internally)
+        console.log('📡 About to call userService.getExtendedUserData...');
+        const extendedUserData = await userService.getExtendedUserData(
+          authUser._id,
+          token
+        );
+        console.log(
+          '✅ Successfully loaded user data from management API:',
+          extendedUserData
+        );
+        setUser(extendedUserData);
+
+        // Load user relationships using the auth user ID
+        console.log('📡 About to call userService.getUserRelationships...');
+        const relationshipsData = await userService.getUserRelationships(
+          authUser._id,
+          token
+        );
+        setRelationships(relationshipsData);
+        console.log('✅ Successfully loaded relationships:', relationshipsData);
+
+        // Initialize form data
+        setFormData({
+          fullname: extendedUserData.profile?.fullname || '',
+          biography: extendedUserData.profile?.biography || '',
+          email: extendedUserData.email || '',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+
+        console.log('✅ Profile data loaded successfully');
+      } catch (error) {
+        console.error('❌ Failed to load user data:', error);
+        toast({
+          title: 'Failed to load profile',
+          description:
+            'Unable to load your profile data. Please try refreshing the page.',
+          status: 'error',
+        });
+      } finally {
+        setIsLoadingData(false);
+        console.log('🏁 Loading complete');
+      }
+    };
+
+    loadUserData();
+  }, [authUser, token, toast]);
+
   // Early return after all hooks are declared
-  if (!user) {
+  if (isLoadingData || !user) {
     return (
       <Container maxW='1440px' px={6} py={8}>
         <VStack gap={6} align='stretch'>
@@ -295,8 +411,8 @@ const Profile: React.FC = () => {
     );
   }
 
-  const formatDate = (timestamp: number): string => {
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -304,12 +420,28 @@ const Profile: React.FC = () => {
   };
 
   const handleEdit = (field: keyof EditingState): void => {
+    if (field === 'email') {
+      toast({
+        title: 'Feature not available',
+        description: 'Email editing is not yet implemented.',
+        status: 'info',
+      });
+      return;
+    }
+
     setIsEditing((prev) => ({ ...prev, [field]: true }));
     // Reset form data to current user values when starting to edit
     if (field !== 'password') {
       setFormData((prev) => ({
         ...prev,
-        [field]: user[field as keyof typeof user] || '',
+        [field]:
+          field === 'fullname'
+            ? user.profile?.fullname || ''
+            : field === 'biography'
+            ? user.profile?.biography || ''
+            : field === 'email'
+            ? user.email || ''
+            : prev[field],
       }));
     }
   };
@@ -327,7 +459,14 @@ const Profile: React.FC = () => {
     } else {
       setFormData((prev) => ({
         ...prev,
-        [field]: user[field as keyof typeof user] || '',
+        [field]:
+          field === 'fullname'
+            ? user.profile?.fullname || ''
+            : field === 'biography'
+            ? user.profile?.biography || ''
+            : field === 'email'
+            ? user.email || ''
+            : prev[field],
       }));
     }
     setErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -362,8 +501,10 @@ const Profile: React.FC = () => {
   };
 
   const handleSave = async (field: keyof EditingState): Promise<void> => {
-    if (!user || !token) return;
+    if (!user || !token || !authUser?._id) return;
 
+    // Set loading for the specific field
+    setIsUpdating((prev) => ({ ...prev, [field]: true }));
     setIsLoading(true);
     setErrors({});
 
@@ -372,45 +513,57 @@ const Profile: React.FC = () => {
         const passwordErrors = validatePassword();
         if (Object.keys(passwordErrors).length > 0) {
           setErrors(passwordErrors);
-          setIsLoading(false);
           return;
         }
 
-        await userService.changePassword(
-          user._id,
-          {
-            currentPassword: formData.currentPassword,
-            newPassword: formData.newPassword,
-          },
-          token
-        );
+        try {
+          await userService.changePassword(
+            authUser._id, // Use auth user ID for password changes
+            {
+              currentPassword: formData.currentPassword,
+              newPassword: formData.newPassword,
+            },
+            token
+          );
 
-        toast({
-          title: 'Password updated',
-          description: 'Your password has been successfully changed.',
-          status: 'success',
-        });
+          toast({
+            title: 'Password updated',
+            description: 'Your password has been successfully changed.',
+            status: 'success',
+          });
 
-        // Clear password fields
-        setFormData((prev) => ({
-          ...prev,
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: '',
-        }));
+          // Clear password fields
+          setFormData((prev) => ({
+            ...prev,
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          }));
+        } catch (error) {
+          toast({
+            title: 'Feature not available',
+            description:
+              'Password change functionality is not yet implemented.',
+            status: 'info',
+          });
+          return;
+        }
       } else {
-        // Profile update
-        const updateData: any = {};
+        // Profile update - userService will handle the user ID mapping
+        const updateData: Partial<ProfileUpdateRequest> = {};
         if (field === 'fullname') updateData.fullname = formData.fullname;
         if (field === 'biography') updateData.biography = formData.biography;
         if (field === 'email') updateData.email = formData.email;
 
-        await userService.updateProfile(user._id, updateData, token);
+        console.log('Attempting to update profile via API...', updateData);
+        const updatedUser = await userService.updateProfile(
+          authUser._id,
+          updateData,
+          token
+        );
 
-        // Refresh user data in context
-        if (refreshUser) {
-          await refreshUser();
-        }
+        // Update the user state with the new data
+        setUser(updatedUser);
 
         toast({
           title: 'Profile updated',
@@ -431,6 +584,7 @@ const Profile: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+      setIsUpdating((prev) => ({ ...prev, [field]: false }));
     }
   };
 
@@ -468,13 +622,19 @@ const Profile: React.FC = () => {
 
     setIsUploadingPicture(true);
     try {
-      const result = await userService.uploadProfilePicture(
+      await userService.uploadProfilePicture(
         user._id,
         profilePictureFile,
         token
       );
 
       // Refresh user data to get new picture URLs
+      const updatedUser = await userService.getExtendedUserData(
+        user._id,
+        token
+      );
+      setUser(updatedUser);
+
       if (refreshUser) {
         await refreshUser();
       }
@@ -493,12 +653,11 @@ const Profile: React.FC = () => {
       if (fileInput) fileInput.value = '';
     } catch (error) {
       console.error('Upload error:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
-        title: 'Upload failed',
-        description: `Failed to upload profile picture: ${errorMessage}`,
-        status: 'error',
+        title: 'Feature not available',
+        description:
+          'Profile picture upload functionality is not yet implemented.',
+        status: 'info',
       });
     } finally {
       setIsUploadingPicture(false);
@@ -525,11 +684,11 @@ const Profile: React.FC = () => {
               <Box position='relative'>
                 <Avatar.Root size='2xl'>
                   <Avatar.Image
-                    src={user.picture_url}
-                    alt={user.displayName || user.fullname}
+                    src={user.profile?.picture_url}
+                    alt={user.profile?.fullname || user.email}
                   />
                   <Avatar.Fallback>
-                    {(user.displayName || user.fullname || user.username || 'U')
+                    {(user.profile?.fullname || user.email || 'U')
                       .charAt(0)
                       .toUpperCase()}
                   </Avatar.Fallback>
@@ -551,7 +710,7 @@ const Profile: React.FC = () => {
                       document.getElementById('profile-picture-input')?.click()
                     }
                   >
-                    <FiCamera size={16} />
+                    <FiCamera size={16} color='white' />
                   </IconButton>
                 </Box>
               </Box>
@@ -568,15 +727,16 @@ const Profile: React.FC = () => {
                       onClick={handleProfilePictureUpload}
                       loading={isUploadingPicture}
                     >
-                      <FiUpload size={16} />
+                      <FiUpload size={16} color='white' />
                       Upload
                     </Button>
                     <Button
                       size='sm'
                       variant='outline'
                       onClick={() => setProfilePictureFile(null)}
+                      color='fg'
                     >
-                      <FiX size={16} />
+                      <FiX size={16} color='currentColor' />
                       Cancel
                     </Button>
                   </HStack>
@@ -586,12 +746,13 @@ const Profile: React.FC = () => {
                 <EditableField
                   field='fullname'
                   label='Full Name'
-                  value={user.fullname || ''}
+                  value={user.profile?.fullname || ''}
                   placeholder='Enter your full name'
                   isEditing={isEditing.fullname}
                   formData={formData}
                   errors={errors}
                   isLoading={isLoading}
+                  isUpdating={isUpdating.fullname}
                   onEdit={() => handleEdit('fullname')}
                   onCancel={() => handleCancel('fullname')}
                   onSave={() => handleSave('fullname')}
@@ -602,25 +763,34 @@ const Profile: React.FC = () => {
                 <EditableField
                   field='biography'
                   label='Biography'
-                  value={user.biography || ''}
+                  value={user.profile?.biography || ''}
                   placeholder='Tell us about yourself...'
                   isTextarea={true}
                   isEditing={isEditing.biography}
                   formData={formData}
                   errors={errors}
                   isLoading={isLoading}
+                  isUpdating={isUpdating.biography}
                   onEdit={() => handleEdit('biography')}
                   onCancel={() => handleCancel('biography')}
                   onSave={() => handleSave('biography')}
                   onFormChange={handleFormChange}
                 />
 
-                {/* Role Badge */}
-                <HStack gap={2}>
-                  <Badge variant='subtle' colorPalette='blue'>
-                    {workspace?.name || 'Futurity Systems'} • {user.role}
-                  </Badge>
-                  {user.email_validated === 1 && (
+                {/* Status Badges */}
+                <HStack gap={2} wrap='wrap'>
+                  {relationships?.organizations?.[0] && (
+                    <Badge variant='subtle' colorPalette='blue'>
+                      {relationships.organizations[0].ent_name} •{' '}
+                      {relationships.organizations[0].user_relationships?.[0]
+                        ?.charAt(0)
+                        .toUpperCase() +
+                        relationships.organizations[0].user_relationships?.[0]?.slice(
+                          1
+                        )}
+                    </Badge>
+                  )}
+                  {user.auth?.email_validated && (
                     <Badge variant='subtle' colorPalette='green'>
                       Email Verified
                     </Badge>
@@ -631,6 +801,109 @@ const Profile: React.FC = () => {
           </VStack>
         </ProfileCard>
 
+        {/* Organization & Team Memberships */}
+        {relationships &&
+          (relationships.organizations.length > 0 ||
+            relationships.teams.length > 0) && (
+            <ProfileCard title='Organization & Team Memberships' icon={FiUsers}>
+              <VStack gap={4} align='stretch'>
+                {relationships.organizations.length > 0 && (
+                  <Box>
+                    <Text
+                      fontSize='sm'
+                      fontWeight='medium'
+                      color='fg.secondary'
+                      mb={2}
+                    >
+                      Organizations
+                    </Text>
+                    <VStack gap={2} align='stretch'>
+                      {relationships.organizations.map((org) => (
+                        <HStack
+                          key={org._id}
+                          justify='space-between'
+                          p={3}
+                          bg='bg.subtle'
+                          borderRadius='md'
+                        >
+                          <Box>
+                            <Text fontWeight='medium' color='fg'>
+                              {org.ent_name}
+                            </Text>
+                            <Text fontSize='sm' color='fg.secondary'>
+                              {org.ent_fsid}
+                            </Text>
+                          </Box>
+                          <Badge
+                            variant='subtle'
+                            colorPalette={
+                              org.user_relationships[0] === 'admin'
+                                ? 'red'
+                                : 'blue'
+                            }
+                          >
+                            {org.user_relationships[0]
+                              ?.charAt(0)
+                              .toUpperCase() +
+                              org.user_relationships[0]?.slice(1)}
+                          </Badge>
+                        </HStack>
+                      ))}
+                    </VStack>
+                  </Box>
+                )}
+
+                {relationships.teams.length > 0 && (
+                  <Box>
+                    <Text
+                      fontSize='sm'
+                      fontWeight='medium'
+                      color='fg.secondary'
+                      mb={2}
+                    >
+                      Teams
+                    </Text>
+                    <VStack gap={2} align='stretch'>
+                      {relationships.teams.map((team) => (
+                        <HStack
+                          key={team._id}
+                          justify='space-between'
+                          p={3}
+                          bg='bg.subtle'
+                          borderRadius='md'
+                        >
+                          <Box>
+                            <Text fontWeight='medium' color='fg'>
+                              {team.ent_name}
+                            </Text>
+                            <Text fontSize='sm' color='fg.secondary'>
+                              {team.ent_fsid}
+                            </Text>
+                          </Box>
+                          <Badge
+                            variant='subtle'
+                            colorPalette={
+                              team.user_relationships[0] === 'admin'
+                                ? 'red'
+                                : team.user_relationships[0] === 'editor'
+                                ? 'orange'
+                                : 'green'
+                            }
+                          >
+                            {team.user_relationships[0]
+                              ?.charAt(0)
+                              .toUpperCase() +
+                              team.user_relationships[0]?.slice(1)}
+                          </Badge>
+                        </HStack>
+                      ))}
+                    </VStack>
+                  </Box>
+                )}
+              </VStack>
+            </ProfileCard>
+          )}
+
         {/* Account Settings */}
         <ProfileCard title='Account Settings' icon={FiMail}>
           <VStack gap={6} align='stretch'>
@@ -640,11 +913,12 @@ const Profile: React.FC = () => {
               value={user.email}
               placeholder='Enter your email address'
               type='email'
-              helper='Changes to email will require verification'
+              helper='Email changes are not yet available'
               isEditing={isEditing.email}
               formData={formData}
               errors={errors}
               isLoading={isLoading}
+              isUpdating={isUpdating.email}
               onEdit={() => handleEdit('email')}
               onCancel={() => handleCancel('email')}
               onSave={() => handleSave('email')}
@@ -656,6 +930,14 @@ const Profile: React.FC = () => {
         {/* Security */}
         <ProfileCard title='Security' icon={FiLock}>
           <VStack gap={6} align='stretch'>
+            {/* Password change not available notice */}
+            <Alert.Root status='info'>
+              <Alert.Description>
+                Password change functionality is not yet implemented. Please
+                contact support if you need to change your password.
+              </Alert.Description>
+            </Alert.Root>
+
             {isEditing.password ? (
               <VStack gap={4} align='stretch'>
                 <PasswordField
@@ -708,15 +990,18 @@ const Profile: React.FC = () => {
                     variant='solid'
                     onClick={() => handleSave('password')}
                     loading={isLoading}
+                    disabled={true}
                   >
-                    <FiSave size={16} />
-                    Update Password
+                    <FiSave size={16} color='white' />
+                    Update Password (Not Available)
                   </Button>
                   <Button
+                    size='sm'
                     variant='outline'
                     onClick={() => handleCancel('password')}
+                    color='fg'
                   >
-                    <FiX size={16} />
+                    <FiX size={16} color='currentColor' />
                     Cancel
                   </Button>
                 </HStack>
@@ -733,9 +1018,10 @@ const Profile: React.FC = () => {
                   variant='outline'
                   size='sm'
                   onClick={() => handleEdit('password')}
+                  disabled={true}
                 >
-                  <FiEdit2 size={16} />
-                  Change Password
+                  <FiEdit2 size={16} color='currentColor' />
+                  Change Password (Not Available)
                 </Button>
               </HStack>
             )}
@@ -753,19 +1039,35 @@ const Profile: React.FC = () => {
             </Field.Root>
 
             <Field.Root>
-              <Field.Label color='fg.secondary'>Username</Field.Label>
-              <Text color='fg'>{user.username}</Text>
+              <Field.Label color='fg.secondary'>Unique ID</Field.Label>
+              <Text color='fg' fontFamily='mono' fontSize='sm'>
+                {user.uniqueID}
+              </Text>
             </Field.Root>
 
             <Field.Root>
               <Field.Label color='fg.secondary'>Member Since</Field.Label>
-              <Text color='fg'>{formatDate(user.created_at)}</Text>
+              <Text color='fg'>{formatDate(user.createdAt)}</Text>
             </Field.Root>
 
             <Field.Root>
               <Field.Label color='fg.secondary'>Last Updated</Field.Label>
-              <Text color='fg'>{formatDate(user.updated_at)}</Text>
+              <Text color='fg'>{formatDate(user.updatedAt)}</Text>
             </Field.Root>
+
+            <Field.Root>
+              <Field.Label color='fg.secondary'>Status</Field.Label>
+              <Text color='fg'>{user.status}</Text>
+            </Field.Root>
+
+            {relationships && (
+              <Field.Root>
+                <Field.Label color='fg.secondary'>
+                  Total Relationships
+                </Field.Label>
+                <Text color='fg'>{relationships.total_relationships}</Text>
+              </Field.Root>
+            )}
           </SimpleGrid>
         </ProfileCard>
       </VStack>
