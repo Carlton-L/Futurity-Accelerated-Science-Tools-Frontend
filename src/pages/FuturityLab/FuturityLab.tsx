@@ -15,20 +15,18 @@ import {
   Separator,
 } from '@chakra-ui/react';
 import { useAuth } from '../../context/AuthContext';
-import { futurityLabsAPIService } from '../../services/futurityLabsAPIService';
-import { labAPIService } from '../../services/labAPIService';
 import { labService } from '../../services/labService';
+import { labAPIService } from '../../services/labAPIService';
 import PhylogenyTree from '../../components/charts/PhylogenyTree';
-import type { FuturityLab as FuturityLabType } from './types';
-import type { Lab } from '../../services/labService';
+import type { FuturityLab } from '../../services/labService';
 import type { PhylogenyData } from '../../components/charts/PhylogenyTree/types';
 
 const FuturityLab: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { uniqueId } = useParams<{ uniqueId: string }>();
   const navigate = useNavigate();
   const { token, currentTeamspace, user } = useAuth();
 
-  const [lab, setLab] = useState<FuturityLabType | null>(null);
+  const [lab, setLab] = useState<FuturityLab | null>(null);
   const [taxonomyData, setTaxonomyData] = useState<PhylogenyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,15 +35,15 @@ const FuturityLab: React.FC = () => {
 
   useEffect(() => {
     const fetchLabAndTaxonomy = async () => {
-      if (!token || !slug) return;
+      if (!token || !uniqueId) return;
 
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch the Futurity Lab
-        const futurityLab = await futurityLabsAPIService.getFuturityLab(
-          slug,
+        // Fetch the Futurity Lab using the labService
+        const futurityLab = await labService.getFuturityLabByUniqueId(
+          uniqueId,
           token
         );
         setLab(futurityLab);
@@ -63,21 +61,16 @@ const FuturityLab: React.FC = () => {
     };
 
     fetchLabAndTaxonomy();
-  }, [token, slug]);
+  }, [token, uniqueId]);
 
-  const loadTaxonomyData = async (futurityLab: FuturityLabType) => {
+  const loadTaxonomyData = async (futurityLab: FuturityLab) => {
     if (!token) return;
 
     try {
       setLoadingTaxonomy(true);
 
-      // First, try to find if this Futurity Lab has already been converted to a team lab
-      // We'll use the lab's fsid to look for existing converted labs
-      // This is a placeholder - you may need to adjust based on your actual API structure
-
-      // For now, let's create mock taxonomy data based on the Futurity Lab info
-      // In a real scenario, you'd want to fetch this from an API endpoint
-      const phylogenyData = createMockTaxonomyData(futurityLab);
+      // Transform the lab's subcategories_map to phylogeny format
+      const phylogenyData = transformLabToPhylogenyData(futurityLab);
       setTaxonomyData(phylogenyData);
     } catch (err) {
       console.error('Failed to load taxonomy data:', err);
@@ -87,52 +80,25 @@ const FuturityLab: React.FC = () => {
     }
   };
 
-  // Create mock taxonomy data - replace this with actual API call
-  const createMockTaxonomyData = (
-    futurityLab: FuturityLabType
-  ): PhylogenyData => {
-    // This is a placeholder function. In practice, you'd want to:
-    // 1. Check if this Futurity Lab has taxonomy data available
-    // 2. Fetch it from an appropriate API endpoint
-    // 3. Or create a mapping from Futurity Lab metadata to taxonomy structure
-
-    // For demonstration, creating some sample categories based on lab name/content
-    const sampleSubcategories = [
-      {
-        id: 'emerging-tech',
-        name: 'Emerging Technologies',
-        items: [
-          { id: 'ai-ml', name: 'AI & Machine Learning' },
-          { id: 'quantum', name: 'Quantum Computing' },
-          { id: 'biotech', name: 'Biotechnology' },
-        ],
-      },
-      {
-        id: 'applications',
-        name: 'Applications',
-        items: [
-          { id: 'healthcare', name: 'Healthcare' },
-          { id: 'energy', name: 'Clean Energy' },
-          { id: 'transport', name: 'Transportation' },
-        ],
-      },
-      {
-        id: 'market-sectors',
-        name: 'Market Sectors',
-        items: [
-          { id: 'enterprise', name: 'Enterprise' },
-          { id: 'consumer', name: 'Consumer' },
-          { id: 'industrial', name: 'Industrial' },
-        ],
-      },
-    ];
+  const transformLabToPhylogenyData = (labData: FuturityLab): PhylogenyData => {
+    // Transform the lab's subcategories_map to phylogeny format
+    const subcategories = (labData.subcategories_map || []).map(
+      (subcategoryMap) => ({
+        id: subcategoryMap.subcategory_id,
+        name: subcategoryMap.subcategory_name,
+        items: (subcategoryMap.subjects || []).map((subject) => ({
+          id: subject.ent_fsid,
+          name: subject.ent_name,
+        })),
+      })
+    );
 
     return {
       root: {
-        id: futurityLab.ent_fsid,
-        name: futurityLab.ent_name,
+        id: labData.uniqueID,
+        name: labData.ent_name,
       },
-      subcategories: sampleSubcategories,
+      subcategories,
     };
   };
 
@@ -203,18 +169,18 @@ const FuturityLab: React.FC = () => {
           {/* Image Skeleton */}
           <Skeleton height='400px' width='100%' borderRadius='8px' />
 
+          {/* Taxonomy Skeleton */}
+          <Box>
+            <Skeleton height='24px' width='200px' mb='4' />
+            <Skeleton height='400px' width='100%' borderRadius='8px' />
+          </Box>
+
           {/* Actions Skeleton */}
           <Box>
             <HStack gap='4'>
               <Skeleton height='48px' width='200px' borderRadius='md' />
             </HStack>
             <Skeleton height='16px' width='300px' mt='2' />
-          </Box>
-
-          {/* Taxonomy Skeleton */}
-          <Box>
-            <Skeleton height='24px' width='200px' mb='4' />
-            <Skeleton height='400px' width='100%' borderRadius='8px' />
           </Box>
 
           {/* Additional Info Skeleton */}
@@ -312,12 +278,8 @@ const FuturityLab: React.FC = () => {
             <VStack gap='4' align='start' flex='1'>
               <Box>
                 <HStack gap='3' mb='3'>
-                  <Badge
-                    colorScheme={lab.free_lab === 1 ? 'green' : 'orange'}
-                    variant='solid'
-                    fontSize='sm'
-                  >
-                    {lab.free_lab === 1 ? 'FREE' : 'PREMIUM'}
+                  <Badge colorScheme='green' variant='solid' fontSize='sm'>
+                    ACTIVE
                   </Badge>
                   <Badge
                     variant='outline'
@@ -325,7 +287,7 @@ const FuturityLab: React.FC = () => {
                     fontSize='sm'
                     textTransform='uppercase'
                   >
-                    {lab.lab_code}
+                    {lab.ent_fsid}
                   </Badge>
                 </HStack>
 
@@ -354,10 +316,10 @@ const FuturityLab: React.FC = () => {
         </Box>
 
         {/* Image */}
-        {(lab.picture_url || lab.thumb_url) && (
+        {(lab.picture_url || lab.thumbnail_url) && (
           <Box>
             <Image
-              src={lab.picture_url || lab.thumb_url}
+              src={lab.picture_url || lab.thumbnail_url}
               alt={lab.ent_name}
               w='100%'
               maxH='400px'
@@ -396,7 +358,7 @@ const FuturityLab: React.FC = () => {
                 <Text color='fg.secondary'>Loading taxonomy data...</Text>
               </VStack>
             </Box>
-          ) : taxonomyData ? (
+          ) : taxonomyData && taxonomyData.subcategories.length > 0 ? (
             <PhylogenyTree
               data={taxonomyData}
               nodeSpacing={80}
@@ -431,7 +393,9 @@ const FuturityLab: React.FC = () => {
               onClick={handleConvertToLab}
               variant='solid'
               size='lg'
-              disabled={lab.visible === 0 || converting || !currentTeamspace}
+              disabled={
+                lab.status !== 'active' || converting || !currentTeamspace
+              }
               isLoading={converting}
               loadingText='Converting...'
             >
@@ -439,7 +403,7 @@ const FuturityLab: React.FC = () => {
             </Button>
           </HStack>
 
-          {lab.visible === 0 && (
+          {lab.status !== 'active' && (
             <Text color='fg.muted' fontSize='sm' mt='2'>
               This lab is currently not available for conversion.
             </Text>
@@ -455,11 +419,14 @@ const FuturityLab: React.FC = () => {
         {/* Additional Info */}
         <Box>
           <Text fontSize='sm' color='fg.muted'>
-            Lab ID: {lab.ent_fsid}
+            Lab ID: {lab.uniqueID}
           </Text>
-          {lab.ent_authors && lab.ent_authors.length > 0 && (
+          <Text fontSize='sm' color='fg.muted' mt='1'>
+            Created: {new Date(lab.createdAt).toLocaleDateString()}
+          </Text>
+          {lab.updatedAt && lab.updatedAt !== lab.createdAt && (
             <Text fontSize='sm' color='fg.muted' mt='1'>
-              Authors: {lab.ent_authors.length} contributor(s)
+              Updated: {new Date(lab.updatedAt).toLocaleDateString()}
             </Text>
           )}
         </Box>
