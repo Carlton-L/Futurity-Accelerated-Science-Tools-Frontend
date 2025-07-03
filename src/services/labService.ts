@@ -1,5 +1,6 @@
 // services/labService.ts
 
+// Base URL without trailing slash to avoid double slashes in path construction
 const API_BASE_URL = 'https://fast.futurity.science/management/labs';
 
 // Constants
@@ -163,19 +164,25 @@ class LabService {
     token: string,
     includeArchived: boolean = false
   ): Promise<Lab[]> {
+
     // Build URL string using the correct /by-team/ endpoint structure
     const urlString = `${API_BASE_URL}/by-team/${encodeURIComponent(
       teamId
     )}?include_archived=${includeArchived}`;
 
-    // Debug logging
-    console.log('API_BASE_URL:', API_BASE_URL);
+    // Enhanced debug logging
+    console.group('🔍 Lab Service Request Debug');
+    console.log('API_BASE_URL constant:', API_BASE_URL);
     console.log('Final URL string:', urlString);
-
+    console.log('URL protocol:', new URL(urlString).protocol);
+    console.log('Window location protocol:', window.location.protocol);
+    
     // Verify the URL starts with https
     if (!urlString.startsWith('https://')) {
-      console.error('WARNING: URL is not HTTPS!', urlString);
+      console.error('⚠️ CRITICAL: URL is not HTTPS!', urlString);
+      console.trace('Stack trace for non-HTTPS URL');
     }
+    console.groupEnd();
 
     const response = await fetch(urlString, {
       method: 'GET',

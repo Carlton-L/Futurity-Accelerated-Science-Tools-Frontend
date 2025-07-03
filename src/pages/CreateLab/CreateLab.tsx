@@ -317,7 +317,7 @@ const CreateLab: React.FC<CreateLabProps> = ({
 
       // Make API call to the new endpoint
       const response = await fetch(
-        'https://fast.futurity.science/management/labs/',
+        'https://fast.futurity.science/management/labs',
         {
           method: 'POST',
           headers: {
