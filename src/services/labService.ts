@@ -158,9 +158,9 @@ class LabService {
     includeArchived: boolean = false
   ): Promise<Lab[]> {
     // Build URL string directly
-    const urlString = `${API_BASE_URL}?team_id=${encodeURIComponent(
+    const urlString = `${API_BASE_URL}/by-team/${encodeURIComponent(
       teamId
-    )}&include_archived=${includeArchived}`;
+    )}?include_archived=${includeArchived}`;
 
     // Debug logging
     console.log('API_BASE_URL:', API_BASE_URL);
