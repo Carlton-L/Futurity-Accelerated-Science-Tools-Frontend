@@ -10,13 +10,16 @@ import App from './App.tsx';
 import { enableNetworkDebugging } from './utils/debugNetworkRequests';
 import { enforceHttpsForFastAPI } from './utils/forceHttps';
 
+
+// Always enforce HTTPS for fast.futurity.science
+enforceHttpsForFastAPI();
+
 // Enable network debugging in non-production environments
 if (import.meta.env.MODE !== 'production' || window.location.hostname === 'stage.futurity.science') {
   enableNetworkDebugging();
 }
 
-// Always enforce HTTPS for fast.futurity.science
-enforceHttpsForFastAPI();
+
 
 const CHAINLIT_SERVER_URL = 'http://localhost:8000';
 
