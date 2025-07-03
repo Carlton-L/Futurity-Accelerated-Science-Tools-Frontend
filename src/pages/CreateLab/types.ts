@@ -67,6 +67,30 @@ export interface LabSeedSubject {
 }
 
 // ============================================================================
+// Whiteboard Integration Types
+// ============================================================================
+
+export interface WhiteboardSubjectData {
+  ent_fsid: string;
+  ent_name: string;
+  ent_summary: string;
+  indexes: Array<{
+    HR?: number;
+    TT?: number;
+    WS?: number;
+  }>;
+}
+
+export interface WhiteboardLabSeedData {
+  uniqueID: string;
+  name: string;
+  description: string;
+  terms: string[];
+  subjects: WhiteboardSubjectData[];
+  createdAt: string;
+}
+
+// ============================================================================
 // CSV Data Types
 // ============================================================================
 

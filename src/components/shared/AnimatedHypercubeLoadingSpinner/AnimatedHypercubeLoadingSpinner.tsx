@@ -581,8 +581,8 @@ const AnimatedHypercubeLoadingSpinner = ({
       }}
     >
       <svg
-        width='64'
-        height='64'
+        width='128'
+        height='128'
         viewBox='-200 -200 400 400'
         style={{ display: 'block', background: 'transparent' }}
       >

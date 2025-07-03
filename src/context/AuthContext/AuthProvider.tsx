@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [teamspaces, setTeamspaces] = useState<TeamspaceListItem[]>([]);
   const [currentTeamspace, setCurrentTeamspace] =
     useState<TeamspaceListItem | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
 
   // New relationship states
   const [userRelationships, setUserRelationships] =
@@ -352,6 +353,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Check for existing token on mount
   useEffect(() => {
     const initializeAuth = async () => {
+      setIsLoadingUser(true); // Set loading user to true at start
+
       if (authService.hasStoredToken()) {
         try {
           // Get the stored token first
@@ -362,6 +365,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Try to verify the token and get basic user data
             const userData = await authService.verifyToken(storedToken);
             setUser(userData);
+            setIsLoadingUser(false); // User data loaded
 
             // Update token if the API returned a new one
             const finalToken = userData.auth_key || storedToken;
@@ -384,9 +388,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (error) {
           console.error('Failed to verify stored token:', error);
+          setIsLoadingUser(false); // Stop loading user even on error
 
           // Only clear token if it's definitely invalid (401/403)
-          // For network errors, keep the token and let the user try again
           if (error instanceof Error && error.message.includes('401')) {
             console.log('Token is invalid, clearing auth state');
             await authService.logout();
@@ -403,7 +407,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setCurrentTeamLabs([]);
           } else {
             // Network error or other issue - keep the stored token
-            // but don't set user data (they'll need to retry)
             const storedToken = authService.getStoredToken();
             if (storedToken) {
               setToken(storedToken);
@@ -413,6 +416,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         }
+      } else {
+        setIsLoadingUser(false); // No token, so not loading user
       }
       setIsLoading(false);
     };
@@ -422,12 +427,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (credentials: LoginRequest): Promise<void> => {
     setIsLoading(true);
+    setIsLoadingUser(true); // Set loading user during login
+
     try {
       const { token: authToken, user: userData } = await authService.login(
         credentials
       );
       setUser(userData);
       setToken(authToken);
+      setIsLoadingUser(false); // User data loaded
 
       // Load extended user data after successful login
       await loadExtendedUserData(userData, authToken);
@@ -442,6 +450,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await loadWorkspaceData(authToken);
     } catch (error) {
       console.error('Login failed:', error);
+      setIsLoadingUser(false); // Stop loading user on error
       throw error;
     } finally {
       setIsLoading(false);
@@ -450,6 +459,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async (): Promise<void> => {
     setIsLoading(true);
+    setIsLoadingUser(true); // Set loading during logout
+
     try {
       await authService.logout();
 
@@ -485,6 +496,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setCurrentTeamLabs([]);
     } finally {
       setIsLoading(false);
+      setIsLoadingUser(false); // Stop loading user after logout
     }
   };
 
@@ -599,7 +611,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     logout,
     setCurrentTeamspace: handleSetCurrentTeamspace,
-    setCurrentTeam, // This is the enhanced version with persistence and lab loading
+    setCurrentTeam,
     refreshWorkspace,
     refreshUser,
     refreshRelationships,
@@ -610,6 +622,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isTeamEditor,
     isTeamViewer,
     isLoading,
+    isLoadingUser, // Add this new flag
     isAuthenticated: !!user,
     extendedUser,
   };

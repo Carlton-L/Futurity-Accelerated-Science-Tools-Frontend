@@ -101,10 +101,8 @@ const Step2DataInput: React.FC<Step2DataInputProps> = ({
   // State for loading operations
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock available Lab Seeds (in production, this would come from an API)
-  const [availableLabSeeds] = useState<LabSeed[]>([
-    // This would be populated from the whiteboard/API
-  ]);
+  // Mock available Lab Seeds (now populated from whiteboard in DataSourcesControls)
+  const [availableLabSeeds] = useState<LabSeed[]>([]);
 
   // Check if lab is empty (no subjects or terms)
   const isLabEmpty = () => {
@@ -147,13 +145,11 @@ const Step2DataInput: React.FC<Step2DataInputProps> = ({
 
       // Track processed subject names to prevent duplicates
       const processedSubjectNames = new Set<string>();
-      const mergedSubjectNames = new Set<string>();
 
       // First, handle auto-merges (existing subjects that need to be moved/kept)
       autoMerges.forEach((merge) => {
         const subjectNameLower = merge.csvSubject.subjectName.toLowerCase();
         processedSubjectNames.add(subjectNameLower);
-        mergedSubjectNames.add(subjectNameLower);
 
         if (
           merge.existingSubject.categoryId === 'uncategorized' &&
@@ -378,12 +374,11 @@ const Step2DataInput: React.FC<Step2DataInputProps> = ({
       formData.categories,
       formData.includeTerms,
       formData.excludeTerms,
-      onFormDataUpdate,
       applyCSVChangesAutomatically,
     ]
   );
 
-  // Initialize data from Lab Seed if provided
+  // Initialize data from Lab Seed if provided (now handled by DataSourcesControls)
   useEffect(() => {
     if (initialLabSeed && formData.categories.length === 1) {
       // Only populate if we haven't already (check if only uncategorized exists)
@@ -468,7 +463,7 @@ const Step2DataInput: React.FC<Step2DataInputProps> = ({
     }
   }, [initialLabSeed, formData.categories.length, onFormDataUpdate]);
 
-  // Handle Lab Seed selection
+  // Handle Lab Seed selection (now handled by DataSourcesControls)
   const handleLabSeedSelect = useCallback(
     (labSeed: LabSeed | undefined) => {
       if (!labSeed) {
@@ -476,9 +471,58 @@ const Step2DataInput: React.FC<Step2DataInputProps> = ({
         return;
       }
 
-      onFormDataUpdate({ selectedLabSeed: labSeed });
+      // When a lab seed is selected and imported, add its subjects to the uncategorized category
+      const updatedCategories = [...formData.categories];
+
+      // Ensure uncategorized category exists
+      let uncategorizedIndex = updatedCategories.findIndex(
+        (cat) => cat.id === 'uncategorized'
+      );
+      if (uncategorizedIndex === -1) {
+        updatedCategories.unshift(createUncategorizedCategory());
+        uncategorizedIndex = 0;
+      }
+
+      // Add lab seed subjects to uncategorized
+      const labSeedSubjects = labSeed.subjects.map((subject) => ({
+        ...subject,
+        categoryId: 'uncategorized',
+      }));
+
+      updatedCategories[uncategorizedIndex].subjects.push(...labSeedSubjects);
+
+      // Also add terms
+      const labSeedIncludeTerms: CreationTerm[] = labSeed.includeTerms.map(
+        (term) => ({
+          id: generateCreationId('term'),
+          text: term,
+          source: 'lab_seed',
+          type: 'include',
+        })
+      );
+
+      const labSeedExcludeTerms: CreationTerm[] = labSeed.excludeTerms.map(
+        (term) => ({
+          id: generateCreationId('term'),
+          text: term,
+          source: 'lab_seed',
+          type: 'exclude',
+        })
+      );
+
+      onFormDataUpdate({
+        selectedLabSeed: labSeed,
+        categories: updatedCategories,
+        includeTerms: [...formData.includeTerms, ...labSeedIncludeTerms],
+        excludeTerms: [...formData.excludeTerms, ...labSeedExcludeTerms],
+      });
     },
-    [onFormDataUpdate]
+    [
+      formData.categories,
+      formData.includeTerms,
+      formData.excludeTerms,
+      onFormDataUpdate,
+    ]
   );
 
   // Handle Lab Seed options
