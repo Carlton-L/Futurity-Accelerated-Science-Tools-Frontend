@@ -241,6 +241,7 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
                     variant='ghost'
                     aria-label='Subject actions'
                     onClick={(e) => e.stopPropagation()}
+                    color='fg.muted'
                   >
                     <FiMoreHorizontal size={12} />
                   </IconButton>

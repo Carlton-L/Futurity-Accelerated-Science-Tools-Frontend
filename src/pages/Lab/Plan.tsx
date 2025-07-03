@@ -9,16 +9,11 @@ import {
   HStack,
   Grid,
   Input,
-  Textarea,
   IconButton,
   Accordion,
   Badge,
   Field,
   Skeleton,
-  MenuRoot,
-  MenuTrigger,
-  MenuContent,
-  MenuItem,
 } from '@chakra-ui/react';
 import {
   FiTarget,
@@ -29,10 +24,7 @@ import {
   FiX,
   FiPlus,
   FiTrash2,
-  FiInfo,
-  FiCheck,
   FiAlertCircle,
-  FiMoreVertical,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -100,8 +92,7 @@ const Plan: React.FC<PlanProps> = ({
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Terms editing state
-  const [isEditingTerms, setIsEditingTerms] = useState(false);
+  // Terms editing state - simplified since always in edit mode
   const [editingIncludeTerms, setEditingIncludeTerms] = useState<string[]>([]);
   const [editingExcludeTerms, setEditingExcludeTerms] = useState<string[]>([]);
 
@@ -127,12 +118,13 @@ const Plan: React.FC<PlanProps> = ({
       // Update local state with API data
       setOverviewForm({
         name: apiLabData.ent_name,
-        description: apiLabData.ent_summary,
+        description: apiLabData.ent_summary || '', // Fixed: Handle undefined summary
       });
 
       setGoals(apiLabData.goals || []);
-      setEditingIncludeTerms([...apiLabData.include_terms]);
-      setEditingExcludeTerms([...apiLabData.exclude_terms]);
+      // FIXED: Handle undefined include/exclude terms safely
+      setEditingIncludeTerms([...(apiLabData.include_terms || [])]);
+      setEditingExcludeTerms([...(apiLabData.exclude_terms || [])]);
 
       console.log('Loaded lab data:', apiLabData);
     } catch (error) {
@@ -349,7 +341,7 @@ const Plan: React.FC<PlanProps> = ({
     }
   };
 
-  // Add new term
+  // Add new term to existing terms list
   const addTerm = (type: 'include' | 'exclude') => {
     if (type === 'include') {
       setEditingIncludeTerms((prev) => [...prev, '']);
@@ -367,33 +359,24 @@ const Plan: React.FC<PlanProps> = ({
     }
   };
 
-  // Save terms
+  // Save terms changes - MISSING FUNCTION ADDED
   const handleSaveTerms = useCallback(async () => {
-    if (!token || !labId) return;
+    if (!token || !labId || !onTermsUpdate) return;
 
     setSavingTerms(true);
     setError('');
 
     try {
-      const cleanInclude = editingIncludeTerms.filter((term) => term.trim());
-      const cleanExclude = editingExcludeTerms.filter((term) => term.trim());
+      // Filter out empty terms
+      const filteredIncludeTerms = editingIncludeTerms
+        .map((term) => term.trim())
+        .filter((term) => term !== '');
+      const filteredExcludeTerms = editingExcludeTerms
+        .map((term) => term.trim())
+        .filter((term) => term !== '');
 
-      const updatedLab = await labService.updateLabTerms(
-        labId,
-        cleanInclude,
-        cleanExclude,
-        token
-      );
-
-      setLabData(updatedLab);
-      setIsEditingTerms(false);
-
-      // Also update the parent component
-      await onTermsUpdate(cleanInclude, cleanExclude);
-
-      if (onRefreshLab) {
-        await onRefreshLab();
-      }
+      // Call the parent's terms update function
+      await onTermsUpdate(filteredIncludeTerms, filteredExcludeTerms);
 
       console.log('Successfully updated terms');
     } catch (error) {
@@ -402,21 +385,18 @@ const Plan: React.FC<PlanProps> = ({
     } finally {
       setSavingTerms(false);
     }
-  }, [
-    editingIncludeTerms,
-    editingExcludeTerms,
-    token,
-    labId,
-    onTermsUpdate,
-    onRefreshLab,
-  ]);
+  }, [token, labId, editingIncludeTerms, editingExcludeTerms, onTermsUpdate]);
 
-  // Reset terms editing
-  const handleCancelTermsEdit = () => {
-    setEditingIncludeTerms([...(labData?.include_terms || includeTerms)]);
-    setEditingExcludeTerms([...(labData?.exclude_terms || excludeTerms)]);
-    setIsEditingTerms(false);
-  };
+  // Cancel terms editing - MISSING FUNCTION ADDED
+  const handleCancelTermsEdit = useCallback(() => {
+    // Reset editing terms to current lab data
+    const currentIncludeTerms = labData?.include_terms || includeTerms || [];
+    const currentExcludeTerms = labData?.exclude_terms || excludeTerms || [];
+
+    setEditingIncludeTerms([...currentIncludeTerms]);
+    setEditingExcludeTerms([...currentExcludeTerms]);
+    setError('');
+  }, [labData, includeTerms, excludeTerms]);
 
   // Get impact level description
   const getImpactDescription = (level: number): string => {
@@ -447,11 +427,11 @@ const Plan: React.FC<PlanProps> = ({
     }
   };
 
-  // Display current data (preference: labData from API, fallback to props)
+  // Display current data (preference: labData from API, fallback to props) - FIXED: Handle undefined safely
   const displayLabName = labData?.ent_name || lab?.name || 'Loading...';
   const displayLabDescription = labData?.ent_summary || lab?.description || '';
-  const displayIncludeTerms = labData?.include_terms || includeTerms;
-  const displayExcludeTerms = labData?.exclude_terms || excludeTerms;
+  const displayIncludeTerms = labData?.include_terms || includeTerms || [];
+  const displayExcludeTerms = labData?.exclude_terms || excludeTerms || [];
   const displayGoals = labData?.goals || goals;
 
   if (loadingLabData) {
@@ -775,246 +755,254 @@ const Plan: React.FC<PlanProps> = ({
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
                   <VStack gap={4} align='stretch' pt={2}>
-                    {!isEditingTerms ? (
-                      <>
-                        {/* Display Mode */}
-                        <Grid templateColumns='1fr 1fr' gap={4}>
-                          <VStack gap={2} align='stretch'>
+                    {/* Always in "edit" mode - no toggle needed */}
+                    <VStack gap={4} align='stretch'>
+                      <HStack gap={2} align='center'>
+                        <Text fontSize='sm' color='fg.muted' fontFamily='body'>
+                          These terms affect search results and analysis in this
+                          lab
+                        </Text>
+                      </HStack>
+
+                      <Grid templateColumns='1fr 1fr' gap={6}>
+                        {/* Include Terms Management */}
+                        <VStack gap={3} align='stretch'>
+                          <HStack justify='space-between' align='center'>
                             <Text
                               fontSize='sm'
                               fontWeight='medium'
-                              color='green.600'
+                              color='success'
+                              fontFamily='heading'
                             >
-                              Include Terms ({displayIncludeTerms.length})
+                              Include Terms
                             </Text>
-                            {displayIncludeTerms.length > 0 ? (
-                              <VStack gap={1} align='stretch'>
-                                {displayIncludeTerms.map((term, index) => (
-                                  <Text
-                                    key={index}
-                                    fontSize='sm'
+                            <Badge
+                              colorScheme='green'
+                              size='sm'
+                              variant='subtle'
+                            >
+                              {editingIncludeTerms.length}
+                            </Badge>
+                          </HStack>
+
+                          <VStack gap={2} align='stretch'>
+                            {editingIncludeTerms.length > 0 ? (
+                              editingIncludeTerms.map((term, index) => (
+                                <HStack key={index} gap={2}>
+                                  <Input
+                                    size='sm'
+                                    value={term}
+                                    onChange={(e) =>
+                                      handleTermChange(
+                                        'include',
+                                        index,
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder='Enter include term...'
+                                    bg='bg.canvas'
+                                    borderColor='success'
                                     color='fg'
-                                    p={2}
-                                    bg={{
-                                      _light:
-                                        'rgba(72, 187, 120, 0.1)' /* NOTE: Change opacity value (0.1) here if needed */,
-                                      _dark:
-                                        'rgba(72, 187, 120, 0.2)' /* NOTE: Change opacity value (0.2) here if needed for dark mode */,
+                                    _placeholder={{ color: 'fg.muted' }}
+                                    _focus={{
+                                      borderColor: 'success',
+                                      boxShadow:
+                                        '0 0 0 1px var(--chakra-colors-success)',
                                     }}
-                                    borderRadius='md'
+                                    fontFamily='body'
+                                  />
+                                  <IconButton
+                                    size='sm'
+                                    variant='ghost'
+                                    color='fg.muted'
+                                    _hover={{ color: 'error', bg: 'bg.hover' }}
+                                    onClick={() => removeTerm('include', index)}
+                                    aria-label='Remove term'
                                   >
-                                    {term}
-                                  </Text>
-                                ))}
-                              </VStack>
+                                    <FiX size={14} />
+                                  </IconButton>
+                                </HStack>
+                              ))
                             ) : (
-                              <Text
-                                fontSize='sm'
-                                color='fg.muted'
-                                fontStyle='italic'
+                              <Box
+                                p={4}
+                                textAlign='center'
+                                border='2px dashed'
+                                borderColor='border.muted'
+                                borderRadius='md'
+                                bg='bg.subtle'
+                                cursor='pointer'
+                                _hover={{
+                                  borderColor: 'border.emphasized',
+                                  bg: 'bg.hover',
+                                }}
+                                onClick={() => addTerm('include')}
+                                transition='all 0.2s'
                               >
-                                No include terms defined
-                              </Text>
+                                <VStack gap={2}>
+                                  <Box color='fg.muted'>
+                                    <FiPlus size={20} />
+                                  </Box>
+                                  <Text
+                                    color='fg.muted'
+                                    fontSize='sm'
+                                    fontFamily='body'
+                                  >
+                                    Add include term
+                                  </Text>
+                                </VStack>
+                              </Box>
                             )}
                           </VStack>
 
-                          <VStack gap={2} align='stretch'>
+                          {/* Add button if terms exist */}
+                          {editingIncludeTerms.length > 0 && (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={() => addTerm('include')}
+                              color='success'
+                              borderColor='success'
+                              borderStyle='dashed'
+                              _hover={{ bg: 'bg.hover' }}
+                            >
+                              <FiPlus size={14} />
+                              Add Include Term
+                            </Button>
+                          )}
+                        </VStack>
+
+                        {/* Exclude Terms Management */}
+                        <VStack gap={3} align='stretch'>
+                          <HStack justify='space-between' align='center'>
                             <Text
                               fontSize='sm'
                               fontWeight='medium'
-                              color='red.600'
+                              color='error'
+                              fontFamily='heading'
                             >
-                              Exclude Terms ({displayExcludeTerms.length})
+                              Exclude Terms
                             </Text>
-                            {displayExcludeTerms.length > 0 ? (
-                              <VStack gap={1} align='stretch'>
-                                {displayExcludeTerms.map((term, index) => (
-                                  <Text
-                                    key={index}
-                                    fontSize='sm'
+                            <Badge colorScheme='red' size='sm' variant='subtle'>
+                              {editingExcludeTerms.length}
+                            </Badge>
+                          </HStack>
+
+                          <VStack gap={2} align='stretch'>
+                            {editingExcludeTerms.length > 0 ? (
+                              editingExcludeTerms.map((term, index) => (
+                                <HStack key={index} gap={2}>
+                                  <Input
+                                    size='sm'
+                                    value={term}
+                                    onChange={(e) =>
+                                      handleTermChange(
+                                        'exclude',
+                                        index,
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder='Enter exclude term...'
+                                    bg='bg.canvas'
+                                    borderColor='error'
                                     color='fg'
-                                    p={2}
-                                    bg={{
-                                      _light:
-                                        'rgba(245, 101, 101, 0.1)' /* NOTE: Change opacity value (0.1) here if needed */,
-                                      _dark:
-                                        'rgba(245, 101, 101, 0.2)' /* NOTE: Change opacity value (0.2) here if needed for dark mode */,
+                                    _placeholder={{ color: 'fg.muted' }}
+                                    _focus={{
+                                      borderColor: 'error',
+                                      boxShadow:
+                                        '0 0 0 1px var(--chakra-colors-error)',
                                     }}
-                                    borderRadius='md'
+                                    fontFamily='body'
+                                  />
+                                  <IconButton
+                                    size='sm'
+                                    variant='ghost'
+                                    color='fg.muted'
+                                    _hover={{ color: 'error', bg: 'bg.hover' }}
+                                    onClick={() => removeTerm('exclude', index)}
+                                    aria-label='Remove term'
                                   >
-                                    {term}
-                                  </Text>
-                                ))}
-                              </VStack>
+                                    <FiX size={14} />
+                                  </IconButton>
+                                </HStack>
+                              ))
                             ) : (
-                              <Text
-                                fontSize='sm'
-                                color='fg.muted'
-                                fontStyle='italic'
+                              <Box
+                                p={4}
+                                textAlign='center'
+                                border='2px dashed'
+                                borderColor='border.muted'
+                                borderRadius='md'
+                                bg='bg.subtle'
+                                cursor='pointer'
+                                _hover={{
+                                  borderColor: 'border.emphasized',
+                                  bg: 'bg.hover',
+                                }}
+                                onClick={() => addTerm('exclude')}
+                                transition='all 0.2s'
                               >
-                                No exclude terms defined
-                              </Text>
+                                <VStack gap={2}>
+                                  <Box color='fg.muted'>
+                                    <FiPlus size={20} />
+                                  </Box>
+                                  <Text
+                                    color='fg.muted'
+                                    fontSize='sm'
+                                    fontFamily='body'
+                                  >
+                                    Add exclude term
+                                  </Text>
+                                </VStack>
+                              </Box>
                             )}
                           </VStack>
-                        </Grid>
 
+                          {/* Add button if terms exist */}
+                          {editingExcludeTerms.length > 0 && (
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              onClick={() => addTerm('exclude')}
+                              color='error'
+                              borderColor='error'
+                              borderStyle='dashed'
+                              _hover={{ bg: 'bg.hover' }}
+                            >
+                              <FiPlus size={14} />
+                              Add Exclude Term
+                            </Button>
+                          )}
+                        </VStack>
+                      </Grid>
+
+                      {/* Action Buttons */}
+                      <HStack gap={3} pt={2}>
                         <Button
-                          size='sm'
+                          size='md'
+                          onClick={handleSaveTerms}
+                          loading={savingTerms}
+                          bg='brand'
+                          color='white'
+                          _hover={{ bg: 'brand.hover' }}
+                          fontFamily='heading'
+                        >
+                          <FiSave size={16} />
+                          Save Terms
+                        </Button>
+                        <Button
+                          size='md'
                           variant='outline'
-                          onClick={() => setIsEditingTerms(true)}
-                          colorScheme='purple'
+                          onClick={handleCancelTermsEdit}
                           color='fg'
                           borderColor='border.emphasized'
                           _hover={{ bg: 'bg.hover' }}
+                          fontFamily='heading'
                         >
-                          <FiEdit size={14} />
-                          Edit Terms
+                          Cancel
                         </Button>
-                      </>
-                    ) : (
-                      <>
-                        {/* Edit Mode */}
-                        <Grid templateColumns='1fr 1fr' gap={4}>
-                          <VStack gap={2} align='stretch'>
-                            <HStack justify='space-between'>
-                              <Text
-                                fontSize='sm'
-                                fontWeight='medium'
-                                color='green.600'
-                              >
-                                Include Terms
-                              </Text>
-                              <Button
-                                size='xs'
-                                onClick={() => addTerm('include')}
-                                variant='outline'
-                                color='fg'
-                                borderColor='border.emphasized'
-                                _hover={{ bg: 'bg.hover' }}
-                              >
-                                <FiPlus size={12} />
-                              </Button>
-                            </HStack>
-                            {editingIncludeTerms.map((term, index) => (
-                              <HStack key={index}>
-                                <Input
-                                  size='sm'
-                                  value={term}
-                                  onChange={(e) =>
-                                    handleTermChange(
-                                      'include',
-                                      index,
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder='Enter include term...'
-                                  bg='bg.canvas'
-                                  borderColor='border.emphasized'
-                                  color='fg'
-                                  _placeholder={{ color: 'fg.muted' }}
-                                  _focus={{
-                                    borderColor: 'brand',
-                                    boxShadow:
-                                      '0 0 0 1px var(--chakra-colors-brand)',
-                                  }}
-                                />
-                                <IconButton
-                                  size='sm'
-                                  variant='ghost'
-                                  color='fg'
-                                  _hover={{ bg: 'bg.hover' }}
-                                  onClick={() => removeTerm('include', index)}
-                                  aria-label='Remove term'
-                                >
-                                  <FiX size={12} />
-                                </IconButton>
-                              </HStack>
-                            ))}
-                          </VStack>
-
-                          <VStack gap={2} align='stretch'>
-                            <HStack justify='space-between'>
-                              <Text
-                                fontSize='sm'
-                                fontWeight='medium'
-                                color='red.600'
-                              >
-                                Exclude Terms
-                              </Text>
-                              <Button
-                                size='xs'
-                                onClick={() => addTerm('exclude')}
-                                variant='outline'
-                                color='fg'
-                                borderColor='border.emphasized'
-                                _hover={{ bg: 'bg.hover' }}
-                              >
-                                <FiPlus size={12} />
-                              </Button>
-                            </HStack>
-                            {editingExcludeTerms.map((term, index) => (
-                              <HStack key={index}>
-                                <Input
-                                  size='sm'
-                                  value={term}
-                                  onChange={(e) =>
-                                    handleTermChange(
-                                      'exclude',
-                                      index,
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder='Enter exclude term...'
-                                  bg='bg.canvas'
-                                  borderColor='border.emphasized'
-                                  color='fg'
-                                  _placeholder={{ color: 'fg.muted' }}
-                                  _focus={{
-                                    borderColor: 'brand',
-                                    boxShadow:
-                                      '0 0 0 1px var(--chakra-colors-brand)',
-                                  }}
-                                />
-                                <IconButton
-                                  size='sm'
-                                  variant='ghost'
-                                  color='fg'
-                                  _hover={{ bg: 'bg.hover' }}
-                                  onClick={() => removeTerm('exclude', index)}
-                                  aria-label='Remove term'
-                                >
-                                  <FiX size={12} />
-                                </IconButton>
-                              </HStack>
-                            ))}
-                          </VStack>
-                        </Grid>
-
-                        <HStack>
-                          <Button
-                            size='sm'
-                            onClick={handleSaveTerms}
-                            loading={savingTerms}
-                            bg='brand'
-                            color='white'
-                            _hover={{ bg: 'brand.hover' }}
-                          >
-                            <FiSave size={14} />
-                            Save Terms
-                          </Button>
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            onClick={handleCancelTermsEdit}
-                            color='fg'
-                            borderColor='border.emphasized'
-                            _hover={{ bg: 'bg.hover' }}
-                          >
-                            Cancel
-                          </Button>
-                        </HStack>
-                      </>
-                    )}
+                      </HStack>
+                    </VStack>
                   </VStack>
                 </Accordion.ItemContent>
               </Accordion.Item>

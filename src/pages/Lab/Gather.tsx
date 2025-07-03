@@ -33,7 +33,6 @@ import type {
   KnowledgebaseFileType,
   KnowledgebaseQueryResult,
   HorizonItem,
-  SubjectData,
 } from './types';
 import { CategoryUtils } from './types';
 
@@ -49,7 +48,9 @@ import type { PhylogenyData } from '../../components/charts/PhylogenyTree';
 import HorizonChartSection from './Horizons/HorizonChartSection';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { labAPIService } from '../../services/labAPIService';
+
+// Updated import - use labService instead of labAPIService
+import { labService } from '../../services/labService';
 
 // Import horizon chart utilities
 import { convertHorizonValue, getCategoryNumber } from './utils/analyzeUtils';
@@ -58,9 +59,7 @@ import { convertHorizonValue, getCategoryNumber } from './utils/analyzeUtils';
 interface GatherProps {
   labId: string;
   labName?: string; // Added to get lab name for phylogeny tree
-  // includeTerms and excludeTerms removed - now handled in Plan tab
   categories: SubjectCategory[];
-  // onTermsUpdate removed - now handled in Plan tab
   onCategoriesUpdate: (categories: SubjectCategory[]) => void;
   onRefreshLab: () => Promise<void>;
 }
@@ -86,8 +85,8 @@ interface SearchAPIResponse {
   };
 }
 
-// User Role Type
-type UserRole = 'viewer' | 'editor' | 'admin';
+// User Role Type - Fixed to match SubjectSearch expectations
+type UserRole = 'viewer' | 'editor' | 'admin' | 'reader';
 
 /**
  * Custom hook for search functionality
@@ -222,7 +221,7 @@ const useSubjectSearch = () => {
 };
 
 /**
- * Custom hook for category management
+ * Custom hook for category management - Updated to use labService
  */
 const useCategoryManagement = (
   categories: SubjectCategory[],
@@ -280,24 +279,38 @@ const useCategoryManagement = (
     const trimmedName = newCategoryName.trim();
 
     try {
-      // FIXED: Use simple string format, not MongoDB format
-      const currentCategories = categories
-        .filter((category) => CategoryUtils.isCustom(category))
-        .map((category) => ({
-          id: category.id, // Simple string, not MongoDB UUID
-          name: category.name,
-        }));
+      // Get current lab data and add the new category
+      const currentLab = await labService.getLabById(labId, token);
 
-      await labAPIService.addCategory(
+      // Create new subcategory in the subcategories_map
+      const newSubcategoryMap = {
+        subcategory_id: generateUUID(),
+        subcategory_name: trimmedName,
+        subjects: [],
+      };
+
+      // Update the lab with new subcategory
+      const updatedSubcategoriesMap = [
+        ...(currentLab.subcategories_map || []),
+        newSubcategoryMap,
+      ];
+
+      await labService.updateLab(
         labId,
-        trimmedName,
-        currentCategories,
+        {
+          ent_name: currentLab.ent_name,
+          ent_summary: currentLab.ent_summary,
+          metadata: {
+            ...currentLab.metadata,
+            subcategories_map: updatedSubcategoriesMap,
+          },
+        },
         token
       );
 
-      const newCategoryId = labAPIService.generateUUID();
+      // Update frontend state
       const newCategory: SubjectCategory = {
-        id: newCategoryId,
+        id: newSubcategoryMap.subcategory_id,
         name: trimmedName,
         type: 'custom',
         subjects: [],
@@ -335,6 +348,18 @@ const useCategoryManagement = (
     token,
   ]);
 
+  // Helper function to generate UUID (moved from labAPIService)
+  const generateUUID = (): string => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }
+    );
+  };
+
   const handleCategoryNameChange = useCallback(
     (value: string) => {
       setNewCategoryName(value);
@@ -370,14 +395,12 @@ const useCategoryManagement = (
 const Gather: React.FC<GatherProps> = ({
   labId,
   labName = 'Lab',
-  // Remove unused props since Include/Exclude Terms are now handled in Plan tab
-  // includeTerms,
-  // excludeTerms,
   categories,
-  // onTermsUpdate,
   onCategoriesUpdate,
   onRefreshLab,
 }) => {
+  console.log('Gather component received labId:', labId);
+
   const { toast, toasts, removeToast, executeUndo } = useToast();
   const [userRole] = useState<UserRole>('editor');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -396,7 +419,6 @@ const Gather: React.FC<GatherProps> = ({
   // Fetch detailed subject data for horizon chart
   const fetchSubjectData = useCallback(
     async (objectId: string) => {
-      // TODO: This still uses tools.futurity.science - need fast.futurity.science equivalent
       try {
         if (token) {
           const response = await fetch(
@@ -480,41 +502,37 @@ const Gather: React.FC<GatherProps> = ({
     toast
   );
 
-  // Phylogeny Tree Data - Memoized to update when categories change
+  // Phylogeny Tree Data
   const phylogenyData: PhylogenyData = useMemo(() => {
-    // Get custom categories (non-default)
     const customCategories = categories.filter(
       (category) => !CategoryUtils.isDefault(category)
     );
 
-    // Get uncategorized category if it has subjects
     const uncategorizedCategory = categories.find(CategoryUtils.isDefault);
     const includeUncategorized =
       uncategorizedCategory && uncategorizedCategory.subjects.length > 0;
 
-    // Build subcategories array
     const subcategories = [
-      // Add custom categories first
-      ...customCategories.map((category) => ({
-        id: category.id,
+      ...customCategories.map((category, index) => ({
+        id: `category-${category.id}`,
         name: category.name,
-        items: category.subjects.map((subject) => ({
-          id: subject.id,
+        items: category.subjects.map((subject, subIndex) => ({
+          id: `subject-${category.id}-${subIndex}`,
           name: subject.subjectName,
         })),
-        // Use theme colors - these will be overridden by the component's default color assignment
       })),
-      // Add uncategorized at the end if it has subjects, with a muted color
       ...(includeUncategorized
         ? [
             {
-              id: uncategorizedCategory.id,
+              id: 'category-uncategorized',
               name: uncategorizedCategory.name,
-              items: uncategorizedCategory.subjects.map((subject) => ({
-                id: subject.id,
-                name: subject.subjectName,
-              })),
-              color: '#A7ACB2', // Use muted color from your theme (fg.muted in dark mode)
+              items: uncategorizedCategory.subjects.map(
+                (subject, subIndex) => ({
+                  id: `subject-uncategorized-${subIndex}`,
+                  name: subject.subjectName,
+                })
+              ),
+              color: '#A7ACB2',
             },
           ]
         : []),
@@ -622,13 +640,11 @@ const Gather: React.FC<GatherProps> = ({
     return allLabSubjects
       .filter((subject) => selectedSubjects.has(subject.id))
       .map((subject) => {
-        // Find the category
         const category = categories.find(
           (cat) => cat.id === subject.categoryId
         );
         const categoryName = category?.name || 'Uncategorized';
 
-        // Generate a hash from the subject name for positioning
         const nameHash = subject.subjectName.split('').reduce((a, b) => {
           a = (a << 5) - a + b.charCodeAt(0);
           return a & a;
@@ -664,7 +680,6 @@ const Gather: React.FC<GatherProps> = ({
   // Initialize horizon chart selections when categories load
   useEffect(() => {
     if (allLabSubjects.length > 0 && selectedSubjects.size === 0) {
-      // Select first 20 subjects by default
       const firstTwentyIds = allLabSubjects.slice(0, 20).map((s) => s.id);
       setSelectedSubjects(new Set(firstTwentyIds));
     }
@@ -675,10 +690,8 @@ const Gather: React.FC<GatherProps> = ({
     setSelectedSubjects((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(subjectId)) {
-        // Always allow deselection
         newSet.delete(subjectId);
       } else {
-        // Only allow selection if under 20 limit
         if (newSet.size < 20) {
           newSet.add(subjectId);
         }
@@ -688,7 +701,6 @@ const Gather: React.FC<GatherProps> = ({
   }, []);
 
   const handleSelectAllHorizon = useCallback(() => {
-    // Select only the first 20 subjects
     const firstTwentyIds = allLabSubjects.slice(0, 20).map((s) => s.id);
     setSelectedSubjects(new Set(firstTwentyIds));
   }, [allLabSubjects]);
@@ -697,7 +709,7 @@ const Gather: React.FC<GatherProps> = ({
     setSelectedSubjects(new Set());
   }, []);
 
-  // Handle subject movement between categories - FIXED
+  // Handle subject movement between categories
   const handleSubjectMove = useCallback(
     async (
       frontendSubjectId: string,
@@ -722,7 +734,6 @@ const Gather: React.FC<GatherProps> = ({
         toCategoryId,
       });
 
-      // Find the subject by frontend ID
       const fromCategory = categories.find((cat) => cat.id === fromCategoryId);
       const toCategory = categories.find((cat) => cat.id === toCategoryId);
       const subject = fromCategory?.subjects.find(
@@ -744,8 +755,8 @@ const Gather: React.FC<GatherProps> = ({
         subjects: [...cat.subjects.map((subj) => ({ ...subj }))],
       }));
 
-      // Optimistic update
-      const updatedCategories = categories.map((cat) => {
+      // OPTIMISTIC UPDATE: Update UI immediately
+      const optimisticCategories = categories.map((cat) => {
         if (cat.id === fromCategoryId) {
           return {
             ...cat,
@@ -763,49 +774,51 @@ const Gather: React.FC<GatherProps> = ({
         return cat;
       });
 
-      onCategoriesUpdate(updatedCategories);
+      onCategoriesUpdate(optimisticCategories);
+
+      toast({
+        title: 'Subject moved',
+        description: `"${subject.subjectName}" moved to "${toCategory.name}".`,
+        status: 'success',
+        duration: 2000,
+      });
 
       try {
-        // FIXED: Use the helper method to get correct API format
-        const currentApiSubjects = labAPIService.getApiSubjectsFromLab({
-          subjects: categories.flatMap((cat) => cat.subjects),
-        });
+        const subjectFsid = subject.subjectSlug.startsWith('fsid_')
+          ? subject.subjectSlug
+          : `fsid_${subject.subjectSlug}`;
 
-        console.log('Current API subjects:', currentApiSubjects);
-
-        await labAPIService.moveSubjectToCategory(
+        console.log('Moving subject between subcategories with lab ID:', labId);
+        await labService.moveSubjectBetweenSubcategories(
           labId,
-          subject.subjectId, // Use actual database subject ID
+          subjectFsid,
+          fromCategoryId,
           toCategoryId,
-          currentApiSubjects,
           token || ''
         );
 
-        toast({
-          title: 'Subject moved',
-          description: `"${subject.subjectName}" moved to "${toCategory.name}".`,
-          status: 'success',
-          duration: 3000,
-        });
+        console.log('Subject move confirmed by API');
       } catch (moveError) {
+        console.error('Subject move error, rolling back:', moveError);
         onCategoriesUpdate(previousCategories);
+
         const errorMessage =
           moveError instanceof Error
             ? moveError.message
             : 'The subject could not be moved. Please try again.';
+
         toast({
           title: 'Failed to move subject',
-          description: errorMessage,
+          description: `${errorMessage} The change has been reverted.`,
           status: 'error',
           duration: 5000,
         });
-        console.error('Subject move error:', moveError);
       }
     },
     [userRole, categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle adding subject to lab - FIXED
+  // Handle adding subject to lab
   const handleAddSubject = useCallback(
     async (searchResult: SubjectSearchResult) => {
       if (userRole === 'viewer') {
@@ -850,7 +863,6 @@ const Gather: React.FC<GatherProps> = ({
         return;
       }
 
-      // Parse slug from ent_fsid
       const subjectSlug = searchResult.ent_fsid.startsWith('fsid_')
         ? searchResult.ent_fsid.substring(5)
         : searchResult.ent_fsid;
@@ -868,48 +880,47 @@ const Gather: React.FC<GatherProps> = ({
 
       const previousCategories = [...categories];
 
-      // Optimistic update
-      const newCategories = categories.map((cat) =>
+      // OPTIMISTIC UPDATE: Update UI immediately
+      const optimisticCategories = categories.map((cat) =>
         CategoryUtils.isDefault(cat)
           ? { ...cat, subjects: [...cat.subjects, newSubject] }
           : cat
       );
-      onCategoriesUpdate(newCategories);
+
+      onCategoriesUpdate(optimisticCategories);
+
+      toast({
+        title: 'Subject added',
+        description: `"${searchResult.ent_name}" has been added to your lab.`,
+        status: 'success',
+        duration: 2000,
+      });
 
       try {
-        // FIXED: Use the helper method to get correct API format
-        const currentApiSubjects = labAPIService.getApiSubjectsFromLab({
-          subjects: categories.flatMap((cat) => cat.subjects),
-        });
-
-        await labAPIService.addSubject(
+        console.log('Adding subject to lab with ID:', labId);
+        await labService.addSubjectToSubcategory(
           labId,
-          subjectId,
-          searchResult.ent_fsid, // Use full ent_fsid with fsid_ prefix
+          'uncategorized',
+          searchResult.ent_fsid,
           searchResult.ent_name,
-          defaultCategory.id,
-          currentApiSubjects,
+          searchResult.ent_summary,
           token
         );
 
-        // Don't clear search - let user add more subjects
-        // clearSearch();
+        console.log('Subject addition confirmed by API');
+      } catch (addError) {
+        console.error('Failed to add subject, rolling back:', addError);
+        onCategoriesUpdate(previousCategories);
 
         toast({
-          title: 'Subject added',
-          description: `"${searchResult.ent_name}" has been added to your lab. Search remains open for adding more subjects.`,
-          status: 'success',
-          duration: 3000,
-        });
-      } catch (addError) {
-        onCategoriesUpdate(previousCategories);
-        toast({
           title: 'Failed to add subject',
-          description: 'The subject could not be added. Please try again.',
+          description:
+            addError instanceof Error
+              ? `${addError.message} The change has been reverted.`
+              : 'The subject could not be added. Please try again.',
           status: 'error',
           duration: 5000,
         });
-        console.error('Failed to add subject:', addError);
       }
     },
     [
@@ -923,7 +934,7 @@ const Gather: React.FC<GatherProps> = ({
     ]
   );
 
-  // Handle category rename - FIXED
+  // Handle category rename
   const handleCategoryRename = useCallback(
     async (categoryId: string, newName: string) => {
       if (!token) {
@@ -943,19 +954,30 @@ const Gather: React.FC<GatherProps> = ({
       onCategoriesUpdate(newCategories);
 
       try {
-        // FIXED: Use simple string format, not MongoDB format
-        const currentCategories = categories
-          .filter((category) => CategoryUtils.isCustom(category))
-          .map((category) => ({
-            id: category.id, // Simple string, not MongoDB UUID
-            name: category.name,
-          }));
+        const currentLab = await labService.getLabById(labId, token);
 
-        await labAPIService.updateCategoryName(
+        const updatedSubcategoriesMap = (
+          currentLab.subcategories_map || []
+        ).map((subcategoryMap) => {
+          if (subcategoryMap.subcategory_id === categoryId) {
+            return {
+              ...subcategoryMap,
+              subcategory_name: newName,
+            };
+          }
+          return subcategoryMap;
+        });
+
+        await labService.updateLab(
           labId,
-          categoryId,
-          newName,
-          currentCategories,
+          {
+            ent_name: currentLab.ent_name,
+            ent_summary: currentLab.ent_summary,
+            metadata: {
+              ...currentLab.metadata,
+              subcategories_map: updatedSubcategoriesMap,
+            },
+          },
           token
         );
 
@@ -979,7 +1001,7 @@ const Gather: React.FC<GatherProps> = ({
     [categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle category deletion - FIXED
+  // Handle category deletion
   const handleCategoryDelete = useCallback(
     async (categoryId: string, moveSubjectsToUncategorized: boolean) => {
       if (!token) {
@@ -1000,75 +1022,57 @@ const Gather: React.FC<GatherProps> = ({
         subjects: [...cat.subjects],
       }));
 
-      // CRITICAL FIX: Don't do optimistic subject movement - let the API handle it
-      // Just remove the category from the UI, subjects will be updated when we refresh/get API response
       const newCategories = categories.filter((cat) => cat.id !== categoryId);
-
-      // Apply optimistic update (only remove category, don't move subjects yet)
       onCategoriesUpdate(newCategories);
 
       try {
-        // FIXED: Use simple string format, not MongoDB format
-        const currentCategories = categories
-          .filter((category) => CategoryUtils.isCustom(category))
-          .map((category) => ({
-            id: category.id, // Simple string, not MongoDB UUID
-            name: category.name,
-          }));
+        const currentLab = await labService.getLabById(labId, token);
 
-        // Use the original categories state for API call
-        const originalApiSubjects = labAPIService.getApiSubjectsFromLab({
-          subjects: categories.flatMap((cat) => cat.subjects), // Use original categories
-        });
+        let updatedSubcategoriesMap = (
+          currentLab.subcategories_map || []
+        ).filter(
+          (subcategoryMap) => subcategoryMap.subcategory_id !== categoryId
+        );
 
-        const uncategorizedId =
-          categories.find((cat) => CategoryUtils.isDefault(cat))?.id ||
-          'uncategorized';
+        if (
+          moveSubjectsToUncategorized &&
+          categoryToDelete.subjects.length > 0
+        ) {
+          const categoryToRemove = (currentLab.subcategories_map || []).find(
+            (s) => s.subcategory_id === categoryId
+          );
 
-        const updatedApiData = await labAPIService.removeCategory(
+          if (categoryToRemove && categoryToRemove.subjects.length > 0) {
+            const uncategorizedIndex = updatedSubcategoriesMap.findIndex(
+              (s) => s.subcategory_name.toLowerCase() === 'uncategorized'
+            );
+
+            if (uncategorizedIndex >= 0) {
+              updatedSubcategoriesMap[uncategorizedIndex].subjects.push(
+                ...categoryToRemove.subjects
+              );
+            } else {
+              updatedSubcategoriesMap.unshift({
+                subcategory_id: 'uncategorized',
+                subcategory_name: 'Uncategorized',
+                subjects: [...categoryToRemove.subjects],
+              });
+            }
+          }
+        }
+
+        await labService.updateLab(
           labId,
-          categoryId,
-          moveSubjectsToUncategorized,
-          currentCategories,
-          originalApiSubjects,
-          uncategorizedId,
+          {
+            ent_name: currentLab.ent_name,
+            ent_summary: currentLab.ent_summary,
+            metadata: {
+              ...currentLab.metadata,
+              subcategories_map: updatedSubcategoriesMap,
+            },
+          },
           token
         );
-
-        // Transform the API response back to frontend format to get the correct state
-        const { ApiTransformUtils } = await import('./types');
-        const updatedLab = await ApiTransformUtils.transformLab(
-          updatedApiData,
-          labId,
-          async () => ({
-            _id: '',
-            Google_hitcounts: 0,
-            Papers_hitcounts: 0,
-            Books_hitcounts: 0,
-            Gnews_hitcounts: 0,
-            Related_terms: '',
-            wikipedia_definition: '',
-            wiktionary_definition: '',
-            FST: '',
-            labs: '',
-            wikipedia_url: '',
-            ent_name: '',
-            ent_fsid: '',
-            ent_summary: '',
-          }),
-          async () => ({
-            id: '',
-            title: '',
-            description: '',
-            status: '',
-            createdAt: '',
-            updatedAt: '',
-            createdById: '',
-          })
-        );
-
-        // Update with the correct state from API
-        onCategoriesUpdate(updatedLab.categories);
 
         toast({
           title: 'Category deleted',
@@ -1077,33 +1081,26 @@ const Gather: React.FC<GatherProps> = ({
             : `"${categoryToDelete.name}" and its ${categoryToDelete.subjects.length} subjects deleted.`,
           status: 'info',
           undoAction: async () => {
-            // Restore the UI state
             onCategoriesUpdate(previousCategoriesState);
 
-            // Also restore in the database by making an API call
             try {
               if (!token) {
                 throw new Error('Authentication required');
               }
 
-              const restoreCategories = previousCategoriesState
-                .filter((category) => CategoryUtils.isCustom(category))
-                .map((category) => ({
-                  id: category.id,
-                  name: category.name,
-                }));
+              const restoreSubcategoriesMap = [
+                ...(currentLab.subcategories_map || []),
+              ];
 
-              const restoreApiSubjects = labAPIService.getApiSubjectsFromLab({
-                subjects: previousCategoriesState.flatMap(
-                  (cat) => cat.subjects
-                ),
-              });
-
-              await labAPIService.batchUpdate(
+              await labService.updateLab(
                 labId,
                 {
-                  categories: restoreCategories,
-                  subjects: restoreApiSubjects,
+                  ent_name: currentLab.ent_name,
+                  ent_summary: currentLab.ent_summary,
+                  metadata: {
+                    ...currentLab.metadata,
+                    subcategories_map: restoreSubcategoriesMap,
+                  },
                 },
                 token
               );
@@ -1144,7 +1141,7 @@ const Gather: React.FC<GatherProps> = ({
     [categories, toast, onCategoriesUpdate, labId, token]
   );
 
-  // Handle subject removal - FIXED
+  // Handle subject removal
   const handleSubjectRemove = useCallback(
     async (subjectId: string, categoryId: string) => {
       if (userRole === 'viewer') {
@@ -1187,7 +1184,8 @@ const Gather: React.FC<GatherProps> = ({
         subjects: [...cat.subjects],
       }));
 
-      const newCategories = categories.map((cat) =>
+      // OPTIMISTIC UPDATE: Update UI immediately
+      const optimisticCategories = categories.map((cat) =>
         cat.id === categoryId
           ? {
               ...cat,
@@ -1197,90 +1195,118 @@ const Gather: React.FC<GatherProps> = ({
             }
           : cat
       );
-      onCategoriesUpdate(newCategories);
+
+      onCategoriesUpdate(optimisticCategories);
+
+      toast({
+        title: 'Subject removed',
+        description: `"${subject.subjectName}" removed from ${
+          category?.name || 'the lab'
+        }.`,
+        status: 'info',
+        undoAction: async () => {
+          onCategoriesUpdate(previousCategoriesState);
+
+          try {
+            if (!token) {
+              throw new Error('Authentication required');
+            }
+
+            const currentLab = await labService.getLabById(labId, token);
+            const restoreSubcategoriesMap = (
+              currentLab.subcategories_map || []
+            ).map((subcategoryMap) => {
+              if (subcategoryMap.subcategory_id === categoryId) {
+                const subjectData = {
+                  ent_fsid: subject.subjectSlug.startsWith('fsid_')
+                    ? subject.subjectSlug
+                    : `fsid_${subject.subjectSlug}`,
+                  ent_name: subject.subjectName,
+                  ent_summary: subject.notes || '',
+                  indexes: [],
+                };
+                return {
+                  ...subcategoryMap,
+                  subjects: [...subcategoryMap.subjects, subjectData],
+                };
+              }
+              return subcategoryMap;
+            });
+
+            await labService.updateLab(
+              labId,
+              {
+                ent_name: currentLab.ent_name,
+                ent_summary: currentLab.ent_summary,
+                metadata: {
+                  ...currentLab.metadata,
+                  subcategories_map: restoreSubcategoriesMap,
+                },
+              },
+              token
+            );
+
+            toast({
+              title: 'Subject restored',
+              description: `"${subject.subjectName}" has been restored to ${
+                category?.name || 'the lab'
+              }.`,
+              status: 'success',
+              duration: 3000,
+            });
+          } catch (restoreError) {
+            console.error(
+              'Failed to restore subject in database:',
+              restoreError
+            );
+            toast({
+              title: 'Restore failed',
+              description:
+                'Subject restored in UI but failed to restore in database. Please refresh the page.',
+              status: 'warning',
+              duration: 5000,
+            });
+          }
+        },
+        undoLabel: 'Undo Remove',
+      });
 
       try {
-        // FIXED: Use the helper method to get correct API format
-        const currentApiSubjects = labAPIService.getApiSubjectsFromLab({
-          subjects: categories.flatMap((cat) => cat.subjects),
-        });
+        const currentLab = await labService.getLabById(labId, token);
 
-        await labAPIService.removeSubject(
+        const updatedSubcategoriesMap = (
+          currentLab.subcategories_map || []
+        ).map((subcategoryMap) => ({
+          ...subcategoryMap,
+          subjects: subcategoryMap.subjects.filter(
+            (s) => s.ent_fsid !== subject.subjectSlug
+          ),
+        }));
+
+        await labService.updateLab(
           labId,
-          subjectId, // Use actual database subject ID
-          currentApiSubjects,
+          {
+            ent_name: currentLab.ent_name,
+            ent_summary: currentLab.ent_summary,
+            metadata: {
+              ...currentLab.metadata,
+              subcategories_map: updatedSubcategoriesMap,
+            },
+          },
           token
         );
 
-        toast({
-          title: 'Subject removed',
-          description: `"${subject.subjectName}" removed from ${
-            category?.name || 'the lab'
-          }.`,
-          status: 'info',
-          undoAction: async () => {
-            // Restore the UI state
-            onCategoriesUpdate(previousCategoriesState);
-
-            // Also restore in the database by making an API call
-            try {
-              if (!token) {
-                throw new Error('Authentication required');
-              }
-
-              const restoreApiSubjects = labAPIService.getApiSubjectsFromLab({
-                subjects: previousCategoriesState.flatMap(
-                  (cat) => cat.subjects
-                ),
-              });
-
-              await labAPIService.addSubject(
-                labId,
-                subject.subjectId,
-                subject.subjectSlug.startsWith('fsid_')
-                  ? subject.subjectSlug
-                  : `fsid_${subject.subjectSlug}`,
-                subject.subjectName,
-                subject.categoryId,
-                restoreApiSubjects.filter(
-                  (s) => s.subject_id !== subject.subjectId
-                ), // Exclude the subject we're adding back
-                token
-              );
-
-              toast({
-                title: 'Subject restored',
-                description: `"${subject.subjectName}" has been restored to ${
-                  category?.name || 'the lab'
-                }.`,
-                status: 'success',
-                duration: 3000,
-              });
-            } catch (restoreError) {
-              console.error(
-                'Failed to restore subject in database:',
-                restoreError
-              );
-              toast({
-                title: 'Restore failed',
-                description:
-                  'Subject restored in UI but failed to restore in database. Please refresh the page.',
-                status: 'warning',
-                duration: 5000,
-              });
-            }
-          },
-          undoLabel: 'Undo Remove',
-        });
+        console.log('Subject removal confirmed by API');
       } catch (removeError) {
+        console.error('Failed to remove subject, rolling back:', removeError);
         onCategoriesUpdate(previousCategoriesState);
+
         toast({
           title: 'Failed to remove subject',
           description: 'The subject could not be removed. Please try again.',
           status: 'error',
           duration: 5000,
         });
-        console.error('Failed to remove subject:', removeError);
       }
     },
     [userRole, categories, toast, onCategoriesUpdate, labId, token]
@@ -1313,7 +1339,6 @@ const Gather: React.FC<GatherProps> = ({
 
           if (response.ok) {
             const data = await response.json();
-            // Ensure each item has the required properties with proper typing
             const typedItems: KnowledgebaseDocument[] = data.items.map(
               (item: any) => ({
                 document_uuid: item.document_uuid || item.id || 'unknown',
@@ -1441,7 +1466,6 @@ const Gather: React.FC<GatherProps> = ({
   }, [kbQuery]);
 
   const handleFileTypeToggle = useCallback((fileType: string) => {
-    // Type guard to ensure fileType is a valid KnowledgebaseFileType
     const validFileTypes: KnowledgebaseFileType[] = [
       'pdf',
       'image',
@@ -1629,8 +1653,8 @@ const Gather: React.FC<GatherProps> = ({
           onSubjectClick={handleSubjectClick}
           onSubjectRemove={handleSubjectRemove}
           onSubjectView={handleSubjectView}
-          tooltipPlacement='right' // Use horizontal tooltip placement
-          isInHorizontalLayout={true} // Enable horizontal layout constraints
+          tooltipPlacement='right'
+          isInHorizontalLayout={true}
         />
       );
     },
@@ -1666,8 +1690,6 @@ const Gather: React.FC<GatherProps> = ({
   return (
     <DndProvider backend={HTML5Backend}>
       <VStack gap={6} align='stretch' overflow='visible'>
-        {' '}
-        {/* FIXED: Allow tooltips to overflow the main container */}
         {/* Header with search and refresh */}
         <HStack justify='space-between' align='center'>
           <HStack gap={4} flex='1'>
@@ -1736,6 +1758,7 @@ const Gather: React.FC<GatherProps> = ({
             )}
           </HStack>
         </HStack>
+
         {/* Task 19: Uncategorized Subjects Horizontal Bar */}
         {uncategorizedCategory && (
           <Box
@@ -1744,9 +1767,8 @@ const Gather: React.FC<GatherProps> = ({
             bg='bg.canvas'
             borderRadius='md'
             p={4}
-            overflow='hidden' // FIXED: Constrain tooltips to this container for horizontal layout
+            overflow='hidden'
           >
-            {/* Header */}
             <HStack gap={2} mb={3}>
               <FaFolder size={16} color='var(--chakra-colors-fg-muted)' />
               <Text
@@ -1770,17 +1792,17 @@ const Gather: React.FC<GatherProps> = ({
               </Box>
             </HStack>
 
-            {/* Horizontal Drop Zone for Uncategorized Subjects */}
             <HorizontalDropZone
               categoryId={uncategorizedCategory.id}
               subjects={uncategorizedCategory.subjects}
               onDrop={handleSubjectMove}
-              renderSubjectCard={renderHorizontalSubjectCard} // Use horizontal renderer
+              renderSubjectCard={renderHorizontalSubjectCard}
               emptyMessage='Drop subjects here to uncategorize them'
               isLoading={isLoading}
             />
           </Box>
         )}
+
         {/* Main Kanban Board for Categorized Subjects */}
         <Box position='relative' overflowY='visible' w='100%'>
           <Box
@@ -1864,6 +1886,7 @@ const Gather: React.FC<GatherProps> = ({
             </HStack>
           </Box>
         </Box>
+
         {/* Task 17: Taxonomy Tree View - PhylogenyTree Component */}
         <VStack gap={4} align='stretch'>
           <HStack gap={2} align='center'>
@@ -1875,14 +1898,17 @@ const Gather: React.FC<GatherProps> = ({
             </Text>
           </HStack>
 
-          {/* Phylogeny Tree Component */}
           <PhylogenyTree
+            key={`phylogeny-${categories.length}-${categories
+              .map((c) => c.subjects.length)
+              .join('-')}`}
             data={phylogenyData}
             nodeSpacing={80}
             levelSpacing={240}
             itemSpacing={40}
           />
         </VStack>
+
         {/* Horizon Chart Section */}
         <VStack gap={4} align='stretch'>
           <HStack gap={2} align='center'>
@@ -1909,6 +1935,79 @@ const Gather: React.FC<GatherProps> = ({
             refreshing={isRefreshing}
           />
         </VStack>
+
+        {/* Knowledgebase Section */}
+        <VStack gap={4} align='stretch' mt={6}>
+          {/* Knowledgebase Header */}
+          <HStack justify='space-between' align='center'>
+            <Heading as='h2' size='lg' color='fg' fontFamily='heading'>
+              Knowledgebase
+            </Heading>
+
+            {/* Demo CORS Button */}
+            <Button
+              size='md'
+              colorScheme='red'
+              bg='red.500'
+              color='white'
+              _hover={{ bg: 'red.600' }}
+              _active={{ bg: 'red.700' }}
+              onClick={() =>
+                window.open(
+                  'https://cors-anywhere.herokuapp.com/corsdemo',
+                  '_blank'
+                )
+              }
+              fontFamily='heading'
+            >
+              🚨 Demo: Enable CORS
+            </Button>
+          </HStack>
+
+          {/* Demo Instructions */}
+          <Box
+            p={3}
+            bg='red.50'
+            borderRadius='md'
+            border='1px solid'
+            borderColor='red.200'
+          >
+            <Text
+              fontSize='sm'
+              color='red.700'
+              fontFamily='body'
+              fontWeight='medium'
+            >
+              ⚠️ Demo Setup Required: Click the "Enable CORS" button above, then
+              click "Request temporary access" on the opened page. After that,
+              refresh this lab page to use the knowledgebase features.
+            </Text>
+          </Box>
+
+          {/* Knowledgebase Content */}
+          <Knowledgebase
+            kbDocuments={kbDocuments}
+            filteredKbDocuments={filteredKbDocuments}
+            kbLoading={kbLoading}
+            kbError={kbError}
+            kbUploadLoading={kbUploadLoading}
+            kbUploadError={kbUploadError}
+            kbUploadSuccess={kbUploadSuccess}
+            kbQuery={kbQuery}
+            kbQueryResults={kbQueryResults}
+            kbQueryLoading={kbQueryLoading}
+            kbQueryError={kbQueryError}
+            selectedFileTypes={selectedFileTypes}
+            deletingDocuments={deletingDocuments}
+            onKbQueryChange={setKbQuery}
+            onKbQuery={handleKbQuery}
+            onFileUpload={handleKbFileUpload}
+            onFileTypeToggle={handleFileTypeToggle}
+            onDeleteDocument={handleDeleteDocument}
+            onRetryFetch={fetchKnowledgebaseDocuments}
+          />
+        </VStack>
+
         {/* Add Category Dialog */}
         <Dialog.Root
           open={isAddCategoryOpen}
@@ -2001,83 +2100,13 @@ const Gather: React.FC<GatherProps> = ({
             </Dialog.Content>
           </Dialog.Positioner>
         </Dialog.Root>
+
         {/* Toast Container */}
         <ToastDisplay
           toasts={toasts}
           onRemove={removeToast}
           onUndo={executeUndo}
         />
-        {/* Knowledgebase Section */}
-        <VStack gap={4} align='stretch' mt={6}>
-          {/* Knowledgebase Header */}
-          <HStack justify='space-between' align='center'>
-            <Heading as='h2' size='lg' color='fg' fontFamily='heading'>
-              Knowledgebase
-            </Heading>
-
-            {/* Demo CORS Button */}
-            <Button
-              size='md'
-              colorScheme='red'
-              bg='red.500'
-              color='white'
-              _hover={{ bg: 'red.600' }}
-              _active={{ bg: 'red.700' }}
-              onClick={() =>
-                window.open(
-                  'https://cors-anywhere.herokuapp.com/corsdemo',
-                  '_blank'
-                )
-              }
-              fontFamily='heading'
-            >
-              🚨 Demo: Enable CORS
-            </Button>
-          </HStack>
-
-          {/* Demo Instructions */}
-          <Box
-            p={3}
-            bg='red.50'
-            borderRadius='md'
-            border='1px solid'
-            borderColor='red.200'
-          >
-            <Text
-              fontSize='sm'
-              color='red.700'
-              fontFamily='body'
-              fontWeight='medium'
-            >
-              ⚠️ Demo Setup Required: Click the "Enable CORS" button above, then
-              click "Request temporary access" on the opened page. After that,
-              refresh this lab page to use the knowledgebase features.
-            </Text>
-          </Box>
-
-          {/* Knowledgebase Content */}
-          <Knowledgebase
-            kbDocuments={kbDocuments}
-            filteredKbDocuments={filteredKbDocuments}
-            kbLoading={kbLoading}
-            kbError={kbError}
-            kbUploadLoading={kbUploadLoading}
-            kbUploadError={kbUploadError}
-            kbUploadSuccess={kbUploadSuccess}
-            kbQuery={kbQuery}
-            kbQueryResults={kbQueryResults}
-            kbQueryLoading={kbQueryLoading}
-            kbQueryError={kbQueryError}
-            selectedFileTypes={selectedFileTypes}
-            deletingDocuments={deletingDocuments}
-            onKbQueryChange={setKbQuery}
-            onKbQuery={handleKbQuery}
-            onFileUpload={handleKbFileUpload}
-            onFileTypeToggle={handleFileTypeToggle}
-            onDeleteDocument={handleDeleteDocument}
-            onRetryFetch={fetchKnowledgebaseDocuments}
-          />
-        </VStack>
       </VStack>
 
       {/* Add CSS for refresh button animation */}
