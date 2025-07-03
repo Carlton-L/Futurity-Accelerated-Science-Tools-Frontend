@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Box, VStack, Text } from '@chakra-ui/react';
 import { PageProvider } from '../../../context/PageContext/PageProvider';
-import { ThemeProvider } from '../../../context/ThemeContext';
 import Navbar from './Navbar';
 import ChatDrawer from './ChatDrawer';
 import ChatButton from './ChatButton';
 
 const MainLayout: React.FC = () => {
   const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -19,9 +19,9 @@ const MainLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const isCompact = windowWidth <= 1100;
 
+  // Mobile check
   if (windowWidth < 740) {
     return (
       <Box
@@ -63,39 +63,34 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <ThemeProvider>
-      <PageProvider>
+    <PageProvider>
+      <Box
+        minH='100vh'
+        width='100%'
+        bg='bg' // Main app background - your #111111 in dark mode, #FAFAFA in light mode
+      >
+        {/* Sticky Navbar */}
+        <Navbar />
+
+        {/* Main Content */}
         <Box
-          minH='100vh'
-          width='100%'
-          bg='bg' // Main app background - your #111111 in dark mode, #FAFAFA in light mode
+          pt={isCompact ? '74px' : '80px'} // Account for navbar height + top padding (58px/64px + 16px)
+          maxWidth='1440px'
+          mx='auto'
+          bg='bg' // Ensure content area also uses semantic background
         >
-          {/* Sticky Navbar */}
-          <Navbar />
-
-          {/* Main Content */}
-          <Box
-            pt={isCompact ? '74px' : '80px'} // Account for navbar height + top padding (58px/64px + 16px)
-            maxWidth='1440px'
-            mx='auto'
-            bg='bg' // Ensure content area also uses semantic background
-          >
-            <Outlet />
-          </Box>
-
-          {/* Chat Button - Fixed position */}
-          <Box position='fixed' bottom='20px' right='20px' zIndex={1000}>
-            <ChatButton onClick={() => setIsChatOpen(true)} />
-          </Box>
-
-          {/* Chat Drawer */}
-          <ChatDrawer
-            isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
-          />
+          <Outlet />
         </Box>
-      </PageProvider>
-    </ThemeProvider>
+
+        {/* Chat Button - Fixed position */}
+        <Box position='fixed' bottom='20px' right='20px' zIndex={1000}>
+          <ChatButton onClick={() => setIsChatOpen(true)} />
+        </Box>
+
+        {/* Chat Drawer */}
+        <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      </Box>
+    </PageProvider>
   );
 };
 
