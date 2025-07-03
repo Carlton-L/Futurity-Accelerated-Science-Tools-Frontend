@@ -1,7 +1,7 @@
 // services/labService.ts
 
-// IMPORTANT: The trailing slash is required to match the FastAPI endpoint definition
-const API_BASE_URL = 'https://fast.futurity.science/management/labs/';
+// Base URL without trailing slash to avoid double slashes in path construction
+const API_BASE_URL = 'https://fast.futurity.science/management/labs';
 
 // Goal interface matching the new API structure
 export interface ApiLabGoal {
@@ -158,8 +158,8 @@ class LabService {
     token: string,
     includeArchived: boolean = false
   ): Promise<Lab[]> {
-    // Build URL string directly
-    const urlString = `${API_BASE_URL}?team_id=${encodeURIComponent(
+    // Build URL string directly - add trailing slash for list endpoint
+    const urlString = `${API_BASE_URL}/?team_id=${encodeURIComponent(
       teamId
     )}&include_archived=${includeArchived}`;
 

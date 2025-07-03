@@ -1,4 +1,4 @@
-import {default} from './FuturityLab';
+import FuturityLabComponent from './FuturityLab';
 import FuturityLabCardComponent from './FuturityLabCard';
 
 export default FuturityLabComponent;
