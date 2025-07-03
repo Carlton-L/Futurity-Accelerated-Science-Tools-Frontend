@@ -66,53 +66,85 @@ const Lab: React.FC = () => {
   const [activeTab, setActiveTab] = useState<LabTab>('plan');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
-  // Transform API lab data to frontend format
+  // Transform API lab data to frontend format using new subcategories_map structure
   const transformApiLabToFrontend = useCallback((apiLab: ApiLab): LabType => {
-    // Transform subcategories to frontend categories
-    const categories: SubjectCategory[] = apiLab.subcategories.map(
-      (subcat) => ({
-        id: subcat.id,
-        name: subcat.name,
-        type: subcat.metadata?.deletable === false ? 'default' : 'custom',
-        subjects: [],
-        description: subcat.metadata?.description,
-      })
-    );
+    console.log('Transforming API lab data:', apiLab);
 
-    // Add default uncategorized category if not present
-    if (!categories.find((cat) => cat.name.toLowerCase() === 'uncategorized')) {
-      categories.unshift({
-        id: 'uncategorized',
-        name: 'Uncategorized',
-        type: 'default',
-        subjects: [],
-        description: 'Default category for new subjects',
+    // Initialize categories array with default uncategorized
+    const categories: SubjectCategory[] = [];
+
+    // Add default uncategorized category first
+    const uncategorizedCategory: SubjectCategory = {
+      id: 'uncategorized',
+      name: 'Uncategorized',
+      type: 'default',
+      subjects: [],
+      description: 'Default category for new subjects',
+    };
+
+    // Process subcategories_map to create categories and subjects
+    const allSubjects: LabSubject[] = [];
+
+    if (apiLab.subcategories_map && Array.isArray(apiLab.subcategories_map)) {
+      apiLab.subcategories_map.forEach((subcategoryMap, index) => {
+        // Determine if this is the uncategorized category
+        const isUncategorized =
+          subcategoryMap.subcategory_name.toLowerCase() === 'uncategorized';
+
+        // Create category object
+        const category: SubjectCategory = {
+          id: isUncategorized ? 'uncategorized' : subcategoryMap.subcategory_id,
+          name: subcategoryMap.subcategory_name,
+          type: isUncategorized ? 'default' : 'custom',
+          subjects: [],
+          description: isUncategorized
+            ? 'Default category for new subjects'
+            : undefined,
+        };
+
+        // Process subjects in this subcategory
+        if (subcategoryMap.subjects && Array.isArray(subcategoryMap.subjects)) {
+          subcategoryMap.subjects.forEach((apiSubject, subjectIndex) => {
+            // Parse slug from ent_fsid by removing fsid_ prefix
+            const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
+              ? apiSubject.ent_fsid.substring(5)
+              : apiSubject.ent_fsid;
+
+            const frontendSubject: LabSubject = {
+              id: `subj-${index}-${subjectIndex}-${apiSubject.ent_fsid}`,
+              subjectId: apiSubject.ent_fsid, // Use ent_fsid as the ID for association
+              subjectName: apiSubject.ent_name,
+              subjectSlug: subjectSlug,
+              addedAt: new Date().toISOString(),
+              addedById: 'unknown',
+              notes: apiSubject.ent_summary || '',
+              categoryId: category.id,
+              // Add index data if available
+              horizonRank: apiSubject.indexes?.[0]?.HR,
+              techTransfer: apiSubject.indexes?.[0]?.TT,
+              whiteSpace: apiSubject.indexes?.[0]?.WS,
+            };
+
+            allSubjects.push(frontendSubject);
+            category.subjects.push(frontendSubject);
+          });
+        }
+
+        // Add category to list (replace uncategorized if this is the uncategorized category)
+        if (isUncategorized) {
+          // Update the uncategorized category with subjects
+          uncategorizedCategory.subjects = category.subjects;
+        } else {
+          categories.push(category);
+        }
       });
     }
 
-    // Transform subjects_config to frontend subjects and assign to categories
-    const subjects: LabSubject[] = apiLab.subjects_config.map(
-      (subjectConfig, index) => ({
-        id: `subj-${index}-${subjectConfig.subject_fsid}`,
-        subjectId: subjectConfig.subject_fsid, // Use fsid as the ID for association
-        subjectName: subjectConfig.subject_name,
-        subjectSlug: subjectConfig.subject_fsid,
-        addedAt: new Date().toISOString(),
-        addedById: 'unknown',
-        notes: '', // Will be filled from separate API call
-        categoryId:
-          categories.find((cat) => cat.name === subjectConfig.subcategory_name)
-            ?.id || 'uncategorized',
-      })
-    );
+    // Always ensure uncategorized is first in the list
+    categories.unshift(uncategorizedCategory);
 
-    // Distribute subjects to their categories
-    subjects.forEach((subject) => {
-      const category = categories.find((cat) => cat.id === subject.categoryId);
-      if (category) {
-        category.subjects.push(subject);
-      }
-    });
+    console.log('Transformed categories:', categories);
+    console.log('Transformed subjects:', allSubjects);
 
     return {
       id: apiLab._id,
@@ -129,7 +161,7 @@ const Lab: React.FC = () => {
       editorIds: [],
       memberIds: ['current-user'],
       goals: [], // TODO: Transform API goals to frontend format
-      subjects: subjects,
+      subjects: allSubjects,
       categories: categories,
       analyses: [], // Will be loaded separately
       includeTerms: apiLab.include_terms || [],
@@ -187,13 +219,22 @@ const Lab: React.FC = () => {
     try {
       // Use the enhanced lab service with the uniqueID from URL params
       const apiLabData = await labService.getLabById(id, token);
-      console.log('Successfully fetched lab data from API:', apiLabData);
+      console.log('Successfully fetched lab data from API:', {
+        _id: apiLabData._id,
+        uniqueID: apiLabData.uniqueID,
+        urlParam: id,
+      });
 
       // Store the raw API data
       setApiLabData(apiLabData);
 
       // Transform API data to frontend format
       const transformedLab = transformApiLabToFrontend(apiLabData);
+      console.log('Transformed lab IDs:', {
+        frontendId: transformedLab.id,
+        uniqueID: transformedLab.uniqueID,
+        urlParam: id,
+      });
 
       setLab(transformedLab);
       setHeaderForm({
@@ -255,9 +296,9 @@ const Lab: React.FC = () => {
     setSaving(true);
 
     try {
-      // Use the enhanced lab service to update
+      // Use the enhanced lab service to update using uniqueID
       const updatedApiLab = await labService.updateLabInfo(
-        id,
+        lab.uniqueID || id, // Use uniqueID first, fallback to URL param
         headerForm.name.trim(),
         headerForm.description.trim(),
         token
@@ -325,9 +366,9 @@ const Lab: React.FC = () => {
       if (!lab || !token || !id) return;
 
       try {
-        // Update via API
+        // Update via API using the uniqueID (from URL params) not the MongoDB _id
         const updatedApiLab = await labService.updateLabTerms(
-          id,
+          lab.uniqueID || id, // Use uniqueID first, fallback to URL param
           includeTerms,
           excludeTerms,
           token
@@ -622,11 +663,11 @@ const Lab: React.FC = () => {
         </GlassCard>
       </Box>
 
-      {/* Tab Content */}
+      {/* Tab Content - Pass uniqueID instead of id */}
       <Box>
         {activeTab === 'plan' && (
           <Plan
-            labId={id || ''}
+            labId={lab.uniqueID || id || ''} // Use uniqueID first, fallback to URL param
             lab={lab}
             includeTerms={apiLabData?.include_terms || lab.includeTerms || []}
             excludeTerms={apiLabData?.exclude_terms || lab.excludeTerms || []}
@@ -636,7 +677,8 @@ const Lab: React.FC = () => {
         )}
         {activeTab === 'gather' && (
           <Gather
-            labId={lab.id}
+            labId={lab.uniqueID || id || ''} // Use uniqueID first, fallback to URL param
+            labName={lab.name}
             categories={lab.categories || []}
             onCategoriesUpdate={(categories) => {
               setLab((prev) => (prev ? { ...prev, categories } : null));
@@ -645,10 +687,15 @@ const Lab: React.FC = () => {
           />
         )}
         {activeTab === 'analyze' && (
-          <Analyze labId={lab.id} labUniqueID={lab.uniqueID} />
+          <Analyze
+            labId={lab.uniqueID || id || ''}
+            labUniqueID={lab.uniqueID}
+          />
         )}
-        {activeTab === 'forecast' && <Forecast labId={lab.id} />}
-        {activeTab === 'invent' && <Invent labId={lab.id} />}
+        {activeTab === 'forecast' && (
+          <Forecast labId={lab.uniqueID || id || ''} />
+        )}
+        {activeTab === 'invent' && <Invent labId={lab.uniqueID || id || ''} />}
       </Box>
 
       {/* Edit Dialog */}

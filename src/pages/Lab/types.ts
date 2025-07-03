@@ -19,49 +19,50 @@ export interface MongoInt {
 }
 
 // ============================================================================
-// Lab API Types (API Response Format)
+// Lab API Types (API Response Format) - Updated for new subcategories_map structure
 // ============================================================================
 
-// Updated to match the actual API response structure
+// Updated to match the new API response structure with subcategories_map
 export interface ApiLabData {
-  _id: string; // Changed: The API returns a simple string, not a MongoDB ObjectId
-  isArchived: number; // Changed: API returns 0/1 instead of boolean
-  isDeleted: number; // Changed: API returns 0/1 instead of boolean
-  deletedAt: string | null;
+  _id: string;
+  uniqueID: string;
   ent_name: string;
-  ent_summary: string;
-  kbid: string; // Changed: API returns simple string, not MongoDB UUID
-  teamspace_id: string | null;
-  picture_url: string | null;
-  thumb_url: string | null;
-  owner_guid: string;
-  user_access_level?: string; // Added: API includes this field
-  members: Array<{
-    user_id: string; // Changed: API uses user_id instead of user_guid
-    role: string; // Changed: API uses generic string instead of specific roles
+  ent_fsid: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  kbid?: string;
+  miro_board_url?: string;
+  ent_summary?: string;
+  picture_url?: string;
+  thumbnail_url?: string;
+
+  // New structure - subcategories_map contains both subcategories and their subjects
+  subcategories_map: Array<{
+    subcategory_id: string;
+    subcategory_name: string;
+    subjects: Array<{
+      ent_fsid: string;
+      ent_name: string;
+      ent_summary: string;
+      indexes: Array<{
+        HR?: number;
+        TT?: number;
+        WS?: number;
+      }>;
+    }>;
   }>;
-  categories: Array<{
-    id: string; // Changed: API returns simple string, not MongoDB UUID
-    name: string;
-  }>;
-  exclude_terms: string[];
-  include_terms: string[];
-  subjects: Array<{
-    subject_id: string; // ObjectId as string
-    subject_name?: string; // Some subjects use this
-    name?: string; // Some subjects use this instead
-    category: string | null; // UUID as string, null means uncategorized
-    ent_fsid: string; // Subject slug with fsid_ prefix
-  }>;
-  analyses: string[]; // Changed: API returns array of strings, not MongoDB ObjectIds
-  goals: Array<{
-    id: string; // Changed: API returns simple string, not MongoDB UUID
-    target_user_group: string; // Changed: API uses different structure
+
+  // Optional fields
+  exclude_terms?: string[];
+  include_terms?: string[];
+  goals?: Array<{
+    id: string;
+    target_user_group: string;
     problem_statement: string;
-    impact_score: number; // Changed: API returns simple number, not MongoDB Int
+    impact_score: number;
   }>;
-  miro_board_url: string;
-  idea_seeds: any[]; // Changed: API returns different structure
+  metadata?: Record<string, any>;
 }
 
 // Legacy types for backward compatibility with your existing API service

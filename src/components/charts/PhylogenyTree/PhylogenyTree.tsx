@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, Text, Card } from '@chakra-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -102,7 +102,7 @@ function calculateTreeDimensions(
   itemSpacing: number
 ) {
   // Fixed width - no dynamic horizontal expansion
-  const width = 800; // Fixed width for consistent layout
+  const fixedWidth = 800; // Fixed width for consistent layout
 
   // Calculate height based on dynamic positioning
   const subcategoryPositions = calculateSubcategoryPositions(
@@ -138,7 +138,6 @@ function calculateTreeDimensions(
   });
 
   // Ensure we don't have negative starting position and add padding
-  const topPadding = Math.max(60, 80 - minTopY); // Ensure minimum top padding
   const bottomPadding = 60; // Bottom padding
 
   // Adjust all positions if we need top padding
@@ -154,9 +153,9 @@ function calculateTreeDimensions(
   const height = Math.max(300, totalHeight);
 
   return {
-    width,
+    width: fixedWidth,
     height,
-    viewBox: `0 0 ${width} ${height}`,
+    viewBox: `0 0 ${fixedWidth} ${height}`,
     subcategoryPositions,
   };
 }
@@ -198,17 +197,78 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
   // Track previous positions for smooth transitions
   const previousPositions = useRef<{ [key: string]: number }>({});
 
-  const toggleCategory = (categoryId: string) => {
-    setExpandedCategories((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId);
-      } else {
-        newSet.add(categoryId);
-      }
-      return newSet;
-    });
-  };
+  // Refs for viewport centering
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Function to smoothly scroll to center a category in the viewport
+  const centerCategoryInViewport = useCallback(
+    (categoryId: string, categoryY: number) => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      // Get container dimensions
+      const containerRect = container.getBoundingClientRect();
+      const containerHeight = containerRect.height;
+      const containerScrollTop = container.scrollTop;
+
+      // Calculate the center of the container viewport
+      const viewportCenter = containerHeight / 2;
+
+      // Calculate where the category currently is in the viewport
+      const categoryScreenY = categoryY; // SVG coordinate
+
+      // Calculate the desired scroll position to center the category
+      const desiredScrollTop = categoryScreenY - viewportCenter;
+
+      // Smooth scroll to the calculated position
+      container.scrollTo({
+        top: Math.max(0, desiredScrollTop), // Ensure we don't scroll to negative
+        behavior: 'smooth',
+      });
+    },
+    []
+  );
+
+  const toggleCategory = useCallback(
+    (categoryId: string) => {
+      setExpandedCategories((prev) => {
+        const newSet = new Set(prev);
+        const isExpanding = !newSet.has(categoryId);
+
+        if (newSet.has(categoryId)) {
+          newSet.delete(categoryId);
+        } else {
+          newSet.add(categoryId);
+        }
+
+        // If we're expanding a category, schedule viewport centering
+        if (isExpanding) {
+          // Use setTimeout to allow the layout to update first
+          setTimeout(() => {
+            // Calculate dimensions with the new expanded state
+            const processedSubcategories = processSubcategories(
+              data.subcategories
+            );
+            const dimensions = calculateTreeDimensions(
+              processedSubcategories,
+              newSet, // Use the new expanded state
+              nodeSpacing,
+              itemSpacing
+            );
+
+            const categoryY = dimensions.subcategoryPositions[categoryId];
+            if (categoryY !== undefined) {
+              centerCategoryInViewport(categoryId, categoryY);
+            }
+          }, 100); // Small delay to allow React to update the DOM
+        }
+
+        return newSet;
+      });
+    },
+    [data.subcategories, nodeSpacing, itemSpacing, centerCategoryInViewport]
+  );
 
   // Process subcategories to add empty items for empty categories
   const processedSubcategories = processSubcategories(data.subcategories);
@@ -233,7 +293,7 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
           dimensions.subcategoryPositions[categoryId];
       }
     });
-  });
+  }, [dimensions.subcategoryPositions]);
 
   return (
     <MotionCard
@@ -242,13 +302,36 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
       h={height}
       p={6}
       overflowX='auto' // Scroll on horizontal overflow
+      overflowY='auto' // Add vertical scrolling for viewport centering
+      maxH='70vh' // Limit height to ensure scrolling is possible
       initial={{ opacity: 0, y: 20 }}
       animate={{
         opacity: 1,
         y: 0,
-        height: dimensions.height + 120, // Account for instructions card height
+        height: Math.min(dimensions.height + 120, window.innerHeight * 0.7), // Ensure container is smaller than content when needed
       }}
       transition={{ duration: 0.5 }}
+      ref={containerRef} // Add container ref for scroll control
+      css={{
+        // Smooth scrolling behavior
+        scrollBehavior: 'smooth',
+        // Custom scrollbar styling
+        '&::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'var(--chakra-colors-bg-subtle)',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: 'var(--chakra-colors-border-muted)',
+          borderRadius: '4px',
+        },
+        '&::-webkit-scrollbar-thumb:hover': {
+          background: 'var(--chakra-colors-border-emphasized)',
+        },
+      }}
     >
       {/* Instructions Card - moved to top */}
       <MotionCard
@@ -264,14 +347,15 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
             <Text as='strong' color='fg'>
               subcategory node
             </Text>{' '}
-            to expand and view the related items. Multiple branches can be
-            expanded simultaneously.
+            to expand and view the related items. The viewport will
+            automatically center on expanded branches for better focus.
           </Text>
         </Card.Body>
       </MotionCard>
 
       <Box minW={`${dimensions.width}px`}>
         <svg
+          ref={svgRef} // Add SVG ref for potential future use
           width='100%'
           height={dimensions.height}
           viewBox={dimensions.viewBox}
@@ -356,10 +440,10 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
             // Get previous position for this category
             const prevPos = previousPositions.current[subcategory.id] || yPos;
 
-            // Update previous position for next render
+            // Update previous position for next render using useEffect
             useEffect(() => {
               previousPositions.current[subcategory.id] = yPos;
-            });
+            }, [subcategory.id, yPos]);
 
             return (
               <MotionG
@@ -384,6 +468,8 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                   onClick={() => toggleCategory(subcategory.id)}
                   animate={{ y: 0 }} // Keep at 0 since we're animating the individual elements
                   transition={{ duration: 0.4, ease: 'easeOut' }}
+                  whileHover={{ scale: 1.05 }} // Add subtle hover feedback
+                  whileTap={{ scale: 0.95 }} // Add click feedback
                 >
                   <motion.rect
                     x={levelSpacing - 20}
@@ -406,6 +492,7 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                     fontWeight='600'
                     fontFamily='var(--chakra-fonts-heading)'
                     transition={{ duration: 0.4, ease: 'easeOut' }}
+                    style={{ pointerEvents: 'none' }} // Prevent text from interfering with click
                   >
                     {subcategory.name}
                   </motion.text>
@@ -460,8 +547,6 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                           yPos -
                           ((subcategory.items.length - 1) * itemSpacing) / 2 +
                           itemIndex * itemSpacing;
-                        const itemTextWidth = getTextWidth(item.name, 10);
-                        const itemWidth = itemTextWidth + 60; // Increased padding from 40 to 60
 
                         // Check if this is an empty item (for empty subcategories)
                         const isEmpty = item.id === '';
