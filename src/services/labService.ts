@@ -3,6 +3,9 @@
 // Base URL without trailing slash to avoid double slashes in path construction
 const API_BASE_URL = 'https://fast.futurity.science/management/labs';
 
+// Constants
+const FUTURITY_TEAM_ID = '17b389f5-c487-49ba-8a82-0b21d887777f';
+
 // Goal interface matching the new API structure
 export interface ApiLabGoal {
   name: string;
@@ -144,6 +147,9 @@ export interface Lab {
   goals?: ApiLabGoal[];
 }
 
+// Type alias for Futurity Labs (same as Lab)
+export type FuturityLab = Lab;
+
 class LabService {
   private getAuthHeaders(token: string): HeadersInit {
     return {
@@ -158,10 +164,11 @@ class LabService {
     token: string,
     includeArchived: boolean = false
   ): Promise<Lab[]> {
-    // Build URL string directly - add trailing slash for list endpoint
-    const urlString = `${API_BASE_URL}/?team_id=${encodeURIComponent(
+
+    // Build URL string using the correct /by-team/ endpoint structure
+    const urlString = `${API_BASE_URL}/by-team/${encodeURIComponent(
       teamId
-    )}&include_archived=${includeArchived}`;
+    )}?include_archived=${includeArchived}`;
 
     // Enhanced debug logging
     console.group('🔍 Lab Service Request Debug');
@@ -219,6 +226,82 @@ class LabService {
     // Transform the response to include legacy properties
     return this.transformLabResponse(rawLab);
   }
+
+  // ===================
+  // FUTURITY LABS METHODS
+  // ===================
+
+  /**
+   * Get all Futurity Labs from the hardcoded team
+   */
+  async getFuturityLabs(token: string): Promise<FuturityLab[]> {
+    try {
+      const labs = await this.getLabsForTeam(FUTURITY_TEAM_ID, token, false);
+
+      // Filter only active labs and sort by creation date (newest first)
+      const activeLabs = labs.filter((lab) => lab.status === 'active');
+
+      // Sort by creation date (newest first)
+      const sortedLabs = activeLabs.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      return sortedLabs;
+    } catch (error) {
+      console.error('Failed to fetch Futurity Labs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a specific Futurity Lab by its uniqueID
+   */
+  async getFuturityLabByUniqueId(
+    uniqueId: string,
+    token: string
+  ): Promise<FuturityLab> {
+    try {
+      // First get all labs from the team to find the one with matching uniqueID
+      const labs = await this.getLabsForTeam(FUTURITY_TEAM_ID, token, false);
+
+      // Find the lab with the matching uniqueID
+      const lab = labs.find((lab) => lab.uniqueID === uniqueId);
+
+      if (!lab) {
+        throw new Error(`Futurity Lab with uniqueID "${uniqueId}" not found`);
+      }
+
+      return lab;
+    } catch (error) {
+      console.error('Failed to fetch Futurity Lab:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a lab belongs to the Futurity team
+   */
+  async isFuturityLab(labId: string, token: string): Promise<boolean> {
+    try {
+      const labs = await this.getLabsForTeam(FUTURITY_TEAM_ID, token, false);
+      return labs.some((lab) => lab._id === labId || lab.uniqueID === labId);
+    } catch (error) {
+      console.error('Failed to check if lab is Futurity Lab:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get the hardcoded Futurity team ID
+   */
+  getFuturityTeamId(): string {
+    return FUTURITY_TEAM_ID;
+  }
+
+  // ===================
+  // END FUTURITY LABS METHODS
+  // ===================
 
   /**
    * Transform the new API response to include legacy properties for backward compatibility

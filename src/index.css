@@ -33,11 +33,37 @@
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
+  transition: background-color 0.2s ease, color 0.2s ease;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure the theme classes are applied correctly */
+.light {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Prevent flash of unstyled content */
+html {
+  background-color: #111111; /* Dark background as default */
+  color: #ffffff;
+}
+
+html.light {
+  background-color: #fafafa; /* Light background */
+  color: #1b1b1d;
+}
+
+html.dark {
+  background-color: #111111; /* Dark background */
+  color: #ffffff;
 }
 
 body {

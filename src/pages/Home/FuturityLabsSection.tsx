@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text, Button, Flex, Skeleton, HStack } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { futurityLabsAPIService } from '../../services/futurityLabsAPIService';
+import { labService } from '../../services/labService';
 import FuturityLabCard from '../FuturityLab/FuturityLabCard';
-import type { FuturityLab } from '../FuturityLab/types';
+import type { FuturityLab } from '../../services/labService';
 
 const FuturityLabsSection: React.FC = () => {
   const { token } = useAuth();
@@ -25,19 +25,8 @@ const FuturityLabsSection: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const futurityLabs = await futurityLabsAPIService.listFuturityLabs(
-          token
-        );
-
-        // Sort by position and visible status (visible labs first, then by position)
-        const sortedLabs = futurityLabs.sort((a, b) => {
-          if (a.visible !== b.visible) {
-            return b.visible - a.visible; // visible labs first
-          }
-          return a.position - b.position;
-        });
-
-        setLabs(sortedLabs);
+        const futurityLabs = await labService.getFuturityLabs(token);
+        setLabs(futurityLabs);
       } catch (err) {
         console.error('Failed to fetch Futurity Labs:', err);
         setError(
@@ -177,7 +166,7 @@ const FuturityLabsSection: React.FC = () => {
                 width='calc(25% - 18px)' // Assume 4 cards initially
                 minWidth='280px'
               >
-                <Skeleton height='200px' borderRadius='md' />
+                <Skeleton height='400px' borderRadius='md' />
               </Box>
             ))}
           </Flex>

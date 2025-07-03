@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, Image, Badge } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
-import type { FuturityLab } from './types';
+import type { FuturityLab } from '../../services/labService';
 
 interface FuturityLabCardProps {
   lab: FuturityLab;
@@ -11,12 +11,12 @@ const FuturityLabCard: React.FC<FuturityLabCardProps> = ({ lab }) => {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
-    if (lab.visible === 1) {
-      navigate(`/futurity-lab/${lab.ent_fsid}`);
-    }
+    // Use the lab's uniqueID for routing instead of ent_fsid
+    navigate(`/futurity-lab/${lab.uniqueID}`);
   };
 
-  const isDisabled = lab.visible === 0;
+  // Labs from the API should always be active/visible
+  const isDisabled = lab.status !== 'active';
 
   return (
     <Box
@@ -51,9 +51,9 @@ const FuturityLabCard: React.FC<FuturityLabCardProps> = ({ lab }) => {
         bg='gray.100'
         _dark={{ bg: 'gray.700' }}
       >
-        {lab.thumb_url || lab.picture_url ? (
+        {lab.thumbnail_url || lab.picture_url ? (
           <Image
-            src={lab.thumb_url || lab.picture_url}
+            src={lab.thumbnail_url || lab.picture_url}
             alt={lab.ent_name}
             w='100%'
             h='100%'
@@ -75,16 +75,16 @@ const FuturityLabCard: React.FC<FuturityLabCardProps> = ({ lab }) => {
           </Box>
         )}
 
-        {/* Free badge */}
+        {/* Status badge */}
         <Badge
           position='absolute'
           top='3'
           right='3'
-          colorScheme={lab.free_lab === 1 ? 'green' : 'orange'}
+          colorScheme='green'
           variant='solid'
           fontSize='xs'
         >
-          {lab.free_lab === 1 ? 'FREE' : 'PREMIUM'}
+          ACTIVE
         </Badge>
       </Box>
 
@@ -124,7 +124,7 @@ const FuturityLabCard: React.FC<FuturityLabCardProps> = ({ lab }) => {
           {lab.ent_summary}
         </Text>
 
-        {/* Lab code */}
+        {/* Lab identifier */}
         <Box mt='3'>
           <Badge
             variant='outline'
@@ -132,7 +132,7 @@ const FuturityLabCard: React.FC<FuturityLabCardProps> = ({ lab }) => {
             fontSize='xs'
             textTransform='uppercase'
           >
-            {lab.lab_code}
+            {lab.ent_fsid}
           </Badge>
         </Box>
       </Box>

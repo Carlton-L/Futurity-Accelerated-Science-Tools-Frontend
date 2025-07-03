@@ -12,34 +12,44 @@ import {
   Container,
   Skeleton,
   SkeletonText,
+  Separator,
 } from '@chakra-ui/react';
 import { useAuth } from '../../context/AuthContext';
-import { futurityLabsAPIService } from '../../services/futurityLabsAPIService';
+import { labService } from '../../services/labService';
 import { labAPIService } from '../../services/labAPIService';
-import type { FuturityLab as FuturityLabType } from './types';
+import PhylogenyTree from '../../components/charts/PhylogenyTree';
+import type { FuturityLab } from '../../services/labService';
+import type { PhylogenyData } from '../../components/charts/PhylogenyTree/types';
 
 const FuturityLab: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { uniqueId } = useParams<{ uniqueId: string }>();
   const navigate = useNavigate();
   const { token, currentTeamspace, user } = useAuth();
 
-  const [lab, setLab] = useState<FuturityLabType | null>(null);
+  const [lab, setLab] = useState<FuturityLab | null>(null);
+  const [taxonomyData, setTaxonomyData] = useState<PhylogenyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
+  const [loadingTaxonomy, setLoadingTaxonomy] = useState(false);
 
   useEffect(() => {
-    const fetchLab = async () => {
-      if (!token || !slug) return;
+    const fetchLabAndTaxonomy = async () => {
+      if (!token || !uniqueId) return;
 
       try {
         setLoading(true);
         setError(null);
-        const futurityLab = await futurityLabsAPIService.getFuturityLab(
-          slug,
+
+        // Fetch the Futurity Lab using the labService
+        const futurityLab = await labService.getFuturityLabByUniqueId(
+          uniqueId,
           token
         );
         setLab(futurityLab);
+
+        // After getting the lab, fetch taxonomy data
+        await loadTaxonomyData(futurityLab);
       } catch (err) {
         console.error('Failed to fetch Futurity Lab:', err);
         setError(
@@ -50,8 +60,47 @@ const FuturityLab: React.FC = () => {
       }
     };
 
-    fetchLab();
-  }, [token, slug]);
+    fetchLabAndTaxonomy();
+  }, [token, uniqueId]);
+
+  const loadTaxonomyData = async (futurityLab: FuturityLab) => {
+    if (!token) return;
+
+    try {
+      setLoadingTaxonomy(true);
+
+      // Transform the lab's subcategories_map to phylogeny format
+      const phylogenyData = transformLabToPhylogenyData(futurityLab);
+      setTaxonomyData(phylogenyData);
+    } catch (err) {
+      console.error('Failed to load taxonomy data:', err);
+      // Don't set error state here since it's not critical
+    } finally {
+      setLoadingTaxonomy(false);
+    }
+  };
+
+  const transformLabToPhylogenyData = (labData: FuturityLab): PhylogenyData => {
+    // Transform the lab's subcategories_map to phylogeny format
+    const subcategories = (labData.subcategories_map || []).map(
+      (subcategoryMap) => ({
+        id: subcategoryMap.subcategory_id,
+        name: subcategoryMap.subcategory_name,
+        items: (subcategoryMap.subjects || []).map((subject) => ({
+          id: subject.ent_fsid,
+          name: subject.ent_name,
+        })),
+      })
+    );
+
+    return {
+      root: {
+        id: labData.uniqueID,
+        name: labData.ent_name,
+      },
+      subcategories,
+    };
+  };
 
   const handleConvertToLab = async () => {
     if (!lab || !currentTeamspace || !user || !token) {
@@ -119,6 +168,12 @@ const FuturityLab: React.FC = () => {
 
           {/* Image Skeleton */}
           <Skeleton height='400px' width='100%' borderRadius='8px' />
+
+          {/* Taxonomy Skeleton */}
+          <Box>
+            <Skeleton height='24px' width='200px' mb='4' />
+            <Skeleton height='400px' width='100%' borderRadius='8px' />
+          </Box>
 
           {/* Actions Skeleton */}
           <Box>
@@ -223,12 +278,8 @@ const FuturityLab: React.FC = () => {
             <VStack gap='4' align='start' flex='1'>
               <Box>
                 <HStack gap='3' mb='3'>
-                  <Badge
-                    colorScheme={lab.free_lab === 1 ? 'green' : 'orange'}
-                    variant='solid'
-                    fontSize='sm'
-                  >
-                    {lab.free_lab === 1 ? 'FREE' : 'PREMIUM'}
+                  <Badge colorScheme='green' variant='solid' fontSize='sm'>
+                    ACTIVE
                   </Badge>
                   <Badge
                     variant='outline'
@@ -236,7 +287,7 @@ const FuturityLab: React.FC = () => {
                     fontSize='sm'
                     textTransform='uppercase'
                   >
-                    {lab.lab_code}
+                    {lab.ent_fsid}
                   </Badge>
                 </HStack>
 
@@ -265,10 +316,10 @@ const FuturityLab: React.FC = () => {
         </Box>
 
         {/* Image */}
-        {(lab.picture_url || lab.thumb_url) && (
+        {(lab.picture_url || lab.thumbnail_url) && (
           <Box>
             <Image
-              src={lab.picture_url || lab.thumb_url}
+              src={lab.picture_url || lab.thumbnail_url}
               alt={lab.ent_name}
               w='100%'
               maxH='400px'
@@ -280,6 +331,61 @@ const FuturityLab: React.FC = () => {
           </Box>
         )}
 
+        {/* Taxonomy Visualization Section */}
+        <Box>
+          <Text
+            fontSize='2xl'
+            fontWeight='bold'
+            fontFamily='heading'
+            color='fg'
+            mb='4'
+          >
+            Lab Taxonomy
+          </Text>
+          <Text color='fg.secondary' mb='6'>
+            Explore the subject taxonomy structure for this lab
+          </Text>
+
+          {loadingTaxonomy ? (
+            <Box
+              display='flex'
+              justifyContent='center'
+              alignItems='center'
+              minH='400px'
+            >
+              <VStack gap='4'>
+                <Spinner size='xl' color='brand' />
+                <Text color='fg.secondary'>Loading taxonomy data...</Text>
+              </VStack>
+            </Box>
+          ) : taxonomyData && taxonomyData.subcategories.length > 0 ? (
+            <PhylogenyTree
+              data={taxonomyData}
+              nodeSpacing={80}
+              levelSpacing={240}
+              itemSpacing={40}
+            />
+          ) : (
+            <Box
+              bg='bg.subtle'
+              borderRadius='md'
+              p='6'
+              border='1px solid'
+              borderColor='border.muted'
+              textAlign='center'
+            >
+              <Text color='fg.muted' fontSize='lg' mb='2'>
+                No taxonomy data available
+              </Text>
+              <Text color='fg.secondary' fontSize='sm'>
+                This lab may not have subjects organized into categories yet.
+              </Text>
+            </Box>
+          )}
+        </Box>
+
+        <Separator />
+
         {/* Actions */}
         <Box>
           <HStack gap='4'>
@@ -287,7 +393,9 @@ const FuturityLab: React.FC = () => {
               onClick={handleConvertToLab}
               variant='solid'
               size='lg'
-              disabled={lab.visible === 0 || converting || !currentTeamspace}
+              disabled={
+                lab.status !== 'active' || converting || !currentTeamspace
+              }
               isLoading={converting}
               loadingText='Converting...'
             >
@@ -295,7 +403,7 @@ const FuturityLab: React.FC = () => {
             </Button>
           </HStack>
 
-          {lab.visible === 0 && (
+          {lab.status !== 'active' && (
             <Text color='fg.muted' fontSize='sm' mt='2'>
               This lab is currently not available for conversion.
             </Text>
@@ -311,11 +419,14 @@ const FuturityLab: React.FC = () => {
         {/* Additional Info */}
         <Box>
           <Text fontSize='sm' color='fg.muted'>
-            Lab ID: {lab.ent_fsid}
+            Lab ID: {lab.uniqueID}
           </Text>
-          {lab.ent_authors && lab.ent_authors.length > 0 && (
+          <Text fontSize='sm' color='fg.muted' mt='1'>
+            Created: {new Date(lab.createdAt).toLocaleDateString()}
+          </Text>
+          {lab.updatedAt && lab.updatedAt !== lab.createdAt && (
             <Text fontSize='sm' color='fg.muted' mt='1'>
-              Authors: {lab.ent_authors.length} contributor(s)
+              Updated: {new Date(lab.updatedAt).toLocaleDateString()}
             </Text>
           )}
         </Box>
