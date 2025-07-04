@@ -1,10 +1,5 @@
-import React, {
-  useState,
-  useCallback,
-  useMemo,
-  useRef,
-  useEffect,
-} from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -24,160 +19,126 @@ import {
   Field,
   Spinner,
   Separator,
+  Skeleton,
+  SkeletonText,
 } from '@chakra-ui/react';
-import { Progress } from '@chakra-ui/react';
+import { Tooltip } from '@chakra-ui/react';
 import {
   FiPlus,
-  FiSearch,
-  FiSettings,
-  FiSend,
-  FiList,
-  FiMoreVertical,
-  FiEye,
-  FiTrash2,
+  FiMoreHorizontal,
+  FiZap,
   FiEdit,
+  FiTrash2,
   FiTarget,
   FiX,
+  FiSearch,
 } from 'react-icons/fi';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { toaster } from '../../components/ui/toaster';
 
-// Import types and utilities
+// Import types and services
 import type {
+  WhiteboardData,
   WhiteboardSubject,
-  WhiteboardDraft,
-  DraftMetrics,
-  VisualizationType,
+  WhiteboardLabSeed,
   SubjectSearchResult,
 } from './types';
-import {
-  calculateDraftMetrics,
-  generateTaxonomySuggestions,
-  validateDraftForPublishing,
-} from './types';
-
-// Import visualization components
-import { ListView } from './visualizations';
-
+import { filterSubjects, sortSubjects } from './types';
+import { whiteboardService } from '../../services/whiteboardService';
+import { useAuth } from '../../context/AuthContext';
 import { usePage } from '../../context/PageContext';
 
-// Mock data
-const mockSubjects: WhiteboardSubject[] = [
-  {
-    id: 'subj-1',
-    subjectId: 'quantum-computing-001',
-    name: 'Quantum Computing',
-    description:
-      'Advanced quantum algorithms and quantum supremacy applications for solving complex computational problems',
-    slug: 'quantum-computing',
-    horizonRank: 0.73,
-    techTransfer: 85,
-    whiteSpace: 42,
-    addedAt: '2024-03-15T10:30:00Z',
-    source: 'search',
-    aiInsights: {
-      category: 'Advanced Computing',
-      keywords: ['quantum', 'algorithms', 'computing'],
-      confidence: 92,
-    },
-  },
-  {
-    id: 'subj-2',
-    subjectId: 'vertical-farming-001',
-    name: 'Vertical Farming',
-    description:
-      'Automated indoor agriculture systems for urban environments using hydroponic and aeroponic technologies',
-    slug: 'vertical-farming',
-    horizonRank: 0.65,
-    techTransfer: 72,
-    whiteSpace: 68,
-    addedAt: '2024-03-14T14:20:00Z',
-    source: 'browse',
-    aiInsights: {
-      category: 'Agricultural Technology',
-      keywords: ['farming', 'agriculture', 'urban'],
-      confidence: 88,
-    },
-  },
-  {
-    id: 'subj-3',
-    subjectId: 'neural-interfaces-001',
-    name: 'Neural Interfaces',
-    description:
-      'Brain-computer interfaces for medical rehabilitation and consumer applications including thought-controlled devices',
-    slug: 'neural-interfaces',
-    horizonRank: 0.45,
-    techTransfer: 58,
-    whiteSpace: 81,
-    addedAt: '2024-03-13T09:15:00Z',
-    source: 'search',
-    aiInsights: {
-      category: 'Neurotechnology',
-      keywords: ['brain', 'interfaces', 'medical'],
-      confidence: 85,
-    },
-  },
-  {
-    id: 'subj-4',
-    subjectId: 'carbon-capture-001',
-    name: 'Carbon Capture',
-    description:
-      'Direct air capture and carbon utilization technologies for climate change mitigation and industrial applications',
-    slug: 'carbon-capture',
-    horizonRank: 0.78,
-    techTransfer: 91,
-    whiteSpace: 35,
-    addedAt: '2024-03-12T16:45:00Z',
-    source: 'browse',
-    aiInsights: {
-      category: 'Climate Technology',
-      keywords: ['carbon', 'climate', 'capture'],
-      confidence: 90,
-    },
-  },
-  {
-    id: 'subj-5',
-    subjectId: 'space-solar-001',
-    name: 'Space Solar Power',
-    description:
-      'Orbital solar power satellites that beam clean energy to Earth using microwave transmission technology',
-    slug: 'space-solar-power',
-    horizonRank: 0.35,
-    techTransfer: 45,
-    whiteSpace: 85,
-    addedAt: '2024-03-11T11:20:00Z',
-    source: 'search',
-    aiInsights: {
-      category: 'Space Technology',
-      keywords: ['space', 'solar', 'energy'],
-      confidence: 82,
-    },
-  },
-];
+// Import components
+import WhiteboardSubjectCard from './SubjectCard';
+import SubjectSearch from './SubjectSearch';
 
-const mockSearchResults: SubjectSearchResult[] = [
-  {
-    id: 'search-1',
-    name: 'Fusion Energy',
-    slug: 'fusion-energy',
-    description: 'Nuclear fusion power generation for clean unlimited energy',
-    horizonRank: 0.42,
-    techTransfer: 65,
-    whiteSpace: 75,
-    source: 'Global Energy Database',
-  },
-  {
-    id: 'search-2',
-    name: 'Gene Therapy',
-    slug: 'gene-therapy',
-    description:
-      'Therapeutic genetic modification for treating inherited diseases',
-    horizonRank: 0.68,
-    techTransfer: 78,
-    whiteSpace: 52,
-    source: 'Medical Research Database',
-  },
-];
+// Define the WhiteboardLabSeed interface for navigation
+interface WhiteboardLabSeedForNavigation {
+  id: string;
+  name: string;
+  description: string;
+  subjects: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    summary?: string;
+    category?: string;
+  }>;
+  includeTerms: string[];
+  excludeTerms: string[];
+  createdAt: string;
+  isActive: boolean;
+}
+
+// Toast for notifications - using custom toaster
+
+// Subject search function with correct endpoint and response format
+const performSubjectSearch = async (
+  query: string,
+  token: string
+): Promise<SubjectSearchResult[]> => {
+  try {
+    const response = await fetch(
+      `https://tools.futurity.science/api/search/subjects?keyword=${encodeURIComponent(
+        query
+      )}&limit=10`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Transform the API response to match our SubjectSearchResult interface
+    const results: SubjectSearchResult[] = [];
+
+    // Add exact match if it exists
+    if (data.results?.exact_match) {
+      results.push({
+        _id: data.results.exact_match._id?.$oid || data.results.exact_match._id,
+        ent_fsid: data.results.exact_match.ent_fsid,
+        ent_name: data.results.exact_match.ent_name,
+        ent_summary: data.results.exact_match.ent_summary,
+      });
+    }
+
+    // Add other results
+    if (data.results?.rows) {
+      data.results.rows.forEach(
+        (row: {
+          _id: any;
+          ent_fsid: string;
+          ent_name: string;
+          ent_summary: string;
+        }) => {
+          // Avoid duplicating exact match
+          if (row.ent_fsid !== data.results.exact_match?.ent_fsid) {
+            results.push({
+              _id: row._id?.$oid || row._id,
+              ent_fsid: row.ent_fsid,
+              ent_name: row.ent_name,
+              ent_summary: row.ent_summary,
+            });
+          }
+        }
+      );
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Subject search error:', error);
+    return [];
+  }
+};
 
 // Drag and drop types
 const ItemTypes = {
@@ -186,281 +147,43 @@ const ItemTypes = {
 
 interface DragItem {
   type: string;
-  id: string;
-  sourceType: 'unpooled' | 'draft';
-  sourceDraftId?: string;
+  fsid: string;
+  sourceType: 'whiteboard' | 'labSeed';
+  sourceLabSeedId?: string;
 }
 
-// Draggable Subject Card Component
-const DraggableSubjectCard: React.FC<{
-  subject: WhiteboardSubject;
-  sourceType: 'unpooled' | 'draft';
-  sourceDraftId?: string;
-  showQuickAdd?: boolean;
-  onRemove?: (subjectId: string) => void;
-  onQuickAdd?: (subjectId: string) => void;
-  onRemoveFromWhiteboard?: (subjectId: string) => void;
-}> = ({
-  subject,
-  sourceType,
-  sourceDraftId,
-  showQuickAdd,
-  onRemove,
-  onQuickAdd,
-  onRemoveFromWhiteboard,
-}) => {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: ItemTypes.SUBJECT,
-    item: {
-      type: ItemTypes.SUBJECT,
-      id: subject.id,
-      sourceType,
-      sourceDraftId,
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-  }));
-
-  const getMetricColor = (
-    value: number,
-    type: 'horizon' | 'techTransfer' | 'whiteSpace'
-  ) => {
-    switch (type) {
-      case 'horizon':
-        return value < 0.3 ? 'red' : value < 0.7 ? 'orange' : 'green';
-      case 'techTransfer':
-        return value < 40 ? 'red' : value < 70 ? 'orange' : 'green';
-      case 'whiteSpace':
-        return value < 30 ? 'red' : value < 60 ? 'orange' : 'green';
-      default:
-        return 'gray';
-    }
-  };
-
-  return (
-    <Card.Root
-      ref={drag}
-      size='sm'
-      variant='outline'
-      mb={3}
-      opacity={isDragging ? 0.5 : 1}
-      cursor='grab'
-      _hover={{
-        shadow: 'md',
-        borderColor: { base: '#8285FF', _light: 'blue.300' },
-      }}
-      transition='all 0.2s'
-      bg={{ base: '#1a1a1a', _light: 'white' }}
-      border='1px solid'
-      borderColor={{ base: 'white', _light: 'gray.200' }}
-    >
-      <Card.Body p={3}>
-        <VStack gap={2} align='stretch'>
-          <HStack justify='space-between' align='flex-start'>
-            <Text
-              fontSize='sm'
-              fontWeight='medium'
-              color={{ base: '#8285FF', _light: 'blue.600' }}
-              flex='1'
-            >
-              {subject.name}
-            </Text>
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  size='xs'
-                  variant='ghost'
-                  aria-label='Subject actions'
-                >
-                  <FiMoreVertical size={12} />
-                </IconButton>
-              </Menu.Trigger>
-              <Menu.Positioner>
-                <Menu.Content>
-                  <Menu.Item value='view'>
-                    <FiEye size={14} />
-                    View Details
-                  </Menu.Item>
-                  {showQuickAdd && onQuickAdd && (
-                    <Menu.Item
-                      value='add'
-                      onClick={() => onQuickAdd(subject.id)}
-                    >
-                      <FiPlus size={14} />
-                      Quick Add to Draft
-                    </Menu.Item>
-                  )}
-                  {onRemoveFromWhiteboard && (
-                    <Menu.Item
-                      value='removeFromWhiteboard'
-                      onClick={() => onRemoveFromWhiteboard(subject.id)}
-                      color='red.600'
-                    >
-                      <FiTrash2 size={14} />
-                      Delete from Whiteboard
-                    </Menu.Item>
-                  )}
-                  {onRemove && (
-                    <Menu.Item
-                      value='remove'
-                      onClick={() => onRemove(subject.id)}
-                    >
-                      <FiTrash2 size={14} />
-                      Remove
-                    </Menu.Item>
-                  )}
-                </Menu.Content>
-              </Menu.Positioner>
-            </Menu.Root>
-          </HStack>
-
-          {/* Metrics */}
-          <VStack gap={1} align='stretch'>
-            <HStack justify='space-between'>
-              <Text
-                fontSize='xs'
-                color={{ base: 'gray.400', _light: 'gray.500' }}
-              >
-                HR:
-              </Text>
-              <HStack gap={1}>
-                <Progress.Root
-                  value={subject.horizonRank * 100}
-                  size='sm'
-                  width='60px'
-                  colorPalette={getMetricColor(subject.horizonRank, 'horizon')}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                <Text
-                  fontSize='xs'
-                  fontWeight='medium'
-                  minW='30px'
-                  color={{ base: 'white', _light: 'black' }}
-                >
-                  {subject.horizonRank.toFixed(2)}
-                </Text>
-              </HStack>
-            </HStack>
-            <HStack justify='space-between'>
-              <Text
-                fontSize='xs'
-                color={{ base: 'gray.400', _light: 'gray.500' }}
-              >
-                TT:
-              </Text>
-              <HStack gap={1}>
-                <Progress.Root
-                  value={subject.techTransfer}
-                  size='sm'
-                  width='60px'
-                  colorPalette={getMetricColor(
-                    subject.techTransfer,
-                    'techTransfer'
-                  )}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                <Text
-                  fontSize='xs'
-                  fontWeight='medium'
-                  minW='30px'
-                  color={{ base: 'white', _light: 'black' }}
-                >
-                  {subject.techTransfer}
-                </Text>
-              </HStack>
-            </HStack>
-            <HStack justify='space-between'>
-              <Text
-                fontSize='xs'
-                color={{ base: 'gray.400', _light: 'gray.500' }}
-              >
-                WS:
-              </Text>
-              <HStack gap={1}>
-                <Progress.Root
-                  value={subject.whiteSpace}
-                  size='sm'
-                  width='60px'
-                  colorPalette={getMetricColor(
-                    subject.whiteSpace,
-                    'whiteSpace'
-                  )}
-                >
-                  <Progress.Track>
-                    <Progress.Range />
-                  </Progress.Track>
-                </Progress.Root>
-                <Text
-                  fontSize='xs'
-                  fontWeight='medium'
-                  minW='30px'
-                  color={{ base: 'white', _light: 'black' }}
-                >
-                  {subject.whiteSpace}
-                </Text>
-              </HStack>
-            </HStack>
-          </VStack>
-
-          <Text
-            fontSize='xs'
-            color={{ base: 'gray.400', _light: 'gray.500' }}
-            lineHeight='1.3'
-            lineClamp={2}
-          >
-            {subject.description}
-          </Text>
-
-          {subject.aiInsights && (
-            <Badge size='sm' colorScheme='purple'>
-              {subject.aiInsights.category}
-            </Badge>
-          )}
-        </VStack>
-      </Card.Body>
-    </Card.Root>
-  );
-};
-
-// Drop Zone for Drafts
-const DroppableDraftArea: React.FC<{
-  draftId: string;
+// Drop Zone for Lab Seeds
+const DroppableLabSeedArea: React.FC<{
+  labSeedId: string;
   children: React.ReactNode;
   onDrop: (
-    subjectId: string,
-    targetDraftId: string,
-    sourceType: 'unpooled' | 'draft',
-    sourceDraftId?: string
+    subjectFsid: string,
+    targetLabSeedId: string,
+    sourceType: 'whiteboard' | 'labSeed',
+    sourceLabSeedId?: string
   ) => void;
-  existingSubjectIds: string[];
-}> = ({ draftId, children, onDrop, existingSubjectIds }) => {
+  existingSubjectFsids: string[];
+}> = ({ labSeedId, children, onDrop, existingSubjectFsids }) => {
   const [{ isOver, canDrop }, drop] = useDrop(
     () => ({
       accept: ItemTypes.SUBJECT,
       drop: (item: DragItem) => {
-        // Check if subject already exists in this draft
-        if (existingSubjectIds.includes(item.id)) {
+        // Check if subject already exists in this lab seed
+        if (existingSubjectFsids.includes(item.fsid)) {
           return; // Don't allow drop
         }
-        onDrop(item.id, draftId, item.sourceType, item.sourceDraftId);
+        onDrop(item.fsid, labSeedId, item.sourceType, item.sourceLabSeedId);
       },
       canDrop: (item: DragItem) => {
-        // Don't allow dropping if subject already exists in this draft
-        return !existingSubjectIds.includes(item.id);
+        // Don't allow dropping if subject already exists in this lab seed
+        return !existingSubjectFsids.includes(item.fsid);
       },
       collect: (monitor) => ({
         isOver: monitor.isOver(),
         canDrop: monitor.canDrop(),
       }),
     }),
-    [existingSubjectIds]
+    [existingSubjectFsids]
   );
 
   return (
@@ -483,182 +206,421 @@ const DroppableDraftArea: React.FC<{
   );
 };
 
+// Term management component
+const TermsSection: React.FC<{
+  terms: string[];
+  labSeedId: string;
+  whiteboardId: string;
+  token: string;
+  onTermsUpdate: () => void;
+}> = ({ terms, labSeedId, whiteboardId, token, onTermsUpdate }) => {
+  const [newTerm, setNewTerm] = useState('');
+  const [isAddingTerm, setIsAddingTerm] = useState(false);
+
+  const handleAddTerm = async () => {
+    if (!newTerm.trim() || isAddingTerm) return;
+
+    try {
+      setIsAddingTerm(true);
+      await whiteboardService.addTermToLabSeed(
+        whiteboardId,
+        labSeedId,
+        newTerm.trim(),
+        token
+      );
+      setNewTerm('');
+      onTermsUpdate();
+      toaster.create({
+        title: 'Term added successfully',
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to add term:', error);
+      toaster.create({
+        title: 'Failed to add term',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setIsAddingTerm(false);
+    }
+  };
+
+  const handleRemoveTerm = async (term: string) => {
+    try {
+      await whiteboardService.removeTermFromLabSeed(
+        whiteboardId,
+        labSeedId,
+        term,
+        token
+      );
+      onTermsUpdate();
+      toaster.create({
+        title: 'Term removed successfully',
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to remove term:', error);
+      toaster.create({
+        title: 'Failed to remove term',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTerm();
+    }
+  };
+
+  return (
+    <Box
+      p={2}
+      bg='bg.subtle'
+      borderRadius='md'
+      border='1px solid'
+      borderColor='border.muted'
+    >
+      <Text fontSize='xs' color='fg.muted' mb={2}>
+        Terms:
+      </Text>
+
+      {/* Add term input */}
+      <HStack gap={2} mb={2}>
+        <Input
+          size='sm'
+          placeholder='Add term...'
+          value={newTerm}
+          onChange={(e) => setNewTerm(e.target.value)}
+          onKeyDown={handleKeyPress}
+          flex='1'
+        />
+        <Button
+          size='sm'
+          onClick={handleAddTerm}
+          disabled={!newTerm.trim() || isAddingTerm}
+          loading={isAddingTerm}
+        >
+          <FiPlus size={14} />
+        </Button>
+      </HStack>
+
+      {/* Terms list */}
+      <Flex gap={1} wrap='wrap'>
+        {terms.map((term, index) => (
+          <Badge
+            key={index}
+            size='sm'
+            colorScheme='gray'
+            display='flex'
+            alignItems='center'
+            gap={1}
+          >
+            {term}
+            <IconButton
+              size='xs'
+              variant='ghost'
+              onClick={() => handleRemoveTerm(term)}
+              aria-label={`Remove ${term}`}
+              color='fg.muted'
+              _hover={{ color: 'error' }}
+            >
+              <FiX size={10} />
+            </IconButton>
+          </Badge>
+        ))}
+      </Flex>
+    </Box>
+  );
+};
+
+// Whiteboard skeleton component for initial loading
+const WhiteboardSkeleton: React.FC = () => (
+  <Box p={6} bg='bg' minHeight='calc(100vh - 64px)'>
+    <VStack gap={6} align='stretch'>
+      {/* Header Skeleton */}
+      <Card.Root
+        bg='bg.canvas'
+        border='1px solid'
+        borderColor='border.emphasized'
+      >
+        <Card.Body p={6}>
+          <VStack gap={1} align='start'>
+            <Skeleton height='32px' width='200px' />
+            <Skeleton height='20px' width='400px' />
+          </VStack>
+        </Card.Body>
+      </Card.Root>
+
+      {/* Overview Stats Skeleton */}
+      <Card.Root
+        bg='bg.canvas'
+        border='1px solid'
+        borderColor='border.emphasized'
+      >
+        <Card.Body p={4}>
+          <VStack gap={4} align='stretch'>
+            <HStack justify='space-between' align='center'>
+              <Skeleton height='20px' width='80px' />
+              <Grid
+                templateColumns='repeat(3, 1fr)'
+                gap={6}
+                flex='1'
+                maxW='400px'
+              >
+                <VStack gap={0}>
+                  <Skeleton height='16px' width='80px' />
+                  <Skeleton height='24px' width='40px' />
+                </VStack>
+                <VStack gap={0}>
+                  <Skeleton height='16px' width='80px' />
+                  <Skeleton height='24px' width='40px' />
+                </VStack>
+                <VStack gap={0}>
+                  <Skeleton height='16px' width='80px' />
+                  <Skeleton height='24px' width='40px' />
+                </VStack>
+              </Grid>
+            </HStack>
+            <Separator />
+            <HStack gap={4} align='center'>
+              <Skeleton height='40px' flex='1' maxW='400px' />
+              <Skeleton height='40px' width='140px' />
+            </HStack>
+          </VStack>
+        </Card.Body>
+      </Card.Root>
+
+      {/* Main Content Skeleton */}
+      <HStack gap={6} align='flex-start'>
+        {/* Subjects Sidebar Skeleton */}
+        <Box minW='280px' maxW='320px'>
+          <Card.Root
+            bg='bg.canvas'
+            border='1px solid'
+            borderColor='border.emphasized'
+          >
+            <Card.Body p={4}>
+              <VStack gap={3} align='stretch'>
+                <HStack justify='space-between' align='center'>
+                  <Skeleton height='20px' width='80px' />
+                  <Skeleton height='20px' width='40px' borderRadius='full' />
+                </HStack>
+                <VStack gap={2} align='stretch'>
+                  <HStack gap={2} align='center'>
+                    <Skeleton height='16px' width='60px' />
+                    <Skeleton height='28px' flex='1' />
+                  </HStack>
+                  <Skeleton height='32px' width='100%' />
+                </VStack>
+                <Box maxH='600px'>
+                  <VStack gap={2} align='stretch'>
+                    {[1, 2, 3, 4].map((i) => (
+                      <SubjectSkeleton key={i} />
+                    ))}
+                  </VStack>
+                </Box>
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+        </Box>
+
+        {/* Lab Seeds Area Skeleton */}
+        <Box flex='1'>
+          <Card.Root
+            bg='bg.canvas'
+            border='1px solid'
+            borderColor='border.emphasized'
+          >
+            <Card.Body p={8}>
+              <Flex align='center' justify='center' minH='400px'>
+                <VStack gap={4} textAlign='center'>
+                  <Skeleton height='48px' width='48px' borderRadius='md' />
+                  <VStack gap={2}>
+                    <Skeleton height='24px' width='200px' />
+                    <Skeleton height='20px' width='300px' />
+                  </VStack>
+                  <Skeleton height='40px' width='180px' />
+                </VStack>
+              </Flex>
+            </Card.Body>
+          </Card.Root>
+        </Box>
+      </HStack>
+    </VStack>
+  </Box>
+);
+
+// Subject skeleton component
+const SubjectSkeleton: React.FC = () => (
+  <Card.Root size='sm' variant='outline' mb={3} bg='bg.canvas'>
+    <Card.Body p={3}>
+      <VStack gap={2} align='stretch'>
+        <HStack justify='space-between' align='flex-start'>
+          <HStack gap={2} flex='1' align='start'>
+            <Skeleton height='24px' width='24px' borderRadius='md' />
+            <SkeletonText noOfLines={1} width='60%' />
+          </HStack>
+          <Skeleton height='20px' width='20px' borderRadius='md' />
+        </HStack>
+        <VStack gap={1} align='stretch'>
+          <Skeleton height='8px' width='100%' />
+          <Skeleton height='8px' width='100%' />
+          <Skeleton height='8px' width='100%' />
+        </VStack>
+        <SkeletonText noOfLines={2} />
+      </VStack>
+    </Card.Body>
+  </Card.Root>
+);
+
+// Lab seed skeleton component
+const LabSeedSkeleton: React.FC = () => (
+  <Card.Root
+    size='lg'
+    variant='outline'
+    minH='450px'
+    bg='bg.canvas'
+    border='1px solid'
+    borderColor='border.emphasized'
+  >
+    <Card.Body p={4}>
+      <VStack gap={3} align='stretch'>
+        <HStack justify='space-between' align='flex-start'>
+          <VStack gap={1} align='start' flex='1'>
+            <SkeletonText noOfLines={1} width='40%' />
+            <SkeletonText noOfLines={1} width='60%' />
+          </VStack>
+          <HStack gap={1}>
+            <Skeleton height='32px' width='32px' borderRadius='md' />
+            <Skeleton height='32px' width='80px' borderRadius='md' />
+          </HStack>
+        </HStack>
+        <Box flex='1' minH='300px'>
+          <Flex align='center' justify='center' minH='200px'>
+            <Spinner size='lg' color='brand' />
+          </Flex>
+        </Box>
+      </VStack>
+    </Card.Body>
+  </Card.Root>
+);
+
 // Main Whiteboard Component
 const Whiteboard: React.FC = () => {
-  // Page Context
+  // Auth and Page Context
+  const { user, token } = useAuth();
   const { setPageContext, clearPageContext } = usePage();
+  const navigate = useNavigate();
 
   // State management
-  const [availableSubjects, setAvailableSubjects] = useState<
-    WhiteboardSubject[]
-  >(
-    mockSubjects // Include all mock subjects in available
+  const [whiteboardData, setWhiteboardData] = useState<WhiteboardData | null>(
+    null
   );
-  const [drafts, setDrafts] = useState<WhiteboardDraft[]>([
-    {
-      id: 'draft-1',
-      name: 'Future Cities',
-      description: 'Technologies for sustainable urban development',
-      subjects: [mockSubjects[3], mockSubjects[4]],
-      aiTaxonomy: {
-        primaryCategory: 'Urban Technology',
-        subCategories: ['Climate Solutions', 'Space Technology'],
-        confidence: 87,
-        suggestedLabName: 'Urban Innovation Lab',
-      },
-      metrics: calculateDraftMetrics([mockSubjects[3], mockSubjects[4]]),
-      createdAt: '2024-03-10T10:30:00Z',
-      updatedAt: '2024-03-15T14:20:00Z',
-      createdById: 'user-1',
-      isPublished: false,
-      terms: ['something'],
-    },
-  ]);
-
-  const [selectedVisualization, setSelectedVisualization] = useState<
-    Record<string, VisualizationType>
-  >({});
-
-  // Filter and sort states for Available Subjects
-  const [sortMethod, setSortMethod] = useState<string>('horizon-high');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sortMethod, setSortMethod] = useState<string>('name-asc');
   const [filterText, setFilterText] = useState<string>('');
-
-  // Dialog states
-  const [isCreateDraftOpen, setIsCreateDraftOpen] = useState(false);
-  const [newDraftName, setNewDraftName] = useState('');
-  const [newDraftDescription, setNewDraftDescription] = useState('');
-
-  // Delete confirmation modal states
+  const [isCreateLabSeedOpen, setIsCreateLabSeedOpen] = useState(false);
+  const [newLabSeedName, setNewLabSeedName] = useState('');
+  const [newLabSeedDescription, setNewLabSeedDescription] = useState('');
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [subjectToDelete, setSubjectToDelete] =
     useState<WhiteboardSubject | null>(null);
-  const [draftsContainingSubject, setDraftsContainingSubject] = useState<
-    WhiteboardDraft[]
+  const [labSeedsContainingSubject, setLabSeedsContainingSubject] = useState<
+    WhiteboardLabSeed[]
   >([]);
-
-  // Search states - keeping for future implementation
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SubjectSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
 
-  // Refs
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const searchDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Calculate overall metrics
-  const overallMetrics = useMemo((): DraftMetrics => {
-    const allSubjects = [
-      ...availableSubjects,
-      ...drafts.flatMap((d) => d.subjects),
-    ];
-    return calculateDraftMetrics(allSubjects);
-  }, [availableSubjects, drafts]);
-
-  // Filter and sort available subjects
-  const getFilteredAndSortedSubjects = useCallback((): WhiteboardSubject[] => {
-    // Filter by search text
-    const filtered = availableSubjects.filter(
-      (subject) =>
-        subject.name.toLowerCase().includes(filterText.toLowerCase()) ||
-        subject.description.toLowerCase().includes(filterText.toLowerCase())
-    );
-
-    // Sort based on selected method
-    switch (sortMethod) {
-      case 'horizon-high':
-        return filtered.sort((a, b) => b.horizonRank - a.horizonRank);
-      case 'horizon-low':
-        return filtered.sort((a, b) => a.horizonRank - b.horizonRank);
-      case 'techTransfer-high':
-        return filtered.sort((a, b) => b.techTransfer - a.techTransfer);
-      case 'techTransfer-low':
-        return filtered.sort((a, b) => a.techTransfer - b.techTransfer);
-      case 'whiteSpace-high':
-        return filtered.sort((a, b) => b.whiteSpace - a.whiteSpace);
-      case 'whiteSpace-low':
-        return filtered.sort((a, b) => a.whiteSpace - b.whiteSpace);
-      case 'a-z':
-        return filtered.sort((a, b) => a.name.localeCompare(b.name));
-      case 'z-a':
-        return filtered.sort((a, b) => b.name.localeCompare(a.name));
-      default:
-        return filtered;
-    }
-  }, [availableSubjects, filterText, sortMethod]);
-
-  // Search functionality - keeping for future implementation
-  const performSearch = useCallback(async (query: string) => {
-    setIsSearching(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const results = mockSearchResults.filter(
-      (result) =>
-        result.name.toLowerCase().includes(query.toLowerCase()) ||
-        result.description.toLowerCase().includes(query.toLowerCase())
-    );
-
-    setSearchResults(results);
-    setIsSearching(false);
-  }, []);
-
-  // Handle search input changes - keeping for future implementation
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchQuery(value);
-      if (value.trim().length > 0) {
-        setShowSearchDropdown(true);
-        performSearch(value);
-      } else {
-        setShowSearchDropdown(false);
-        setSearchResults([]);
-      }
-    },
-    [performSearch]
+  // Loading states for individual operations
+  const [isCreatingLabSeed, setIsCreatingLabSeed] = useState(false);
+  const [deletingLabSeedIds, setDeletingLabSeedIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [pendingSubjects, setPendingSubjects] = useState<Set<string>>(
+    new Set()
   );
 
-  // Handle clicks outside search dropdown - keeping for future implementation
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const isInsideSearchInput = searchInputRef.current?.contains(target);
-      const isInsideDropdown = searchDropdownRef.current?.contains(target);
-      if (!isInsideSearchInput && !isInsideDropdown) {
-        setShowSearchDropdown(false);
+  // Optimistic state management to prevent full page reloads and flickering
+  const [optimisticWhiteboardData, setOptimisticWhiteboardData] =
+    useState<WhiteboardData | null>(null);
+  const [pendingOperations, setPendingOperations] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Load whiteboard data from API without triggering loading state if data exists
+  const loadWhiteboardData = useCallback(
+    async (silent: boolean = false) => {
+      if (!user || !token) return;
+
+      try {
+        if (!silent) {
+          setIsLoading(true);
+        }
+        setError(null);
+
+        const data = await whiteboardService.getUserWhiteboard(user._id, token);
+
+        // Update both regular and optimistic data
+        setWhiteboardData(data);
+        setOptimisticWhiteboardData(data);
+      } catch (error) {
+        console.error('Failed to load whiteboard data:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to load whiteboard'
+        );
+      } finally {
+        if (!silent) {
+          setIsLoading(false);
+        }
       }
-    };
+    },
+    [user, token]
+  );
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // Load data on mount
+  useEffect(() => {
+    loadWhiteboardData(false); // Initial load with loading state
+  }, [loadWhiteboardData]);
 
-  // Memoize the transformed drafts to prevent recreation on every render
-  const transformedDrafts = useMemo(() => {
-    return drafts.map((draft) => ({
-      id: draft.id,
-      name: draft.name,
-      subjects: draft.subjects.map((subject) => ({
-        id: subject.id,
-        name: subject.name,
-        title: subject.name, // Use name as title if title doesn't exist
+  // Set page context with optimistic data
+  const transformedLabSeeds = useMemo(() => {
+    const dataToUse = optimisticWhiteboardData || whiteboardData;
+    if (!dataToUse) return [];
+
+    return dataToUse.labSeeds.map((labSeed) => ({
+      id: labSeed.uniqueID,
+      name: labSeed.name,
+      subjects: labSeed.subjects.map((subject) => ({
+        id: subject.ent_fsid,
+        name: subject.ent_name,
+        title: subject.ent_name,
       })),
-      terms: draft.terms.map((termString, index) => ({
-        id: `term-${draft.id}-${index}`, // Generate unique ID
+      terms: labSeed.terms.map((termString, index) => ({
+        id: `term-${labSeed.uniqueID}-${index}`,
         name: termString,
-        text: termString, // Use the string as both name and text
+        text: termString,
       })),
     }));
-  }, [drafts]);
+  }, [optimisticWhiteboardData, whiteboardData]);
 
-  // Memoize the whiteboard context to prevent recreation
   const whiteboardContext = useMemo(
     () => ({
       pageType: 'whiteboard' as const,
       pageTitle: 'Whiteboard',
-      drafts: transformedDrafts,
+      drafts: transformedLabSeeds,
     }),
-    [transformedDrafts]
+    [transformedLabSeeds]
   );
 
   useEffect(() => {
@@ -666,617 +628,1045 @@ const Whiteboard: React.FC = () => {
     return () => clearPageContext();
   }, [setPageContext, clearPageContext, whiteboardContext]);
 
-  // Draft management
-  const handleCreateDraft = useCallback(() => {
-    if (!newDraftName.trim()) return;
+  // Check if subject is in whiteboard using optimistic data
+  const isSubjectInWhiteboard = useCallback(
+    (subjectFsid: string): boolean => {
+      const dataToUse = optimisticWhiteboardData || whiteboardData;
+      if (!dataToUse) return false;
+      return dataToUse.subjects.some((s) => s.ent_fsid === subjectFsid);
+    },
+    [optimisticWhiteboardData, whiteboardData]
+  );
 
-    const newDraft: WhiteboardDraft = {
-      id: `draft-${Date.now()}`,
-      name: newDraftName.trim(),
-      description: newDraftDescription.trim() || undefined,
-      subjects: [],
-      metrics: calculateDraftMetrics([]),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdById: 'current-user',
-      isPublished: false,
-      terms: [],
-    };
+  // Filter and sort subjects using optimistic data
+  const getFilteredAndSortedSubjects = useCallback((): WhiteboardSubject[] => {
+    const dataToUse = optimisticWhiteboardData || whiteboardData;
+    if (!dataToUse) return [];
 
-    setDrafts((prev) => [...prev, newDraft]);
-    setNewDraftName('');
-    setNewDraftDescription('');
-    setIsCreateDraftOpen(false);
-  }, [newDraftName, newDraftDescription]);
+    // Filter by search text
+    const filtered = filterSubjects(dataToUse.subjects, filterText);
 
-  // Handle subject movement via drag and drop
-  const handleSubjectDrop = useCallback(
-    (
-      subjectId: string,
-      targetDraftId: string,
-      sourceType: 'unpooled' | 'draft',
-      sourceDraftId?: string
-    ) => {
-      if (sourceType === 'unpooled') {
-        // Copy from available to draft (don't remove from available)
-        const subject = availableSubjects.find((s) => s.id === subjectId);
-        if (!subject) return;
+    // Sort based on selected method
+    const [sortBy, sortOrder] = sortMethod.split('-') as [
+      'name' | 'addedAt',
+      'asc' | 'desc'
+    ];
+    return sortSubjects(filtered, sortBy, sortOrder);
+  }, [optimisticWhiteboardData, whiteboardData, filterText, sortMethod]);
 
-        // Check if subject already exists in target draft
-        const targetDraft = drafts.find((d) => d.id === targetDraftId);
-        if (targetDraft?.subjects.some((s) => s.id === subjectId)) {
-          // Subject already exists in draft, don't add
-          return;
-        }
+  // Search functionality
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (!token) return;
 
-        setDrafts((prev) =>
-          prev.map((draft) =>
-            draft.id === targetDraftId
+      setIsSearching(true);
+      try {
+        const results = await performSubjectSearch(query, token);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+        setSearchResults([]);
+        toaster.create({
+          title: 'Search failed',
+          description: 'Unable to search subjects. Please try again.',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [token]
+  );
+
+  // Handle search input changes
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length === 0) {
+      setShowSearchDropdown(false);
+      setSearchResults([]);
+    }
+  }, []);
+
+  // Handle search execution
+  const handleSearchExecute = useCallback(
+    (query: string) => {
+      if (query.trim().length > 0) {
+        setShowSearchDropdown(true);
+        performSearch(query);
+      }
+    },
+    [performSearch]
+  );
+
+  // Add subject to whiteboard from search with better optimistic updates
+  const handleAddSubjectFromSearch = useCallback(
+    async (result: SubjectSearchResult) => {
+      if (!whiteboardData || !token) return;
+
+      // Add to pending subjects (shows skeleton)
+      setPendingSubjects((prev) => new Set(prev).add(result.ent_fsid));
+
+      // Update optimistic data immediately
+      if (optimisticWhiteboardData) {
+        const newSubject: WhiteboardSubject = {
+          ent_fsid: result.ent_fsid,
+          ent_name: result.ent_name,
+          ent_summary: result.ent_summary,
+          indexes: [], // No metrics initially
+        };
+
+        setOptimisticWhiteboardData((prev) =>
+          prev
+            ? {
+                ...prev,
+                subjects: [...prev.subjects, newSubject],
+              }
+            : null
+        );
+      }
+
+      try {
+        await whiteboardService.addSubjectToWhiteboard(
+          whiteboardData.uniqueID,
+          result.ent_fsid,
+          token
+        );
+
+        // Reload whiteboard data silently to avoid loading state
+        await loadWhiteboardData(true);
+
+        // Clear search
+        setSearchQuery('');
+        setShowSearchDropdown(false);
+
+        toaster.create({
+          title: 'Subject added to whiteboard',
+          description: `${result.ent_name} has been added successfully`,
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        // Revert optimistic update on error
+        if (optimisticWhiteboardData) {
+          setOptimisticWhiteboardData((prev) =>
+            prev
               ? {
-                  ...draft,
-                  subjects: [...draft.subjects, subject],
-                  metrics: calculateDraftMetrics([...draft.subjects, subject]),
-                  updatedAt: new Date().toISOString(),
+                  ...prev,
+                  subjects: prev.subjects.filter(
+                    (s) => s.ent_fsid !== result.ent_fsid
+                  ),
                 }
-              : draft
-          )
-        );
-      } else if (
-        sourceType === 'draft' &&
-        sourceDraftId &&
-        sourceDraftId !== targetDraftId
-      ) {
-        // Move between drafts (existing logic)
-        let subjectToMove: WhiteboardSubject | undefined;
-
-        // Check if subject already exists in target draft
-        const targetDraft = drafts.find((d) => d.id === targetDraftId);
-        const sourceDraft = drafts.find((d) => d.id === sourceDraftId);
-        const subject = sourceDraft?.subjects.find((s) => s.id === subjectId);
-
-        if (subject && targetDraft?.subjects.some((s) => s.id === subjectId)) {
-          // Subject already exists in target draft, don't move
-          return;
-        }
-
-        setDrafts((prev) =>
-          prev.map((draft) => {
-            if (draft.id === sourceDraftId) {
-              subjectToMove = draft.subjects.find((s) => s.id === subjectId);
-              const newSubjects = draft.subjects.filter(
-                (s) => s.id !== subjectId
-              );
-              return {
-                ...draft,
-                subjects: newSubjects,
-                metrics: calculateDraftMetrics(newSubjects),
-                updatedAt: new Date().toISOString(),
-              };
-            }
-            return draft;
-          })
-        );
-
-        if (subjectToMove) {
-          setDrafts((prev) =>
-            prev.map((draft) =>
-              draft.id === targetDraftId
-                ? {
-                    ...draft,
-                    subjects: [...draft.subjects, subjectToMove!],
-                    metrics: calculateDraftMetrics([
-                      ...draft.subjects,
-                      subjectToMove!,
-                    ]),
-                    updatedAt: new Date().toISOString(),
-                  }
-                : draft
-            )
+              : null
           );
         }
+
+        console.error('Failed to add subject to whiteboard:', error);
+        toaster.create({
+          title: 'Failed to add subject',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setPendingSubjects((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(result.ent_fsid);
+          return newSet;
+        });
       }
     },
-    [availableSubjects, drafts]
+    [whiteboardData, token, loadWhiteboardData, optimisticWhiteboardData]
   );
 
-  // Handle adding subject from search - keeping for future implementation
-  const handleAddSubjectFromSearch = useCallback(
-    (searchResult: SubjectSearchResult) => {
-      const newSubject: WhiteboardSubject = {
-        id: `subj-${Date.now()}`,
-        subjectId: searchResult.id,
-        name: searchResult.name,
-        description: searchResult.description,
-        slug: searchResult.slug,
-        horizonRank: searchResult.horizonRank,
-        techTransfer: searchResult.techTransfer,
-        whiteSpace: searchResult.whiteSpace,
-        addedAt: new Date().toISOString(),
-        source: 'search',
-      };
+  // Actually remove subject from whiteboard
+  const removeSubjectFromWhiteboard = useCallback(
+    async (subjectFsid: string) => {
+      if (!whiteboardData || !token) return;
 
-      setAvailableSubjects((prev) => [...prev, newSubject]);
-      setSearchQuery('');
-      setShowSearchDropdown(false);
+      try {
+        await whiteboardService.removeSubjectFromWhiteboard(
+          whiteboardData.uniqueID,
+          subjectFsid,
+          token
+        );
+
+        // Reload whiteboard data silently
+        await loadWhiteboardData(true);
+
+        toaster.create({
+          title: 'Subject removed from whiteboard',
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error('Failed to remove subject from whiteboard:', error);
+        toaster.create({
+          title: 'Failed to remove subject',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      }
     },
-    []
+    [whiteboardData, token, loadWhiteboardData]
   );
 
-  // Handle removing subject from whiteboard entirely
+  // Remove subject from whiteboard entirely
   const handleRemoveFromWhiteboard = useCallback(
-    (subjectId: string) => {
-      const subject = availableSubjects.find((s) => s.id === subjectId);
+    async (subjectFsid: string) => {
+      if (!whiteboardData) return;
+
+      const subject = whiteboardData.subjects.find(
+        (s) => s.ent_fsid === subjectFsid
+      );
       if (!subject) return;
 
-      // Find which drafts contain this subject
-      const containingDrafts = drafts.filter((draft) =>
-        draft.subjects.some((s) => s.id === subjectId)
+      // Find which lab seeds contain this subject
+      const containingLabSeeds = whiteboardData.labSeeds.filter((labSeed) =>
+        labSeed.subjects.some((s) => s.ent_fsid === subjectFsid)
       );
 
-      if (containingDrafts.length > 0) {
-        // Show confirmation modal if subject is in drafts
+      if (containingLabSeeds.length > 0) {
+        // Show confirmation modal if subject is in lab seeds
         setSubjectToDelete(subject);
-        setDraftsContainingSubject(containingDrafts);
+        setLabSeedsContainingSubject(containingLabSeeds);
         setIsDeleteConfirmOpen(true);
       } else {
-        // Remove directly if not in any drafts
-        setAvailableSubjects((prev) => prev.filter((s) => s.id !== subjectId));
+        // Remove directly if not in any lab seeds
+        await removeSubjectFromWhiteboard(subjectFsid);
       }
     },
-    [availableSubjects, drafts]
+    [whiteboardData, removeSubjectFromWhiteboard]
   );
 
   // Confirm deletion from whiteboard
-  const handleConfirmDelete = useCallback(() => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!subjectToDelete) return;
 
-    // Remove from available subjects
-    setAvailableSubjects((prev) =>
-      prev.filter((s) => s.id !== subjectToDelete.id)
-    );
-
-    // Remove from all drafts
-    setDrafts((prev) =>
-      prev.map((draft) => ({
-        ...draft,
-        subjects: draft.subjects.filter((s) => s.id !== subjectToDelete.id),
-        metrics: calculateDraftMetrics(
-          draft.subjects.filter((s) => s.id !== subjectToDelete.id)
-        ),
-        updatedAt: new Date().toISOString(),
-      }))
-    );
+    await removeSubjectFromWhiteboard(subjectToDelete.ent_fsid);
 
     // Reset modal state
     setIsDeleteConfirmOpen(false);
     setSubjectToDelete(null);
-    setDraftsContainingSubject([]);
-  }, [subjectToDelete]);
+    setLabSeedsContainingSubject([]);
+  }, [subjectToDelete, removeSubjectFromWhiteboard]);
 
-  // Handle publishing draft
-  const handlePublishDraft = useCallback(
-    (draftId: string) => {
-      const draft = drafts.find((d) => d.id === draftId);
-      if (draft) {
-        const validation = validateDraftForPublishing(draft);
-        if (validation.isValid) {
-          // Navigate to lab creation with draft data
-          console.log('Publishing draft to lab creation:', draft);
-          alert(
-            `Would navigate to lab creation with ${draft.subjects.length} subjects from "${draft.name}"`
-          );
-        } else {
-          alert(`Cannot publish: ${validation.errors.join(', ')}`);
-        }
+  // Lab Seed management
+  const handleCreateLabSeed = useCallback(async () => {
+    if (!newLabSeedName.trim() || !whiteboardData || !token) return;
+
+    try {
+      setIsCreatingLabSeed(true);
+      await whiteboardService.createLabSeed(
+        whiteboardData.uniqueID,
+        newLabSeedName.trim(),
+        newLabSeedDescription.trim() || '',
+        token
+      );
+
+      // Reload whiteboard data silently
+      await loadWhiteboardData(true);
+
+      // Reset form
+      setNewLabSeedName('');
+      setNewLabSeedDescription('');
+      setIsCreateLabSeedOpen(false);
+
+      toaster.create({
+        title: 'Lab seed created',
+        description: `"${newLabSeedName}" has been created successfully`,
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to create lab seed:', error);
+      toaster.create({
+        title: 'Failed to create lab seed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+      });
+    } finally {
+      setIsCreatingLabSeed(false);
+    }
+  }, [
+    newLabSeedName,
+    newLabSeedDescription,
+    whiteboardData,
+    token,
+    loadWhiteboardData,
+  ]);
+
+  // Delete lab seed entirely
+  const handleDeleteLabSeed = useCallback(
+    async (labSeedId: string) => {
+      if (!whiteboardData || !token) return;
+
+      // Add to deleting set
+      setDeletingLabSeedIds((prev) => new Set(prev).add(labSeedId));
+
+      try {
+        await whiteboardService.deleteLabSeed(
+          whiteboardData.uniqueID,
+          labSeedId,
+          token
+        );
+
+        // Reload whiteboard data silently
+        await loadWhiteboardData(true);
+
+        toaster.create({
+          title: 'Lab seed deleted',
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        console.error('Failed to delete lab seed:', error);
+        toaster.create({
+          title: 'Failed to delete lab seed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setDeletingLabSeedIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(labSeedId);
+          return newSet;
+        });
       }
     },
-    [drafts]
+    [whiteboardData, token, loadWhiteboardData]
   );
 
-  // Remove subject from draft
-  const handleRemoveSubjectFromDraft = useCallback(
-    (draftId: string, subjectId: string) => {
-      // Simply remove from draft (subject stays in available subjects)
-      setDrafts((prev) =>
-        prev.map((d) =>
-          d.id === draftId
-            ? {
-                ...d,
-                subjects: d.subjects.filter((s) => s.id !== subjectId),
-                metrics: calculateDraftMetrics(
-                  d.subjects.filter((s) => s.id !== subjectId)
-                ),
-                updatedAt: new Date().toISOString(),
-              }
-            : d
-        )
+  // Handle subject movement via drag and drop with improved optimistic updates
+  const handleSubjectDrop = useCallback(
+    async (
+      subjectFsid: string,
+      targetLabSeedId: string,
+      sourceType: 'whiteboard' | 'labSeed',
+      sourceLabSeedId?: string
+    ) => {
+      if (!whiteboardData || !token || !optimisticWhiteboardData) return;
+
+      const operationId = `drop-${subjectFsid}-${targetLabSeedId}-${Date.now()}`;
+      setPendingOperations((prev) => new Set(prev).add(operationId));
+
+      // Find the subject data
+      const subject = optimisticWhiteboardData.subjects.find(
+        (s) => s.ent_fsid === subjectFsid
       );
+      if (!subject) return;
+
+      // Optimistic update - update the lab seeds directly
+      setOptimisticWhiteboardData((prev) => {
+        if (!prev) return null;
+
+        const newLabSeeds = prev.labSeeds.map((labSeed) => {
+          if (labSeed.uniqueID === targetLabSeedId) {
+            // Add subject to target lab seed if not already there
+            const hasSubject = labSeed.subjects.some(
+              (s) => s.ent_fsid === subjectFsid
+            );
+            if (!hasSubject) {
+              return {
+                ...labSeed,
+                subjects: [...labSeed.subjects, subject],
+              };
+            }
+          } else if (
+            sourceType === 'labSeed' &&
+            labSeed.uniqueID === sourceLabSeedId
+          ) {
+            // Remove subject from source lab seed
+            return {
+              ...labSeed,
+              subjects: labSeed.subjects.filter(
+                (s) => s.ent_fsid !== subjectFsid
+              ),
+            };
+          }
+          return labSeed;
+        });
+
+        return {
+          ...prev,
+          labSeeds: newLabSeeds,
+        };
+      });
+
+      try {
+        if (sourceType === 'whiteboard') {
+          // Copy from whiteboard to lab seed
+          await whiteboardService.addSubjectToLabSeed(
+            whiteboardData.uniqueID,
+            targetLabSeedId,
+            subjectFsid,
+            token
+          );
+        } else if (
+          sourceType === 'labSeed' &&
+          sourceLabSeedId &&
+          sourceLabSeedId !== targetLabSeedId
+        ) {
+          // Move between lab seeds - first add to target, then remove from source
+          await whiteboardService.addSubjectToLabSeed(
+            whiteboardData.uniqueID,
+            targetLabSeedId,
+            subjectFsid,
+            token
+          );
+
+          await whiteboardService.removeSubjectFromLabSeed(
+            whiteboardData.uniqueID,
+            sourceLabSeedId,
+            subjectFsid,
+            token
+          );
+        }
+
+        // Reload data in background to sync with server
+        setTimeout(() => loadWhiteboardData(true), 500);
+      } catch (error) {
+        console.error('Failed to move subject:', error);
+
+        // Revert optimistic update on error
+        await loadWhiteboardData(true);
+
+        toaster.create({
+          title: 'Failed to move subject',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setPendingOperations((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(operationId);
+          return newSet;
+        });
+      }
     },
-    []
+    [whiteboardData, token, loadWhiteboardData, optimisticWhiteboardData]
   );
 
-  // Delete draft entirely
-  const handleDeleteDraft = useCallback((draftId: string) => {
-    // Just remove the draft (subjects stay in available subjects)
-    setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+  // Remove subject from lab seed with improved optimistic updates
+  const handleRemoveSubjectFromLabSeed = useCallback(
+    async (labSeedId: string, subjectFsid: string) => {
+      if (!whiteboardData || !token || !optimisticWhiteboardData) return;
+
+      const operationId = `remove-${subjectFsid}-${labSeedId}-${Date.now()}`;
+      setPendingOperations((prev) => new Set(prev).add(operationId));
+
+      // Optimistic update - remove from lab seed immediately
+      setOptimisticWhiteboardData((prev) => {
+        if (!prev) return null;
+
+        const newLabSeeds = prev.labSeeds.map((labSeed) => {
+          if (labSeed.uniqueID === labSeedId) {
+            return {
+              ...labSeed,
+              subjects: labSeed.subjects.filter(
+                (s) => s.ent_fsid !== subjectFsid
+              ),
+            };
+          }
+          return labSeed;
+        });
+
+        return {
+          ...prev,
+          labSeeds: newLabSeeds,
+        };
+      });
+
+      try {
+        await whiteboardService.removeSubjectFromLabSeed(
+          whiteboardData.uniqueID,
+          labSeedId,
+          subjectFsid,
+          token
+        );
+
+        // Reload data in background to sync with server
+        setTimeout(() => loadWhiteboardData(true), 500);
+      } catch (error) {
+        console.error('Failed to remove subject from lab seed:', error);
+
+        // Revert optimistic update on error
+        await loadWhiteboardData(true);
+
+        toaster.create({
+          title: 'Failed to remove subject from lab seed',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+      } finally {
+        setPendingOperations((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(operationId);
+          return newSet;
+        });
+      }
+    },
+    [whiteboardData, token, loadWhiteboardData, optimisticWhiteboardData]
+  );
+
+  // Handle publishing lab seed (updated to navigate to CreateLab)
+  const handlePublishLabSeed = useCallback(
+    (labSeedId: string) => {
+      const labSeed = whiteboardData?.labSeeds.find(
+        (d) => d.uniqueID === labSeedId
+      );
+
+      if (labSeed) {
+        if (labSeed.subjects.length === 0) {
+          toaster.create({
+            title: 'Cannot create lab',
+            description: 'Lab seed must contain at least one subject',
+            status: 'warning',
+            duration: 5000,
+          });
+          return;
+        }
+
+        // Transform whiteboard lab seed to the expected format for CreateLab
+        const transformedLabSeed: WhiteboardLabSeedForNavigation = {
+          id: labSeed.uniqueID,
+          name: labSeed.name,
+          description: labSeed.description,
+          subjects: labSeed.subjects.map((subject) => ({
+            id: subject.ent_fsid,
+            name: subject.ent_name,
+            slug: subject.ent_fsid,
+            summary: subject.ent_summary,
+            category: undefined, // Lab seeds don't have categories initially
+          })),
+          includeTerms: labSeed.terms, // Terms go to include by default
+          excludeTerms: [],
+          createdAt: labSeed.createdAt,
+          isActive: true,
+        };
+
+        // Navigate to create lab page with the lab seed data
+        navigate('/lab/create', {
+          state: {
+            initialLabSeed: transformedLabSeed,
+            fromWhiteboard: true,
+          },
+        });
+
+        toaster.create({
+          title: 'Creating lab from Lab Seed',
+          description: `Starting lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`,
+          status: 'success',
+          duration: 3000,
+        });
+      }
+    },
+    [whiteboardData, navigate]
+  );
+
+  // Handle quick add to lab seed (placeholder - would show selection dialog)
+  const handleQuickAddToLabSeed = useCallback((subjectFsid: string) => {
+    toaster.create({
+      title: 'Quick add functionality',
+      description: 'Quick add functionality not yet implemented',
+      status: 'info',
+      duration: 3000,
+    });
   }, []);
 
-  // Update draft AI taxonomy when subjects change
-  const draftSubjectsKey = useMemo(
-    () => drafts.map((d) => d.subjects.map((s) => s.id).join(',')).join('|'),
-    [drafts]
+  // Handle go to search results (placeholder)
+  const handleGoToSearchResults = useCallback(() => {
+    toaster.create({
+      title: 'Search results page',
+      description: 'Search results page navigation not yet implemented',
+      status: 'info',
+      duration: 3000,
+    });
+  }, []);
+
+  // Get lab seed subjects from optimistic data
+  const getLabSeedSubjects = useCallback(
+    (labSeed: WhiteboardLabSeed): WhiteboardSubject[] => {
+      // Use optimistic data if available, otherwise fall back to the lab seed's subjects
+      if (optimisticWhiteboardData) {
+        const optimisticLabSeed = optimisticWhiteboardData.labSeeds.find(
+          (ls) => ls.uniqueID === labSeed.uniqueID
+        );
+        return optimisticLabSeed?.subjects || labSeed.subjects;
+      }
+
+      return labSeed.subjects;
+    },
+    [optimisticWhiteboardData]
   );
 
-  useEffect(() => {
-    setDrafts((prev) =>
-      prev.map((draft) => ({
-        ...draft,
-        aiTaxonomy: generateTaxonomySuggestions(draft.subjects),
-      }))
-    );
-  }, [draftSubjectsKey]);
+  // Lab Seed Card Component with inline editing
+  const LabSeedCard: React.FC<{ labSeed: WhiteboardLabSeed }> = ({
+    labSeed,
+  }) => {
+    const isDeleting = deletingLabSeedIds.has(labSeed.uniqueID);
+    const subjects = getLabSeedSubjects(labSeed);
 
-  // Draft Card Component
-  const DraftCard: React.FC<{ draft: WhiteboardDraft }> = ({ draft }) => {
-    const currentViz = selectedVisualization[draft.id] || 'list';
+    // Get the current lab seed data (optimistic or regular)
+    const currentLabSeed =
+      optimisticWhiteboardData?.labSeeds.find(
+        (ls) => ls.uniqueID === labSeed.uniqueID
+      ) || labSeed;
+
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [editName, setEditName] = useState(currentLabSeed.name);
+    const [editDescription, setEditDescription] = useState(
+      currentLabSeed.description
+    );
+
+    // Update edit states when optimistic data changes
+    React.useEffect(() => {
+      setEditName(currentLabSeed.name);
+      setEditDescription(currentLabSeed.description);
+    }, [currentLabSeed.name, currentLabSeed.description]);
+
+    // Save name edit
+    const handleSaveName = async () => {
+      if (editName.trim() === currentLabSeed.name || !editName.trim()) {
+        setEditName(currentLabSeed.name);
+        setIsEditingName(false);
+        return;
+      }
+
+      try {
+        // Update optimistic data immediately
+        if (optimisticWhiteboardData) {
+          setOptimisticWhiteboardData((prev) => {
+            if (!prev) return null;
+
+            const newLabSeeds = prev.labSeeds.map((ls) =>
+              ls.uniqueID === labSeed.uniqueID
+                ? { ...ls, name: editName.trim() }
+                : ls
+            );
+
+            return { ...prev, labSeeds: newLabSeeds };
+          });
+        }
+
+        // TODO: Implement name update API call when endpoint is available
+        // await whiteboardService.updateLabSeedName(whiteboardId, labSeed.uniqueID, editName.trim(), token);
+
+        setIsEditingName(false);
+
+        toaster.create({
+          title: 'Lab seed name updated',
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        // Revert optimistic update on error
+        setEditName(currentLabSeed.name);
+        console.error('Failed to update lab seed name:', error);
+        toaster.create({
+          title: 'Failed to update name',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+        setIsEditingName(false);
+      }
+    };
+
+    // Save description edit
+    const handleSaveDescription = async () => {
+      if (editDescription.trim() === currentLabSeed.description) {
+        setIsEditingDescription(false);
+        return;
+      }
+
+      try {
+        // Update optimistic data immediately
+        if (optimisticWhiteboardData) {
+          setOptimisticWhiteboardData((prev) => {
+            if (!prev) return null;
+
+            const newLabSeeds = prev.labSeeds.map((ls) =>
+              ls.uniqueID === labSeed.uniqueID
+                ? { ...ls, description: editDescription.trim() }
+                : ls
+            );
+
+            return { ...prev, labSeeds: newLabSeeds };
+          });
+        }
+
+        // TODO: Implement description update API call when endpoint is available
+        // await whiteboardService.updateLabSeedDescription(whiteboardId, labSeed.uniqueID, editDescription.trim(), token);
+
+        setIsEditingDescription(false);
+
+        toaster.create({
+          title: 'Lab seed description updated',
+          status: 'success',
+          duration: 3000,
+        });
+      } catch (error) {
+        // Revert optimistic update on error
+        setEditDescription(currentLabSeed.description);
+        console.error('Failed to update lab seed description:', error);
+        toaster.create({
+          title: 'Failed to update description',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          status: 'error',
+          duration: 5000,
+        });
+        setIsEditingDescription(false);
+      }
+    };
+
+    // Handle key press for inline editing
+    const handleKeyPress = (
+      e: React.KeyboardEvent,
+      type: 'name' | 'description'
+    ) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (type === 'name') {
+          handleSaveName();
+        } else {
+          handleSaveDescription();
+        }
+      } else if (e.key === 'Escape') {
+        if (type === 'name') {
+          setEditName(currentLabSeed.name);
+          setIsEditingName(false);
+        } else {
+          setEditDescription(currentLabSeed.description);
+          setIsEditingDescription(false);
+        }
+      }
+    };
+
+    if (isDeleting) {
+      return (
+        <Card.Root
+          size='lg'
+          variant='outline'
+          minH='450px'
+          bg='bg.canvas'
+          border='1px solid'
+          borderColor='border.emphasized'
+        >
+          <Card.Body p={4}>
+            <Flex
+              align='center'
+              justify='center'
+              minH='400px'
+              direction='column'
+              gap={4}
+            >
+              <Spinner size='xl' color='brand' />
+              <Text color='fg.muted'>Deleting lab seed...</Text>
+            </Flex>
+          </Card.Body>
+        </Card.Root>
+      );
+    }
 
     return (
       <Card.Root
         size='lg'
         variant='outline'
         minH='450px'
-        bg={{ base: '#1a1a1a', _light: 'white' }}
+        bg='bg.canvas'
         border='1px solid'
-        borderColor={{ base: 'white', _light: 'gray.200' }}
+        borderColor='border.emphasized'
       >
         <Card.Body p={4}>
-          <DroppableDraftArea
-            draftId={draft.id}
+          <DroppableLabSeedArea
+            labSeedId={labSeed.uniqueID}
             onDrop={handleSubjectDrop}
-            existingSubjectIds={draft.subjects.map((s) => s.id)}
+            existingSubjectFsids={subjects.map((s) => s.ent_fsid)}
           >
-            <VStack gap={3} align='stretch'>
+            <VStack gap={3} align='stretch' height='100%'>
               {/* Header */}
-              <HStack justify='space-between' align='flex-start'>
-                <VStack gap={1} align='start' flex='1'>
-                  <HStack gap={2} align='center'>
-                    <Text fontSize='md' fontWeight='semibold'>
-                      {draft.name}
-                    </Text>
-                    <Badge size='sm' colorScheme='blue'>
-                      {draft.subjects.length}
-                    </Badge>
-                  </HStack>
-                  {draft.description && (
-                    <Text fontSize='xs' color='fg.muted'>
-                      {draft.description}
-                    </Text>
-                  )}
-                  {draft.aiTaxonomy && (
-                    <HStack gap={1}>
-                      <Text fontSize='xs' color='purple.400'>
-                        🤖
+              <VStack gap={1} align='start' flex='0'>
+                <HStack gap={2} align='center' width='100%'>
+                  {isEditingName ? (
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={handleSaveName}
+                      onKeyDown={(e) => handleKeyPress(e, 'name')}
+                      size='sm'
+                      fontWeight='semibold'
+                      autoFocus
+                      flex='1'
+                    />
+                  ) : (
+                    <HStack gap={2} flex='1' align='center'>
+                      <Text fontSize='md' fontWeight='semibold' flex='1'>
+                        {currentLabSeed.name}
                       </Text>
-                      <Text fontSize='xs' fontWeight='medium'>
-                        {draft.aiTaxonomy.primaryCategory}
-                      </Text>
-                      <Badge size='sm' colorScheme='purple'>
-                        {draft.aiTaxonomy.confidence}%
-                      </Badge>
+                      <IconButton
+                        size='xs'
+                        variant='ghost'
+                        onClick={() => setIsEditingName(true)}
+                        aria-label='Edit lab seed name'
+                        color='fg.muted'
+                      >
+                        <FiEdit size={12} />
+                      </IconButton>
                     </HStack>
                   )}
-                </VStack>
-                <HStack gap={1}>
                   <Menu.Root>
                     <Menu.Trigger asChild>
                       <IconButton
                         size='sm'
                         variant='ghost'
-                        aria-label='Draft settings'
+                        aria-label='Lab Seed options'
                       >
-                        <FiSettings size={14} />
+                        <FiMoreHorizontal size={14} />
                       </IconButton>
                     </Menu.Trigger>
                     <Menu.Positioner>
                       <Menu.Content>
-                        <Menu.Item value='edit'>
-                          <FiEdit size={14} />
-                          Edit Draft
-                        </Menu.Item>
                         <Menu.Item
                           value='delete'
-                          onClick={() => handleDeleteDraft(draft.id)}
+                          onClick={() => handleDeleteLabSeed(labSeed.uniqueID)}
+                          color='red.600'
                         >
                           <FiTrash2 size={14} />
-                          Delete Draft
+                          Delete Lab Seed
                         </Menu.Item>
                       </Menu.Content>
                     </Menu.Positioner>
                   </Menu.Root>
-                  <Button
-                    size='sm'
-                    colorScheme='green'
-                    variant='outline'
-                    onClick={() => handlePublishDraft(draft.id)}
-                    disabled={draft.subjects.length === 0}
-                  >
-                    <FiSend size={14} />
-                    Publish
-                  </Button>
                 </HStack>
-              </HStack>
 
-              {/* Metrics Summary */}
-              <Box
-                p={2}
-                bg={{ base: '#111111', _light: 'gray.50' }}
-                borderRadius='md'
-                border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
-              >
-                <Grid templateColumns='repeat(4, 1fr)' gap={3} fontSize='xs'>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Avg HR
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {draft.metrics.avgHorizonRank.toFixed(2)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Avg TT
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {Math.round(draft.metrics.avgTechTransfer)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Avg WS
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {Math.round(draft.metrics.avgWhiteSpace)}
-                    </Text>
-                  </VStack>
-                  <VStack gap={0}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Innovation
-                    </Text>
-                    <Text
-                      fontWeight='bold'
-                      color={{ base: 'white', _light: 'black' }}
-                    >
-                      {Math.round(draft.metrics.innovationPotential)}
-                    </Text>
-                  </VStack>
-                </Grid>
-              </Box>
-
-              {/* Visualization Tabs */}
-              <HStack
-                gap={1}
-                borderBottom='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
-                pb={2}
-              >
-                {[
-                  {
-                    id: 'list' as VisualizationType,
-                    icon: FiList,
-                    label: 'List',
-                  },
-                ].map(({ id, icon: Icon, label }) => (
-                  <Button
-                    key={id}
-                    size='xs'
-                    variant={currentViz === id ? 'solid' : 'ghost'}
-                    onClick={() =>
-                      setSelectedVisualization((prev) => ({
-                        ...prev,
-                        [draft.id]: id,
-                      }))
-                    }
+                {/* Description */}
+                {isEditingDescription ? (
+                  <Textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    onBlur={handleSaveDescription}
+                    onKeyDown={(e) => handleKeyPress(e, 'description')}
+                    size='sm'
+                    rows={2}
+                    autoFocus
+                    placeholder='Add description...'
+                    width='100%'
+                  />
+                ) : (
+                  <Text
+                    fontSize='xs'
+                    color='fg.muted'
+                    cursor='pointer'
+                    onClick={() => setIsEditingDescription(true)}
+                    _hover={{ color: 'fg' }}
                   >
-                    <Icon size={12} />
-                    {label}
-                  </Button>
-                ))}
-              </HStack>
+                    {currentLabSeed.description ||
+                      'Click to add description...'}
+                  </Text>
+                )}
+              </VStack>
 
-              {/* Visualization Area */}
-              <Box flex='1' minH='250px'>
-                <ListView
-                  subjects={draft.subjects}
-                  onRemoveSubject={(subjectId: string) =>
-                    handleRemoveSubjectFromDraft(draft.id, subjectId)
-                  }
-                />
+              {/* Terms Section */}
+              <Tooltip.Root
+                openDelay={300}
+                closeDelay={100}
+                positioning={{ placement: 'bottom' }}
+              >
+                <Tooltip.Trigger asChild>
+                  <Box>
+                    <TermsSection
+                      terms={currentLabSeed.terms}
+                      labSeedId={labSeed.uniqueID}
+                      whiteboardId={currentWhiteboardData?.uniqueID || ''}
+                      token={token || ''}
+                      onTermsUpdate={() => loadWhiteboardData(true)}
+                    />
+                  </Box>
+                </Tooltip.Trigger>
+                <Tooltip.Positioner>
+                  <Tooltip.Content>
+                    <Text fontSize='sm'>
+                      The Terms section is for things you're not able to find
+                      via search. When creating a lab from a Lab Seed, these
+                      terms will be added to our database and information on
+                      patents, papers, orgs, etc., will be fetched and made
+                      available to you.
+                    </Text>
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Tooltip.Root>
 
-                {draft.subjects.length === 0 && (
+              {/* Subject List - Drop Zone */}
+              <Box flex='1' minH='300px'>
+                {subjects.length === 0 ? (
                   <Flex
                     align='center'
                     justify='center'
                     minH='200px'
-                    color={{ base: 'gray.400', _light: 'gray.600' }}
+                    color='fg.muted'
                   >
                     <VStack gap={2}>
-                      <FiTarget size={24} />
+                      <FiTarget size='md' />
                       <Text fontSize='sm' textAlign='center'>
-                        Drag subjects here to build your draft
+                        Drag subjects here to build your lab seed
                       </Text>
                     </VStack>
                   </Flex>
+                ) : (
+                  <VStack gap={2} align='stretch'>
+                    {subjects.map((subject) => (
+                      <WhiteboardSubjectCard
+                        key={subject.ent_fsid}
+                        subject={subject}
+                        sourceType='labSeed'
+                        labSeedId={labSeed.uniqueID}
+                        onRemoveFromLabSeed={handleRemoveSubjectFromLabSeed}
+                      />
+                    ))}
+                  </VStack>
                 )}
               </Box>
 
-              {/* Coherence & Risk Indicators */}
-              {draft.subjects.length > 0 && (
-                <HStack
-                  justify='space-between'
-                  align='center'
-                  fontSize='xs'
-                  pt={2}
-                  borderTop='1px solid'
-                  borderColor={{ base: 'white', _light: 'gray.200' }}
-                >
-                  <HStack gap={2}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Coherence:
-                    </Text>
-                    <HStack gap={1}>
-                      <Progress.Root
-                        value={draft.metrics.coherenceScore}
-                        size='sm'
-                        width='40px'
-                        colorPalette={
-                          draft.metrics.coherenceScore > 70
-                            ? 'green'
-                            : draft.metrics.coherenceScore > 40
-                            ? 'orange'
-                            : 'red'
-                        }
-                      >
-                        <Progress.Track>
-                          <Progress.Range />
-                        </Progress.Track>
-                      </Progress.Root>
-                      <Text fontWeight='bold'>
-                        {Math.round(draft.metrics.coherenceScore)}%
-                      </Text>
-                    </HStack>
-                  </HStack>
-
-                  <HStack gap={2}>
-                    <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                      Risk:
-                    </Text>
-                    <Badge
-                      size='sm'
-                      colorScheme={
-                        draft.metrics.competitionRisk > 70
-                          ? 'red'
-                          : draft.metrics.competitionRisk > 40
-                          ? 'orange'
-                          : 'green'
-                      }
-                    >
-                      Competition: {Math.round(draft.metrics.competitionRisk)}%
-                    </Badge>
-                  </HStack>
-                </HStack>
-              )}
+              {/* Create Lab Button - Full Width at Bottom */}
+              <Button
+                width='100%'
+                colorScheme='green'
+                variant='solid'
+                onClick={() => handlePublishLabSeed(labSeed.uniqueID)}
+                disabled={subjects.length === 0}
+                size='md'
+              >
+                <FiZap size={16} />
+                Create Lab
+              </Button>
             </VStack>
-          </DroppableDraftArea>
+          </DroppableLabSeedArea>
         </Card.Body>
       </Card.Root>
     );
   };
 
-  return (
-    <DndProvider backend={HTML5Backend}>
+  // Show skeleton state on initial load
+  if (isLoading && !whiteboardData) {
+    return <WhiteboardSkeleton />;
+  }
+
+  // Show error state
+  if (error) {
+    return (
       <Box
         p={6}
-        bg={{ base: '#111111', _light: 'gray.50' }}
+        bg='bg'
         minHeight='calc(100vh - 64px)'
+        display='flex'
+        alignItems='center'
+        justifyContent='center'
       >
+        <VStack gap={4}>
+          <Text color='error' fontSize='lg'>
+            Failed to load whiteboard
+          </Text>
+          <Text color='fg.muted'>{error}</Text>
+          <Button onClick={() => loadWhiteboardData(false)}>Try Again</Button>
+        </VStack>
+      </Box>
+    );
+  }
+
+  // Show no data state
+  if (!whiteboardData) {
+    return (
+      <Box
+        p={6}
+        bg='bg'
+        minHeight='calc(100vh - 64px)'
+        display='flex'
+        alignItems='center'
+        justifyContent='center'
+      >
+        <VStack gap={4}>
+          <Text color='fg.muted' fontSize='lg'>
+            No whiteboard data available
+          </Text>
+          <Button onClick={() => loadWhiteboardData(false)}>Refresh</Button>
+        </VStack>
+      </Box>
+    );
+  }
+
+  // Use optimistic data or fallback to regular data
+  const currentWhiteboardData = optimisticWhiteboardData || whiteboardData;
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <Box p={6} bg='bg' minHeight='calc(100vh - 64px)'>
         <VStack gap={6} align='stretch'>
           {/* Header */}
           <Card.Root
-            bg={{ base: '#1a1a1a', _light: 'white' }}
+            bg='bg.canvas'
             border='1px solid'
-            borderColor={{ base: 'white', _light: 'gray.200' }}
+            borderColor='border.emphasized'
           >
             <Card.Body p={6}>
               <VStack gap={1} align='start'>
                 <Heading as='h1' size='xl'>
                   Whiteboard
                 </Heading>
-                <Text color={{ base: 'gray.400', _light: 'gray.600' }}>
-                  Collect snapshots, organize into drafts, and publish to labs
+                <Text color='fg.muted'>
+                  Collect subjects, organize into lab seeds, and publish to labs
                 </Text>
               </VStack>
             </Card.Body>
           </Card.Root>
 
-          {/* Metrics Overview */}
+          {/* Overview Stats */}
           <Card.Root
-            bg={{ base: '#1a1a1a', _light: 'white' }}
+            bg='bg.canvas'
             border='1px solid'
-            borderColor={{ base: 'white', _light: 'gray.200' }}
+            borderColor='border.emphasized'
           >
             <Card.Body p={4}>
               <VStack gap={4} align='stretch'>
                 <HStack justify='space-between' align='center'>
-                  <Text fontWeight='medium'>Overall Metrics</Text>
+                  <Text fontWeight='medium'>Overview</Text>
                   <Grid
-                    templateColumns='repeat(5, 1fr)'
+                    templateColumns='repeat(3, 1fr)'
                     gap={6}
                     flex='1'
-                    maxW='600px'
+                    maxW='400px'
                   >
                     <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
+                      <Text fontSize='xs' color='fg.muted'>
                         Total Subjects
                       </Text>
                       <Text fontWeight='bold'>
-                        {overallMetrics.subjectCount}
+                        {currentWhiteboardData?.subjects.length || 0}
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Avg Horizon Rank
+                      <Text fontSize='xs' color='fg.muted'>
+                        Lab Seeds
                       </Text>
                       <Text fontWeight='bold'>
-                        {overallMetrics.avgHorizonRank.toFixed(2)}
+                        {currentWhiteboardData?.labSeeds.length || 0}
                       </Text>
                     </VStack>
                     <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Avg Tech Transfer
+                      <Text fontSize='xs' color='fg.muted'>
+                        Total Terms
                       </Text>
                       <Text fontWeight='bold'>
-                        {Math.round(overallMetrics.avgTechTransfer)}
-                      </Text>
-                    </VStack>
-                    <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Avg White Space
-                      </Text>
-                      <Text fontWeight='bold'>
-                        {Math.round(overallMetrics.avgWhiteSpace)}
-                      </Text>
-                    </VStack>
-                    <VStack gap={0}>
-                      <Text
-                        fontSize='xs'
-                        color={{ base: 'gray.400', _light: 'gray.600' }}
-                      >
-                        Innovation Potential
-                      </Text>
-                      <Text fontWeight='bold'>
-                        {Math.round(overallMetrics.innovationPotential)}
+                        {currentWhiteboardData?.labSeeds.reduce(
+                          (sum, labSeed) => sum + labSeed.terms.length,
+                          0
+                        ) || 0}
                       </Text>
                     </VStack>
                   </Grid>
@@ -1286,117 +1676,35 @@ const Whiteboard: React.FC = () => {
 
                 {/* Search and Actions */}
                 <HStack gap={4} align='center'>
-                  <Box position='relative' flex='1' maxW='400px'>
-                    <Input
-                      ref={searchInputRef}
-                      placeholder='Search and add subjects...'
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      onFocus={() => searchQuery && setShowSearchDropdown(true)}
-                      size='md'
-                    />
-
-                    {/* Search Dropdown */}
-                    {showSearchDropdown && (
-                      <Box
-                        ref={searchDropdownRef}
-                        position='absolute'
-                        top='100%'
-                        left='0'
-                        right='0'
-                        mt={1}
-                        bg={{ base: '#1a1a1a', _light: 'white' }}
-                        border='1px solid'
-                        borderColor={{ base: 'white', _light: 'gray.200' }}
-                        borderRadius='md'
-                        boxShadow='lg'
-                        zIndex='20'
-                        maxH='300px'
-                        overflowY='auto'
-                      >
-                        {isSearching && (
-                          <Flex align='center' justify='center' py={4}>
-                            <Spinner size='sm' />
-                            <Text ml={2} fontSize='sm'>
-                              Searching...
-                            </Text>
-                          </Flex>
-                        )}
-
-                        {!isSearching && searchResults.length > 0 && (
-                          <VStack gap={0} align='stretch'>
-                            {searchResults.map((result) => (
-                              <HStack
-                                key={result.id}
-                                p={3}
-                                _hover={{ bg: 'bg.subtle' }}
-                                justify='space-between'
-                                cursor='pointer'
-                                onClick={() =>
-                                  handleAddSubjectFromSearch(result)
-                                }
-                              >
-                                <VStack gap={1} align='start' flex='1'>
-                                  <Text fontSize='sm' fontWeight='medium'>
-                                    {result.name}
-                                  </Text>
-                                  <Text
-                                    fontSize='xs'
-                                    color={{
-                                      base: 'gray.400',
-                                      _light: 'gray.500',
-                                    }}
-                                    lineClamp={1}
-                                  >
-                                    {result.description}
-                                  </Text>
-                                  <HStack gap={2}>
-                                    <Badge size='sm'>
-                                      HR: {result.horizonRank.toFixed(2)}
-                                    </Badge>
-                                    <Badge size='sm'>
-                                      TT: {result.techTransfer}
-                                    </Badge>
-                                    <Badge size='sm'>
-                                      WS: {result.whiteSpace}
-                                    </Badge>
-                                  </HStack>
-                                </VStack>
-                                <IconButton
-                                  size='sm'
-                                  variant='ghost'
-                                  aria-label='Add subject'
-                                >
-                                  <FiPlus size={16} />
-                                </IconButton>
-                              </HStack>
-                            ))}
-                          </VStack>
-                        )}
-
-                        {!isSearching &&
-                          searchResults.length === 0 &&
-                          searchQuery && (
-                            <Flex align='center' justify='center' py={4}>
-                              <Text
-                                fontSize='sm'
-                                color={{ base: 'gray.400', _light: 'gray.500' }}
-                              >
-                                No subjects found for "{searchQuery}"
-                              </Text>
-                            </Flex>
-                          )}
-                      </Box>
-                    )}
-                  </Box>
+                  <SubjectSearch
+                    searchQuery={searchQuery}
+                    searchResults={searchResults}
+                    isSearching={isSearching}
+                    showSearchDropdown={showSearchDropdown}
+                    isSubjectInWhiteboard={isSubjectInWhiteboard}
+                    onSearchChange={handleSearchChange}
+                    onSearchExecute={handleSearchExecute}
+                    onSearchFocus={() => {}}
+                    onClearSearch={() => {
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      setShowSearchDropdown(false);
+                    }}
+                    onAddSubject={handleAddSubjectFromSearch}
+                    onGoToSearchResults={handleGoToSearchResults}
+                    setShowSearchDropdown={setShowSearchDropdown}
+                  />
 
                   <Button
                     colorScheme='blue'
                     variant='outline'
-                    onClick={() => setIsCreateDraftOpen(true)}
+                    onClick={() => setIsCreateLabSeedOpen(true)}
+                    disabled={isCreatingLabSeed}
+                    loading={isCreatingLabSeed}
+                    color='fg'
                   >
                     <FiPlus size={16} />
-                    New Draft
+                    New Lab Seed
                   </Button>
                 </HStack>
               </VStack>
@@ -1405,19 +1713,33 @@ const Whiteboard: React.FC = () => {
 
           {/* Main Content */}
           <HStack gap={6} align='flex-start'>
-            {/* Available Subjects Sidebar */}
-            <Box minW='280px' maxW='320px'>
+            {/* Subjects Sidebar - Sticky */}
+            <Box
+              minW='280px'
+              maxW='320px'
+              position='sticky'
+              top='80px'
+              height='fit-content'
+              maxH='80vh'
+            >
               <Card.Root
-                bg={{ base: '#1a1a1a', _light: 'white' }}
+                bg='bg.canvas'
                 border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
+                borderColor='border.emphasized'
+                height='100%'
+                maxH='80vh'
               >
-                <Card.Body p={4}>
-                  <VStack gap={3} align='stretch'>
+                <Card.Body
+                  p={4}
+                  height='100%'
+                  display='flex'
+                  flexDirection='column'
+                >
+                  <VStack gap={3} align='stretch' height='100%'>
                     <HStack justify='space-between' align='center'>
-                      <Text fontWeight='medium'>Available Subjects</Text>
+                      <Text fontWeight='medium'>Subjects</Text>
                       <Badge colorScheme='gray'>
-                        {availableSubjects.length}
+                        {currentWhiteboardData?.subjects.length || 0}
                       </Badge>
                     </HStack>
 
@@ -1427,7 +1749,7 @@ const Whiteboard: React.FC = () => {
                         <Text
                           fontSize='sm'
                           fontWeight='medium'
-                          color={{ base: 'white', _light: 'gray.700' }}
+                          color='fg'
                           whiteSpace='nowrap'
                         >
                           Sort by:
@@ -1440,85 +1762,16 @@ const Whiteboard: React.FC = () => {
                           style={{
                             padding: '4px',
                             borderRadius: '4px',
-                            border: '1px solid #FFFFFF',
+                            border:
+                              '1px solid var(--chakra-colors-border-emphasized)',
                             fontSize: '12px',
                             width: '100%',
-                            backgroundColor: '#1a1a1a',
-                            color: '#FFFFFF',
+                            backgroundColor: 'var(--chakra-colors-bg-canvas)',
+                            color: 'var(--chakra-colors-fg)',
                           }}
                         >
-                          <option
-                            value='horizon-high'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Horizon Rank (High to Low)
-                          </option>
-                          <option
-                            value='horizon-low'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Horizon Rank (Low to High)
-                          </option>
-                          <option
-                            value='techTransfer-high'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Tech Transfer (High to Low)
-                          </option>
-                          <option
-                            value='techTransfer-low'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Tech Transfer (Low to High)
-                          </option>
-                          <option
-                            value='whiteSpace-high'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            White Space (High to Low)
-                          </option>
-                          <option
-                            value='whiteSpace-low'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            White Space (Low to High)
-                          </option>
-                          <option
-                            value='a-z'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            A-Z
-                          </option>
-                          <option
-                            value='z-a'
-                            style={{
-                              backgroundColor: '#1a1a1a',
-                              color: '#FFFFFF',
-                            }}
-                          >
-                            Z-A
-                          </option>
+                          <option value='name-asc'>A-Z</option>
+                          <option value='name-desc'>Z-A</option>
                         </select>
                       </HStack>
                       <Input
@@ -1531,35 +1784,46 @@ const Whiteboard: React.FC = () => {
                       />
                     </VStack>
 
-                    <Box maxH='600px' overflowY='auto'>
+                    <Box
+                      flex='1'
+                      overflowY='auto'
+                      minH='0'
+                      maxH='calc(80vh - 200px)'
+                    >
                       {getFilteredAndSortedSubjects().length === 0 ? (
                         <Flex
                           align='center'
                           justify='center'
                           minH='200px'
-                          color={{ base: 'gray.400', _light: 'gray.500' }}
+                          color='fg.muted'
                         >
                           <VStack gap={2}>
-                            <FiSearch size={24} />
+                            <FiSearch size='md' />
                             <Text fontSize='sm' textAlign='center'>
-                              {filterText || sortMethod !== 'horizon-high'
+                              {filterText
                                 ? 'No subjects match your filters.'
-                                : 'No available subjects. Search to add more.'}
+                                : 'No subjects in whiteboard. Search to add some.'}
                             </Text>
                           </VStack>
                         </Flex>
                       ) : (
                         <VStack gap={2} align='stretch'>
                           {getFilteredAndSortedSubjects().map((subject) => (
-                            <DraggableSubjectCard
-                              key={subject.id}
+                            <WhiteboardSubjectCard
+                              key={subject.ent_fsid}
                               subject={subject}
-                              sourceType='unpooled'
-                              showQuickAdd
+                              sourceType='whiteboard'
+                              showQuickActions
                               onRemoveFromWhiteboard={
                                 handleRemoveFromWhiteboard
                               }
+                              onQuickAddToLabSeed={handleQuickAddToLabSeed}
                             />
+                          ))}
+
+                          {/* Show pending subjects as skeletons */}
+                          {Array.from(pendingSubjects).map((fsid) => (
+                            <SubjectSkeleton key={`pending-${fsid}`} />
                           ))}
                         </VStack>
                       )}
@@ -1569,38 +1833,43 @@ const Whiteboard: React.FC = () => {
               </Card.Root>
             </Box>
 
-            {/* Drafts Area */}
+            {/* Lab Seeds Area */}
             <Box flex='1'>
-              {drafts.length === 0 ? (
+              {currentWhiteboardData?.labSeeds.length === 0 &&
+              !isCreatingLabSeed ? (
                 <Card.Root
-                  bg={{ base: '#1a1a1a', _light: 'white' }}
+                  bg='bg.canvas'
                   border='1px solid'
-                  borderColor={{ base: 'white', _light: 'gray.200' }}
+                  borderColor='border.emphasized'
                 >
                   <Card.Body p={8}>
                     <Flex align='center' justify='center' minH='400px'>
                       <VStack gap={4} textAlign='center'>
-                        <FiTarget size={48} color='#A0A0A0' />
+                        <FiTarget
+                          size={48}
+                          color='var(--chakra-colors-fg-muted)'
+                        />
                         <VStack gap={2}>
                           <Text
                             fontSize='lg'
                             fontWeight='medium'
-                            color={{ base: 'gray.400', _light: 'gray.600' }}
+                            color='fg.muted'
                           >
-                            No drafts yet
+                            No lab seeds yet
                           </Text>
-                          <Text
-                            color={{ base: 'gray.400', _light: 'gray.500' }}
-                          >
-                            Create your first draft to start organizing subjects
+                          <Text color='fg.muted'>
+                            Create your first lab seed to start organizing
+                            subjects
                           </Text>
                         </VStack>
                         <Button
                           colorScheme='blue'
-                          onClick={() => setIsCreateDraftOpen(true)}
+                          onClick={() => setIsCreateLabSeedOpen(true)}
+                          disabled={isCreatingLabSeed}
+                          color='fg'
                         >
                           <FiPlus size={16} />
-                          Create First Draft
+                          Create First Lab Seed
                         </Button>
                       </VStack>
                     </Flex>
@@ -1611,30 +1880,33 @@ const Whiteboard: React.FC = () => {
                   templateColumns='repeat(auto-fit, minmax(450px, 1fr))'
                   gap={6}
                 >
-                  {drafts.map((draft) => (
-                    <DraftCard key={draft.id} draft={draft} />
+                  {currentWhiteboardData?.labSeeds.map((labSeed) => (
+                    <LabSeedCard key={labSeed.uniqueID} labSeed={labSeed} />
                   ))}
+
+                  {/* Show creating lab seed skeleton */}
+                  {isCreatingLabSeed && <LabSeedSkeleton />}
                 </Grid>
               )}
             </Box>
           </HStack>
 
-          {/* Create Draft Dialog */}
+          {/* Create Lab Seed Dialog */}
           <Dialog.Root
-            open={isCreateDraftOpen}
-            onOpenChange={({ open }) => setIsCreateDraftOpen(open)}
+            open={isCreateLabSeedOpen}
+            onOpenChange={({ open }) => setIsCreateLabSeedOpen(open)}
           >
             <Dialog.Backdrop />
             <Dialog.Positioner>
               <Dialog.Content
-                bg={{ base: '#1a1a1a', _light: 'white' }}
+                bg='bg.canvas'
                 border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
+                borderColor='border.emphasized'
               >
                 <Dialog.Header>
-                  <Dialog.Title>Create New Draft</Dialog.Title>
+                  <Dialog.Title>Create New Lab Seed</Dialog.Title>
                   <Dialog.CloseTrigger asChild>
-                    <IconButton size='sm' variant='ghost'>
+                    <IconButton size='sm' variant='ghost' color='fg.muted'>
                       <FiX />
                     </IconButton>
                   </Dialog.CloseTrigger>
@@ -1643,19 +1915,21 @@ const Whiteboard: React.FC = () => {
                 <Dialog.Body>
                   <VStack gap={4} align='stretch'>
                     <Field.Root>
-                      <Field.Label>Draft Name</Field.Label>
+                      <Field.Label>Lab Seed Name</Field.Label>
                       <Input
-                        value={newDraftName}
-                        onChange={(e) => setNewDraftName(e.target.value)}
-                        placeholder='Enter draft name...'
+                        value={newLabSeedName}
+                        onChange={(e) => setNewLabSeedName(e.target.value)}
+                        placeholder='Enter lab seed name...'
                       />
                     </Field.Root>
 
                     <Field.Root>
-                      <Field.Label>Description (Optional)</Field.Label>
+                      <Field.Label>Description</Field.Label>
                       <Textarea
-                        value={newDraftDescription}
-                        onChange={(e) => setNewDraftDescription(e.target.value)}
+                        value={newLabSeedDescription}
+                        onChange={(e) =>
+                          setNewLabSeedDescription(e.target.value)
+                        }
                         placeholder='Enter description...'
                         rows={3}
                       />
@@ -1667,16 +1941,17 @@ const Whiteboard: React.FC = () => {
                   <HStack gap={3}>
                     <Button
                       variant='outline'
-                      onClick={() => setIsCreateDraftOpen(false)}
+                      onClick={() => setIsCreateLabSeedOpen(false)}
                     >
                       Cancel
                     </Button>
                     <Button
                       colorScheme='blue'
-                      onClick={handleCreateDraft}
-                      disabled={!newDraftName.trim()}
+                      onClick={handleCreateLabSeed}
+                      disabled={!newLabSeedName.trim() || isCreatingLabSeed}
+                      loading={isCreatingLabSeed}
                     >
-                      Create Draft
+                      Create Lab Seed
                     </Button>
                   </HStack>
                 </Dialog.Footer>
@@ -1691,21 +1966,21 @@ const Whiteboard: React.FC = () => {
               setIsDeleteConfirmOpen(open);
               if (!open) {
                 setSubjectToDelete(null);
-                setDraftsContainingSubject([]);
+                setLabSeedsContainingSubject([]);
               }
             }}
           >
             <Dialog.Backdrop />
             <Dialog.Positioner>
               <Dialog.Content
-                bg={{ base: '#1a1a1a', _light: 'white' }}
+                bg='bg.canvas'
                 border='1px solid'
-                borderColor={{ base: 'white', _light: 'gray.200' }}
+                borderColor='border.emphasized'
               >
                 <Dialog.Header>
                   <Dialog.Title>Confirm Delete from Whiteboard</Dialog.Title>
                   <Dialog.CloseTrigger asChild>
-                    <IconButton size='sm' variant='ghost'>
+                    <IconButton size='sm' variant='ghost' color='fg.muted'>
                       <FiX />
                     </IconButton>
                   </Dialog.CloseTrigger>
@@ -1714,48 +1989,41 @@ const Whiteboard: React.FC = () => {
                 <Dialog.Body>
                   <VStack gap={3} align='stretch'>
                     <Text>
-                      Are you sure you want to delete "{subjectToDelete?.name}"
-                      from the whiteboard?
+                      Are you sure you want to delete "
+                      {subjectToDelete?.ent_name}" from the whiteboard?
                     </Text>
 
-                    {draftsContainingSubject.length > 0 && (
+                    {labSeedsContainingSubject.length > 0 && (
                       <Box
                         p={3}
-                        bg={{
-                          base: 'rgba(224, 123, 145, 0.1)',
-                          _light: 'red.50',
-                        }}
+                        bg='errorSubtle'
                         borderRadius='md'
                         border='1px solid'
-                        borderColor={{ base: '#E07B91', _light: 'red.200' }}
+                        borderColor='error'
                       >
                         <Text
                           fontSize='sm'
-                          color={{ base: '#E07B91', _light: 'red.800' }}
+                          color='error'
                           fontWeight='medium'
                           mb={2}
                         >
                           ⚠️ This subject is currently in{' '}
-                          {draftsContainingSubject.length} draft(s):
+                          {labSeedsContainingSubject.length} lab seed(s):
                         </Text>
                         <VStack gap={1} align='start'>
-                          {draftsContainingSubject.map((draft) => (
+                          {labSeedsContainingSubject.map((labSeed) => (
                             <Text
-                              key={draft.id}
+                              key={labSeed.uniqueID}
                               fontSize='sm'
-                              color={{ base: '#E07B91', _light: 'red.700' }}
+                              color='error'
                             >
-                              • {draft.name}
+                              • {labSeed.name}
                             </Text>
                           ))}
                         </VStack>
-                        <Text
-                          fontSize='sm'
-                          color={{ base: '#E07B91', _light: 'red.800' }}
-                          mt={2}
-                        >
+                        <Text fontSize='sm' color='error' mt={2}>
                           Removing it from the whiteboard will also remove it
-                          from these drafts.
+                          from these lab seeds.
                         </Text>
                       </Box>
                     )}

@@ -3,117 +3,56 @@
 // ============================================================================
 
 /**
- * Subject in whiteboard context with enhanced metrics
+ * Subject in whiteboard context from API
  */
 export interface WhiteboardSubject {
-  id: string;
-  subjectId: string; // Reference to fst-subject collection
-  name: string;
-  description: string;
-  slug: string;
-
-  // Core metrics (0-100 except Horizon Rank which is 0-1)
-  horizonRank: number; // 0-1: Technology maturity (0=speculative, 1=obsolete)
-  techTransfer: number; // 0-100: Research to product velocity
-  whiteSpace: number; // 0-100: Market opportunity (0=crowded, 100=wide open)
-
-  // Metadata
-  addedAt: string; // ISO date string
-  addedById?: string;
-  source?: 'search' | 'browse' | 'import'; // How it was added
-
-  // Optional AI-generated insights
-  aiInsights?: {
-    category?: string;
-    keywords?: string[];
-    relatedSubjects?: string[]; // Subject IDs
-    confidence?: number; // 0-100
-  };
+  ent_fsid: string; // Subject unique identifier (e.g., "fsid_metaverse")
+  ent_name: string; // Subject name
+  ent_summary: string; // Subject description/summary
+  indexes: Array<{
+    HR: number; // Horizon Rank (0-10)
+    TT: number; // Tech Transfer (0-10)
+    WS: number; // White Space (0-10)
+  }>; // May be empty array if not calculated
 }
 
 /**
- * Draft collection of subjects for lab creation
+ * Lab Seed collection of subjects and terms from API
  */
-export interface WhiteboardDraft {
-  id: string;
+export interface WhiteboardLabSeed {
+  uniqueID: string; // Lab seed unique identifier
   name: string;
-  description?: string;
+  description: string;
+  terms: string[]; // Array of term strings
+  subjects: WhiteboardSubject[]; // Array of subjects in this lab seed
+  createdAt: string; // ISO date string
+}
+
+/**
+ * Complete whiteboard data from API
+ */
+export interface WhiteboardData {
+  _id: string;
+  uniqueID: string; // Whiteboard unique identifier for API calls
+  userID: string;
   subjects: WhiteboardSubject[];
-  terms: string[];
-
-  // AI-generated taxonomy and insights
-  aiTaxonomy?: {
-    primaryCategory: string;
-    subCategories: string[];
-    confidence: number; // 0-100
-    suggestedLabName?: string;
-  };
-
-  // Computed metrics
-  metrics: DraftMetrics;
-
-  // Metadata
+  labSeeds: WhiteboardLabSeed[];
   createdAt: string;
   updatedAt: string;
-  createdById: string;
-
-  // Publishing state
-  isPublished: boolean;
-  publishedLabId?: string;
-  publishedAt?: string;
 }
 
 /**
- * Computed metrics for a draft
- */
-export interface DraftMetrics {
-  // Averages
-  avgHorizonRank: number;
-  avgTechTransfer: number;
-  avgWhiteSpace: number;
-
-  // Computed scores
-  coherenceScore: number; // 0-100: How well subjects relate
-  innovationPotential: number; // 0-100: White Space × Tech Transfer
-  maturityBalance: number; // 0-100: Spread across Horizon Ranks
-  velocityScore: number; // 0-100: Average Tech Transfer
-
-  // Distribution metrics
-  subjectCount: number;
-  categoryDiversity: number; // Number of distinct AI categories
-
-  // Risk indicators
-  competitionRisk: number; // 0-100: Based on low White Space
-  speculationRisk: number; // 0-100: Based on low Horizon Rank
-  stagnationRisk: number; // 0-100: Based on low Tech Transfer
-}
-
-/**
- * Visualization type for draft analysis
- */
-export type VisualizationType =
-  | 'list' // Simple subject listing
-  | 'network' // Relationship graph
-  | 'matrix' // Innovation opportunity matrix
-  | 'radar' // Portfolio balance radar
-  | 'heatmap' // Coherence heatmap
-  | 'distribution'; // Metrics distribution
-
-/**
- * Subject search result from external browse/search
+ * Subject search result from external search
  */
 export interface SubjectSearchResult {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  horizonRank: number;
-  techTransfer: number;
-  whiteSpace: number;
+  _id: string;
+  ent_fsid: string; // Subject unique identifier
+  ent_name: string;
+  ent_summary: string;
 
   // Search metadata
   relevanceScore?: number;
-  source: string; // Where it came from
+  source?: string; // Where it came from
   alreadyInWhiteboard?: boolean;
 }
 
@@ -121,59 +60,44 @@ export interface SubjectSearchResult {
  * Filter and sort options for whiteboard
  */
 export interface WhiteboardFilters {
-  // Metric ranges
-  horizonRankRange: [number, number];
-  techTransferRange: [number, number];
-  whiteSpaceRange: [number, number];
-
-  // Categories
-  categories: string[];
-
   // Search
   searchQuery: string;
 
   // Sort options
-  sortBy: 'name' | 'horizonRank' | 'techTransfer' | 'whiteSpace' | 'addedAt';
+  sortBy: 'name' | 'addedAt';
   sortOrder: 'asc' | 'desc';
 }
 
 /**
- * Draft creation/update requests
+ * Drag and drop item type
  */
-export interface CreateDraftRequest {
-  name: string;
-  description?: string;
-  subjectIds?: string[]; // Initial subjects
-}
-
-export interface UpdateDraftRequest {
-  name?: string;
-  description?: string;
-  subjectIds?: string[]; // Complete list (for reordering)
-}
-
-export interface AddSubjectToDraftRequest {
-  draftId: string;
-  subjectId: string;
-}
-
-export interface RemoveSubjectFromDraftRequest {
-  draftId: string;
-  subjectId: string;
+export interface DragItem {
+  type: string;
+  fsid: string;
+  sourceType: 'whiteboard' | 'labSeed';
+  sourceLabSeedId?: string;
 }
 
 /**
- * Lab creation from draft
+ * Page context data for whiteboard
  */
-export interface PublishDraftToLabRequest {
-  draftId: string;
-  labName: string;
-  labDescription: string;
-  labVisibility: 'Private' | 'Internal' | 'Public';
-
-  // Optional organization
-  categorizeSubjects?: boolean; // Use AI taxonomy for categories
-  includeMetrics?: boolean; // Add metrics as subject notes
+export interface WhiteboardPageContext {
+  pageType: 'whiteboard';
+  pageTitle: string;
+  drafts: Array<{
+    id: string;
+    name: string;
+    subjects: Array<{
+      id: string;
+      name: string;
+      title: string;
+    }>;
+    terms: Array<{
+      id: string;
+      name: string;
+      text: string;
+    }>;
+  }>;
 }
 
 // ============================================================================
@@ -181,310 +105,165 @@ export interface PublishDraftToLabRequest {
 // ============================================================================
 
 /**
- * Calculate comprehensive metrics for a draft
+ * Get metric value from subject indexes (returns null if not available)
  */
-export const calculateDraftMetrics = (
-  subjects: WhiteboardSubject[]
-): DraftMetrics => {
-  if (subjects.length === 0) {
-    return {
-      avgHorizonRank: 0,
-      avgTechTransfer: 0,
-      avgWhiteSpace: 0,
-      coherenceScore: 0,
-      innovationPotential: 0,
-      maturityBalance: 0,
-      velocityScore: 0,
-      subjectCount: 0,
-      categoryDiversity: 0,
-      competitionRisk: 0,
-      speculationRisk: 0,
-      stagnationRisk: 0,
-    };
+export const getMetricValue = (
+  subject: WhiteboardSubject,
+  metric: 'HR' | 'TT' | 'WS'
+): number | null => {
+  if (!subject.indexes || subject.indexes.length === 0) {
+    return null;
   }
 
-  // Calculate averages
-  const avgHorizonRank =
-    subjects.reduce((sum, s) => sum + s.horizonRank, 0) / subjects.length;
-  const avgTechTransfer =
-    subjects.reduce((sum, s) => sum + s.techTransfer, 0) / subjects.length;
-  const avgWhiteSpace =
-    subjects.reduce((sum, s) => sum + s.whiteSpace, 0) / subjects.length;
-
-  // Innovation potential (higher white space + higher tech transfer = better)
-  const innovationPotential = (avgWhiteSpace * avgTechTransfer) / 100;
-
-  // Maturity balance (how spread out the horizon ranks are)
-  const horizonRanks = subjects.map((s) => s.horizonRank);
-  const horizonStdDev = Math.sqrt(
-    horizonRanks.reduce(
-      (sum, hr) => sum + Math.pow(hr - avgHorizonRank, 2),
-      0
-    ) / horizonRanks.length
-  );
-  const maturityBalance = Math.min(100, horizonStdDev * 300); // Scale to 0-100
-
-  // Category diversity
-  const categories = new Set(
-    subjects.map((s) => s.aiInsights?.category).filter(Boolean)
-  );
-  const categoryDiversity = categories.size;
-
-  // Risk calculations
-  const competitionRisk = 100 - avgWhiteSpace; // Low white space = high competition
-  const speculationRisk = (1 - avgHorizonRank) * 100; // Low horizon rank = high speculation
-  const stagnationRisk = 100 - avgTechTransfer; // Low tech transfer = high stagnation
-
-  // Coherence score (mock calculation - would use AI in real implementation)
-  const coherenceScore = Math.max(
-    0,
-    100 - categoryDiversity * 10 - horizonStdDev * 50
-  );
-
-  return {
-    avgHorizonRank,
-    avgTechTransfer,
-    avgWhiteSpace,
-    coherenceScore: Math.min(100, Math.max(0, coherenceScore)),
-    innovationPotential: Math.min(100, innovationPotential),
-    maturityBalance,
-    velocityScore: avgTechTransfer,
-    subjectCount: subjects.length,
-    categoryDiversity,
-    competitionRisk,
-    speculationRisk,
-    stagnationRisk,
-  };
+  const firstIndex = subject.indexes[0];
+  return firstIndex[metric] ?? null;
 };
 
 /**
- * Get color scheme for metrics based on value and type
+ * Check if subject has calculated metrics
  */
-export const getMetricColorScheme = (
-  value: number,
-  type: 'horizonRank' | 'techTransfer' | 'whiteSpace' | 'score'
-): 'red' | 'orange' | 'green' | 'blue' => {
+export const hasMetrics = (subject: WhiteboardSubject): boolean => {
+  return subject.indexes && subject.indexes.length > 0;
+};
+
+/**
+ * Filter subjects by search query
+ */
+export const filterSubjects = (
+  subjects: WhiteboardSubject[],
+  searchQuery: string
+): WhiteboardSubject[] => {
+  if (!searchQuery.trim()) {
+    return subjects;
+  }
+
+  const query = searchQuery.toLowerCase();
+  return subjects.filter(
+    (subject) =>
+      subject.ent_name.toLowerCase().includes(query) ||
+      subject.ent_summary.toLowerCase().includes(query)
+  );
+};
+
+/**
+ * Sort subjects by specified criteria
+ */
+export const sortSubjects = (
+  subjects: WhiteboardSubject[],
+  sortBy: 'name' | 'addedAt',
+  sortOrder: 'asc' | 'desc'
+): WhiteboardSubject[] => {
+  const sorted = [...subjects].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.ent_name.localeCompare(b.ent_name);
+      case 'addedAt':
+        // Since we don't have addedAt in the API data, sort by name as fallback
+        return a.ent_name.localeCompare(b.ent_name);
+      default:
+        return 0;
+    }
+  });
+
+  return sortOrder === 'desc' ? sorted.reverse() : sorted;
+};
+
+/**
+ * Get color for metric based on value
+ */
+export const getMetricColor = (
+  value: number | null,
+  type: 'HR' | 'TT' | 'WS'
+): string => {
+  if (value === null) return '#666666';
+
   switch (type) {
-    case 'horizonRank':
-      // Lower is more speculative (red), middle is emerging (orange), higher is mature (green)
-      if (value < 0.3) return 'red';
-      if (value < 0.7) return 'orange';
-      return 'green';
-
-    case 'techTransfer':
-      // Higher is better (more active research → product pipeline)
-      if (value < 40) return 'red';
-      if (value < 70) return 'orange';
-      return 'green';
-
-    case 'whiteSpace':
-      // Higher is better (more opportunity)
-      if (value < 30) return 'red';
-      if (value < 60) return 'orange';
-      return 'green';
-
-    case 'score':
-      // Generic score where higher is better
-      if (value < 40) return 'red';
-      if (value < 70) return 'orange';
-      return 'green';
-
+    case 'HR':
+      return '#D4AF37'; // Gold for Horizon Rank
+    case 'TT':
+      return '#20B2AA'; // Teal for Tech Transfer
+    case 'WS':
+      return '#FF6B47'; // Coral for White Space
     default:
-      return 'blue';
+      return '#666666';
   }
 };
 
 /**
- * Generate innovation opportunity quadrant
+ * Validate lab seed data
  */
-export const getInnovationQuadrant = (
-  whiteSpace: number,
-  techTransfer: number
-): { name: string; color: string; description: string } => {
-  const wsHigh = whiteSpace >= 50;
-  const ttHigh = techTransfer >= 50;
-
-  if (wsHigh && ttHigh) {
-    return {
-      name: 'Blue Ocean',
-      color: 'blue',
-      description: 'High opportunity, high velocity - ideal for innovation',
-    };
-  }
-  if (wsHigh && !ttHigh) {
-    return {
-      name: 'Emerging',
-      color: 'orange',
-      description: 'High opportunity, low velocity - early stage potential',
-    };
-  }
-  if (!wsHigh && ttHigh) {
-    return {
-      name: 'Competitive',
-      color: 'red',
-      description: 'Low opportunity, high velocity - intense competition',
-    };
-  }
-  return {
-    name: 'Saturated',
-    color: 'gray',
-    description: 'Low opportunity, low velocity - mature/declining market',
-  };
-};
-
-/**
- * Generate AI taxonomy suggestions for a draft
- * (Mock implementation - would use real AI service)
- */
-export const generateTaxonomySuggestions = (
-  subjects: WhiteboardSubject[]
-): {
-  primaryCategory: string;
-  subCategories: string[];
-  confidence: number;
-  suggestedLabName: string;
-} => {
-  if (subjects.length === 0) {
-    return {
-      primaryCategory: 'Uncategorized',
-      subCategories: [],
-      confidence: 0,
-      suggestedLabName: 'New Lab',
-    };
-  }
-
-  // Mock AI logic based on subject keywords
-  const keywords = subjects.flatMap((s) => s.name.toLowerCase().split(' '));
-
-  // Simple heuristics for demonstration
-  if (
-    keywords.some((k) =>
-      [
-        'quantum',
-        'computing',
-        'ai',
-        'artificial',
-        'machine',
-        'learning',
-      ].includes(k)
-    )
-  ) {
-    return {
-      primaryCategory: 'Advanced Computing',
-      subCategories: [
-        'Quantum Systems',
-        'AI & Machine Learning',
-        'Computing Infrastructure',
-      ],
-      confidence: 85,
-      suggestedLabName: 'Next-Gen Computing Lab',
-    };
-  }
-
-  if (
-    keywords.some((k) =>
-      ['bio', 'health', 'medical', 'genetic', 'pharmaceutical'].includes(k)
-    )
-  ) {
-    return {
-      primaryCategory: 'Biotechnology',
-      subCategories: [
-        'Medical Technology',
-        'Genetic Engineering',
-        'Drug Discovery',
-      ],
-      confidence: 90,
-      suggestedLabName: 'BioTech Innovation Lab',
-    };
-  }
-
-  if (
-    keywords.some((k) =>
-      ['climate', 'energy', 'carbon', 'renewable', 'solar', 'wind'].includes(k)
-    )
-  ) {
-    return {
-      primaryCategory: 'Climate Technology',
-      subCategories: ['Clean Energy', 'Carbon Solutions', 'Sustainability'],
-      confidence: 88,
-      suggestedLabName: 'Climate Solutions Lab',
-    };
-  }
-
-  if (
-    keywords.some((k) =>
-      ['space', 'satellite', 'aerospace', 'rocket', 'orbit'].includes(k)
-    )
-  ) {
-    return {
-      primaryCategory: 'Space Technology',
-      subCategories: [
-        'Satellite Systems',
-        'Launch Technology',
-        'Space Exploration',
-      ],
-      confidence: 82,
-      suggestedLabName: 'Space Innovation Lab',
-    };
-  }
-
-  // Default fallback
-  return {
-    primaryCategory: 'Technology Innovation',
-    subCategories: ['Emerging Technology'],
-    confidence: 60,
-    suggestedLabName: 'Innovation Lab',
-  };
-};
-
-/**
- * Validate draft before publishing
- */
-export const validateDraftForPublishing = (
-  draft: WhiteboardDraft
-): {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-} => {
+export const validateLabSeed = (
+  name: string,
+  description: string
+): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
-  const warnings: string[] = [];
 
-  // Required validations
-  if (draft.subjects.length === 0) {
-    errors.push('Draft must contain at least one subject');
+  if (!name.trim()) {
+    errors.push('Lab seed name is required');
   }
 
-  if (!draft.name.trim()) {
-    errors.push('Draft must have a name');
+  if (name.trim().length > 100) {
+    errors.push('Lab seed name must be less than 100 characters');
   }
 
-  // Warning validations
-  if (draft.subjects.length < 3) {
-    warnings.push('Consider adding more subjects for a richer lab experience');
-  }
-
-  if (draft.metrics.coherenceScore < 50) {
-    warnings.push(
-      'Low coherence score - subjects may not relate well together'
-    );
-  }
-
-  if (draft.metrics.categoryDiversity === 1) {
-    warnings.push(
-      'All subjects are in the same category - consider diversifying'
-    );
-  }
-
-  if (draft.metrics.innovationPotential < 30) {
-    warnings.push(
-      'Low innovation potential - consider subjects with higher opportunity or velocity'
-    );
+  if (description.length > 500) {
+    errors.push('Description must be less than 500 characters');
   }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings,
+  };
+};
+
+/**
+ * Check if subject can be added to lab seed
+ */
+export const canAddSubjectToLabSeed = (
+  subject: WhiteboardSubject,
+  labSeed: WhiteboardLabSeed
+): boolean => {
+  return !labSeed.subjects.some((s) => s.ent_fsid === subject.ent_fsid);
+};
+
+/**
+ * Get lab seed statistics
+ */
+export const getLabSeedStats = (labSeed: WhiteboardLabSeed) => {
+  const totalSubjects = labSeed.subjects.length;
+  const totalTerms = labSeed.terms.length;
+  const subjectsWithMetrics = labSeed.subjects.filter(hasMetrics).length;
+  const averageMetrics = {
+    HR: 0,
+    TT: 0,
+    WS: 0,
+  };
+
+  if (subjectsWithMetrics > 0) {
+    const totals = labSeed.subjects.reduce(
+      (acc, subject) => {
+        const hr = getMetricValue(subject, 'HR');
+        const tt = getMetricValue(subject, 'TT');
+        const ws = getMetricValue(subject, 'WS');
+
+        if (hr !== null) acc.HR += hr;
+        if (tt !== null) acc.TT += tt;
+        if (ws !== null) acc.WS += ws;
+
+        return acc;
+      },
+      { HR: 0, TT: 0, WS: 0 }
+    );
+
+    averageMetrics.HR = totals.HR / subjectsWithMetrics;
+    averageMetrics.TT = totals.TT / subjectsWithMetrics;
+    averageMetrics.WS = totals.WS / subjectsWithMetrics;
+  }
+
+  return {
+    totalSubjects,
+    totalTerms,
+    subjectsWithMetrics,
+    averageMetrics,
   };
 };

@@ -14,6 +14,11 @@ import {
   Tabs,
   Skeleton,
   Alert,
+  MenuRoot,
+  MenuTrigger,
+  MenuContent,
+  MenuItem,
+  Field,
 } from '@chakra-ui/react';
 import {
   FiEdit,
@@ -22,24 +27,24 @@ import {
   FiSettings,
   FiMail,
   FiArrowLeft,
+  FiMoreVertical,
+  FiChevronRight,
 } from 'react-icons/fi';
+import { FaClipboardList, FaChartPie, FaChartLine } from 'react-icons/fa';
+import { TbCubePlus } from 'react-icons/tb';
+import { HiLightBulb } from 'react-icons/hi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePage } from '../../context/PageContext';
 import GlassCard from '../../components/shared/GlassCard';
-import type {
-  Lab as LabType,
-  ApiLabData,
-  SubjectData,
-  AnalysisData,
-} from './types';
-import { ApiTransformUtils } from './types';
+import type { Lab as LabType, SubjectCategory, LabSubject } from './types';
 import type { LabTab } from '../../context/PageContext/pageTypes';
+import Plan from './Plan';
 import Gather from './Gather';
 import Analyze from './Analyze';
 import Forecast from './Forecast';
 import Invent from './Invent';
-import { labAPIService } from '../../services/labAPIService';
+import { labService, type Lab as ApiLab } from '../../services/labService';
 
 const Lab: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,10 +53,11 @@ const Lab: React.FC = () => {
   const { setPageContext, clearPageContext } = usePage();
 
   const [lab, setLab] = useState<LabType | null>(null);
+  const [apiLabData, setApiLabData] = useState<ApiLab | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editForm, setEditForm] = useState<{
+  const [isEditingHeader, setIsEditingHeader] = useState<boolean>(false);
+  const [headerForm, setHeaderForm] = useState<{
     name: string;
     description: string;
   }>({
@@ -60,107 +66,237 @@ const Lab: React.FC = () => {
   });
   const [saving, setSaving] = useState<boolean>(false);
 
-  const [activeTab, setActiveTab] = useState<LabTab>('gather');
+  // Changed default tab to 'plan' and updated valid tabs
+  const [activeTab, setActiveTab] = useState<LabTab>('plan');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
-  // Real API functions for fetching related data
-  const fetchSubjectData = useCallback(
-    async (objectId: string): Promise<SubjectData> => {
-      try {
-        // Try real API first if token is available
-        if (token) {
-          try {
-            const response = await fetch(
-              `https://tools.futurity.science/api/subject/${objectId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
+  // Transform API lab data to frontend format using new subcategories_map structure
+  const transformApiLabToFrontend = useCallback(
+    async (apiLab: ApiLab): Promise<LabType> => {
+      console.log('Transforming API lab data:', apiLab);
 
-            if (response.ok) {
-              return await response.json();
+      // Initialize categories array with default uncategorized
+      const categories: SubjectCategory[] = [];
+      const allSubjects: LabSubject[] = [];
+
+      // Add default uncategorized category first
+      const uncategorizedCategory: SubjectCategory = {
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        type: 'default',
+        subjects: [],
+        description: 'Default category for new subjects',
+      };
+
+      // Process subcategories_map to create categories and subjects
+      if (apiLab.subcategories_map && Array.isArray(apiLab.subcategories_map)) {
+        for (const subcategoryMap of apiLab.subcategories_map) {
+          // Determine if this is the uncategorized category
+          const isUncategorized =
+            subcategoryMap.subcategory_name.toLowerCase() === 'uncategorized';
+
+          // Create category object
+          const category: SubjectCategory = {
+            id: isUncategorized
+              ? 'uncategorized'
+              : subcategoryMap.subcategory_id,
+            name: subcategoryMap.subcategory_name,
+            type: isUncategorized ? 'default' : 'custom',
+            subjects: [],
+            description: isUncategorized
+              ? 'Default category for new subjects'
+              : undefined,
+          };
+
+          // Process subjects in this subcategory
+          if (
+            subcategoryMap.subjects &&
+            Array.isArray(subcategoryMap.subjects)
+          ) {
+            for (const [
+              subjectIndex,
+              apiSubject,
+            ] of subcategoryMap.subjects.entries()) {
+              // Parse slug from ent_fsid by removing fsid_ prefix
+              const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
+                ? apiSubject.ent_fsid.substring(5)
+                : apiSubject.ent_fsid;
+
+              // Create basic subject first
+              const frontendSubject: LabSubject = {
+                id: `subj-${category.id}-${subjectIndex}-${apiSubject.ent_fsid}`,
+                subjectId: apiSubject.ent_fsid, // Use ent_fsid as the ID for association
+                subjectName: apiSubject.ent_name,
+                subjectSlug: subjectSlug,
+                addedAt: new Date().toISOString(),
+                addedById: 'unknown',
+                notes: apiSubject.ent_summary || '',
+                categoryId: category.id,
+                // These will be filled in by fetchSubjectIndexes
+                horizonRank: undefined,
+                techTransfer: undefined,
+                whiteSpace: undefined,
+              };
+
+              allSubjects.push(frontendSubject);
+              category.subjects.push(frontendSubject);
             }
-          } catch (apiError) {
-            console.warn(
-              'Subject API failed, falling back to mock data:',
-              apiError
-            );
+          }
+
+          // Add category to list (replace uncategorized if this is the uncategorized category)
+          if (isUncategorized) {
+            // Update the uncategorized category with subjects
+            uncategorizedCategory.subjects = category.subjects;
+          } else {
+            categories.push(category);
           }
         }
-
-        // Fallback to mock data
-        const { mockFetchSubjectData } = await import('./mockData');
-        return await mockFetchSubjectData(objectId);
-      } catch (error) {
-        console.error('Failed to fetch subject data:', error);
-        // Return default subject data if both API and mock fail
-        return {
-          _id: objectId,
-          Google_hitcounts: 0,
-          Papers_hitcounts: 0,
-          Books_hitcounts: 0,
-          Gnews_hitcounts: 0,
-          Related_terms: '',
-          wikipedia_definition: '',
-          wiktionary_definition: '',
-          FST: '',
-          labs: '',
-          wikipedia_url: '',
-          ent_name: 'Unknown Subject',
-          ent_fsid: 'unknown',
-          ent_summary: 'Subject data not found',
-        };
       }
+
+      // Always ensure uncategorized is first in the list
+      categories.unshift(uncategorizedCategory);
+
+      console.log('Transformed categories:', categories);
+      console.log('Total subjects before index fetch:', allSubjects.length);
+
+      return {
+        id: apiLab._id,
+        uniqueID: apiLab.uniqueID,
+        name: apiLab.ent_name,
+        description: apiLab.ent_summary || '',
+        teamspaceId: 'unknown',
+        createdAt: apiLab.createdAt,
+        updatedAt: apiLab.updatedAt,
+        isArchived: apiLab.status === 'archived',
+        isDeleted: apiLab.status === 'deleted',
+        deletedAt: apiLab.status === 'deleted' ? apiLab.updatedAt : null,
+        adminIds: ['current-user'],
+        editorIds: [],
+        memberIds: ['current-user'],
+        goals: [],
+        subjects: allSubjects,
+        categories: categories,
+        analyses: [],
+        includeTerms: apiLab.include_terms || [],
+        excludeTerms: apiLab.exclude_terms || [],
+        miroUrl: apiLab.miro_board_url,
+        knowledgebaseId: apiLab.kbid,
+        pictureUrl: apiLab.picture_url,
+        thumbnailUrl: apiLab.thumbnail_url,
+      };
     },
-    [token]
+    []
   );
 
-  const fetchAnalysisData = useCallback(
-    async (objectId: string): Promise<AnalysisData> => {
-      try {
-        // Try real API first if token is available
-        if (token) {
-          try {
-            const response = await fetch(
-              `https://tools.futurity.science/api/analysis/${objectId}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
-
-            if (response.ok) {
-              return await response.json();
-            }
-          } catch (apiError) {
-            console.warn(
-              'Analysis API failed, falling back to mock data:',
-              apiError
-            );
-          }
-        }
-
-        // Fallback to mock data
-        const { mockFetchAnalysisData } = await import('./mockData');
-        return await mockFetchAnalysisData(objectId);
-      } catch (error) {
-        console.error('Failed to fetch analysis data:', error);
-        // Return default analysis data if both API and mock fail
-        return {
-          id: objectId,
-          title: 'Unknown Analysis',
-          description: 'Analysis data not found',
-          status: 'Unknown',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdById: 'unknown',
-        };
+  const fetchSubjectIndexes = useCallback(
+    async (lab: LabType): Promise<LabType> => {
+      if (!token) {
+        console.log('No token available, skipping subject index fetch');
+        return lab;
       }
+
+      console.log('Fetching indexes for', lab.subjects.length, 'subjects');
+
+      // Create a copy of the lab to update
+      const updatedLab = { ...lab };
+      const updatedCategories = [...lab.categories];
+
+      // Track successful fetches
+      let successfulFetches = 0;
+
+      for (const subject of lab.subjects) {
+        try {
+          // Ensure the fsid has the fsid_ prefix for the API call
+          const subjectFsid = subject.subjectSlug.startsWith('fsid_')
+            ? subject.subjectSlug
+            : `fsid_${subject.subjectSlug}`;
+
+          const response = await fetch(
+            `https://fast.futurity.science/management/subjects/${encodeURIComponent(
+              subjectFsid
+            )}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            console.warn(
+              `Failed to fetch data for subject ${subject.subjectName}: ${response.status}`
+            );
+            continue;
+          }
+
+          const subjectData = await response.json();
+
+          // Extract index values
+          let horizonRank = undefined;
+          let techTransfer = undefined;
+          let whiteSpace = undefined;
+
+          if (
+            subjectData.indexes &&
+            Array.isArray(subjectData.indexes) &&
+            subjectData.indexes.length > 0
+          ) {
+            const firstIndex = subjectData.indexes[0];
+            if (firstIndex && typeof firstIndex === 'object') {
+              horizonRank = firstIndex.HR;
+              techTransfer = firstIndex.TT;
+              whiteSpace = firstIndex.WS;
+            }
+          }
+
+          console.log(
+            `Subject ${subject.subjectName}: HR=${horizonRank}, TT=${techTransfer}, WS=${whiteSpace}`
+          );
+
+          // Update the subject in all references
+          const updatedSubject = {
+            ...subject,
+            horizonRank,
+            techTransfer,
+            whiteSpace,
+          };
+
+          // Update in the main subjects array
+          const subjectIndex = updatedLab.subjects.findIndex(
+            (s) => s.id === subject.id
+          );
+          if (subjectIndex !== -1) {
+            updatedLab.subjects[subjectIndex] = updatedSubject;
+          }
+
+          // Update in the categories
+          for (const category of updatedCategories) {
+            const categorySubjectIndex = category.subjects.findIndex(
+              (s) => s.id === subject.id
+            );
+            if (categorySubjectIndex !== -1) {
+              category.subjects[categorySubjectIndex] = updatedSubject;
+              break;
+            }
+          }
+
+          successfulFetches++;
+        } catch (error) {
+          console.error(
+            `Error fetching data for subject ${subject.subjectName}:`,
+            error
+          );
+        }
+      }
+
+      updatedLab.categories = updatedCategories;
+
+      console.log(
+        `Successfully fetched indexes for ${successfulFetches}/${lab.subjects.length} subjects`
+      );
+
+      return updatedLab;
     },
     [token]
   );
@@ -192,109 +328,60 @@ const Lab: React.FC = () => {
 
   // Fetch lab data with real API
   const fetchLabData = useCallback(async (): Promise<void> => {
-    console.log('Starting to fetch lab data for id:', id);
+    console.log('Starting to fetch lab data for uniqueID:', id);
     setLoading(true);
     setError(null);
 
     if (!id) {
-      setError('Missing lab ID');
+      setError('Missing lab unique ID');
+      setLoading(false);
+      return;
+    }
+
+    if (!token) {
+      setError('Authentication required. Please log in.');
       setLoading(false);
       return;
     }
 
     try {
-      let apiLabData: ApiLabData | undefined;
-      let useRealAPI = false;
+      // Use the enhanced lab service with the uniqueID from URL params
+      const apiLabData = await labService.getLabById(id, token);
+      console.log('Successfully fetched lab data from API:', {
+        _id: apiLabData._id,
+        uniqueID: apiLabData.uniqueID,
+        urlParam: id,
+      });
 
-      // Try to fetch from real API first if token is available
-      if (token) {
-        try {
-          // Fixed: Use the correct endpoint with query parameter
-          const response = await fetch(
-            `https://tools.futurity.science/api/lab/view?lab_id=${id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
+      // Store the raw API data
+      setApiLabData(apiLabData);
 
-          if (response.ok) {
-            // Use real API data
-            apiLabData = await response.json();
-            useRealAPI = true;
-            console.log('Successfully fetched lab data from API');
-          } else if (response.status === 401) {
-            setError('Session expired. Please log in again.');
-            setLoading(false);
-            return;
-          } else if (response.status === 403) {
-            setError('You do not have permission to access this lab.');
-            setLoading(false);
-            return;
-          } else {
-            // API failed, will fallback to mock data
-            console.warn(
-              `API responded with ${response.status}, falling back to mock data`
-            );
-          }
-        } catch (apiError) {
-          // Network error or other API issue, will fallback to mock data
-          console.warn(
-            'API request failed, falling back to mock data:',
-            apiError
-          );
-        }
-      }
-
-      // Fallback to mock data if API didn't work or no token
-      if (!useRealAPI || !apiLabData) {
-        console.log('Using mock data for lab ID:', id);
-
-        // Import mock data
-        const { mockFetchLabData } = await import('./mockData');
-
-        try {
-          apiLabData = await mockFetchLabData(id);
-          console.log('Successfully loaded mock lab data');
-        } catch (mockError) {
-          console.error('Mock data also failed:', mockError);
-          setError(`Lab with ID "${id}" not found. Please check the URL.`);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Ensure we have data before proceeding
-      if (!apiLabData) {
-        setError('No lab data available');
-        setLoading(false);
-        return;
-      }
-
-      // Transform API data to frontend format
-      const transformedLab = await ApiTransformUtils.transformLab(
-        apiLabData,
-        id, // Use the actual lab ID from the URL
-        fetchSubjectData,
-        fetchAnalysisData
+      // Transform API data to frontend format (without indexes initially)
+      let transformedLab = await transformApiLabToFrontend(apiLabData);
+      console.log(
+        'Initial transformation complete, now fetching subject indexes...'
       );
 
+      // Fetch individual subject data to get indexes (HR, TT, WS)
+      transformedLab = await fetchSubjectIndexes(transformedLab);
+      console.log('Subject indexes fetch complete');
+
       setLab(transformedLab);
-      setEditForm({
+      setHeaderForm({
         name: transformedLab.name,
         description: transformedLab.description,
       });
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch lab:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to load lab data'
-      );
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Failed to load lab data');
+      }
       setLoading(false);
     }
-  }, [id, token, fetchSubjectData, fetchAnalysisData]);
+  }, [id, token, transformApiLabToFrontend, fetchSubjectIndexes]);
 
   useEffect(() => {
     fetchLabData();
@@ -306,17 +393,17 @@ const Lab: React.FC = () => {
     return lab.adminIds.includes(user._id);
   };
 
-  // Handle edit mode toggle
-  const handleEditToggle = (): void => {
-    if (isEditing) {
-      setEditForm({
+  // Handle header edit mode toggle
+  const handleHeaderEditToggle = (): void => {
+    if (isEditingHeader) {
+      setHeaderForm({
         name: lab?.name || '',
         description: lab?.description || '',
       });
-      setIsEditing(false);
+      setIsEditingHeader(false);
       setIsEditDialogOpen(false);
     } else {
-      setIsEditing(true);
+      setIsEditingHeader(true);
       setIsEditDialogOpen(true);
     }
   };
@@ -326,7 +413,7 @@ const Lab: React.FC = () => {
     field: 'name' | 'description',
     value: string
   ): void => {
-    setEditForm((prev) => ({
+    setHeaderForm((prev) => ({
       ...prev,
       [field]: value,
     }));
@@ -334,31 +421,29 @@ const Lab: React.FC = () => {
 
   // Handle save changes using real API
   const handleSave = async (): Promise<void> => {
-    if (!lab || !token) return;
+    if (!lab || !token || !id) return;
 
     setSaving(true);
 
     try {
-      // Use the real API service to update lab info
-      const updatedApiData = await labAPIService.updateLabInfo(
-        lab.id,
-        editForm.name.trim(),
-        editForm.description.trim(),
+      // Use the enhanced lab service to update using uniqueID
+      const updatedApiLab = await labService.updateLabInfo(
+        lab.uniqueID || id, // Use uniqueID first, fallback to URL param
+        headerForm.name.trim(),
+        headerForm.description.trim(),
         token
       );
 
-      // Transform the response back to frontend format
-      const updatedLab = await ApiTransformUtils.transformLab(
-        updatedApiData,
-        lab.id,
-        fetchSubjectData,
-        fetchAnalysisData
-      );
-
+      // Update both the API data and transformed lab
+      setApiLabData(updatedApiLab);
+      const updatedLab = transformApiLabToFrontend(updatedApiLab);
       setLab(updatedLab);
-      setIsEditing(false);
+
+      setIsEditingHeader(false);
       setSaving(false);
       setIsEditDialogOpen(false);
+
+      console.log('Successfully updated lab info');
     } catch (error) {
       console.error('Failed to update lab:', error);
       setError(error instanceof Error ? error.message : 'Failed to update lab');
@@ -371,9 +456,15 @@ const Lab: React.FC = () => {
     navigate(`/lab/${id}/admin`);
   };
 
-  // Handle tab change with proper typing
+  // Handle tab change with proper typing - updated to include 'plan'
   const handleTabChange = (value: string): void => {
-    const validTabs: LabTab[] = ['gather', 'analyze', 'forecast', 'invent'];
+    const validTabs: LabTab[] = [
+      'plan',
+      'gather',
+      'analyze',
+      'forecast',
+      'invent',
+    ];
     if (validTabs.includes(value as LabTab)) {
       setActiveTab(value as LabTab);
     }
@@ -398,6 +489,45 @@ const Lab: React.FC = () => {
     );
     window.location.href = `mailto:fasthelp@futurity.systems?subject=${subject}&body=${body}`;
   };
+
+  // Handle terms update for Plan tab
+  const handleTermsUpdate = useCallback(
+    async (includeTerms: string[], excludeTerms: string[]) => {
+      if (!lab || !token || !id) return;
+
+      try {
+        // Update via API using the uniqueID (from URL params) not the MongoDB _id
+        const updatedApiLab = await labService.updateLabTerms(
+          lab.uniqueID || id, // Use uniqueID first, fallback to URL param
+          includeTerms,
+          excludeTerms,
+          token
+        );
+
+        // Update both the API data and transformed lab
+        setApiLabData(updatedApiLab);
+        const updatedLab = transformApiLabToFrontend(updatedApiLab);
+        setLab(updatedLab);
+
+        console.log('Successfully updated lab terms');
+      } catch (error) {
+        console.error('Failed to update terms:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to update terms'
+        );
+      }
+    },
+    [lab, token, id, transformApiLabToFrontend]
+  );
+
+  // Tab configuration with icons
+  const tabConfig = [
+    { value: 'plan', label: 'Plan', icon: FaClipboardList },
+    { value: 'gather', label: 'Gather', icon: TbCubePlus },
+    { value: 'analyze', label: 'Analyze', icon: FaChartPie },
+    { value: 'forecast', label: 'Forecast', icon: FaChartLine },
+    { value: 'invent', label: 'Invent', icon: HiLightBulb },
+  ];
 
   // Error handling
   if (error) {
@@ -460,6 +590,7 @@ const Lab: React.FC = () => {
           <GlassCard variant='glass' w='100%' bg='bg.canvas'>
             <Box p={4}>
               <HStack gap={4}>
+                <Skeleton height='32px' width='60px' />
                 <Skeleton height='32px' width='80px' />
                 <Skeleton height='32px' width='80px' />
                 <Skeleton height='32px' width='80px' />
@@ -469,181 +600,10 @@ const Lab: React.FC = () => {
           </GlassCard>
         </Box>
 
-        {/* Gather page content skeleton */}
+        {/* Content skeleton */}
         <VStack gap={4} align='stretch'>
-          {/* Header with search bar skeleton */}
-          <HStack justify='space-between' align='center'>
-            <HStack gap={4} flex='1'>
-              <Skeleton height='32px' width='100px' />{' '}
-              {/* "Subjects" heading */}
-              <Skeleton height='40px' width='400px' /> {/* Search input */}
-            </HStack>
-            <Skeleton height='40px' width='140px' />{' '}
-            {/* "New Category" button */}
-          </HStack>
-
-          {/* Kanban board skeleton */}
-          <Box position='relative' w='100%'>
-            <Box w='100%' overflowX='auto' overflowY='hidden' pb={4} pt={2}>
-              <HStack gap={4} align='flex-start' minW='fit-content' pb={2}>
-                {/* Include/Exclude Terms column skeleton */}
-                <Box
-                  minW='200px'
-                  maxW='250px'
-                  h='calc(100vh - 250px)'
-                  bg='bg.canvas'
-                  borderColor='border.emphasized'
-                  borderWidth='1px'
-                  borderRadius='md'
-                  display='flex'
-                  flexDirection='column'
-                >
-                  {/* Header */}
-                  <Box
-                    p={4}
-                    borderBottom='1px solid'
-                    borderBottomColor='border.muted'
-                  >
-                    <VStack gap={2} align='stretch'>
-                      <Skeleton height='16px' width='150px' />
-                      <Skeleton height='12px' width='100px' />
-                    </VStack>
-                  </Box>
-                  {/* Content */}
-                  <Box flex='1' p={3}>
-                    <VStack gap={2}>
-                      <Skeleton height='40px' width='100%' />
-                      <Skeleton height='32px' width='80%' />
-                      <Skeleton height='32px' width='90%' />
-                    </VStack>
-                  </Box>
-                </Box>
-
-                {/* Category columns skeleton */}
-                {[1, 2, 3].map((i) => (
-                  <Box
-                    key={i}
-                    minW='280px'
-                    maxW='320px'
-                    h='calc(100vh - 250px)'
-                    bg='bg.canvas'
-                    borderColor='border.emphasized'
-                    borderWidth='1px'
-                    borderRadius='md'
-                    display='flex'
-                    flexDirection='column'
-                  >
-                    {/* Column header */}
-                    <Box
-                      p={4}
-                      borderBottom='1px solid'
-                      borderBottomColor='border.muted'
-                    >
-                      <HStack justify='space-between' align='center'>
-                        <HStack gap={2} flex='1'>
-                          <Skeleton height='16px' width='80px' />
-                          <Skeleton
-                            height='20px'
-                            width='24px'
-                            borderRadius='md'
-                          />
-                        </HStack>
-                        <HStack gap={1}>
-                          <Skeleton
-                            height='24px'
-                            width='24px'
-                            borderRadius='md'
-                          />
-                          <Skeleton
-                            height='24px'
-                            width='24px'
-                            borderRadius='md'
-                          />
-                        </HStack>
-                      </HStack>
-                    </Box>
-
-                    {/* Subject cards */}
-                    <Box flex='1' p={3} overflowY='auto'>
-                      <VStack gap={3} align='stretch'>
-                        {[1, 2].map((j) => (
-                          <Box
-                            key={j}
-                            p={3}
-                            border='1px solid'
-                            borderColor='border.emphasized'
-                            borderRadius='md'
-                            w='100%'
-                            bg='bg.subtle'
-                          >
-                            <VStack gap={2} align='stretch'>
-                              {/* Subject title and actions */}
-                              <HStack
-                                justify='space-between'
-                                align='flex-start'
-                              >
-                                <Skeleton height='16px' width='70%' />
-                                <HStack gap={1}>
-                                  <Skeleton
-                                    height='20px'
-                                    width='20px'
-                                    borderRadius='sm'
-                                  />
-                                  <Skeleton
-                                    height='20px'
-                                    width='20px'
-                                    borderRadius='sm'
-                                  />
-                                </HStack>
-                              </HStack>
-                              {/* Subject description */}
-                              <Skeleton height='12px' width='100%' />
-                              <Skeleton height='12px' width='60%' />
-                              {/* Subject metadata */}
-                              <HStack justify='space-between' mt={2}>
-                                <Skeleton height='10px' width='40%' />
-                                <Skeleton height='10px' width='30%' />
-                              </HStack>
-                            </VStack>
-                          </Box>
-                        ))}
-                      </VStack>
-                    </Box>
-
-                    {/* Column footer (if any) */}
-                    {i === 1 && (
-                      <Box
-                        p={3}
-                        borderTop='1px solid'
-                        borderTopColor='border.muted'
-                      >
-                        <Skeleton height='12px' width='120px' />
-                      </Box>
-                    )}
-                  </Box>
-                ))}
-
-                {/* Add category column skeleton */}
-                <Box
-                  minW='280px'
-                  maxW='320px'
-                  h='200px'
-                  border='2px dashed'
-                  borderColor='border.muted'
-                  borderRadius='md'
-                  display='flex'
-                  alignItems='center'
-                  justifyContent='center'
-                  bg='bg.canvas'
-                >
-                  <VStack gap={2}>
-                    <Skeleton height='24px' width='24px' borderRadius='full' />
-                    <Skeleton height='16px' width='80px' />
-                  </VStack>
-                </Box>
-              </HStack>
-            </Box>
-          </Box>
+          <Skeleton height='200px' width='100%' />
+          <Skeleton height='300px' width='100%' />
         </VStack>
       </Box>
     );
@@ -733,11 +693,17 @@ const Lab: React.FC = () => {
 
   return (
     <Box p={6} bg='bg' minHeight='calc(100vh - 64px)' color='fg'>
-      {/* Main Lab Card */}
-      <GlassCard variant='outline' w='100%' mb={6} bg='bg.canvas'>
+      {/* Main Lab Card with Three-Dot Menu */}
+      <GlassCard
+        variant='outline'
+        w='100%'
+        mb={6}
+        bg='bg.canvas'
+        borderColor='border.emphasized'
+      >
         <Box p={6}>
           <VStack gap={4} align='stretch'>
-            {/* Header with Title and Actions */}
+            {/* Header with Title and Three-Dot Menu */}
             <Flex justify='space-between' align='flex-start'>
               <VStack gap={2} align='stretch' flex='1' mr={4}>
                 <Heading as='h1' size='xl' fontFamily='heading' color='fg'>
@@ -749,18 +715,6 @@ const Lab: React.FC = () => {
               </VStack>
 
               <HStack gap={2}>
-                {/* Edit Lab Button - Only show for admins */}
-                {isLabAdmin() && (
-                  <Button
-                    size='md'
-                    variant='outline'
-                    onClick={handleEditToggle}
-                  >
-                    <FiEdit size={16} />
-                    Edit Lab
-                  </Button>
-                )}
-
                 {/* Lab Settings Button - Only show for admins */}
                 {isLabAdmin() && (
                   <IconButton
@@ -768,9 +722,38 @@ const Lab: React.FC = () => {
                     variant='ghost'
                     onClick={handleNavigateToSettings}
                     aria-label='Lab Settings'
+                    color='fg'
+                    _hover={{ bg: 'bg.hover' }}
                   >
                     <FiSettings size={16} />
                   </IconButton>
+                )}
+
+                {/* Three-Dot Menu - Only show for admins */}
+                {isLabAdmin() && (
+                  <MenuRoot>
+                    <MenuTrigger asChild>
+                      <IconButton
+                        size='md'
+                        variant='ghost'
+                        aria-label='Lab Options'
+                        color='fg.muted'
+                        _hover={{ bg: 'bg.hover' }}
+                      >
+                        <FiMoreVertical size={16} />
+                      </IconButton>
+                    </MenuTrigger>
+                    <MenuContent bg='bg.canvas' borderColor='border.emphasized'>
+                      <MenuItem
+                        onClick={handleHeaderEditToggle}
+                        color='fg'
+                        _hover={{ bg: 'bg.hover' }}
+                      >
+                        <FiEdit size={14} />
+                        Edit lab title and description
+                      </MenuItem>
+                    </MenuContent>
+                  </MenuRoot>
                 )}
               </HStack>
             </Flex>
@@ -791,12 +774,15 @@ const Lab: React.FC = () => {
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
                 Analyses: {lab.analyses.length}
               </Text>
+              <Text fontSize='sm' color='fg.muted' fontFamily='body'>
+                Goals: {apiLabData?.goals?.length || 0}
+              </Text>
             </HStack>
           </VStack>
         </Box>
       </GlassCard>
 
-      {/* Sticky Tab Navigation */}
+      {/* Enhanced Sticky Tab Navigation with Icons and Arrows */}
       <Box position='sticky' top='64px' zIndex='10' mb={6}>
         <GlassCard variant='glass' w='100%' bg='bg.canvas'>
           <Box p={4}>
@@ -804,39 +790,78 @@ const Lab: React.FC = () => {
               value={activeTab}
               onValueChange={(details) => handleTabChange(details.value)}
             >
-              <Tabs.List>
-                <Tabs.Trigger value='gather'>Gather</Tabs.Trigger>
-                <Tabs.Trigger value='analyze'>Analyze</Tabs.Trigger>
-                <Tabs.Trigger value='forecast'>Forecast</Tabs.Trigger>
-                <Tabs.Trigger value='invent'>Invent</Tabs.Trigger>
-              </Tabs.List>
+              <Box position='relative'>
+                <Tabs.List>
+                  {tabConfig.map((tab, index) => {
+                    const IconComponent = tab.icon;
+
+                    return (
+                      <React.Fragment key={tab.value}>
+                        <Tabs.Trigger
+                          value={tab.value}
+                          display='flex'
+                          alignItems='center'
+                          gap={2}
+                        >
+                          <IconComponent size={16} />
+                          {tab.label}
+                        </Tabs.Trigger>
+
+                        {/* Arrow between tabs */}
+                        {index < tabConfig.length - 1 && (
+                          <Box
+                            display='flex'
+                            alignItems='center'
+                            px={2}
+                            color='fg.muted'
+                            fontSize='xs'
+                          >
+                            <FiChevronRight size={12} />
+                          </Box>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </Tabs.List>
+              </Box>
             </Tabs.Root>
           </Box>
         </GlassCard>
       </Box>
 
-      {/* Tab Content */}
+      {/* Tab Content - Pass uniqueID instead of id */}
       <Box>
+        {activeTab === 'plan' && (
+          <Plan
+            labId={lab.uniqueID || id || ''} // Use uniqueID first, fallback to URL param
+            lab={lab}
+            includeTerms={apiLabData?.include_terms || lab.includeTerms || []}
+            excludeTerms={apiLabData?.exclude_terms || lab.excludeTerms || []}
+            onTermsUpdate={handleTermsUpdate}
+            onRefreshLab={fetchLabData}
+          />
+        )}
         {activeTab === 'gather' && (
           <Gather
-            labId={lab.id}
-            includeTerms={lab.includeTerms || []}
-            excludeTerms={lab.excludeTerms || []}
+            labId={lab.uniqueID || id || ''} // Use uniqueID first, fallback to URL param
+            labName={lab.name}
             categories={lab.categories || []}
-            onTermsUpdate={(includeTerms, excludeTerms) => {
-              setLab((prev) =>
-                prev ? { ...prev, includeTerms, excludeTerms } : null
-              );
-            }}
             onCategoriesUpdate={(categories) => {
               setLab((prev) => (prev ? { ...prev, categories } : null));
             }}
             onRefreshLab={fetchLabData}
           />
         )}
-        {activeTab === 'analyze' && <Analyze labId={lab.id} />}
-        {activeTab === 'forecast' && <Forecast labId={lab.id} />}
-        {activeTab === 'invent' && <Invent labId={lab.id} />}
+        {activeTab === 'analyze' && (
+          <Analyze
+            labId={lab.uniqueID || id || ''}
+            labUniqueID={lab.uniqueID}
+          />
+        )}
+        {activeTab === 'forecast' && (
+          <Forecast labId={lab.uniqueID || id || ''} />
+        )}
+        {activeTab === 'invent' && <Invent labId={lab.uniqueID || id || ''} />}
       </Box>
 
       {/* Edit Dialog */}
@@ -852,7 +877,12 @@ const Lab: React.FC = () => {
                 Edit Lab Details
               </Dialog.Title>
               <Dialog.CloseTrigger asChild>
-                <IconButton size='sm' variant='ghost'>
+                <IconButton
+                  size='sm'
+                  variant='ghost'
+                  color='fg'
+                  _hover={{ bg: 'bg.hover' }}
+                >
                   <FiX />
                 </IconButton>
               </Dialog.CloseTrigger>
@@ -871,11 +901,11 @@ const Lab: React.FC = () => {
                     Lab Name
                   </Text>
                   <Input
-                    value={editForm.name}
+                    value={headerForm.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     placeholder='Enter lab name...'
-                    bg='bg'
-                    borderColor='border.muted'
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
                     color='fg'
                     _placeholder={{ color: 'fg.muted' }}
                     _focus={{
@@ -896,15 +926,15 @@ const Lab: React.FC = () => {
                     Lab Description
                   </Text>
                   <Textarea
-                    value={editForm.description}
+                    value={headerForm.description}
                     onChange={(e) =>
                       handleInputChange('description', e.target.value)
                     }
                     placeholder='Enter lab description...'
                     rows={6}
                     resize='vertical'
-                    bg='bg'
-                    borderColor='border.muted'
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
                     color='fg'
                     _placeholder={{ color: 'fg.muted' }}
                     _focus={{
@@ -920,7 +950,7 @@ const Lab: React.FC = () => {
               <HStack gap={3}>
                 <Button
                   variant='outline'
-                  onClick={handleEditToggle}
+                  onClick={handleHeaderEditToggle}
                   disabled={saving}
                   color='fg'
                   borderColor='border.emphasized'

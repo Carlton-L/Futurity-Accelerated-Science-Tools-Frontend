@@ -1,0 +1,58 @@
+<svg width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background shape following the outer cube hexagon -->
+  <polygon points="110,10 197,60 197,160 110,210 23,160 23,60" fill="black"/>
+  
+  <!-- 3D wireframe cube in vertex-first view (flipped upside-down) -->
+  <g transform="translate(110, 110)" stroke="white" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    
+    <!-- THICK LINES: Front-facing edges (8 visible edges) -->
+    <g stroke-width="7">
+      <!-- Outer hexagon (6 edges) - flipped -->
+      <line x1="0" y1="100" x2="87" y2="50"/>
+      <line x1="87" y1="50" x2="87" y2="-50"/>
+      <line x1="87" y1="-50" x2="0" y2="-100"/>
+      <line x1="0" y1="-100" x2="-87" y2="-50"/>
+      <line x1="-87" y1="-50" x2="-87" y2="50"/>
+      <line x1="-87" y1="50" x2="0" y2="100"/>
+      
+      <!-- Three internal edges meeting at center -->
+      <line x1="0" y1="0" x2="0" y2="100"/>
+      <line x1="0" y1="0" x2="87" y2="-50"/>
+      <line x1="0" y1="0" x2="-87" y2="-50"/>
+    </g>
+    
+    <!-- THIN LINES: Back-facing edges (3 hidden edges) -->
+    <g stroke-width="2">
+      <line x1="0" y1="0" x2="0" y2="-100"/>
+      <line x1="0" y1="0" x2="87" y2="50"/>
+      <line x1="0" y1="0" x2="-87" y2="50"/>
+    </g>
+    
+    <!-- INNER CUBE: Smaller, rotated 45 degrees, thinner lines -->
+    <g transform="rotate(45)" stroke-width="2">
+      <!-- THICK LINES: Front-facing edges (8 visible edges) -->
+      <g stroke-width="4">
+        <!-- Outer hexagon (6 edges) - scaled down -->
+        <line x1="0" y1="52.5" x2="45.5" y2="26.25"/>
+        <line x1="45.5" y1="26.25" x2="45.5" y2="-26.25"/>
+        <line x1="45.5" y1="-26.25" x2="0" y2="-52.5"/>
+        <line x1="0" y1="-52.5" x2="-45.5" y2="-26.25"/>
+        <line x1="-45.5" y1="-26.25" x2="-45.5" y2="26.25"/>
+        <line x1="-45.5" y1="26.25" x2="0" y2="52.5"/>
+        
+        <!-- Three internal edges meeting at center -->
+        <line x1="0" y1="0" x2="0" y2="52.5"/>
+        <line x1="0" y1="0" x2="45.5" y2="-26.25"/>
+        <line x1="0" y1="0" x2="-45.5" y2="-26.25"/>
+      </g>
+      
+      <!-- Back-facing edges (3 hidden edges) -->
+      <g stroke-width="1.5">
+        <line x1="0" y1="0" x2="0" y2="-52.5"/>
+        <line x1="0" y1="0" x2="45.5" y2="26.25"/>
+        <line x1="0" y1="0" x2="-45.5" y2="26.25"/>
+      </g>
+    </g>
+    
+  </g>
+</svg>

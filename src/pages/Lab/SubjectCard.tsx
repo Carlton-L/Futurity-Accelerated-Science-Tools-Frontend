@@ -14,6 +14,25 @@ import { KanbanItem } from '../../components/shared/Kanban';
 import { useAuth } from '../../context/AuthContext';
 import type { LabSubject } from './types';
 
+// Blue hexagon icon component for subjects - matching whiteboard
+const SubjectHexagonIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+  >
+    <path
+      d='M12 2L20.196 7V17L12 22L3.804 17V7L12 2Z'
+      fill='#0005E9'
+      stroke='#0005E9'
+      strokeWidth='1'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
+
 interface SubjectCardProps {
   subject: LabSubject;
   categoryId: string;
@@ -21,17 +40,44 @@ interface SubjectCardProps {
   onSubjectRemove: (subjectId: string, categoryId: string) => void;
   onSubjectView: (subject: LabSubject) => void;
   isLoading?: boolean;
+  // New props for horizontal tooltip positioning
+  tooltipPlacement?: 'bottom-start' | 'right' | 'left';
+  isInHorizontalLayout?: boolean;
 }
 
 interface SubjectApiData {
   _id: string;
+  Google_hitcounts: number;
+  Papers_hitcounts: number;
+  Books_hitcounts: number;
+  Gnews_hitcounts: number;
+  Related_terms: string;
+  wikipedia_definition: string;
+  wiktionary_definition: string;
+  FST: string;
+  wikipedia_url: string;
   ent_name: string;
+  FS_Cards: string;
+  subject: string;
   ent_fsid: string;
   ent_summary: string;
-  indexes?: Array<{
+  fs_card: string;
+  last_update: string;
+  category: string;
+  ent_year: number;
+  inventor: string;
+  synonyms: string[];
+  indexes: Array<{
     HR: number;
     TT: number;
     WS: number;
+  }>;
+  xRL: Array<{
+    IRL: number;
+    SRL: number;
+    ERL: number;
+    BRL: number;
+    CRL: number;
   }>;
 }
 
@@ -183,9 +229,16 @@ const MetricBar: React.FC<MetricBarProps> = ({
   );
 };
 
-const TruncatedSummary: React.FC<{ summary: string; maxLines?: number }> = ({
+const TruncatedSummary: React.FC<{
+  summary: string;
+  maxLines?: number;
+  tooltipPlacement?: 'bottom-start' | 'right' | 'left';
+  isInHorizontalLayout?: boolean;
+}> = ({
   summary,
   maxLines = 2,
+  tooltipPlacement = 'bottom-start',
+  isInHorizontalLayout = false,
 }) => {
   // Calculate approximate character limit for 2 lines (assuming ~60 chars per line)
   const maxLength = maxLines * 24;
@@ -212,22 +265,53 @@ const TruncatedSummary: React.FC<{ summary: string; maxLines?: number }> = ({
 
   const truncated = summary.substring(0, maxLength).trim();
 
+  // Calculate tooltip dimensions for horizontal layout
+  const getTooltipDimensions = (text: string) => {
+    if (!isInHorizontalLayout) {
+      return { maxW: '240px', maxH: 'auto' };
+    }
+
+    // For horizontal layout, allow 5 lines to prevent clipping
+    // Line height is 1.4, font size is 12px (xs), so each line is ~16.8px
+    const lineHeight = 16.8; // 1.4 * 12px
+    const maxLines = 5; // Increased to 5 to prevent clipping
+    const padding = 24; // 12px top + 12px bottom
+    const calculatedMaxHeight = maxLines * lineHeight + padding;
+
+    return {
+      minW: '250px',
+      maxW: '500px', // Allow horizontal expansion
+      maxH: `${calculatedMaxHeight}px`, // Exactly 5 lines + padding
+      width: 'max-content',
+      // Remove conflicting properties - handle in CSS instead
+    };
+  };
+
+  const dimensions = getTooltipDimensions(summary);
+
   return (
     <Box fontSize='xs' color='fg.muted' lineHeight='1.4' fontFamily='body'>
       {truncated}
       <Tooltip.Root
         openDelay={500}
         closeDelay={100}
-        positioning={{ placement: 'bottom-start' }}
+        positioning={{
+          placement: tooltipPlacement,
+          strategy: 'absolute',
+          // Better offset for horizontal layout
+          ...(isInHorizontalLayout && {
+            offset: { mainAxis: 8, crossAxis: 0 }, // 8px to the right, aligned with trigger
+          }),
+        }}
       >
         <Tooltip.Trigger asChild>
           <Box
             as='span'
-            color='brand'
+            color='fg.muted'
             textDecoration='underline'
             cursor='pointer'
             ml={1}
-            _hover={{ color: 'brand.hover' }}
+            _hover={{ color: 'fg' }}
             display='inline'
           >
             ...
@@ -237,23 +321,46 @@ const TruncatedSummary: React.FC<{ summary: string; maxLines?: number }> = ({
           <Tooltip.Content
             bg='bg.canvas'
             color='fg'
-            p={3}
             borderRadius='md'
             boxShadow='lg'
             border='1px solid'
             borderColor='border.emphasized'
-            maxW='240px'
             fontSize='xs'
             lineHeight='1.4'
             fontFamily='body'
             zIndex={999999}
-            position='relative'
+            // Dynamic sizing based on content
+            {...dimensions}
+            // For horizontal layout, use CSS to strictly enforce 4-line limit
             css={{
               zIndex: '999999 !important',
-              position: 'relative !important',
+              ...(isInHorizontalLayout && {
+                // Allow 5 lines to prevent clipping, with proper text wrapping
+                wordBreak: 'break-word !important',
+                overflowWrap: 'break-word !important',
+                whiteSpace: 'normal !important',
+                // Ensure the height calculation is respected
+                boxSizing: 'border-box !important',
+                // Remove line clamping to allow natural 5-line display
+              }),
+              ...(!isInHorizontalLayout && {
+                maxHeight: '160px',
+                // For vertical layout, allow natural text flow
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+              }),
             }}
           >
-            <Tooltip.Arrow>
+            {/* Arrow positioning */}
+            <Tooltip.Arrow
+              css={{
+                ...(isInHorizontalLayout && {
+                  // Position arrow at the vertical center of the left edge for right placement
+                  '--arrow-offset': '100%',
+                }),
+              }}
+            >
               <Tooltip.ArrowTip />
             </Tooltip.Arrow>
             {summary}
@@ -271,18 +378,13 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   onSubjectRemove,
   onSubjectView,
   isLoading = false,
+  tooltipPlacement = 'bottom-start',
+  isInHorizontalLayout = false,
 }) => {
   const { token } = useAuth();
   const [subjectData, setSubjectData] = useState<SubjectApiData | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
-
-  // Extract slug from subject's ent_fsid (remove fsid_ prefix)
-  const getSubjectSlug = (subjectSlug: string): string => {
-    return subjectSlug.startsWith('fsid_')
-      ? subjectSlug.substring(5)
-      : subjectSlug;
-  };
 
   useEffect(() => {
     const fetchSubjectData = async () => {
@@ -295,10 +397,15 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
       setDataError(null);
 
       try {
-        const slug = getSubjectSlug(subject.subjectSlug);
+        // UPDATED: Use the new fast.futurity.science endpoint
+        // Ensure the fsid has the fsid_ prefix for the API call
+        const subjectFsid = subject.subjectSlug.startsWith('fsid_')
+          ? subject.subjectSlug
+          : `fsid_${subject.subjectSlug}`;
+
         const response = await fetch(
-          `https://tools.futurity.science/api/subject/view?slug=${encodeURIComponent(
-            slug
+          `https://fast.futurity.science/management/subjects/${encodeURIComponent(
+            subjectFsid
           )}`,
           {
             headers: {
@@ -379,29 +486,34 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
         borderColor='border.emphasized'
         _hover={{
           bg: 'bg.hover',
-          borderColor: 'border.hover',
+          borderColor: 'brand',
+          boxShadow: 'md',
         }}
         transition='all 0.2s'
         mb={3}
         w='100%'
         opacity={isLoading ? 0.7 : 1}
         position='relative'
+        cursor='grab'
         // Remove z-index from here - let KanbanItem handle it
       >
         <Card.Body p={3}>
           <VStack gap={3} align='stretch'>
             {/* Header with title and actions */}
             <HStack justify='space-between' align='flex-start'>
-              <Text
-                fontSize='sm'
-                fontWeight='medium'
-                color='fg'
-                flex='1'
-                lineHeight='1.3'
-                fontFamily='body'
-              >
-                {subject.subjectName}
-              </Text>
+              <HStack gap={2} flex='1' align='start'>
+                <SubjectHexagonIcon size={24} />
+                <Text
+                  fontSize='sm'
+                  fontWeight='medium'
+                  color='fg'
+                  flex='1'
+                  lineHeight='1.3'
+                  fontFamily='body'
+                >
+                  {subject.subjectName}
+                </Text>
+              </HStack>
               <HStack gap={1}>
                 {/* Drag handle */}
                 <Box color='fg.muted' cursor='grab'>
@@ -430,11 +542,11 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                     <Menu.Content
                       bg='bg.canvas'
                       borderColor='border.emphasized'
-                      zIndex={999999}
+                      zIndex={999998} // High but lower than search dropdown
                       boxShadow='lg'
                       position='relative'
                       css={{
-                        zIndex: '999999 !important',
+                        zIndex: '999998 !important',
                         position: 'relative !important',
                       }}
                     >
@@ -496,7 +608,11 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                   Failed to load summary
                 </Text>
               ) : subjectData?.ent_summary ? (
-                <TruncatedSummary summary={subjectData.ent_summary} />
+                <TruncatedSummary
+                  summary={subjectData.ent_summary}
+                  tooltipPlacement={tooltipPlacement}
+                  isInHorizontalLayout={isInHorizontalLayout}
+                />
               ) : (
                 <Text
                   fontSize='xs'

@@ -10,6 +10,7 @@ import {
   VStack,
   HStack,
   Spinner,
+  Skeleton,
 } from '@chakra-ui/react';
 import {
   FiSearch,
@@ -19,11 +20,13 @@ import {
 } from 'react-icons/fi';
 import { usePage } from '../../context/PageContext';
 import { searchService } from '../../services/searchService';
+import { subjectService } from '../../services/subjectService';
 import type {
   CombinedSearchResults,
   SearchAnalysisResult,
   SearchOrgResult,
 } from '../../services/searchService';
+import type { SubjectStatsResponse } from '../../services/subjectService';
 
 const Search: React.FC = () => {
   const { query } = useParams<{ query: string }>();
@@ -32,9 +35,14 @@ const Search: React.FC = () => {
 
   const [searchResults, setSearchResults] =
     useState<CombinedSearchResults | null>(null);
+  const [subjectStats, setSubjectStats] = useState<SubjectStatsResponse | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const searchQuery = query || '';
 
@@ -54,6 +62,25 @@ const Search: React.FC = () => {
     navigate(url);
   };
 
+  // Fetch subject stats when exact match is found
+  const fetchSubjectStats = useCallback(async (searchQuery: string) => {
+    setIsLoadingStats(true);
+    setStatsError(null);
+
+    try {
+      const fsid = subjectService.createFsidFromQuery(searchQuery);
+      const stats = await subjectService.getSubjectStats(fsid);
+      setSubjectStats(stats);
+    } catch (err) {
+      console.error('Failed to fetch subject stats:', err);
+      setStatsError('Failed to load statistics');
+      // Set empty stats on error so we can still show N/A values
+      setSubjectStats({});
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
   // Perform search when query changes
   useEffect(() => {
     const performSearch = async () => {
@@ -61,10 +88,16 @@ const Search: React.FC = () => {
 
       setIsLoading(true);
       setError(null);
+      setSubjectStats(null); // Reset stats when starting new search
 
       try {
         const results = await searchService.performCombinedSearch(query);
         setSearchResults(results);
+
+        // If we have an exact match, fetch its stats
+        if (results.exactMatch) {
+          fetchSubjectStats(query);
+        }
       } catch (err) {
         console.error('Search failed:', err);
         setError('Search failed. Please try again.');
@@ -74,19 +107,12 @@ const Search: React.FC = () => {
     };
 
     performSearch();
-  }, [query]);
+  }, [query, fetchSubjectStats]);
 
   // Stable function references to prevent infinite loops
   const stableClearPageContext = useCallback(clearPageContext, [
     clearPageContext,
   ]);
-
-  // Temporarily disable page context updates to fix infinite loop
-  // TODO: Investigate page context implementation - it's causing infinite renders
-  // useEffect(() => {
-  //   if (!searchResults || !query) return;
-  //   // Page context update disabled temporarily
-  // }, [query]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -236,6 +262,11 @@ const Search: React.FC = () => {
 
   const { exactMatch, analyses, organizations } = searchResults;
 
+  // Get formatted stats for display
+  const formattedStats = subjectStats
+    ? subjectService.getSimpleFormattedStats(subjectStats)
+    : null;
+
   return (
     <Box bg='bg' minHeight='calc(100vh - 64px)'>
       {/* Header - Removed border divider */}
@@ -305,6 +336,7 @@ const Search: React.FC = () => {
 
                       {/* Stats */}
                       <SimpleGrid columns={4} gap={4}>
+                        {/* Books */}
                         <Box
                           bg='bg.canvas'
                           p={3}
@@ -313,14 +345,24 @@ const Search: React.FC = () => {
                           border='1px solid'
                           borderColor='border.muted'
                         >
-                          <Text fontSize='xl' fontWeight='bold' color='fg'>
-                            {exactMatch.Books_hitcounts?.toLocaleString() ||
-                              '0'}
-                          </Text>
-                          <Text fontSize='sm' color='fg.secondary'>
-                            Books
-                          </Text>
+                          {isLoadingStats ? (
+                            <VStack gap={2}>
+                              <Skeleton height='20px' width='40px' mx='auto' />
+                              <Skeleton height='14px' width='30px' mx='auto' />
+                            </VStack>
+                          ) : (
+                            <>
+                              <Text fontSize='xl' fontWeight='bold' color='fg'>
+                                {formattedStats?.books || 'N/A'}
+                              </Text>
+                              <Text fontSize='sm' color='fg.secondary'>
+                                Books
+                              </Text>
+                            </>
+                          )}
                         </Box>
+
+                        {/* Papers */}
                         <Box
                           bg='bg.canvas'
                           p={3}
@@ -329,14 +371,24 @@ const Search: React.FC = () => {
                           border='1px solid'
                           borderColor='border.muted'
                         >
-                          <Text fontSize='xl' fontWeight='bold' color='fg'>
-                            {exactMatch.Papers_hitcounts?.toLocaleString() ||
-                              '0'}
-                          </Text>
-                          <Text fontSize='sm' color='fg.secondary'>
-                            Papers
-                          </Text>
+                          {isLoadingStats ? (
+                            <VStack gap={2}>
+                              <Skeleton height='20px' width='40px' mx='auto' />
+                              <Skeleton height='14px' width='30px' mx='auto' />
+                            </VStack>
+                          ) : (
+                            <>
+                              <Text fontSize='xl' fontWeight='bold' color='fg'>
+                                {formattedStats?.papers || 'N/A'}
+                              </Text>
+                              <Text fontSize='sm' color='fg.secondary'>
+                                Papers
+                              </Text>
+                            </>
+                          )}
                         </Box>
+
+                        {/* Press */}
                         <Box
                           bg='bg.canvas'
                           p={3}
@@ -345,14 +397,24 @@ const Search: React.FC = () => {
                           border='1px solid'
                           borderColor='border.muted'
                         >
-                          <Text fontSize='xl' fontWeight='bold' color='fg'>
-                            {exactMatch.Gnews_hitcounts?.toLocaleString() ||
-                              '0'}
-                          </Text>
-                          <Text fontSize='sm' color='fg.secondary'>
-                            News
-                          </Text>
+                          {isLoadingStats ? (
+                            <VStack gap={2}>
+                              <Skeleton height='20px' width='40px' mx='auto' />
+                              <Skeleton height='14px' width='30px' mx='auto' />
+                            </VStack>
+                          ) : (
+                            <>
+                              <Text fontSize='xl' fontWeight='bold' color='fg'>
+                                {formattedStats?.press || 'N/A'}
+                              </Text>
+                              <Text fontSize='sm' color='fg.secondary'>
+                                Press
+                              </Text>
+                            </>
+                          )}
                         </Box>
+
+                        {/* Patents */}
                         <Box
                           bg='bg.canvas'
                           p={3}
@@ -361,50 +423,57 @@ const Search: React.FC = () => {
                           border='1px solid'
                           borderColor='border.muted'
                         >
-                          <Text fontSize='xl' fontWeight='bold' color='fg'>
-                            {(() => {
-                              const subject = exactMatch as unknown as Record<
-                                string,
-                                number
-                              >;
-                              return (
-                                subject[
-                                  'Patents_hitcounts'
-                                ]?.toLocaleString() ||
-                                subject[
-                                  'Website_hitcounts'
-                                ]?.toLocaleString() ||
-                                subject['Press_hitcounts']?.toLocaleString() ||
-                                '0'
-                              );
-                            })()}
-                          </Text>
-                          <Text fontSize='sm' color='fg.secondary'>
-                            {(() => {
-                              const subject = exactMatch as unknown as Record<
-                                string,
-                                number
-                              >;
-                              if (subject['Patents_hitcounts'])
-                                return 'Patents';
-                              if (subject['Website_hitcounts'])
-                                return 'Websites';
-                              if (subject['Press_hitcounts']) return 'Press';
-                              return 'Other';
-                            })()}
-                          </Text>
+                          {isLoadingStats ? (
+                            <VStack gap={2}>
+                              <Skeleton height='20px' width='40px' mx='auto' />
+                              <Skeleton height='14px' width='30px' mx='auto' />
+                            </VStack>
+                          ) : (
+                            <>
+                              <Text fontSize='xl' fontWeight='bold' color='fg'>
+                                {formattedStats?.patents || 'N/A'}
+                              </Text>
+                              <Text fontSize='sm' color='fg.secondary'>
+                                Patents
+                              </Text>
+                            </>
+                          )}
                         </Box>
                       </SimpleGrid>
 
-                      {/* Click hint */}
-                      <Text
-                        fontSize='sm'
-                        color='fg.muted'
-                        textAlign='center'
-                        fontStyle='italic'
-                      >
-                        Click to view subject details
-                      </Text>
+                      {/* Loading/Error state for stats */}
+                      {isLoadingStats && (
+                        <Text
+                          fontSize='sm'
+                          color='fg.muted'
+                          textAlign='center'
+                          fontStyle='italic'
+                        >
+                          Loading statistics...
+                        </Text>
+                      )}
+
+                      {statsError && (
+                        <Text
+                          fontSize='sm'
+                          color='error'
+                          textAlign='center'
+                          fontStyle='italic'
+                        >
+                          {statsError}
+                        </Text>
+                      )}
+
+                      {!isLoadingStats && !statsError && (
+                        <Text
+                          fontSize='sm'
+                          color='fg.muted'
+                          textAlign='center'
+                          fontStyle='italic'
+                        >
+                          Click to view subject details
+                        </Text>
+                      )}
                     </VStack>
                   </Box>
                 </VStack>

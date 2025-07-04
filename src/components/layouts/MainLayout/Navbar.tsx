@@ -24,62 +24,74 @@ import {
   LuRefreshCw,
   LuPlus,
 } from 'react-icons/lu';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
 import { useAuth } from '../../../context/AuthContext';
-import { labAPIService } from '../../../services/labAPIService';
-import type { Lab, TeamspaceListItem } from '../../../context/AuthContext';
-import FastIcon from '../../../assets/fast_icon.svg';
+// import FastIcon from '../../../assets/fast_icon.svg';
+import AnimatedHypercube from '../../shared/AnimatedHypercube';
 import WhiteboardIcon from '../../../assets/whiteboard.svg';
 import LabsIcon from '../../../assets/labs.svg';
 import SearchField from './SearchField';
 import WorkspaceManageDialog from './WorkspaceManageDialog';
 
-// TeamSelector Component - Updated to use real data
+// TeamSelector Component - Updated with enhanced redirect logic
 interface TeamSelectorProps {
   isCompact: boolean;
   navigate: (path: string) => void;
 }
 
 const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
-  const { workspace, currentTeamspace, teamspaces, setCurrentTeamspace } =
+  const { userRelationships, currentTeam, setCurrentTeam, isTeamAdmin } =
     useAuth();
 
-  if (!workspace || !currentTeamspace) {
+  if (!userRelationships || !currentTeam) {
     return null;
   }
 
-  // Filter out the current teamspace from the switch options
-  const otherTeamspaces = teamspaces.filter(
-    (team) => team._id !== currentTeamspace._id
+  // Filter out the current team from the switch options
+  const otherTeams = userRelationships.teams.filter(
+    (team) => team._id !== currentTeam._id
   );
   const teamFontSize = isCompact ? '16px' : '24px';
 
-  // Check if user is workspace admin/owner
-  const isWorkspaceAdmin =
-    workspace.user_access_level === 'owner' ||
-    workspace.user_access_level === 'admin';
+  // Check if user is team admin for current team
+  const isCurrentTeamAdmin = isTeamAdmin(currentTeam.uniqueID);
 
-  // Check if user is team admin/owner
-  const isTeamAdmin =
-    currentTeamspace.user_access_level === 'owner' ||
-    currentTeamspace.user_access_level === 'admin';
+  // Enhanced team change handler with smart navigation
+  const handleTeamChange = async (newTeam: typeof currentTeam) => {
+    await setCurrentTeam(newTeam);
 
-  // Handle team switching with smart navigation
-  const handleTeamChange = (newTeamspace: TeamspaceListItem) => {
-    setCurrentTeamspace(newTeamspace);
-
-    // Check current URL to determine if we should navigate to the same page type for the new team
+    // Get current URL to determine redirect behavior
     const currentPath = window.location.pathname;
 
-    if (currentPath.includes('/team/') && currentPath.includes('/manage')) {
-      // User is on team manage page, navigate to manage page for new team
-      navigate(`/team/${newTeamspace._id}/manage`);
+    // Extract current team ID from URL if present
+    const teamUrlMatch = currentPath.match(/\/team\/([^\/]+)/);
+    const labUrlMatch = currentPath.match(/\/lab\/([^\/]+)/);
+
+    if (labUrlMatch) {
+      // User is viewing a lab - redirect to team labs page
+      console.log('Redirecting from lab page to team labs page');
+      navigate(`/team/${newTeam.uniqueID}/labs`);
+    } else if (
+      currentPath.includes('/team/') &&
+      currentPath.includes('/manage')
+    ) {
+      // User is on team manage page - navigate to manage page for new team
+      console.log('Redirecting to manage page for new team');
+      navigate(`/team/${newTeam.uniqueID}/manage`);
+    } else if (
+      currentPath.includes('/team/') &&
+      currentPath.includes('/labs')
+    ) {
+      // User is on team labs page - navigate to labs page for new team
+      console.log('Redirecting to labs page for new team');
+      navigate(`/team/${newTeam.uniqueID}/labs`);
     } else if (currentPath.includes('/team/')) {
-      // User is on team view page, navigate to view page for new team
-      navigate(`/team/${newTeamspace._id}`);
+      // User is on team view page - navigate to view page for new team
+      console.log('Redirecting to view page for new team');
+      navigate(`/team/${newTeam.uniqueID}`);
     }
-    // Otherwise, stay on current page (home, lab, etc.)
+    // Otherwise, stay on current page (home, whiteboard, etc.)
   };
 
   return (
@@ -112,7 +124,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
               </Text>
               <HStack gap={2} align='center'>
                 <Text fontSize={teamFontSize} fontFamily='body' color='fg'>
-                  {currentTeamspace.name}
+                  {currentTeam.ent_name}
                 </Text>
                 <LuChevronDown size={16} />
               </HStack>
@@ -123,7 +135,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                 team:
               </Text>
               <Text fontSize={teamFontSize} fontFamily='body' color='fg'>
-                {currentTeamspace.name}
+                {currentTeam.ent_name}
               </Text>
               <LuChevronDown size={16} />
             </HStack>
@@ -141,11 +153,11 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
           >
             {/* Admin Controls Section */}
             <Box p={3}>
-              {isTeamAdmin || isWorkspaceAdmin ? (
+              {isCurrentTeamAdmin ? (
                 <HStack gap={2} align='stretch'>
                   {/* View Team Button */}
                   <Button
-                    onClick={() => navigate(`/team/${currentTeamspace._id}`)}
+                    onClick={() => navigate(`/team/${currentTeam.uniqueID}`)}
                     flex='1'
                     size='sm'
                     bg='#0005E9'
@@ -171,10 +183,10 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                     View Team
                   </Button>
 
-                  {/* Manage Button - only show for team/workspace admins */}
+                  {/* Manage Button - only show for team admins */}
                   <Button
                     onClick={() =>
-                      navigate(`/team/${currentTeamspace._id}/manage`)
+                      navigate(`/team/${currentTeam.uniqueID}/manage`)
                     }
                     flex='1'
                     size='sm'
@@ -192,7 +204,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
               ) : (
                 // Single View Team Button for non-admin users
                 <Button
-                  onClick={() => navigate(`/team/${currentTeamspace._id}`)}
+                  onClick={() => navigate(`/team/${currentTeam.uniqueID}`)}
                   width='100%'
                   size='sm'
                   bg='#0005E9'
@@ -221,7 +233,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
             </Box>
 
             {/* Switch Teams Section - only show if there are other teams */}
-            {otherTeamspaces.length > 0 && (
+            {otherTeams.length > 0 && (
               <>
                 <Menu.Separator borderColor='border.muted' />
 
@@ -238,7 +250,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                   </Box>
                 </Menu.ItemGroup>
 
-                {otherTeamspaces.map((team) => (
+                {otherTeams.map((team) => (
                   <Menu.Item
                     key={team._id}
                     value={team._id}
@@ -250,7 +262,7 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
                       bg: 'bg.hover',
                     }}
                   >
-                    {team.name}
+                    {team.ent_name}
                   </Menu.Item>
                 ))}
               </>
@@ -264,12 +276,18 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({ isCompact, navigate }) => {
 
 const Navbar: React.FC = () => {
   const { isDark, toggleColorMode } = useTheme();
-  const { user, logout, currentTeamspace, token } = useAuth();
+  const {
+    user,
+    logout,
+    currentTeam,
+    isOrgAdmin,
+    currentTeamLabs,
+    isLoadingLabs,
+    refreshLabs,
+  } = useAuth();
   const navigate = useNavigate();
 
-  // State for labs management
-  const [teamLabs, setTeamLabs] = useState<Lab[]>([]);
-  const [isLoadingLabs, setIsLoadingLabs] = useState(false);
+  // Window width state for responsive behavior
   const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
   const [isWorkspaceManageOpen, setIsWorkspaceManageOpen] = useState(false);
 
@@ -293,79 +311,19 @@ const Navbar: React.FC = () => {
     }
   };
 
-  // Fetch labs when current teamspace changes - UPDATED to use only real API data
-  useEffect(() => {
-    const fetchTeamLabs = async () => {
-      if (!currentTeamspace || !token) {
-        setTeamLabs([]);
-        return;
-      }
-
-      try {
-        setIsLoadingLabs(true);
-
-        // Fetch real lab data from API using existing labAPIService
-        const apiLabs = await labAPIService.listLabs(
-          currentTeamspace._id,
-          token
-        );
-
-        // Convert API response to our Lab type
-        const labs: Lab[] = apiLabs.map((lab) => ({
-          _id: lab._id,
-          ent_name: lab.ent_name,
-          ent_summary: lab.ent_summary,
-          teamspace_id: lab.teamspace_id,
-          isArchived: lab.isArchived,
-          isDeleted: lab.isDeleted,
-          deletedAt: lab.deletedAt,
-        }));
-
-        setTeamLabs(labs);
-      } catch (error) {
-        console.error('Failed to fetch team labs:', error);
-        // Set empty array on error - no fallback hardcoded lab
-        setTeamLabs([]);
-      } finally {
-        setIsLoadingLabs(false);
-      }
-    };
-
-    fetchTeamLabs();
-  }, [currentTeamspace, token]);
-
-  const handleLabSelect = (labId: string) => {
-    navigate(`/lab/${labId}`);
+  const handleLabSelect = (labUniqueId: string) => {
+    navigate(`/lab/${labUniqueId}`);
   };
 
   const refreshLabsList = async () => {
-    if (!currentTeamspace || !token) return;
-
     try {
-      setIsLoadingLabs(true);
-
-      // Re-fetch labs using the same logic as the main effect
-      const apiLabs = await labAPIService.listLabs(currentTeamspace._id, token);
-
-      const labs: Lab[] = apiLabs.map((lab) => ({
-        _id: lab._id,
-        ent_name: lab.ent_name,
-        ent_summary: lab.ent_summary,
-        teamspace_id: lab.teamspace_id,
-        isArchived: lab.isArchived,
-        isDeleted: lab.isDeleted,
-        deletedAt: lab.deletedAt,
-      }));
-
-      setTeamLabs(labs);
+      await refreshLabs();
     } catch (error) {
       console.error('Failed to refresh labs:', error);
-    } finally {
-      setIsLoadingLabs(false);
     }
   };
 
-  const hasNoTeam = !currentTeamspace;
+  const hasNoTeam = !currentTeam;
   const isCompact = windowWidth <= 1100;
   const navHeight = isCompact ? '58px' : '64px';
 
@@ -390,70 +348,26 @@ const Navbar: React.FC = () => {
         >
           {/* Left Navigation Items */}
           {/* Logo */}
-          <Box
-            onClick={() => navigate('/')}
-            height='100%'
-            width='auto'
-            filter={{
-              _dark: 'brightness(0) invert(1)', // White logo in dark mode
-              _light: 'brightness(0)', // Black logo in light mode
-            }}
-            _hover={{ opacity: 0.8 }}
-            cursor='pointer'
-            flexShrink={0}
-          >
-            <img
-              src={FastIcon}
-              alt='FAST Icon'
-              style={{ height: '100%', width: 'auto' }}
-            />
-          </Box>
-
-          {/* Whiteboard Button */}
-          <Button
-            onClick={() => navigate('/whiteboard')}
-            variant='outline'
-            size='sm'
-            height={isCompact ? 'auto' : '64px'}
-            borderColor='border.emphasized'
-            borderWidth='1px'
-            color='fg'
-            bg='bg.canvas'
-            fontFamily='body'
-            fontSize='13px'
-            flexShrink={0}
-            py={isCompact ? '4px' : '8px'}
-            px={isCompact ? '4px' : '16px'}
-            _hover={{
-              bg: 'bg.hover',
-            }}
-            display='flex'
-            flexDirection='column'
-            alignItems='center'
-            gap={1}
-          >
+          <RouterLink to='/'>
             <Box
-              height='24px'
+              height='100%'
               width='auto'
-              filter={{
-                _dark: 'brightness(0) invert(1)', // White icons in dark mode
-                _light: 'brightness(0)', // Black icons in light mode
-              }}
+              _hover={{ opacity: 0.8 }}
+              cursor='pointer'
+              flexShrink={0}
+              as='div'
             >
-              <img
-                src={WhiteboardIcon}
-                alt='Whiteboard'
-                style={{ height: '100%', width: 'auto' }}
-              />
+              <AnimatedHypercube theme={isDark ? 'dark' : 'light'} />
             </Box>
-            whiteboard
-          </Button>
+          </RouterLink>
 
-          {/* Team Selector */}
-          {currentTeamspace ? (
+          {/* TASK 1: Reordered navigation items - Team → Labs → My Whiteboard → Profile */}
+
+          {/* Team Selector - MOVED TO FIRST POSITION */}
+          {currentTeam ? (
             <TeamSelector isCompact={isCompact} navigate={navigate} />
           ) : (
-            // No team button for when there's no current teamspace
+            // No team button for when there's no current team
             <Button
               variant='outline'
               size='sm'
@@ -509,7 +423,7 @@ const Navbar: React.FC = () => {
             </Button>
           )}
 
-          {/* Labs Button */}
+          {/* Labs Button - MOVED TO SECOND POSITION - Now uses auth context data */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Button
@@ -571,20 +485,33 @@ const Navbar: React.FC = () => {
                   >
                     <Menu.ItemGroup>
                       <HStack justify='space-between' px={3} py={2}>
-                        <Text
-                          fontSize='sm'
-                          fontWeight='medium'
-                          color='fg.secondary'
+                        <Button
+                          onClick={() =>
+                            navigate(`/team/${currentTeam.uniqueID}/labs`)
+                          }
+                          variant='ghost'
+                          size='sm'
                           fontFamily='body'
+                          fontSize='md'
+                          fontWeight='medium'
+                          color='fg'
+                          _hover={{
+                            bg: 'bg.hover',
+                          }}
                         >
-                          {`${currentTeamspace.name} labs`}
-                        </Text>
+                          {`${currentTeam?.ent_name} labs`}
+                        </Button>
                         <Button
                           onClick={refreshLabsList}
                           variant='ghost'
                           size='xs'
                           disabled={isLoadingLabs}
                           fontFamily='body'
+                          color='fg.muted'
+                          _hover={{
+                            color: 'fg',
+                            bg: 'bg.hover',
+                          }}
                         >
                           {isLoadingLabs ? (
                             <Spinner size='xs' />
@@ -608,41 +535,54 @@ const Navbar: React.FC = () => {
                           <Text>Loading labs...</Text>
                         </HStack>
                       </Menu.Item>
-                    ) : teamLabs.length > 0 ? (
+                    ) : currentTeamLabs.length > 0 ? (
                       <>
-                        {teamLabs.map((lab) => (
-                          <Menu.Item
-                            key={lab._id}
-                            value={lab._id}
-                            onClick={() => handleLabSelect(lab._id)}
-                            color='fg'
+                        {/* Create Lab Button - moved to top with themed styling */}
+                        <Box px={3} py={2}>
+                          <Button
+                            onClick={() => navigate('/lab/create')}
+                            variant='outline'
+                            size='sm'
+                            width='100%'
                             fontFamily='body'
-                            fontSize='sm'
+                            bg='bg.canvas'
+                            borderColor='border.muted'
+                            color='fg'
                             _hover={{
                               bg: 'bg.hover',
+                              borderColor: 'border.hover',
+                            }}
+                            _active={{
+                              bg: 'bg.active',
                             }}
                           >
-                            {lab.ent_name}
-                          </Menu.Item>
-                        ))}
+                            <HStack gap={2}>
+                              <LuPlus size={14} />
+                              <Text>Create New Lab</Text>
+                            </HStack>
+                          </Button>
+                        </Box>
 
                         <Menu.Separator borderColor='border.muted' />
 
-                        <Menu.Item
-                          value='create-lab'
-                          onClick={() => navigate('/lab/create')}
-                          color='brand'
-                          fontFamily='body'
-                          fontSize='sm'
-                          _hover={{
-                            bg: 'bg.hover',
-                          }}
-                        >
-                          <HStack gap={2}>
-                            <LuPlus size={14} />
-                            <Text>Create New Lab</Text>
-                          </HStack>
-                        </Menu.Item>
+                        {/* Sort labs alphabetically by name */}
+                        {[...currentTeamLabs]
+                          .sort((a, b) => a.ent_name.localeCompare(b.ent_name))
+                          .map((lab) => (
+                            <Menu.Item
+                              key={lab._id}
+                              value={lab._id}
+                              onClick={() => handleLabSelect(lab.uniqueID)}
+                              color='fg'
+                              fontFamily='body'
+                              fontSize='sm'
+                              _hover={{
+                                bg: 'bg.hover',
+                              }}
+                            >
+                              {lab.ent_name}
+                            </Menu.Item>
+                          ))}
                       </>
                     ) : (
                       <>
@@ -658,21 +598,30 @@ const Navbar: React.FC = () => {
 
                         <Menu.Separator borderColor='border.muted' />
 
-                        <Menu.Item
-                          value='create-lab'
-                          onClick={() => navigate('/lab/create')}
-                          color='brand'
-                          fontFamily='body'
-                          fontSize='sm'
-                          _hover={{
-                            bg: 'bg.hover',
-                          }}
-                        >
-                          <HStack gap={2}>
-                            <LuPlus size={14} />
-                            <Text>Create New Lab</Text>
-                          </HStack>
-                        </Menu.Item>
+                        <Box px={3} py={2}>
+                          <Button
+                            onClick={() => navigate('/lab/create')}
+                            variant='outline'
+                            size='sm'
+                            width='100%'
+                            fontFamily='body'
+                            bg='bg.canvas'
+                            borderColor='border.muted'
+                            color='fg'
+                            _hover={{
+                              bg: 'bg.hover',
+                              borderColor: 'border.hover',
+                            }}
+                            _active={{
+                              bg: 'bg.active',
+                            }}
+                          >
+                            <HStack gap={2}>
+                              <LuPlus size={14} />
+                              <Text>Create New Lab</Text>
+                            </HStack>
+                          </Button>
+                        </Box>
                       </>
                     )}
                   </Menu.Content>
@@ -681,32 +630,47 @@ const Navbar: React.FC = () => {
             )}
           </Menu.Root>
 
-          {/* Search Field - Flex grow to take remaining space */}
-          <SearchField />
-
-          {/* Right Navigation Items */}
-          {/* Color Mode Toggle */}
-          <IconButton
-            aria-label='Toggle color mode'
-            onClick={toggleColorMode}
+          {/* TASK 3: My Whiteboard Button - RENAMED and MOVED TO THIRD POSITION */}
+          <Button
+            onClick={() => navigate('/whiteboard')}
             variant='outline'
             size='sm'
-            height={isCompact ? '58px' : '64px'}
-            width={isCompact ? '58px' : '64px'}
+            height={isCompact ? 'auto' : '64px'}
             borderColor='border.emphasized'
             borderWidth='1px'
             color='fg'
             bg='bg.canvas'
+            fontFamily='body'
+            fontSize='13px'
             flexShrink={0}
-            p={isCompact ? '4px' : '0'}
+            py={isCompact ? '4px' : '8px'}
+            px={isCompact ? '4px' : '16px'}
             _hover={{
               bg: 'bg.hover',
             }}
+            display='flex'
+            flexDirection='column'
+            alignItems='center'
+            gap={1}
           >
-            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
-          </IconButton>
+            <Box
+              height='24px'
+              width='auto'
+              filter={{
+                _dark: 'brightness(0) invert(1)', // White icons in dark mode
+                _light: 'brightness(0)', // Black icons in light mode
+              }}
+            >
+              <img
+                src={WhiteboardIcon}
+                alt='My Whiteboard'
+                style={{ height: '100%', width: 'auto' }}
+              />
+            </Box>
+            my whiteboard
+          </Button>
 
-          {/* Profile Button */}
+          {/* Profile Button - MOVED TO FOURTH POSITION (before separator) */}
           <Menu.Root>
             <Menu.Trigger asChild>
               <Box
@@ -759,8 +723,8 @@ const Navbar: React.FC = () => {
                     </Menu.ItemGroupLabel>
                   </Menu.ItemGroup>
 
-                  {/* Admin Workspace Management - only show for admin users */}
-                  {user?.role === 'admin' && (
+                  {/* Organization Management - only show for organization admin users */}
+                  {isOrgAdmin() && (
                     <>
                       <Box p={2}>
                         <Button
@@ -788,7 +752,7 @@ const Navbar: React.FC = () => {
 
                   <Menu.Item
                     value='profile'
-                    onClick={() => navigate(`/user/${user?._id}`)}
+                    onClick={() => navigate(`/profile`)}
                     color='fg'
                     fontFamily='body'
                     fontSize='sm'
@@ -799,22 +763,6 @@ const Navbar: React.FC = () => {
                     <HStack gap={2}>
                       <LuUser size={16} />
                       <Text>My Profile</Text>
-                    </HStack>
-                  </Menu.Item>
-
-                  <Menu.Item
-                    value='settings'
-                    onClick={() => navigate(`/user/${user?._id}/settings`)}
-                    color='fg'
-                    fontFamily='body'
-                    fontSize='sm'
-                    _hover={{
-                      bg: 'bg.hover',
-                    }}
-                  >
-                    <HStack gap={2}>
-                      <LuSettings size={16} />
-                      <Text>Settings</Text>
                     </HStack>
                   </Menu.Item>
 
@@ -839,6 +787,39 @@ const Navbar: React.FC = () => {
               </Menu.Positioner>
             </Portal>
           </Menu.Root>
+
+          {/* TASK 2: Visual Separator - Added between navigation and search */}
+          <Box
+            height={isCompact ? '40px' : '48px'}
+            width='1px'
+            bg='border.emphasized'
+            flexShrink={0}
+          />
+
+          {/* Search Field - Flex grow to take remaining space */}
+          <SearchField />
+
+          {/* Right Navigation Items */}
+          {/* Color Mode Toggle */}
+          <IconButton
+            aria-label='Toggle color mode'
+            onClick={toggleColorMode}
+            variant='outline'
+            size='sm'
+            height={isCompact ? '58px' : '64px'}
+            width={isCompact ? '58px' : '64px'}
+            borderColor='border.emphasized'
+            borderWidth='1px'
+            color='fg'
+            bg='bg.canvas'
+            flexShrink={0}
+            p={isCompact ? '4px' : '0'}
+            _hover={{
+              bg: 'bg.hover',
+            }}
+          >
+            {isDark ? <LuSun size={40} /> : <LuMoon size={40} />}
+          </IconButton>
         </HStack>
       </Box>
 

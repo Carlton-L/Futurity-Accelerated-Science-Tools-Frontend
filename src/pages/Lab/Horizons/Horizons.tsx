@@ -61,12 +61,16 @@ interface HorizonsProps {
   data?: HorizonItem[];
   showLegend?: boolean;
   isLoading?: boolean; // Add loading prop
+  containerWidth?: number; // Add container width prop
+  containerHeight?: number; // Add container height prop
 }
 
 function Horizons({
   data = exampleData,
   showLegend = false,
   isLoading = false,
+  containerWidth = 1000,
+  containerHeight = 650,
 }: HorizonsProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -106,62 +110,54 @@ function Horizons({
     if (isLoading) {
       const svg = d3
         .select(svgRef.current)
-        .attr('width', 1000)
-        .attr('height', 650)
-        .attr('viewBox', [0, 0, 1000, 650])
+        .attr('width', containerWidth)
+        .attr('height', containerHeight)
+        .attr('viewBox', [0, 0, containerWidth, containerHeight])
         .attr('style', 'width: 100%; height: 100%; display: block;');
 
       // Add loading indicator
       const loadingGroup = svg
         .append('g')
-        .attr('transform', 'translate(500, 325)'); // Center of the SVG
+        .attr(
+          'transform',
+          `translate(${containerWidth / 2}, ${containerHeight / 2})`
+        );
 
-      if (isLoading) {
-        loadingGroup
-          .append('text')
-          .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'middle')
-          .attr('font-size', '16px')
-          .attr('font-family', 'JetBrains Mono, monospace')
-          .attr('fill', '#666')
-          .text('Loading horizon data...');
+      loadingGroup
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .attr('font-size', '16px')
+        .attr('font-family', 'JetBrains Mono, monospace')
+        .attr('fill', '#666')
+        .text('Loading horizon data...');
 
-        // Add simple loading animation
-        const circle = loadingGroup
-          .append('circle')
-          .attr('r', 20)
-          .attr('cy', -40)
-          .attr('fill', 'none')
-          .attr('stroke', '#0005E9')
-          .attr('stroke-width', 3)
-          .attr('stroke-dasharray', '31.4')
-          .attr('stroke-dashoffset', '31.4');
+      // Add simple loading animation
+      const circle = loadingGroup
+        .append('circle')
+        .attr('r', 20)
+        .attr('cy', -40)
+        .attr('fill', 'none')
+        .attr('stroke', '#0005E9')
+        .attr('stroke-width', 3)
+        .attr('stroke-dasharray', '31.4')
+        .attr('stroke-dashoffset', '31.4');
 
-        // Animate the circle
-        circle
-          .transition()
-          .duration(2000)
-          .ease(d3.easeLinear)
-          .attr('stroke-dashoffset', 0)
-          .on('end', function repeat() {
-            d3.select(this)
-              .attr('stroke-dashoffset', '31.4')
-              .transition()
-              .duration(2000)
-              .ease(d3.easeLinear)
-              .attr('stroke-dashoffset', 0)
-              .on('end', repeat);
-          });
-      } else {
-        loadingGroup
-          .append('text')
-          .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'middle')
-          .attr('font-size', '16px')
-          .attr('font-family', 'JetBrains Mono, monospace')
-          .attr('fill', '#666')
-          .text('No data available');
-      }
+      // Animate the circle
+      circle
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+        .attr('stroke-dashoffset', 0)
+        .on('end', function repeat() {
+          d3.select(this)
+            .attr('stroke-dashoffset', '31.4')
+            .transition()
+            .duration(2000)
+            .ease(d3.easeLinear)
+            .attr('stroke-dashoffset', 0)
+            .on('end', repeat);
+        });
 
       return;
     }
@@ -170,14 +166,17 @@ function Horizons({
     if (!data.length) {
       const svg = d3
         .select(svgRef.current)
-        .attr('width', 1000)
-        .attr('height', 650)
-        .attr('viewBox', [0, 0, 1000, 650])
+        .attr('width', containerWidth)
+        .attr('height', containerHeight)
+        .attr('viewBox', [0, 0, containerWidth, containerHeight])
         .attr('style', 'width: 100%; height: 100%; display: block;');
 
       const emptyGroup = svg
         .append('g')
-        .attr('transform', 'translate(500, 325)'); // Center of the SVG
+        .attr(
+          'transform',
+          `translate(${containerWidth / 2}, ${containerHeight / 2})`
+        );
 
       emptyGroup
         .append('text')
@@ -230,8 +229,8 @@ function Horizons({
     });
 
     // Calculate minimum height based on data
-    const minRowHeight = 160;
-    const rowSpacing = 8; // 8px spacing between rows
+    const minRowHeight = 120; // Reduced from 160 to be more compact
+    const rowSpacing = 12; // Spacing between rows
     const subjectsPerCategory = new Map<number, number>();
     validData.forEach((item) => {
       subjectsPerCategory.set(
@@ -240,40 +239,34 @@ function Horizons({
       );
     });
 
-    // Calculate row height - either minimum or based on number of subjects
+    // Calculate row height based on number of subjects in each category
     const maxSubjectsInCategory = Math.max(
       ...Array.from(subjectsPerCategory.values())
     );
     const calculatedRowHeight = Math.max(
       minRowHeight,
-      maxSubjectsInCategory * 40 + 60
+      maxSubjectsInCategory * 30 + 60 // Reduced multiplier for more compact layout
     );
-    const rowHeight =
-      uniqueCategories.length === 1
-        ? calculatedRowHeight
-        : Math.max(minRowHeight, calculatedRowHeight * 0.7);
+    const rowHeight = calculatedRowHeight;
 
-    // Chart dimensions with minimum height and centered content
-    const containerWidth = 1000;
-    const minChartHeight = 650;
+    // Chart dimensions - use container dimensions
+    const categoryLabelWidth = 200; // Fixed width for category labels
+    const margin = { top: 80, right: 40, bottom: 40, left: categoryLabelWidth };
+    const chartWidth = containerWidth - margin.left - margin.right;
     const contentHeight =
       uniqueCategories.length * rowHeight +
       (uniqueCategories.length - 1) * rowSpacing;
-    const chartHeight = Math.max(minChartHeight, contentHeight);
-    const containerHeight = chartHeight + 100; // Add space for labels
+    const finalHeight = Math.max(
+      containerHeight,
+      contentHeight + margin.top + margin.bottom
+    );
 
-    // Calculate vertical offset to center content
-    const contentVerticalOffset = (chartHeight - contentHeight) / 2;
-
-    const margin = { top: 60, right: 60, bottom: 40, left: 120 };
-    const chartWidth = containerWidth - margin.left - margin.right;
-
-    // Create SVG
+    // Create SVG with calculated dimensions
     const svg = d3
       .select(svgRef.current)
       .attr('width', containerWidth)
-      .attr('height', containerHeight)
-      .attr('viewBox', [0, 0, containerWidth, containerHeight])
+      .attr('height', finalHeight)
+      .attr('viewBox', [0, 0, containerWidth, finalHeight])
       .attr('style', 'width: 100%; height: 100%; display: block;');
 
     const g = svg
@@ -289,11 +282,11 @@ function Horizons({
     ];
 
     // Theme-aware colors using your design system hierarchy
-    const foregroundColor = isDarkTheme ? '#FFFFFF' : '#1B1B1D'; // fg - for row labels and vertical lines
-    const mutedTextColor = isDarkTheme ? '#646E78' : '#A7ACB2'; // fg.muted - for borders
-    const subtleTextColor = isDarkTheme ? '#A7ACB2' : '#646E78'; // fg.secondary - for column labels
+    const foregroundColor = isDarkTheme ? '#FFFFFF' : '#1B1B1D';
+    const mutedTextColor = isDarkTheme ? '#646E78' : '#A7ACB2';
+    const subtleTextColor = isDarkTheme ? '#A7ACB2' : '#646E78';
 
-    // Draw colored background sections for each maturity level with correct colors
+    // Draw colored background sections for each maturity level
     const maturityColors = {
       Imagination: '#6A35D4',
       Science: '#46ACC8',
@@ -327,6 +320,7 @@ function Horizons({
       .style('z-index', 9999)
       .style('backdrop-filter', 'blur(10px)');
 
+    // Draw colored background sections
     horizonBoundaries.forEach((horizon) => {
       const sectionStart = xScale(horizon.start);
       const sectionEnd = xScale(horizon.end);
@@ -339,31 +333,48 @@ function Horizons({
 
       g.append('rect')
         .attr('x', sectionStart)
-        .attr('y', -50)
+        .attr('y', -60)
         .attr('width', sectionWidth)
-        .attr('height', chartHeight + 100)
+        .attr('height', contentHeight + 120)
         .attr('fill', baseColor)
         .attr('opacity', opacity);
+
+      // Add large vertical text in the center of each section
+      const sectionCenterX = sectionStart + sectionWidth / 2;
+      const textY = contentHeight / 2;
+
+      g.append('text')
+        .attr('x', sectionCenterX)
+        .attr('y', textY)
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .attr('font-size', '24px')
+        .attr('font-weight', 'bold')
+        .attr('font-family', 'TT Norms Pro, sans-serif')
+        .attr('fill', baseColor)
+        .attr('opacity', 0.3)
+        .attr('transform', `rotate(-90 ${sectionCenterX} ${textY})`)
+        .text(horizon.name.toUpperCase());
     });
 
-    // Add straight vertical boundary lines between sections (foreground color)
+    // Add straight vertical boundary lines between sections
     horizonBoundaries.slice(0, -1).forEach((horizon) => {
       const boundaryX = xScale(horizon.end);
 
       g.append('line')
         .attr('x1', boundaryX)
-        .attr('y1', -50)
+        .attr('y1', -60)
         .attr('x2', boundaryX)
-        .attr('y2', chartHeight + 50)
-        .attr('stroke', foregroundColor) // Use foreground color
+        .attr('y2', contentHeight + 60)
+        .attr('stroke', foregroundColor)
         .attr('stroke-width', 2)
         .attr('opacity', 0.8);
     });
 
-    // Add maturity axis label at the top with chart-style arrow
+    // Add maturity axis label at the top
     g.append('text')
-      .attr('x', chartWidth / 2 - 30)
-      .attr('y', -30)
+      .attr('x', chartWidth / 2)
+      .attr('y', -40)
       .attr('text-anchor', 'middle')
       .attr('font-size', '14px')
       .attr('font-style', 'italic')
@@ -371,10 +382,10 @@ function Horizons({
       .attr('fill', subtleTextColor)
       .text('MATURITY');
 
-    // Add chart-style arrow pointing right (shorter line, bigger head)
-    const arrowStartX = chartWidth / 2 + 10;
-    const arrowEndX = chartWidth / 2 + 25;
-    const arrowY = -30;
+    // Add arrow pointing right
+    const arrowStartX = chartWidth / 2 + 40;
+    const arrowEndX = chartWidth / 2 + 55;
+    const arrowY = -40;
 
     g.append('line')
       .attr('x1', arrowStartX)
@@ -385,7 +396,6 @@ function Horizons({
       .attr('stroke-width', 1)
       .attr('opacity', 0.3);
 
-    // Bigger arrow head
     const arrowHeadSize = 6;
     g.append('path')
       .attr(
@@ -401,59 +411,68 @@ function Horizons({
       .attr('fill', 'none')
       .attr('opacity', 0.3);
 
-    // Draw category rows with rounded corners and spacing
-    const categoryGroup = g
-      .append('g')
-      .attr('transform', `translate(0, ${contentVerticalOffset})`);
-
+    // Draw category rows with fixed-width labels
     uniqueCategories.forEach((categoryNum, i) => {
       const y = i * (rowHeight + rowSpacing);
 
-      // Row background with rounded corners and muted dotted border
-      categoryGroup
-        .append('rect')
+      // Row background with rounded corners
+      g.append('rect')
         .attr('x', 0)
         .attr('y', y)
         .attr('width', chartWidth)
         .attr('height', rowHeight)
         .attr('fill', 'none')
-        .attr('stroke', mutedTextColor) // Use muted color for borders
+        .attr('stroke', mutedTextColor)
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '4,4')
         .attr('rx', 8)
         .attr('ry', 8);
 
-      // Category label on the left (foreground color)
+      // Category label with word wrapping
       const categoryLabel =
         categoryNamesMap.get(categoryNum) ||
         (categoryNum === 1 ? 'Uncategorized' : `Category ${categoryNum}`);
-      categoryGroup
-        .append('text')
-        .attr('x', -10)
-        .attr('y', y + rowHeight / 2)
-        .attr('text-anchor', 'end')
-        .attr('dominant-baseline', 'middle')
-        .attr('font-size', '14px')
-        .attr('font-weight', 'bold')
-        .attr('font-family', 'TT Norms Pro, sans-serif')
-        .attr('fill', foregroundColor) // Use foreground color
+
+      // Create a foreign object for word wrapping
+      const foreignObject = svg
+        .append('foreignObject')
+        .attr('x', margin.left - categoryLabelWidth + 10) // 10px padding from right edge
+        .attr('y', margin.top + y + 10) // 10px padding from top
+        .attr('width', categoryLabelWidth - 20) // 20px total padding
+        .attr('height', rowHeight - 20); // 20px total padding
+
+      const div = foreignObject
+        .append('xhtml:div')
+        .style('width', '100%')
+        .style('height', '100%')
+        .style('display', 'flex')
+        .style('align-items', 'center')
+        .style('justify-content', 'flex-end')
+        .style('text-align', 'right')
+        .style('font-family', 'TT Norms Pro, sans-serif')
+        .style('font-size', '14px')
+        .style('font-weight', 'bold')
+        .style('color', foregroundColor)
+        .style('word-wrap', 'break-word')
+        .style('overflow-wrap', 'break-word')
+        .style('hyphens', 'auto')
+        .style('line-height', '1.2')
         .text(categoryLabel);
     });
 
-    // Draw short arrows in center of each category row - improved visibility
+    // Draw short arrows in center of each category row
     uniqueCategories.forEach((categoryNum, i) => {
-      const y = i * (rowHeight + rowSpacing) + contentVerticalOffset;
+      const y = i * (rowHeight + rowSpacing);
       const arrowY = y + rowHeight / 2;
 
-      // Draw arrows between sections only if not the last section
+      // Draw arrows between sections
       horizonBoundaries.slice(0, -1).forEach((horizon, j) => {
         const fromX = xScale((horizon.start + horizon.end) / 2);
         const toX = xScale(
           (horizonBoundaries[j + 1].start + horizonBoundaries[j + 1].end) / 2
         );
 
-        // Much shorter arrow shaft
-        const shaftLength = 30; // Reduced from 15 to make it even shorter
+        const shaftLength = 30;
         const startX = fromX + (toX - fromX) / 2 - shaftLength / 2;
         const endX = fromX + (toX - fromX) / 2 + shaftLength / 2;
 
@@ -464,11 +483,11 @@ function Horizons({
           .attr('x2', endX)
           .attr('y2', arrowY)
           .attr('stroke', mutedTextColor)
-          .attr('stroke-width', 2) // Slightly thicker shaft
-          .attr('opacity', 0.4); // Slightly more visible
+          .attr('stroke-width', 2)
+          .attr('opacity', 0.4);
 
-        // Much bigger arrow head
-        const arrowHeadSize = 12; // Increased from 6 to make it much more visible
+        // Arrow head
+        const arrowHeadSize = 12;
         g.append('path')
           .attr(
             'd',
@@ -480,18 +499,18 @@ function Horizons({
           )
           .attr('stroke', mutedTextColor)
           .attr('stroke-width', 1)
-          .attr('fill', mutedTextColor) // Fill the arrow head for better visibility
+          .attr('fill', mutedTextColor)
           .attr('opacity', 0.4);
       });
     });
 
-    // Position subjects based on horizon rank - FIXED POSITIONING
+    // Position subjects based on horizon rank
     const subjectGroup = g
       .append('g')
       .attr('class', 'subjects')
-      .style('z-index', 1000); // Highest z-index
+      .style('z-index', 1000);
 
-    // Group subjects by category to handle positioning within each row
+    // Group subjects by category
     const subjectsByCategory = new Map<number, typeof validData>();
     validData.forEach((subject) => {
       if (!subjectsByCategory.has(subject.category)) {
@@ -502,63 +521,46 @@ function Horizons({
 
     // Position subjects within each category row
     subjectsByCategory.forEach((subjects) => {
-      // Find the category row index
       const categoryRowIndex = uniqueCategories.indexOf(subjects[0].category);
       if (categoryRowIndex === -1) return;
 
-      // Calculate the base Y position for this category
-      const baseY =
-        contentVerticalOffset +
-        categoryRowIndex * (rowHeight + rowSpacing) +
-        rowHeight / 2;
-
-      // Sort subjects by horizon rank for consistent positioning
+      const baseY = categoryRowIndex * (rowHeight + rowSpacing) + rowHeight / 2;
       const sortedSubjects = [...subjects].sort(
         (a, b) => a.horizon - b.horizon
       );
 
-      // Create a simple force simulation for label positioning to avoid overlaps
       const labelPositions = new Map<
         string,
         { x: number; y: number; labelY: number }
       >();
 
       sortedSubjects.forEach((subject) => {
-        // X position based on horizon rank (0-10 scale)
         const x = xScale(subject.horizon);
-
-        // Y position within the category row with better vertical spread
-        const rowPadding = 40; // Increased padding from top/bottom of row
+        const rowPadding = 30;
         const availableHeight = rowHeight - 2 * rowPadding;
 
-        // Use a deterministic spread based on subject name hash to be consistent
+        // Vertical spread based on subject name hash
         const hash = subject.name
           .split('')
           .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const normalizedHash = (hash % 1000) / 1000; // 0-1
-
-        // Create more vertical spacing between subjects by expanding the range
-        const verticalSpread = 1.5; // Increased from 1.0 to spread subjects more
+        const normalizedHash = (hash % 1000) / 1000;
+        const verticalSpread = 1.5;
         const verticalOffset =
           (normalizedHash - 0.5) * availableHeight * verticalSpread;
         const y = baseY + verticalOffset;
 
-        // Label positioning - try to avoid overlaps with improved spacing
-        let labelY = y - 15; // Start above the hexagon
-
-        // Check for overlaps with existing labels and adjust if needed
-        const minLabelDistance = 25; // Increased from 20 for better spacing
+        // Label positioning with collision avoidance
+        let labelY = y - 15;
+        const minLabelDistance = 25;
         const existingPositions = Array.from(labelPositions.values());
 
         for (let attempt = 0; attempt < 15; attempt++) {
-          // Increased attempts
           let hasOverlap = false;
 
           for (const existing of existingPositions) {
             const xDistance = Math.abs(x - existing.x);
             const yDistance = Math.abs(labelY - existing.labelY);
 
-            // More aggressive collision detection
             if (xDistance < 100 && yDistance < minLabelDistance) {
               hasOverlap = true;
               break;
@@ -567,16 +569,14 @@ function Horizons({
 
           if (!hasOverlap) break;
 
-          // Adjust label position with larger steps
           labelY +=
             (attempt % 2 === 0 ? 1 : -1) *
             (minLabelDistance + Math.floor(attempt / 2) * 5);
         }
 
-        // Store the final position
         labelPositions.set(subject.name, { x, y, labelY });
 
-        // Draw subject as blue hexagon with brand color
+        // Draw subject as blue hexagon
         const hexagonSize = 6;
         const hexagonPath = `M${x},${y - hexagonSize} L${
           x + hexagonSize * 0.866
@@ -589,13 +589,12 @@ function Horizons({
         subjectGroup
           .append('path')
           .attr('d', hexagonPath)
-          .attr('fill', '#0005E9') // Brand color
+          .attr('fill', '#0005E9')
           .attr('stroke', foregroundColor)
           .attr('stroke-width', 2)
           .style('z-index', 1001)
           .style('cursor', 'pointer')
           .on('mouseenter', function (event) {
-            // Show tooltip with delay
             setTimeout(() => {
               const horizonDescription = getHorizonDescription(subject.horizon);
               tooltip
@@ -612,7 +611,6 @@ function Horizons({
             }, 500);
           })
           .on('mouseleave', function () {
-            // Hide tooltip with delay
             setTimeout(() => {
               tooltip.style('opacity', 0);
             }, 100);
@@ -623,19 +621,19 @@ function Horizons({
               .style('top', event.pageY - 10 + 'px');
           });
 
-        // Add subject label with theme-aware colors and monospace font
+        // Add subject label
         subjectGroup
           .append('text')
           .attr('x', x)
-          .attr('y', labelY) // Use calculated label position
+          .attr('y', labelY)
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'bottom')
           .attr('font-size', '11px')
-          .attr('font-family', 'JetBrains Mono, monospace') // Use monospace font from theme
+          .attr('font-family', 'JetBrains Mono, monospace')
           .attr('font-weight', '500')
-          .attr('fill', foregroundColor) // Use theme foreground color
+          .attr('fill', foregroundColor)
           .style('z-index', 1002)
-          .style('pointer-events', 'none') // Don't interfere with hexagon hover
+          .style('pointer-events', 'none')
           .text(subject.name);
       });
     });
@@ -652,7 +650,7 @@ function Horizons({
         .attr('x', 0)
         .attr('y', 0)
         .attr('font-weight', 'bold')
-        .attr('fill', foregroundColor) // Use foreground color
+        .attr('fill', foregroundColor)
         .text('Legend');
 
       const legendItems = [
@@ -668,11 +666,11 @@ function Horizons({
           .attr('x', 0)
           .attr('y', 20 + i * 15)
           .attr('font-size', '12px')
-          .attr('fill', subtleTextColor) // Use subtle color
+          .attr('fill', subtleTextColor)
           .text(text);
       });
     }
-  }, [data, showLegend, isLoading]);
+  }, [data, showLegend, isLoading, containerWidth, containerHeight]);
 
   return (
     <div className='horizons-container' style={{ background: 'transparent' }}>

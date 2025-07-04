@@ -9,11 +9,13 @@ import {
   Dialog,
   Button,
   Checkbox,
+  Spinner,
 } from '@chakra-ui/react';
-import { FiTag, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { KanbanColumn } from '../../components/shared/Kanban';
 import type { LabSubject, SubjectCategory } from './types';
 import { CategoryUtils } from './types';
+import { FaFolderTree } from 'react-icons/fa6';
 
 interface CategoryColumnProps {
   category: SubjectCategory;
@@ -48,6 +50,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     useState(true);
   const [isRenaming, setIsRenaming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isReassigningSubjects, setIsReassigningSubjects] = useState(false);
 
   // NOTE: Only editors and admins can modify categories, and only custom categories can be edited/deleted
   const canEdit = userRole === 'editor' || userRole === 'admin';
@@ -92,16 +95,39 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
 
   const handleDeleteConfirm = useCallback(async () => {
     setIsDeleting(true);
+
     try {
+      // If we're moving subjects and there are subjects to move, show the reassigning state
+      if (moveSubjectsToUncategorized && category.subjects.length > 0) {
+        setIsReassigningSubjects(true);
+      }
+
       await onCategoryDelete(category.id, moveSubjectsToUncategorized);
+
+      // Close dialog on success
       setIsDeleteDialogOpen(false);
       setMoveSubjectsToUncategorized(true);
     } catch {
       // Error handling is done in parent component
+      // Keep dialog open on error so user can try again
     } finally {
       setIsDeleting(false);
+      setIsReassigningSubjects(false);
     }
-  }, [category.id, moveSubjectsToUncategorized, onCategoryDelete]);
+  }, [
+    category.id,
+    moveSubjectsToUncategorized,
+    onCategoryDelete,
+    category.subjects.length,
+  ]);
+
+  // Handle dialog close - don't allow closing while operations are in progress
+  const handleDialogClose = useCallback(() => {
+    if (!isDeleting && !isReassigningSubjects) {
+      setIsDeleteDialogOpen(false);
+      setMoveSubjectsToUncategorized(true);
+    }
+  }, [isDeleting, isReassigningSubjects]);
 
   // CRITICAL: Handle drag-and-drop properly
   const handleDrop = useCallback(
@@ -124,7 +150,8 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
     () => (
       <HStack justify='space-between' align='center'>
         <HStack gap={2} flex='1'>
-          <FiTag size={14} color='var(--chakra-colors-fg-muted)' />
+          {/* Changed from FiTag to FaFolderTree for Categories/Subcategories */}
+          <FaFolderTree size={14} color='var(--chakra-colors-fg-muted)' />
           {isEditing ? (
             <Input
               value={editName}
@@ -260,10 +287,14 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
         emptyDropMessage='Drop subject here'
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog with Enhanced Loading States */}
       <Dialog.Root
         open={isDeleteDialogOpen}
-        onOpenChange={({ open }) => setIsDeleteDialogOpen(open)}
+        onOpenChange={({ open }) => {
+          if (!open) {
+            handleDialogClose();
+          }
+        }}
       >
         <Dialog.Backdrop />
         <Dialog.Positioner>
@@ -297,6 +328,7 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                       onCheckedChange={(details) =>
                         setMoveSubjectsToUncategorized(!!details.checked)
                       }
+                      disabled={isDeleting || isReassigningSubjects}
                     >
                       <Checkbox.HiddenInput />
                       <Checkbox.Control>
@@ -323,6 +355,43 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                     )}
                   </Box>
                 )}
+
+                {/* Loading States */}
+                {(isDeleting || isReassigningSubjects) && (
+                  <Box
+                    p={3}
+                    bg='bg.muted'
+                    borderRadius='md'
+                    border='1px solid'
+                    borderColor='border.muted'
+                  >
+                    <HStack gap={3}>
+                      <Spinner size='sm' color='brand' />
+                      <VStack gap={1} align='stretch' flex='1'>
+                        {isReassigningSubjects && (
+                          <Text fontSize='sm' color='fg' fontFamily='body'>
+                            Reassigning {category.subjects.length} subjects to
+                            Uncategorized...
+                          </Text>
+                        )}
+                        {isDeleting && !isReassigningSubjects && (
+                          <Text fontSize='sm' color='fg' fontFamily='body'>
+                            Deleting category...
+                          </Text>
+                        )}
+                        {isDeleting && isReassigningSubjects && (
+                          <Text
+                            fontSize='xs'
+                            color='fg.muted'
+                            fontFamily='body'
+                          >
+                            Then deleting category...
+                          </Text>
+                        )}
+                      </VStack>
+                    </HStack>
+                  </Box>
+                )}
               </VStack>
             </Dialog.Body>
 
@@ -330,8 +399,8 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
               <HStack gap={3}>
                 <Button
                   variant='outline'
-                  onClick={() => setIsDeleteDialogOpen(false)}
-                  disabled={isDeleting}
+                  onClick={handleDialogClose}
+                  disabled={isDeleting || isReassigningSubjects}
                   color='fg'
                   borderColor='border.emphasized'
                   bg='bg.canvas'
@@ -343,13 +412,18 @@ export const CategoryColumn: React.FC<CategoryColumnProps> = ({
                 <Button
                   variant='solid'
                   onClick={handleDeleteConfirm}
-                  disabled={isDeleting}
+                  disabled={isDeleting || isReassigningSubjects}
+                  loading={isDeleting || isReassigningSubjects}
                   bg='red.500'
                   color='white'
                   _hover={{ bg: 'red.600' }}
                   fontFamily='body'
                 >
-                  Delete Category
+                  {isReassigningSubjects
+                    ? 'Reassigning Subjects...'
+                    : isDeleting
+                    ? 'Deleting...'
+                    : 'Delete Category'}
                 </Button>
               </HStack>
             </Dialog.Footer>

@@ -65,8 +65,6 @@ export interface NetworkGraphRef {
   pulseNodesByType: (nodeType: string | null) => void;
 }
 
-import { getApiUrl } from '../../../utils/api';
-
 // Updated node colors to match your theme
 const nodeColors: { [key: string]: string } = {
   Organization: '#E07B91',
@@ -311,7 +309,7 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
       };
     }, [isScrollCaptured, showTemporaryOverlay]);
 
-    // PERFORMANCE FIX: Enhanced fetch with request cancellation and CORS handling
+    // PERFORMANCE FIX: Enhanced fetch with request cancellation and direct HTTPS URL
     useEffect(() => {
       async function fetchGraphData() {
         // Cancel previous request
@@ -323,14 +321,15 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
         abortControllerRef.current = new AbortController();
 
         try {
-          const limit = '1000';
-          const subjects = params.subjects || params.subject || 'metaverse';
+          const limit = '1300';
+          const subjects = params.subjects || params.subject;
 
-          const originalUrl = `https://fast.futurity.science/search/graph-data?subjects=${subjects}&limit=${limit}&target=&debug=false`;
-          const apiUrl = getApiUrl(originalUrl);
+          // Use direct HTTPS URL with trailing slash to avoid redirect
+          const apiUrl = `https://fast.futurity.science/graphs/graph-data?subject=${encodeURIComponent(
+            subjects || ''
+          )}&limit=${limit}&debug=false`;
 
           console.log('Fetching graph data from:', apiUrl);
-          console.log('Original URL would be:', originalUrl);
 
           const response = await fetch(apiUrl, {
             signal: abortControllerRef.current.signal,
@@ -417,37 +416,6 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
               console.error(
                 'Solutions: 1) Use development proxy, 2) Contact API maintainer, 3) Use CORS browser extension for development'
               );
-            }
-
-            // If it's a 500 error, try the original API without proxy as fallback
-            if (error.message.includes('500') && import.meta.env.DEV) {
-              console.log(
-                '500 error detected, trying original API URL as fallback...'
-              );
-              try {
-                const fallbackUrl = `https://fast.futurity.science/search/graph-data?subjects=${
-                  params.subjects || params.subject || 'metaverse'
-                }&limit=1000&target=&debug=false`;
-                console.log('Trying fallback URL:', fallbackUrl);
-
-                const fallbackResponse = await fetch(fallbackUrl, {
-                  signal: abortControllerRef.current.signal,
-                });
-
-                if (fallbackResponse.ok) {
-                  console.log('Fallback request succeeded');
-                  const fallbackData = await fallbackResponse.json();
-                  // Process the data same as above...
-                  // ... (same data processing code)
-                } else {
-                  console.error(
-                    'Fallback also failed with status:',
-                    fallbackResponse.status
-                  );
-                }
-              } catch (fallbackError) {
-                console.error('Fallback request also failed:', fallbackError);
-              }
             }
           }
         } finally {
