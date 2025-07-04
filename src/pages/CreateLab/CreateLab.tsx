@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -9,6 +9,7 @@ import {
   Text,
   Button,
   Alert,
+  Badge,
   createToaster,
 } from '@chakra-ui/react';
 import { FiArrowLeft, FiCheck } from 'react-icons/fi';
@@ -31,11 +32,19 @@ import {
   createDefaultFormData,
   validateAllSteps,
   calculateProcessingTime,
+  generateCreationId,
+  createUncategorizedCategory,
 } from './utils';
 
 interface CreateLabProps {
   teamspaceId?: string;
   initialLabSeed?: WhiteboardLabSeed; // If coming from whiteboard
+}
+
+// Navigation state interface
+interface CreateLabNavigationState {
+  initialLabSeed?: WhiteboardLabSeed;
+  fromWhiteboard?: boolean;
 }
 
 // New API request interface to match the actual endpoint
@@ -78,10 +87,16 @@ interface CreateLabAPIResponse {
 
 const CreateLab: React.FC<CreateLabProps> = ({
   teamspaceId: propTeamspaceId,
-  initialLabSeed,
+  initialLabSeed: propInitialLabSeed,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, user, currentTeam } = useAuth();
+
+  // Get initial lab seed from either props or navigation state
+  const navigationState = location.state as CreateLabNavigationState | null;
+  const initialLabSeed = propInitialLabSeed || navigationState?.initialLabSeed;
+  const fromWhiteboard = navigationState?.fromWhiteboard || false;
 
   // Create toaster instance
   const toaster = createToaster({
@@ -93,18 +108,7 @@ const CreateLab: React.FC<CreateLabProps> = ({
 
   // State management
   const [formData, setFormData] = useState<LabCreationFormData>(() => {
-    const defaultData = createDefaultFormData();
-
-    // If we have an initial Lab Seed, populate step 2
-    if (initialLabSeed) {
-      return {
-        ...defaultData,
-        // Don't auto-populate name/summary - let user decide in step 1
-        // Mark step 2 as populated since we have Lab Seed data
-      };
-    }
-
-    return defaultData;
+    return createDefaultFormData();
   });
 
   const [wizardState, setWizardState] = useState<WizardState>({
@@ -133,6 +137,61 @@ const CreateLab: React.FC<CreateLabProps> = ({
   });
 
   const [error, setError] = useState<string>('');
+  const [isLabSeedProcessed, setIsLabSeedProcessed] = useState(false);
+
+  // Show success toast when coming from whiteboard
+  useEffect(() => {
+    if (fromWhiteboard && initialLabSeed) {
+      const subjectCount = initialLabSeed.subjects?.length || 0;
+      const termCount = initialLabSeed.includeTerms?.length || 0;
+
+      toaster.create({
+        title: 'Lab Seed Data Loaded',
+        description: `Ready to create lab with ${subjectCount} subjects${
+          termCount > 0 ? ` and ${termCount} terms` : ''
+        } from "${initialLabSeed.name}"`,
+        status: 'success',
+        duration: 4000,
+      });
+    }
+  }, [fromWhiteboard, initialLabSeed, toaster]);
+
+  // Clear navigation state to prevent issues on refresh
+  useEffect(() => {
+    if (location.state) {
+      // Replace the current history entry without the state
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, location.pathname, navigate]);
+
+  // Calculate if we have any data populated
+  const hasPopulatedData = () => {
+    const totalSubjects = formData.categories.reduce(
+      (sum, cat) => sum + cat.subjects.length,
+      0
+    );
+    const totalTerms =
+      formData.includeTerms.length + formData.excludeTerms.length;
+
+    return totalSubjects > 0 || totalTerms > 0;
+  };
+
+  const getDataSummary = () => {
+    const totalSubjects = formData.categories.reduce(
+      (sum, cat) => sum + cat.subjects.length,
+      0
+    );
+    const totalTerms =
+      formData.includeTerms.length + formData.excludeTerms.length;
+
+    const parts = [];
+    if (totalSubjects > 0)
+      parts.push(`${totalSubjects} subject${totalSubjects !== 1 ? 's' : ''}`);
+    if (totalTerms > 0)
+      parts.push(`${totalTerms} term${totalTerms !== 1 ? 's' : ''}`);
+
+    return parts.join(' and ');
+  };
 
   // Validation
   const validation = validateAllSteps(formData);
@@ -169,6 +228,10 @@ const CreateLab: React.FC<CreateLabProps> = ({
     (step: CreateLabStep) => {
       if (step < wizardState.currentStep || wizardState.steps[step].completed) {
         setWizardState((prev) => ({ ...prev, currentStep: step }));
+        // Scroll to top after DOM updates
+        setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 50);
       }
     },
     [wizardState.currentStep, wizardState.steps]
@@ -192,6 +255,11 @@ const CreateLab: React.FC<CreateLabProps> = ({
         },
       },
     }));
+
+    // Scroll to top after DOM updates
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 50);
   }, [wizardState.canProceed, wizardState.currentStep]);
 
   const handlePreviousStep = useCallback(() => {
@@ -200,6 +268,10 @@ const CreateLab: React.FC<CreateLabProps> = ({
 
     if (prevStep >= 1) {
       setWizardState((prev) => ({ ...prev, currentStep: prevStep }));
+      // Scroll to top after DOM updates
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 50);
     }
   }, [wizardState.currentStep]);
 
@@ -211,6 +283,93 @@ const CreateLab: React.FC<CreateLabProps> = ({
     },
     []
   );
+
+  // Process initial lab seed data (moved here after handleFormDataUpdate is defined)
+  useEffect(() => {
+    if (initialLabSeed) {
+      // Check if we already have data populated to prevent duplicate processing
+      const currentSubjectCount = formData.categories.reduce(
+        (sum, cat) => sum + cat.subjects.length,
+        0
+      );
+
+      if (currentSubjectCount === 0) {
+        const uncategorizedCategory = createUncategorizedCategory();
+
+        // Convert Lab Seed subjects to creation subjects - make sure we have the right data structure
+        const labSeedSubjects = initialLabSeed.subjects.map((subject) => ({
+          id: generateCreationId('subj'),
+          subjectId: subject.id,
+          subjectName: subject.name,
+          subjectSlug: subject.slug || subject.id, // Fallback to id if slug is missing
+          subjectSummary: subject.summary || '',
+          categoryId: 'uncategorized', // Start all subjects in uncategorized
+          source: 'lab_seed' as const,
+          isNewTerm: false, // Lab Seed subjects are already processed
+        }));
+
+        // Put all subjects in uncategorized initially
+        const updatedUncategorizedCategory = {
+          ...uncategorizedCategory,
+          subjects: labSeedSubjects,
+        };
+
+        // Convert Lab Seed terms
+        const labSeedIncludeTerms = (initialLabSeed.includeTerms || []).map(
+          (term) => ({
+            id: generateCreationId('term'),
+            text: term,
+            source: 'lab_seed' as const,
+            type: 'include' as const,
+          })
+        );
+
+        const labSeedExcludeTerms = (initialLabSeed.excludeTerms || []).map(
+          (term) => ({
+            id: generateCreationId('term'),
+            text: term,
+            source: 'lab_seed' as const,
+            type: 'exclude' as const,
+          })
+        );
+
+        // Update form data using the handler to ensure proper state management
+        handleFormDataUpdate({
+          categories: [updatedUncategorizedCategory],
+          includeTerms: labSeedIncludeTerms,
+          excludeTerms: labSeedExcludeTerms,
+          selectedLabSeed: {
+            id: initialLabSeed.id,
+            name: initialLabSeed.name,
+            description: initialLabSeed.description,
+            categories: [],
+            subjects: labSeedSubjects.map((subject) => ({
+              ...subject,
+              addedAt: new Date().toISOString(),
+              subjectId: subject.subjectId!,
+              subjectSlug: subject.subjectSlug!,
+            })),
+            includeTerms: initialLabSeed.includeTerms || [],
+            excludeTerms: initialLabSeed.excludeTerms || [],
+            createdAt: initialLabSeed.createdAt,
+            updatedAt: initialLabSeed.createdAt,
+          },
+        });
+
+        // Update wizard state to indicate step 2 is populated
+        setWizardState((prev) => ({
+          ...prev,
+          steps: {
+            ...prev.steps,
+            2: { ...prev.steps[2], populated: true },
+          },
+        }));
+
+        // Mark lab seed as processed
+        setIsLabSeedProcessed(true);
+      }
+    }
+  }, [initialLabSeed, handleFormDataUpdate, formData.categories]);
 
   // Transform form data to match the new API format
   const transformToAPIFormat = useCallback(
@@ -306,8 +465,6 @@ const CreateLab: React.FC<CreateLabProps> = ({
       // Transform form data to API format
       const apiData = transformToAPIFormat(formData);
 
-      console.log('Creating lab with data:', apiData); // Debug log
-
       // Update progress
       setLoadingModal((prev) => ({
         ...prev,
@@ -328,18 +485,14 @@ const CreateLab: React.FC<CreateLabProps> = ({
         }
       );
 
-      console.log('API Response status:', response.status, response.statusText); // Debug log
-
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('API Error Response:', errorData); // Debug log
         throw new Error(
           `Failed to create lab: ${response.status} ${response.statusText} - ${errorData}`
         );
       }
 
       const result: CreateLabAPIResponse = await response.json();
-      console.log('API Success Response:', result); // Debug log
 
       // Update progress for completion
       setLoadingModal((prev) => ({
@@ -374,12 +527,6 @@ const CreateLab: React.FC<CreateLabProps> = ({
         navigate(`/lab/${result.uniqueID}`);
       }, 2000);
     } catch (error) {
-      console.error('Lab creation failed:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to create lab';
 
@@ -455,14 +602,37 @@ const CreateLab: React.FC<CreateLabProps> = ({
             </Button>
 
             <VStack gap={0} align='start'>
-              <Heading size='lg' color='fg' fontFamily='heading'>
-                Create New Lab
+              <HStack gap={3} align='center'>
+                <Heading size='lg' color='fg' fontFamily='heading'>
+                  Create New Lab
+                </Heading>
+
                 {initialLabSeed && (
-                  <Text as='span' fontSize='md' color='fg.muted' ml={2}>
-                    from Lab Seed
-                  </Text>
+                  <Badge
+                    colorScheme='blue'
+                    variant='subtle'
+                    fontSize='sm'
+                    fontFamily='body'
+                    px={2}
+                    py={1}
+                  >
+                    From Lab Seed: {initialLabSeed.name}
+                  </Badge>
                 )}
-              </Heading>
+
+                {hasPopulatedData() && (
+                  <Badge
+                    colorScheme='green'
+                    variant='subtle'
+                    fontSize='sm'
+                    fontFamily='body'
+                    px={2}
+                    py={1}
+                  >
+                    {getDataSummary()} added
+                  </Badge>
+                )}
+              </HStack>
 
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
                 {wizardState.isFromLabSeed
@@ -472,11 +642,12 @@ const CreateLab: React.FC<CreateLabProps> = ({
             </VStack>
           </HStack>
 
-          {/* Step indicator */}
+          {/* Step indicator - enhanced with data indication */}
           <HStack gap={2}>
             {[1, 2, 3].map((step) => (
               <Box
                 key={step}
+                position='relative'
                 w={8}
                 h={8}
                 borderRadius='full'
@@ -525,6 +696,21 @@ const CreateLab: React.FC<CreateLabProps> = ({
                   <FiCheck size={14} />
                 ) : (
                   step
+                )}
+
+                {/* Data indicator badge for step 2 */}
+                {step === 2 && hasPopulatedData() && (
+                  <Box
+                    position='absolute'
+                    top='-2px'
+                    right='-2px'
+                    w={3}
+                    h={3}
+                    borderRadius='full'
+                    bg='green.500'
+                    border='2px solid'
+                    borderColor='bg'
+                  />
                 )}
               </Box>
             ))}
@@ -585,6 +771,7 @@ const CreateLab: React.FC<CreateLabProps> = ({
             isCreating={loadingModal.isOpen}
             validation={validation}
             initialLabSeed={initialLabSeed}
+            isLabSeedProcessed={isLabSeedProcessed}
           />
         </Box>
 

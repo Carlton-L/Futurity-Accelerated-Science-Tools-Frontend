@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -51,6 +52,24 @@ import { usePage } from '../../context/PageContext';
 // Import components
 import WhiteboardSubjectCard from './SubjectCard';
 import SubjectSearch from './SubjectSearch';
+
+// Define the WhiteboardLabSeed interface for navigation
+interface WhiteboardLabSeedForNavigation {
+  id: string;
+  name: string;
+  description: string;
+  subjects: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    summary?: string;
+    category?: string;
+  }>;
+  includeTerms: string[];
+  excludeTerms: string[];
+  createdAt: string;
+  isActive: boolean;
+}
 
 // Toast for notifications - using custom toaster
 
@@ -499,6 +518,7 @@ const Whiteboard: React.FC = () => {
   // Auth and Page Context
   const { user, token } = useAuth();
   const { setPageContext, clearPageContext } = usePage();
+  const navigate = useNavigate();
 
   // State management
   const [whiteboardData, setWhiteboardData] = useState<WhiteboardData | null>(
@@ -548,15 +568,12 @@ const Whiteboard: React.FC = () => {
           setIsLoading(true);
         }
         setError(null);
-        console.log('Loading whiteboard data for user:', user._id);
 
         const data = await whiteboardService.getUserWhiteboard(user._id, token);
 
         // Update both regular and optimistic data
         setWhiteboardData(data);
         setOptimisticWhiteboardData(data);
-
-        console.log('Whiteboard data loaded:', data);
       } catch (error) {
         console.error('Failed to load whiteboard data:', error);
         setError(
@@ -1097,38 +1114,63 @@ const Whiteboard: React.FC = () => {
     [whiteboardData, token, loadWhiteboardData, optimisticWhiteboardData]
   );
 
-  // Handle publishing lab seed (placeholder - would navigate to lab creation)
+  // Handle publishing lab seed (updated to navigate to CreateLab)
   const handlePublishLabSeed = useCallback(
     (labSeedId: string) => {
       const labSeed = whiteboardData?.labSeeds.find(
         (d) => d.uniqueID === labSeedId
       );
+
       if (labSeed) {
         if (labSeed.subjects.length === 0) {
           toaster.create({
-            title: 'Cannot publish lab seed',
+            title: 'Cannot create lab',
             description: 'Lab seed must contain at least one subject',
             status: 'warning',
             duration: 5000,
           });
           return;
         }
-        // Navigate to lab creation with lab seed data
-        console.log('Publishing lab seed to lab creation:', labSeed);
+
+        // Transform whiteboard lab seed to the expected format for CreateLab
+        const transformedLabSeed: WhiteboardLabSeedForNavigation = {
+          id: labSeed.uniqueID,
+          name: labSeed.name,
+          description: labSeed.description,
+          subjects: labSeed.subjects.map((subject) => ({
+            id: subject.ent_fsid,
+            name: subject.ent_name,
+            slug: subject.ent_fsid,
+            summary: subject.ent_summary,
+            category: undefined, // Lab seeds don't have categories initially
+          })),
+          includeTerms: labSeed.terms, // Terms go to include by default
+          excludeTerms: [],
+          createdAt: labSeed.createdAt,
+          isActive: true,
+        };
+
+        // Navigate to create lab page with the lab seed data
+        navigate('/lab/create', {
+          state: {
+            initialLabSeed: transformedLabSeed,
+            fromWhiteboard: true,
+          },
+        });
+
         toaster.create({
-          title: 'Publishing lab seed',
-          description: `Would navigate to lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`,
-          status: 'info',
-          duration: 5000,
+          title: 'Creating lab from Lab Seed',
+          description: `Starting lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`,
+          status: 'success',
+          duration: 3000,
         });
       }
     },
-    [whiteboardData]
+    [whiteboardData, navigate]
   );
 
   // Handle quick add to lab seed (placeholder - would show selection dialog)
   const handleQuickAddToLabSeed = useCallback((subjectFsid: string) => {
-    console.log('Quick add subject to lab seed:', subjectFsid);
     toaster.create({
       title: 'Quick add functionality',
       description: 'Quick add functionality not yet implemented',
@@ -1139,7 +1181,6 @@ const Whiteboard: React.FC = () => {
 
   // Handle go to search results (placeholder)
   const handleGoToSearchResults = useCallback(() => {
-    console.log('Navigate to search results page');
     toaster.create({
       title: 'Search results page',
       description: 'Search results page navigation not yet implemented',
@@ -1217,7 +1258,6 @@ const Whiteboard: React.FC = () => {
         // TODO: Implement name update API call when endpoint is available
         // await whiteboardService.updateLabSeedName(whiteboardId, labSeed.uniqueID, editName.trim(), token);
 
-        console.log('Update lab seed name:', editName);
         setIsEditingName(false);
 
         toaster.create({
@@ -1265,7 +1305,6 @@ const Whiteboard: React.FC = () => {
         // TODO: Implement description update API call when endpoint is available
         // await whiteboardService.updateLabSeedDescription(whiteboardId, labSeed.uniqueID, editDescription.trim(), token);
 
-        console.log('Update lab seed description:', editDescription);
         setIsEditingDescription(false);
 
         toaster.create({

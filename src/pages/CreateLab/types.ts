@@ -91,6 +91,38 @@ export interface WhiteboardLabSeedData {
 }
 
 // ============================================================================
+// Navigation Types
+// ============================================================================
+
+/**
+ * Interface for passing lab seed data from whiteboard to create lab page
+ */
+export interface WhiteboardLabSeed {
+  id: string;
+  name: string;
+  description: string;
+  subjects: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    summary?: string;
+    category?: string;
+  }>;
+  includeTerms: string[];
+  excludeTerms: string[];
+  createdAt: string;
+  isActive: boolean;
+}
+
+/**
+ * Navigation state for React Router when coming from whiteboard
+ */
+export interface CreateLabNavigationState {
+  initialLabSeed?: WhiteboardLabSeed;
+  fromWhiteboard?: boolean;
+}
+
+// ============================================================================
 // CSV Data Types
 // ============================================================================
 
@@ -333,27 +365,6 @@ export interface CreateLabResponse {
   labId?: string;
   processingJobId?: string; // For term ingestion
   error?: string;
-}
-
-// ============================================================================
-// Lab Seed API Types (from Whiteboard)
-// ============================================================================
-
-export interface WhiteboardLabSeed {
-  id: string;
-  name: string;
-  description: string;
-  subjects: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    summary?: string;
-    category?: string;
-  }>;
-  includeTerms: string[];
-  excludeTerms: string[];
-  createdAt: string;
-  isActive: boolean;
 }
 
 // ============================================================================

@@ -14,6 +14,25 @@ import { KanbanItem } from '../../components/shared/Kanban';
 import { useAuth } from '../../context/AuthContext';
 import type { LabSubject } from './types';
 
+// Blue hexagon icon component for subjects - matching whiteboard
+const SubjectHexagonIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+  >
+    <path
+      d='M12 2L20.196 7V17L12 22L3.804 17V7L12 2Z'
+      fill='#0005E9'
+      stroke='#0005E9'
+      strokeWidth='1'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
+
 interface SubjectCardProps {
   subject: LabSubject;
   categoryId: string;
@@ -302,7 +321,6 @@ const TruncatedSummary: React.FC<{
           <Tooltip.Content
             bg='bg.canvas'
             color='fg'
-            // p={3}
             borderRadius='md'
             boxShadow='lg'
             border='1px solid'
@@ -468,29 +486,34 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
         borderColor='border.emphasized'
         _hover={{
           bg: 'bg.hover',
-          borderColor: 'border.hover',
+          borderColor: 'brand',
+          boxShadow: 'md',
         }}
         transition='all 0.2s'
         mb={3}
         w='100%'
         opacity={isLoading ? 0.7 : 1}
         position='relative'
+        cursor='grab'
         // Remove z-index from here - let KanbanItem handle it
       >
         <Card.Body p={3}>
           <VStack gap={3} align='stretch'>
             {/* Header with title and actions */}
             <HStack justify='space-between' align='flex-start'>
-              <Text
-                fontSize='sm'
-                fontWeight='medium'
-                color='fg'
-                flex='1'
-                lineHeight='1.3'
-                fontFamily='body'
-              >
-                {subject.subjectName}
-              </Text>
+              <HStack gap={2} flex='1' align='start'>
+                <SubjectHexagonIcon size={24} />
+                <Text
+                  fontSize='sm'
+                  fontWeight='medium'
+                  color='fg'
+                  flex='1'
+                  lineHeight='1.3'
+                  fontFamily='body'
+                >
+                  {subject.subjectName}
+                </Text>
+              </HStack>
               <HStack gap={1}>
                 {/* Drag handle */}
                 <Box color='fg.muted' cursor='grab'>
@@ -519,11 +542,11 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
                     <Menu.Content
                       bg='bg.canvas'
                       borderColor='border.emphasized'
-                      zIndex={999999}
+                      zIndex={999998} // High but lower than search dropdown
                       boxShadow='lg'
                       position='relative'
                       css={{
-                        zIndex: '999999 !important',
+                        zIndex: '999998 !important',
                         position: 'relative !important',
                       }}
                     >

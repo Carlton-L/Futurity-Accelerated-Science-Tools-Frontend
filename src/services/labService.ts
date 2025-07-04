@@ -1,7 +1,8 @@
 // services/labService.ts
 
-// Base URL without trailing slash to avoid double slashes in path construction
 const API_BASE_URL = 'https://fast.futurity.science/management/labs';
+const SUBJECTS_API_BASE_URL =
+  'https://fast.futurity.science/management/subjects';
 
 // Constants
 const FUTURITY_TEAM_ID = '17b389f5-c487-49ba-8a82-0b21d887777f';
@@ -150,6 +151,18 @@ export interface Lab {
 // Type alias for Futurity Labs (same as Lab)
 export type FuturityLab = Lab;
 
+// Subject removal request interface
+export interface RemoveSubjectRequest {
+  lab_id: string;
+  subject_ent_fsid: string;
+}
+
+// Subject removal response interface
+export interface RemoveSubjectResponse {
+  success: boolean;
+  message?: string;
+}
+
 class LabService {
   private getAuthHeaders(token: string): HeadersInit {
     return {
@@ -164,39 +177,81 @@ class LabService {
     token: string,
     includeArchived: boolean = false
   ): Promise<Lab[]> {
-
     // Build URL string using the correct /by-team/ endpoint structure
     const urlString = `${API_BASE_URL}/by-team/${encodeURIComponent(
       teamId
     )}?include_archived=${includeArchived}`;
 
     // Enhanced debug logging
-    console.group('🔍 Lab Service Request Debug');
-    console.log('API_BASE_URL constant:', API_BASE_URL);
-    console.log('Final URL string:', urlString);
-    console.log('URL protocol:', new URL(urlString).protocol);
-    console.log('Window location protocol:', window.location.protocol);
-    
+    console.log('🌐 Making network request to getLabsForTeam');
+    console.log('📍 API_BASE_URL:', API_BASE_URL);
+    console.log('🎯 Team ID:', teamId);
+    console.log('📦 Include archived:', includeArchived);
+    console.log('🔗 Final URL string:', urlString);
+    console.log(
+      '🔑 Token preview:',
+      token ? token.substring(0, 10) + '...' : 'NO TOKEN'
+    );
+
     // Verify the URL starts with https
     if (!urlString.startsWith('https://')) {
-      console.error('⚠️ CRITICAL: URL is not HTTPS!', urlString);
-      console.trace('Stack trace for non-HTTPS URL');
+      console.error('⚠️  WARNING: URL is not HTTPS!', urlString);
     }
-    console.groupEnd();
+
+    console.log('📡 About to make fetch request...');
 
     const response = await fetch(urlString, {
       method: 'GET',
       headers: this.getAuthHeaders(token),
     });
 
+    console.log('📥 Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch labs for team: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Request failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+      });
+      throw new Error(
+        `Failed to fetch labs for team: ${response.status} - ${errorText}`
+      );
     }
 
+    console.log('📋 Parsing response as JSON...');
     const rawLabs = await response.json();
 
+    console.log('✅ Raw labs received:', {
+      count: Array.isArray(rawLabs) ? rawLabs.length : 'Not an array',
+      type: typeof rawLabs,
+      firstLabPreview:
+        Array.isArray(rawLabs) && rawLabs[0]
+          ? {
+              id: rawLabs[0]._id,
+              uniqueID: rawLabs[0].uniqueID,
+              name: rawLabs[0].ent_name,
+            }
+          : 'No labs or not array',
+    });
+
     // Transform each lab to include legacy properties
-    return rawLabs.map((lab: any) => this.transformLabResponse(lab));
+    const transformedLabs = rawLabs.map((lab: any) =>
+      this.transformLabResponse(lab)
+    );
+
+    console.log(
+      '🔄 Labs transformed, returning:',
+      transformedLabs.length,
+      'labs'
+    );
+
+    return transformedLabs;
   }
 
   // Get a specific lab by ID
@@ -261,20 +316,51 @@ class LabService {
     uniqueId: string,
     token: string
   ): Promise<FuturityLab> {
+    console.log('🔍 getFuturityLabByUniqueId called with:', {
+      uniqueId,
+      token: token.substring(0, 10) + '...',
+    });
+
     try {
+      console.log(
+        '📡 Making API call to getLabsForTeam with FUTURITY_TEAM_ID:',
+        FUTURITY_TEAM_ID
+      );
+
       // First get all labs from the team to find the one with matching uniqueID
       const labs = await this.getLabsForTeam(FUTURITY_TEAM_ID, token, false);
+
+      console.log('✅ Got labs from team:', {
+        totalLabs: labs.length,
+        labIds: labs.map((lab) => ({
+          id: lab._id,
+          uniqueID: lab.uniqueID,
+          name: lab.ent_name,
+        })),
+      });
 
       // Find the lab with the matching uniqueID
       const lab = labs.find((lab) => lab.uniqueID === uniqueId);
 
       if (!lab) {
+        console.error('❌ Lab not found with uniqueID:', uniqueId);
+        console.log(
+          'Available uniqueIDs:',
+          labs.map((l) => l.uniqueID)
+        );
         throw new Error(`Futurity Lab with uniqueID "${uniqueId}" not found`);
       }
 
+      console.log('✅ Found matching lab:', {
+        id: lab._id,
+        uniqueID: lab.uniqueID,
+        name: lab.ent_name,
+        status: lab.status,
+      });
+
       return lab;
     } catch (error) {
-      console.error('Failed to fetch Futurity Lab:', error);
+      console.error('❌ Failed to fetch Futurity Lab:', error);
       throw error;
     }
   }
@@ -586,6 +672,80 @@ class LabService {
     };
 
     return this.updateLab(labId, updates, token);
+  }
+
+  /**
+   * Remove a subject from a lab using the disconnect endpoint
+   * @param labId - The lab unique ID (not MongoDB _id)
+   * @param subjectFsid - The subject's ent_fsid (with or without fsid_ prefix)
+   * @param token - Authentication token
+   * @returns Promise<void>
+   */
+  async removeSubjectFromLab(
+    labId: string,
+    subjectFsid: string,
+    token: string
+  ): Promise<void> {
+    console.log('🗑️ Removing subject from lab:', {
+      labId,
+      subjectFsid,
+    });
+
+    // Ensure the subject fsid has the correct format (with fsid_ prefix)
+    const normalizedSubjectFsid = subjectFsid.startsWith('fsid_')
+      ? subjectFsid
+      : `fsid_${subjectFsid}`;
+
+    const requestBody: RemoveSubjectRequest = {
+      lab_id: labId,
+      subject_ent_fsid: normalizedSubjectFsid,
+    };
+
+    console.log('📡 Making disconnect request:', requestBody);
+
+    const response = await fetch(`${SUBJECTS_API_BASE_URL}/disconnect`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(token),
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log('📥 Disconnect response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      if (response.status === 403) {
+        throw new Error('You do not have permission to remove this subject.');
+      }
+      if (response.status === 404) {
+        throw new Error('Subject or lab not found.');
+      }
+
+      // Try to get error message from response
+      const errorText = await response.text();
+      console.error('❌ Disconnect request failed:', errorText);
+      throw new Error(
+        `Failed to remove subject from lab: ${response.status} ${response.statusText}. ${errorText}`
+      );
+    }
+
+    // Parse response if it exists
+    const responseText = await response.text();
+    if (responseText.trim()) {
+      try {
+        const data: RemoveSubjectResponse = JSON.parse(responseText);
+        console.log('✅ Subject removal response:', data);
+      } catch (parseError) {
+        console.log('✅ Subject removed successfully (non-JSON response)');
+      }
+    } else {
+      console.log('✅ Subject removed successfully (empty response)');
+    }
   }
 
   // Get analyses for a specific lab

@@ -14,7 +14,7 @@ import Search from './pages/Search';
 import WorkspaceView from './pages/WorkspaceView';
 import Login from './pages/Login/Login';
 import Lab from './pages/Lab';
-import FuturityLab from './pages/FuturityLab/FuturityLab';
+import FuturityLab from './pages/FuturityLab';
 import FuturityLabsDirectory from './pages/FuturityLabsDirectory';
 import Whiteboard from './pages/Whiteboard';
 import TeamView from './pages/TeamView';
@@ -24,8 +24,10 @@ import CreateLab from './pages/CreateLab';
 import { Profile } from './pages/Profile';
 import FuturityAnalysis from './pages/FuturityAnalysis';
 import FuturityAnalysesDirectory from './pages/FuturityAnalysesDirectory';
+import Unauthorized from './pages/Unauthorized'; // Import the Unauthorized component
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
+import NotFound from './pages/NotFound';
 
 // Create a separate component for the auth-aware loading logic
 const AppWithAuth = () => {
@@ -84,7 +86,7 @@ const AppWithAuth = () => {
           <Route path='/lab/:id' element={<Lab />} />
           <Route path='/lab/create' element={<CreateLab />} />
           {/* Futurity Lab route - using slug (ent_fsid) */}
-          <Route path='/futurity-lab/:slug' element={<FuturityLab />} />
+          <Route path='/futurity-lab/:uniqueId' element={<FuturityLab />} />
           {/* Futurity Labs Directory route */}
           <Route path='/futuritylabs' element={<FuturityLabsDirectory />} />
           <Route path='/search' element={<Search />} />
@@ -106,10 +108,11 @@ const AppWithAuth = () => {
         </Route>
       </Route>
 
-      <Route path='/unauthorized' element={<div>Unauthorized</div>} />
+      {/* Unauthorized route - outside of Layout to be fullscreen */}
+      <Route path='/unauthorized' element={<Unauthorized />} />
       {/* Redirect login attempts to home if already authenticated */}
       <Route path='/login' element={<Navigate to='/' replace />} />
-      <Route path='*' element={<div>Page Not Found</div>} />
+      <Route path='*' element={<NotFound />} />
     </Routes>
   );
 };

@@ -28,7 +28,11 @@ import {
   FiMail,
   FiArrowLeft,
   FiMoreVertical,
+  FiChevronRight,
 } from 'react-icons/fi';
+import { FaClipboardList, FaChartPie, FaChartLine } from 'react-icons/fa';
+import { TbCubePlus } from 'react-icons/tb';
+import { HiLightBulb } from 'react-icons/hi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePage } from '../../context/PageContext';
@@ -67,111 +71,235 @@ const Lab: React.FC = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
   // Transform API lab data to frontend format using new subcategories_map structure
-  const transformApiLabToFrontend = useCallback((apiLab: ApiLab): LabType => {
-    console.log('Transforming API lab data:', apiLab);
+  const transformApiLabToFrontend = useCallback(
+    async (apiLab: ApiLab): Promise<LabType> => {
+      console.log('Transforming API lab data:', apiLab);
 
-    // Initialize categories array with default uncategorized
-    const categories: SubjectCategory[] = [];
+      // Initialize categories array with default uncategorized
+      const categories: SubjectCategory[] = [];
+      const allSubjects: LabSubject[] = [];
 
-    // Add default uncategorized category first
-    const uncategorizedCategory: SubjectCategory = {
-      id: 'uncategorized',
-      name: 'Uncategorized',
-      type: 'default',
-      subjects: [],
-      description: 'Default category for new subjects',
-    };
+      // Add default uncategorized category first
+      const uncategorizedCategory: SubjectCategory = {
+        id: 'uncategorized',
+        name: 'Uncategorized',
+        type: 'default',
+        subjects: [],
+        description: 'Default category for new subjects',
+      };
 
-    // Process subcategories_map to create categories and subjects
-    const allSubjects: LabSubject[] = [];
+      // Process subcategories_map to create categories and subjects
+      if (apiLab.subcategories_map && Array.isArray(apiLab.subcategories_map)) {
+        for (const subcategoryMap of apiLab.subcategories_map) {
+          // Determine if this is the uncategorized category
+          const isUncategorized =
+            subcategoryMap.subcategory_name.toLowerCase() === 'uncategorized';
 
-    if (apiLab.subcategories_map && Array.isArray(apiLab.subcategories_map)) {
-      apiLab.subcategories_map.forEach((subcategoryMap, index) => {
-        // Determine if this is the uncategorized category
-        const isUncategorized =
-          subcategoryMap.subcategory_name.toLowerCase() === 'uncategorized';
+          // Create category object
+          const category: SubjectCategory = {
+            id: isUncategorized
+              ? 'uncategorized'
+              : subcategoryMap.subcategory_id,
+            name: subcategoryMap.subcategory_name,
+            type: isUncategorized ? 'default' : 'custom',
+            subjects: [],
+            description: isUncategorized
+              ? 'Default category for new subjects'
+              : undefined,
+          };
 
-        // Create category object
-        const category: SubjectCategory = {
-          id: isUncategorized ? 'uncategorized' : subcategoryMap.subcategory_id,
-          name: subcategoryMap.subcategory_name,
-          type: isUncategorized ? 'default' : 'custom',
-          subjects: [],
-          description: isUncategorized
-            ? 'Default category for new subjects'
-            : undefined,
-        };
+          // Process subjects in this subcategory
+          if (
+            subcategoryMap.subjects &&
+            Array.isArray(subcategoryMap.subjects)
+          ) {
+            for (const [
+              subjectIndex,
+              apiSubject,
+            ] of subcategoryMap.subjects.entries()) {
+              // Parse slug from ent_fsid by removing fsid_ prefix
+              const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
+                ? apiSubject.ent_fsid.substring(5)
+                : apiSubject.ent_fsid;
 
-        // Process subjects in this subcategory
-        if (subcategoryMap.subjects && Array.isArray(subcategoryMap.subjects)) {
-          subcategoryMap.subjects.forEach((apiSubject, subjectIndex) => {
-            // Parse slug from ent_fsid by removing fsid_ prefix
-            const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
-              ? apiSubject.ent_fsid.substring(5)
-              : apiSubject.ent_fsid;
+              // Create basic subject first
+              const frontendSubject: LabSubject = {
+                id: `subj-${category.id}-${subjectIndex}-${apiSubject.ent_fsid}`,
+                subjectId: apiSubject.ent_fsid, // Use ent_fsid as the ID for association
+                subjectName: apiSubject.ent_name,
+                subjectSlug: subjectSlug,
+                addedAt: new Date().toISOString(),
+                addedById: 'unknown',
+                notes: apiSubject.ent_summary || '',
+                categoryId: category.id,
+                // These will be filled in by fetchSubjectIndexes
+                horizonRank: undefined,
+                techTransfer: undefined,
+                whiteSpace: undefined,
+              };
 
-            const frontendSubject: LabSubject = {
-              id: `subj-${index}-${subjectIndex}-${apiSubject.ent_fsid}`,
-              subjectId: apiSubject.ent_fsid, // Use ent_fsid as the ID for association
-              subjectName: apiSubject.ent_name,
-              subjectSlug: subjectSlug,
-              addedAt: new Date().toISOString(),
-              addedById: 'unknown',
-              notes: apiSubject.ent_summary || '',
-              categoryId: category.id,
-              // Add index data if available
-              horizonRank: apiSubject.indexes?.[0]?.HR,
-              techTransfer: apiSubject.indexes?.[0]?.TT,
-              whiteSpace: apiSubject.indexes?.[0]?.WS,
-            };
+              allSubjects.push(frontendSubject);
+              category.subjects.push(frontendSubject);
+            }
+          }
 
-            allSubjects.push(frontendSubject);
-            category.subjects.push(frontendSubject);
-          });
+          // Add category to list (replace uncategorized if this is the uncategorized category)
+          if (isUncategorized) {
+            // Update the uncategorized category with subjects
+            uncategorizedCategory.subjects = category.subjects;
+          } else {
+            categories.push(category);
+          }
         }
+      }
 
-        // Add category to list (replace uncategorized if this is the uncategorized category)
-        if (isUncategorized) {
-          // Update the uncategorized category with subjects
-          uncategorizedCategory.subjects = category.subjects;
-        } else {
-          categories.push(category);
+      // Always ensure uncategorized is first in the list
+      categories.unshift(uncategorizedCategory);
+
+      console.log('Transformed categories:', categories);
+      console.log('Total subjects before index fetch:', allSubjects.length);
+
+      return {
+        id: apiLab._id,
+        uniqueID: apiLab.uniqueID,
+        name: apiLab.ent_name,
+        description: apiLab.ent_summary || '',
+        teamspaceId: 'unknown',
+        createdAt: apiLab.createdAt,
+        updatedAt: apiLab.updatedAt,
+        isArchived: apiLab.status === 'archived',
+        isDeleted: apiLab.status === 'deleted',
+        deletedAt: apiLab.status === 'deleted' ? apiLab.updatedAt : null,
+        adminIds: ['current-user'],
+        editorIds: [],
+        memberIds: ['current-user'],
+        goals: [],
+        subjects: allSubjects,
+        categories: categories,
+        analyses: [],
+        includeTerms: apiLab.include_terms || [],
+        excludeTerms: apiLab.exclude_terms || [],
+        miroUrl: apiLab.miro_board_url,
+        knowledgebaseId: apiLab.kbid,
+        pictureUrl: apiLab.picture_url,
+        thumbnailUrl: apiLab.thumbnail_url,
+      };
+    },
+    []
+  );
+
+  const fetchSubjectIndexes = useCallback(
+    async (lab: LabType): Promise<LabType> => {
+      if (!token) {
+        console.log('No token available, skipping subject index fetch');
+        return lab;
+      }
+
+      console.log('Fetching indexes for', lab.subjects.length, 'subjects');
+
+      // Create a copy of the lab to update
+      const updatedLab = { ...lab };
+      const updatedCategories = [...lab.categories];
+
+      // Track successful fetches
+      let successfulFetches = 0;
+
+      for (const subject of lab.subjects) {
+        try {
+          // Ensure the fsid has the fsid_ prefix for the API call
+          const subjectFsid = subject.subjectSlug.startsWith('fsid_')
+            ? subject.subjectSlug
+            : `fsid_${subject.subjectSlug}`;
+
+          const response = await fetch(
+            `https://fast.futurity.science/management/subjects/${encodeURIComponent(
+              subjectFsid
+            )}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            console.warn(
+              `Failed to fetch data for subject ${subject.subjectName}: ${response.status}`
+            );
+            continue;
+          }
+
+          const subjectData = await response.json();
+
+          // Extract index values
+          let horizonRank = undefined;
+          let techTransfer = undefined;
+          let whiteSpace = undefined;
+
+          if (
+            subjectData.indexes &&
+            Array.isArray(subjectData.indexes) &&
+            subjectData.indexes.length > 0
+          ) {
+            const firstIndex = subjectData.indexes[0];
+            if (firstIndex && typeof firstIndex === 'object') {
+              horizonRank = firstIndex.HR;
+              techTransfer = firstIndex.TT;
+              whiteSpace = firstIndex.WS;
+            }
+          }
+
+          console.log(
+            `Subject ${subject.subjectName}: HR=${horizonRank}, TT=${techTransfer}, WS=${whiteSpace}`
+          );
+
+          // Update the subject in all references
+          const updatedSubject = {
+            ...subject,
+            horizonRank,
+            techTransfer,
+            whiteSpace,
+          };
+
+          // Update in the main subjects array
+          const subjectIndex = updatedLab.subjects.findIndex(
+            (s) => s.id === subject.id
+          );
+          if (subjectIndex !== -1) {
+            updatedLab.subjects[subjectIndex] = updatedSubject;
+          }
+
+          // Update in the categories
+          for (const category of updatedCategories) {
+            const categorySubjectIndex = category.subjects.findIndex(
+              (s) => s.id === subject.id
+            );
+            if (categorySubjectIndex !== -1) {
+              category.subjects[categorySubjectIndex] = updatedSubject;
+              break;
+            }
+          }
+
+          successfulFetches++;
+        } catch (error) {
+          console.error(
+            `Error fetching data for subject ${subject.subjectName}:`,
+            error
+          );
         }
-      });
-    }
+      }
 
-    // Always ensure uncategorized is first in the list
-    categories.unshift(uncategorizedCategory);
+      updatedLab.categories = updatedCategories;
 
-    console.log('Transformed categories:', categories);
-    console.log('Transformed subjects:', allSubjects);
+      console.log(
+        `Successfully fetched indexes for ${successfulFetches}/${lab.subjects.length} subjects`
+      );
 
-    return {
-      id: apiLab._id,
-      uniqueID: apiLab.uniqueID,
-      name: apiLab.ent_name,
-      description: apiLab.ent_summary || '',
-      teamspaceId: 'unknown', // Not provided in new API - will need to get from context
-      createdAt: apiLab.createdAt,
-      updatedAt: apiLab.updatedAt,
-      isArchived: apiLab.status === 'archived',
-      isDeleted: apiLab.status === 'deleted',
-      deletedAt: apiLab.status === 'deleted' ? apiLab.updatedAt : null,
-      adminIds: ['current-user'], // TODO: Get from team management API
-      editorIds: [],
-      memberIds: ['current-user'],
-      goals: [], // TODO: Transform API goals to frontend format
-      subjects: allSubjects,
-      categories: categories,
-      analyses: [], // Will be loaded separately
-      includeTerms: apiLab.include_terms || [],
-      excludeTerms: apiLab.exclude_terms || [],
-      miroUrl: apiLab.miro_board_url,
-      knowledgebaseId: apiLab.kbid,
-      pictureUrl: apiLab.picture_url,
-      thumbnailUrl: apiLab.thumbnail_url,
-    };
-  }, []);
+      return updatedLab;
+    },
+    [token]
+  );
 
   // Memoize the page context to prevent infinite re-renders
   const labPageContext = useMemo(() => {
@@ -228,13 +356,15 @@ const Lab: React.FC = () => {
       // Store the raw API data
       setApiLabData(apiLabData);
 
-      // Transform API data to frontend format
-      const transformedLab = transformApiLabToFrontend(apiLabData);
-      console.log('Transformed lab IDs:', {
-        frontendId: transformedLab.id,
-        uniqueID: transformedLab.uniqueID,
-        urlParam: id,
-      });
+      // Transform API data to frontend format (without indexes initially)
+      let transformedLab = await transformApiLabToFrontend(apiLabData);
+      console.log(
+        'Initial transformation complete, now fetching subject indexes...'
+      );
+
+      // Fetch individual subject data to get indexes (HR, TT, WS)
+      transformedLab = await fetchSubjectIndexes(transformedLab);
+      console.log('Subject indexes fetch complete');
 
       setLab(transformedLab);
       setHeaderForm({
@@ -251,7 +381,7 @@ const Lab: React.FC = () => {
       }
       setLoading(false);
     }
-  }, [id, token, transformApiLabToFrontend]);
+  }, [id, token, transformApiLabToFrontend, fetchSubjectIndexes]);
 
   useEffect(() => {
     fetchLabData();
@@ -389,6 +519,15 @@ const Lab: React.FC = () => {
     },
     [lab, token, id, transformApiLabToFrontend]
   );
+
+  // Tab configuration with icons
+  const tabConfig = [
+    { value: 'plan', label: 'Plan', icon: FaClipboardList },
+    { value: 'gather', label: 'Gather', icon: TbCubePlus },
+    { value: 'analyze', label: 'Analyze', icon: FaChartPie },
+    { value: 'forecast', label: 'Forecast', icon: FaChartLine },
+    { value: 'invent', label: 'Invent', icon: HiLightBulb },
+  ];
 
   // Error handling
   if (error) {
@@ -643,7 +782,7 @@ const Lab: React.FC = () => {
         </Box>
       </GlassCard>
 
-      {/* Sticky Tab Navigation - Updated with Plan tab first */}
+      {/* Enhanced Sticky Tab Navigation with Icons and Arrows */}
       <Box position='sticky' top='64px' zIndex='10' mb={6}>
         <GlassCard variant='glass' w='100%' bg='bg.canvas'>
           <Box p={4}>
@@ -651,13 +790,40 @@ const Lab: React.FC = () => {
               value={activeTab}
               onValueChange={(details) => handleTabChange(details.value)}
             >
-              <Tabs.List>
-                <Tabs.Trigger value='plan'>Plan</Tabs.Trigger>
-                <Tabs.Trigger value='gather'>Gather</Tabs.Trigger>
-                <Tabs.Trigger value='analyze'>Analyze</Tabs.Trigger>
-                <Tabs.Trigger value='forecast'>Forecast</Tabs.Trigger>
-                <Tabs.Trigger value='invent'>Invent</Tabs.Trigger>
-              </Tabs.List>
+              <Box position='relative'>
+                <Tabs.List>
+                  {tabConfig.map((tab, index) => {
+                    const IconComponent = tab.icon;
+
+                    return (
+                      <React.Fragment key={tab.value}>
+                        <Tabs.Trigger
+                          value={tab.value}
+                          display='flex'
+                          alignItems='center'
+                          gap={2}
+                        >
+                          <IconComponent size={16} />
+                          {tab.label}
+                        </Tabs.Trigger>
+
+                        {/* Arrow between tabs */}
+                        {index < tabConfig.length - 1 && (
+                          <Box
+                            display='flex'
+                            alignItems='center'
+                            px={2}
+                            color='fg.muted'
+                            fontSize='xs'
+                          >
+                            <FiChevronRight size={12} />
+                          </Box>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </Tabs.List>
+              </Box>
             </Tabs.Root>
           </Box>
         </GlassCard>

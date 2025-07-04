@@ -22,8 +22,17 @@ import type { FuturityLab } from '../../services/labService';
 import type { PhylogenyData } from '../../components/charts/PhylogenyTree/types';
 
 const FuturityLab: React.FC = () => {
-  const { uniqueId } = useParams<{ uniqueId: string }>();
+  const params = useParams<{ uniqueId?: string; slug?: string }>();
   const navigate = useNavigate();
+
+  // Handle both uniqueId and slug parameters for backwards compatibility
+  const uniqueId = params.uniqueId || params.slug;
+
+  console.log('🔗 URL params debug:', {
+    allParams: params,
+    uniqueId,
+    currentURL: window.location.pathname,
+  });
   const { token, currentTeamspace, user } = useAuth();
 
   const [lab, setLab] = useState<FuturityLab | null>(null);
@@ -35,23 +44,46 @@ const FuturityLab: React.FC = () => {
 
   useEffect(() => {
     const fetchLabAndTaxonomy = async () => {
-      if (!token || !uniqueId) return;
+      console.log('🔍 FuturityLab useEffect triggered', {
+        token: !!token,
+        uniqueId,
+      });
+
+      if (!token || !uniqueId) {
+        console.log('❌ Missing token or uniqueId', {
+          token: !!token,
+          uniqueId,
+        });
+        return;
+      }
 
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch the Futurity Lab using the labService
-        const futurityLab = await labService.getFuturityLabByUniqueId(
+        console.log('🚀 Starting API call to fetch Futurity Lab');
+        console.log('📡 Calling labService.getFuturityLabByUniqueId with:', {
           uniqueId,
-          token
-        );
+          token: token.substring(0, 10) + '...',
+        });
+
+        // Fetch the Futurity Lab using the labService
+        const futurityLab = await labService.getLabById(uniqueId, token);
+
+        console.log('✅ Futurity Lab fetched successfully:', {
+          id: futurityLab._id,
+          uniqueID: futurityLab.uniqueID,
+          name: futurityLab.ent_name,
+          subcategoriesCount: futurityLab.subcategories_map?.length || 0,
+        });
+
         setLab(futurityLab);
 
         // After getting the lab, fetch taxonomy data
+        console.log('🌳 Loading taxonomy data...');
         await loadTaxonomyData(futurityLab);
       } catch (err) {
-        console.error('Failed to fetch Futurity Lab:', err);
+        console.error('❌ Failed to fetch Futurity Lab:', err);
         setError(
           err instanceof Error ? err.message : 'Failed to load Futurity Lab'
         );
@@ -61,19 +93,39 @@ const FuturityLab: React.FC = () => {
     };
 
     fetchLabAndTaxonomy();
-  }, [token, uniqueId]);
+  }, [token, uniqueId]); // Now using the computed uniqueId
 
   const loadTaxonomyData = async (futurityLab: FuturityLab) => {
-    if (!token) return;
+    console.log('🌳 loadTaxonomyData called with lab:', {
+      id: futurityLab._id,
+      subcategoriesMap: futurityLab.subcategories_map?.length || 0,
+    });
+
+    if (!token) {
+      console.log('❌ No token for taxonomy data loading');
+      return;
+    }
 
     try {
       setLoadingTaxonomy(true);
 
+      console.log('🔄 Transforming lab data to phylogeny format...');
       // Transform the lab's subcategories_map to phylogeny format
       const phylogenyData = transformLabToPhylogenyData(futurityLab);
+
+      console.log('✅ Phylogeny data created:', {
+        rootName: phylogenyData.root.name,
+        subcategoriesCount: phylogenyData.subcategories.length,
+        subcategories: phylogenyData.subcategories.map((sub) => ({
+          id: sub.id,
+          name: sub.name,
+          itemCount: sub.items.length,
+        })),
+      });
+
       setTaxonomyData(phylogenyData);
     } catch (err) {
-      console.error('Failed to load taxonomy data:', err);
+      console.error('❌ Failed to load taxonomy data:', err);
       // Don't set error state here since it's not critical
     } finally {
       setLoadingTaxonomy(false);

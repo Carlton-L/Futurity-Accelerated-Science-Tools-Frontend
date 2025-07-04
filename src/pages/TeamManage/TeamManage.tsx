@@ -10,15 +10,16 @@ import {
   Card,
   Avatar,
   Button,
-  Input,
   Dialog,
 } from '@chakra-ui/react';
-import { LuUsers, LuPlus, LuTrash } from 'react-icons/lu';
+import { LuUsers, LuPlus, LuTrash, LuCheck } from 'react-icons/lu';
 import { useAuth } from '../../context/AuthContext';
 import {
   relationshipService,
   type TeamUsersResponse,
-  type RoleAssignmentRequest,
+  type TeamUser,
+  type OrganizationUsersResponse,
+  type OrganizationUser,
 } from '../../services/relationshipService';
 
 const TeamManage: React.FC = () => {
@@ -27,24 +28,29 @@ const TeamManage: React.FC = () => {
   const { user, token, userRelationships, currentTeam, setCurrentTeam } =
     useAuth();
   const [teamData, setTeamData] = useState<TeamUsersResponse | null>(null);
+  const [orgUsers, setOrgUsers] = useState<OrganizationUser[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
-  // Team name editing (placeholder - you may need to implement team name update API)
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [newTeamName, setNewTeamName] = useState<string>('');
-
   // Add member modal
   const [isAddMemberOpen, setIsAddMemberOpen] = useState<boolean>(false);
-  const [selectedUserEmail, setSelectedUserEmail] = useState<string>('');
+  const [selectedUsersToAdd, setSelectedUsersToAdd] = useState<Set<string>>(
+    new Set()
+  );
   const [selectedRole, setSelectedRole] = useState<
     'admin' | 'editor' | 'viewer'
   >('viewer');
-  const [isAddingMember, setIsAddingMember] = useState<boolean>(false);
+  const [isAddingMembers, setIsAddingMembers] = useState<boolean>(false);
+  const [isLoadingOrgUsers, setIsLoadingOrgUsers] = useState<boolean>(false);
 
   // Delete member confirmation
-  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
+  const [deletingMember, setDeletingMember] = useState<TeamUser | null>(null);
   const [isDeletingMember, setIsDeletingMember] = useState<boolean>(false);
+
+  // Role change loading states - track by team member uniqueID
+  const [changingRoleUserUniqueId, setChangingRoleUserUniqueId] = useState<
+    string | null
+  >(null);
 
   // Check if user can manage this team
   const canManage =
@@ -67,9 +73,10 @@ const TeamManage: React.FC = () => {
       return;
     }
 
-    // Check if user can manage this team
+    // Check if user can manage this team (must be admin)
     if (!team.user_relationships.includes('admin')) {
-      navigate(`/team/${teamId}`); // Redirect to view page if no admin access
+      console.log('User is not admin for this team, redirecting to team view');
+      navigate(`/team/${teamId}`, { replace: true }); // Use replace to prevent back button issues
       return;
     }
 
@@ -78,8 +85,6 @@ const TeamManage: React.FC = () => {
       console.log('Updating current team from TeamManage:', team.ent_name);
       setCurrentTeam(team);
     }
-
-    setNewTeamName(team.ent_name);
   }, [teamId, userRelationships, currentTeam, setCurrentTeam, navigate]);
 
   // Effect to load team data
@@ -90,11 +95,11 @@ const TeamManage: React.FC = () => {
         return;
       }
 
-      // Check if user has admin access to this team
+      // Check if user has admin access to this team (double-check)
       const team = userRelationships.teams.find((t) => t.uniqueID === teamId);
       if (!team || !team.user_relationships.includes('admin')) {
-        setError('You do not have permission to manage this team');
-        setIsLoading(false);
+        console.log('User lost admin access or team not found, redirecting');
+        navigate(`/team/${teamId}`, { replace: true });
         return;
       }
 
@@ -119,27 +124,134 @@ const TeamManage: React.FC = () => {
     loadTeamData();
   }, [teamId, token, userRelationships]);
 
-  const handleAddMember = async () => {
-    if (!teamId || !token || !selectedUserEmail || !selectedRole || !user)
-      return;
+  // Load organization users when add member dialog opens
+  const loadOrgUsers = async () => {
+    if (!userRelationships?.organizations[0]?.uniqueID || !token) return;
 
     try {
-      setIsAddingMember(true);
+      setIsLoadingOrgUsers(true);
+      const orgUsersData = await relationshipService.getOrganizationUsers(
+        userRelationships.organizations[0].uniqueID,
+        token
+      );
+      setOrgUsers(orgUsersData.users);
+    } catch (err) {
+      console.error('Failed to load organization users:', err);
+      setError('Failed to load organization users');
+    } finally {
+      setIsLoadingOrgUsers(false);
+    }
+  };
 
-      // Note: You'll need to implement a way to get user_id from email
-      // This is a placeholder - you may need an additional API endpoint
-      const request: RoleAssignmentRequest = {
-        user_id: selectedUserEmail, // This should be the actual user ID
-        entity_id: teamId,
-      };
+  // Check if org user is already in team (compare by uniqueID)
+  const isUserInTeam = (orgUser: OrganizationUser): boolean => {
+    if (!teamData) return false;
+    return teamData.users.some(
+      (teamMember) => teamMember.uniqueID === orgUser.uniqueID
+    );
+  };
 
-      // Assign the appropriate role
-      if (selectedRole === 'admin') {
-        await relationshipService.assignTeamAdmin(request, token);
-      } else if (selectedRole === 'editor') {
-        await relationshipService.assignTeamEditor(request, token);
+  // Check if a team member is the current user (comprehensive comparison)
+  const isCurrentUser = (member: TeamUser | OrganizationUser): boolean => {
+    if (!user) return false;
+
+    // Method 1: Compare by uniqueID (most reliable)
+    if (user.guid && member.uniqueID && user.guid === member.uniqueID) {
+      return true;
+    }
+
+    // Method 2: Compare by _id (for current user from auth context)
+    if (user._id && member._id && user._id === member._id) {
+      return true;
+    }
+
+    // Method 3: Compare by email (fallback)
+    if (user.email && member.email && user.email === member.email) {
+      return true;
+    }
+
+    // Method 4: Compare by fullname if available and not empty
+    if (
+      user.fullname &&
+      member.profile?.fullname &&
+      user.fullname.trim() !== '' &&
+      member.profile.fullname.trim() !== '' &&
+      user.fullname === member.profile.fullname
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Get the correct user ID to use for API calls
+  const getUserIdForApiCall = (member: TeamUser | OrganizationUser): string => {
+    // For the current user, prefer their auth context _id, fallback to uniqueID
+    if (isCurrentUser(member)) {
+      return user?._id || member.uniqueID;
+    }
+    // For other users, always use uniqueID (never use _id from relationship endpoints)
+    return member.uniqueID;
+  };
+
+  // Get available users (not in team) and existing users (in team)
+  const getAvailableAndExistingUsers = () => {
+    const available: OrganizationUser[] = [];
+    const existing: OrganizationUser[] = [];
+
+    orgUsers.forEach((orgUser) => {
+      if (isUserInTeam(orgUser)) {
+        existing.push(orgUser);
       } else {
-        await relationshipService.assignTeamViewer(request, token);
+        available.push(orgUser);
+      }
+    });
+
+    return { available, existing };
+  };
+
+  const handleAddMemberDialogOpen = () => {
+    setIsAddMemberOpen(true);
+    setSelectedUsersToAdd(new Set());
+    loadOrgUsers();
+  };
+
+  const handleUserSelection = (userUniqueId: string, checked: boolean) => {
+    const newSelection = new Set(selectedUsersToAdd);
+    if (checked) {
+      newSelection.add(userUniqueId);
+    } else {
+      newSelection.delete(userUniqueId);
+    }
+    setSelectedUsersToAdd(newSelection);
+  };
+
+  const handleAddMembers = async () => {
+    if (!teamId || !token || selectedUsersToAdd.size === 0) return;
+
+    try {
+      setIsAddingMembers(true);
+      setError('');
+
+      // Add each selected user to the team
+      for (const userUniqueId of selectedUsersToAdd) {
+        // Find the org user to determine correct ID to use
+        const orgUser = orgUsers.find((u) => u.uniqueID === userUniqueId);
+        if (!orgUser) continue;
+
+        const request = {
+          user_id: getUserIdForApiCall(orgUser), // Use correct ID based on whether it's current user
+          entity_id: teamId,
+        };
+
+        // Assign the selected role
+        if (selectedRole === 'admin') {
+          await relationshipService.assignTeamAdmin(request, token);
+        } else if (selectedRole === 'editor') {
+          await relationshipService.assignTeamEditor(request, token);
+        } else {
+          await relationshipService.assignTeamViewer(request, token);
+        }
       }
 
       // Refresh team data
@@ -150,38 +262,41 @@ const TeamManage: React.FC = () => {
       setTeamData(updatedTeamData);
 
       // Reset form and close modal
-      setSelectedUserEmail('');
+      setSelectedUsersToAdd(new Set());
       setSelectedRole('viewer');
       setIsAddMemberOpen(false);
     } catch (err) {
-      console.error('Failed to add member:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add member');
+      console.error('Failed to add members:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add members');
     } finally {
-      setIsAddingMember(false);
+      setIsAddingMembers(false);
     }
   };
 
   const handleEditMemberRole = async (
-    userId: string,
+    member: TeamUser,
     newRole: 'admin' | 'editor' | 'viewer'
   ) => {
-    if (!teamId || !token) return;
+    if (!teamId || !token || !user) return;
+
+    // Don't allow users to change their own role
+    if (isCurrentUser(member)) {
+      setError('You cannot change your own role');
+      return;
+    }
 
     try {
-      const request: RoleAssignmentRequest = {
-        user_id: userId,
-        entity_id: teamId,
-      };
+      setChangingRoleUserUniqueId(member.uniqueID);
+      setError('');
 
-      // Remove existing roles first (you may need to check current roles)
-      // Then assign new role
-      if (newRole === 'admin') {
-        await relationshipService.assignTeamAdmin(request, token);
-      } else if (newRole === 'editor') {
-        await relationshipService.assignTeamEditor(request, token);
-      } else {
-        await relationshipService.assignTeamViewer(request, token);
-      }
+      // Use the correct ID for API call
+      await relationshipService.changeTeamUserRole(
+        getUserIdForApiCall(member), // Use correct ID based on whether it's current user
+        teamId,
+        newRole,
+        member.team_relationships,
+        token
+      );
 
       // Refresh team data
       const updatedTeamData = await relationshipService.getTeamUsers(
@@ -194,24 +309,31 @@ const TeamManage: React.FC = () => {
       setError(
         err instanceof Error ? err.message : 'Failed to edit member role'
       );
+    } finally {
+      setChangingRoleUserUniqueId(null);
     }
   };
 
   const handleDeleteMember = async () => {
-    if (!teamId || !token || !deletingMemberId) return;
+    if (!teamId || !token || !deletingMember || !user) return;
+
+    // Don't allow users to remove themselves
+    if (isCurrentUser(deletingMember)) {
+      setError('You cannot remove yourself from the team');
+      setDeletingMember(null);
+      return;
+    }
 
     try {
       setIsDeletingMember(true);
+      setError('');
 
-      const request: RoleAssignmentRequest = {
-        user_id: deletingMemberId,
-        entity_id: teamId,
-      };
-
-      // Remove all roles for this user
-      await relationshipService.removeTeamAdmin(request, token);
-      await relationshipService.removeTeamEditor(request, token);
-      await relationshipService.removeTeamViewer(request, token);
+      // Use the correct ID for API call
+      await relationshipService.removeAllTeamRoles(
+        getUserIdForApiCall(deletingMember), // Use correct ID based on whether it's current user
+        teamId,
+        token
+      );
 
       // Refresh team data
       const updatedTeamData = await relationshipService.getTeamUsers(
@@ -220,7 +342,7 @@ const TeamManage: React.FC = () => {
       );
       setTeamData(updatedTeamData);
 
-      setDeletingMemberId(null);
+      setDeletingMember(null);
     } catch (err) {
       console.error('Failed to delete member:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete member');
@@ -284,6 +406,9 @@ const TeamManage: React.FC = () => {
     );
   }
 
+  const { available: availableUsers, existing: existingUsers } =
+    getAvailableAndExistingUsers();
+
   return (
     <>
       <Box p={6} maxW='1200px' mx='auto'>
@@ -314,17 +439,14 @@ const TeamManage: React.FC = () => {
                   </Text>
                 </HStack>
 
-                {/* Team Name Display/Editing */}
+                {/* Team Name Display */}
                 <VStack align='start' gap={2}>
                   <Text fontWeight='medium' color='fg' fontFamily='body'>
                     Team Name
                   </Text>
-                  <HStack gap={2}>
-                    <Text fontSize='lg' color='fg' fontFamily='body'>
-                      {currentTeam.ent_name}
-                    </Text>
-                    {/* Note: Team name editing would require additional API endpoint */}
-                  </HStack>
+                  <Text fontSize='lg' color='fg' fontFamily='body'>
+                    {currentTeam.ent_name}
+                  </Text>
                 </VStack>
 
                 <Text color='fg.secondary' fontFamily='body'>
@@ -347,7 +469,7 @@ const TeamManage: React.FC = () => {
                   Team Members ({teamData.total_users})
                 </Text>
                 <Button
-                  onClick={() => setIsAddMemberOpen(true)}
+                  onClick={handleAddMemberDialogOpen}
                   bg='brand'
                   color='white'
                   fontFamily='body'
@@ -360,81 +482,115 @@ const TeamManage: React.FC = () => {
             </Card.Header>
             <Card.Body>
               <VStack gap={4} align='stretch'>
-                {teamData.users.map((member) => (
-                  <HStack
-                    key={member.uniqueID}
-                    justify='space-between'
-                    p={3}
-                    bg='bg.subtle'
-                    borderRadius='md'
-                    borderWidth='1px'
-                    borderColor='border.muted'
-                  >
-                    <HStack gap={3}>
-                      <Avatar.Root size='sm'>
-                        <Avatar.Fallback
-                          name={member.profile.fullname || member.email}
-                        />
-                        {member.profile.picture_url && (
-                          <Avatar.Image src={member.profile.picture_url} />
-                        )}
-                      </Avatar.Root>
-                      <VStack align='start' gap={1}>
-                        <Text fontWeight='medium' color='fg' fontFamily='body'>
-                          {member.profile.fullname || member.email}
-                        </Text>
-                        <Text
-                          fontSize='sm'
-                          color='fg.secondary'
+                {teamData.users.map((member) => {
+                  const isCurrentUserMember = isCurrentUser(member);
+                  const isChangingRole =
+                    changingRoleUserUniqueId === member.uniqueID;
+
+                  return (
+                    <HStack
+                      key={member.uniqueID}
+                      justify='space-between'
+                      p={3}
+                      bg='bg.subtle'
+                      borderRadius='md'
+                      borderWidth='1px'
+                      borderColor='border.muted'
+                    >
+                      <HStack gap={3}>
+                        <Avatar.Root size='sm'>
+                          <Avatar.Fallback
+                            name={member.profile.fullname || member.email}
+                          />
+                          {member.profile.picture_url && (
+                            <Avatar.Image src={member.profile.picture_url} />
+                          )}
+                        </Avatar.Root>
+                        <VStack align='start' gap={1}>
+                          <Text
+                            fontWeight='medium'
+                            color='fg'
+                            fontFamily='body'
+                          >
+                            {member.profile.fullname || member.email}
+                            {isCurrentUserMember && ' (You)'}
+                          </Text>
+                          <Text
+                            fontSize='sm'
+                            color='fg.secondary'
+                            fontFamily='body'
+                          >
+                            {member.email}
+                          </Text>
+                        </VStack>
+                      </HStack>
+
+                      <HStack gap={2}>
+                        {/* Role selector with loading state */}
+                        <Box position='relative'>
+                          <select
+                            value={getDisplayRole(member.team_relationships)}
+                            onChange={(e) =>
+                              handleEditMemberRole(
+                                member,
+                                e.target.value as 'admin' | 'editor' | 'viewer'
+                              )
+                            }
+                            disabled={isCurrentUserMember || isChangingRole}
+                            style={{
+                              width: '120px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border:
+                                '1px solid var(--chakra-colors-border-emphasized)',
+                              backgroundColor: 'var(--chakra-colors-bg-canvas)',
+                              color: isCurrentUserMember
+                                ? 'var(--chakra-colors-fg-muted)'
+                                : 'var(--chakra-colors-fg)',
+                              fontSize: '14px',
+                              fontFamily: 'var(--chakra-fonts-body)',
+                              opacity: isChangingRole
+                                ? 0.5
+                                : isCurrentUserMember
+                                ? 0.6
+                                : 1,
+                              cursor: isCurrentUserMember
+                                ? 'not-allowed'
+                                : 'pointer',
+                            }}
+                          >
+                            <option value='admin'>Admin</option>
+                            <option value='editor'>Editor</option>
+                            <option value='viewer'>Viewer</option>
+                          </select>
+                          {isChangingRole && (
+                            <Box
+                              position='absolute'
+                              top='50%'
+                              right='8px'
+                              transform='translateY(-50%)'
+                              pointerEvents='none'
+                            >
+                              <Spinner size='sm' color='brand' />
+                            </Box>
+                          )}
+                        </Box>
+
+                        {/* Delete button */}
+                        <Button
+                          onClick={() => setDeletingMember(member)}
+                          variant='outline'
+                          colorScheme='red'
+                          size='sm'
+                          disabled={isCurrentUserMember}
                           fontFamily='body'
                         >
-                          {member.email}
-                        </Text>
-                      </VStack>
+                          <LuTrash size={16} />
+                        </Button>
+                      </HStack>
                     </HStack>
-
-                    <HStack gap={2}>
-                      {/* Role selector */}
-                      <select
-                        value={getDisplayRole(member.team_relationships)}
-                        onChange={(e) =>
-                          handleEditMemberRole(
-                            member.uniqueID,
-                            e.target.value as 'admin' | 'editor' | 'viewer'
-                          )
-                        }
-                        disabled={member.uniqueID === user?._id}
-                        style={{
-                          width: '120px',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          border:
-                            '1px solid var(--chakra-colors-border-emphasized)',
-                          backgroundColor: 'var(--chakra-colors-bg-canvas)',
-                          color: 'var(--chakra-colors-fg)',
-                          fontSize: '14px',
-                          fontFamily: 'var(--chakra-fonts-body)',
-                        }}
-                      >
-                        <option value='admin'>Admin</option>
-                        <option value='editor'>Editor</option>
-                        <option value='viewer'>Viewer</option>
-                      </select>
-
-                      {/* Delete button */}
-                      <Button
-                        onClick={() => setDeletingMemberId(member.uniqueID)}
-                        variant='outline'
-                        colorScheme='red'
-                        size='sm'
-                        disabled={member.uniqueID === user?._id}
-                        fontFamily='body'
-                      >
-                        <LuTrash size={16} />
-                      </Button>
-                    </HStack>
-                  </HStack>
-                ))}
+                  );
+                })}
 
                 {teamData.users.length === 0 && (
                   <Box textAlign='center' py={8}>
@@ -456,27 +612,16 @@ const TeamManage: React.FC = () => {
       >
         <Dialog.Backdrop />
         <Dialog.Positioner>
-          <Dialog.Content>
+          <Dialog.Content maxW='lg'>
             <Dialog.Header>
-              <Dialog.Title fontFamily='heading'>Add Team Member</Dialog.Title>
+              <Dialog.Title fontFamily='heading'>Add Team Members</Dialog.Title>
             </Dialog.Header>
             <Dialog.Body>
               <VStack gap={4} align='stretch'>
+                {/* Role selector */}
                 <VStack align='start' gap={2}>
                   <Text fontWeight='medium' color='fg' fontFamily='body'>
-                    User Email
-                  </Text>
-                  <Input
-                    value={selectedUserEmail}
-                    onChange={(e) => setSelectedUserEmail(e.target.value)}
-                    placeholder='Enter user email'
-                    fontFamily='body'
-                  />
-                </VStack>
-
-                <VStack align='start' gap={2}>
-                  <Text fontWeight='medium' color='fg' fontFamily='body'>
-                    Role
+                    Role for selected members
                   </Text>
                   <select
                     value={selectedRole}
@@ -502,6 +647,231 @@ const TeamManage: React.FC = () => {
                     <option value='viewer'>Viewer</option>
                   </select>
                 </VStack>
+
+                {/* Loading state */}
+                {isLoadingOrgUsers && (
+                  <Box textAlign='center' py={4}>
+                    <Spinner size='md' color='brand' />
+                    <Text mt={2} color='fg.secondary' fontFamily='body'>
+                      Loading organization members...
+                    </Text>
+                  </Box>
+                )}
+
+                {/* Available users */}
+                {!isLoadingOrgUsers && availableUsers.length > 0 && (
+                  <VStack align='start' gap={2}>
+                    <Text fontWeight='medium' color='fg' fontFamily='body'>
+                      Select members to add
+                    </Text>
+                    <VStack
+                      gap={2}
+                      align='stretch'
+                      maxH='300px'
+                      overflowY='auto'
+                    >
+                      {availableUsers.map((orgUser) => {
+                        const isSelected = selectedUsersToAdd.has(
+                          orgUser.uniqueID
+                        );
+                        console.log(
+                          `User ${orgUser.email} - Selected:`,
+                          isSelected,
+                          'UniqueID:',
+                          orgUser.uniqueID,
+                          'Selected Set:',
+                          Array.from(selectedUsersToAdd)
+                        );
+                        return (
+                          <HStack key={orgUser.uniqueID} gap={3} align='center'>
+                            {/* External checkbox */}
+
+                            {/* User card */}
+                            <Box
+                              w='5'
+                              h='5'
+                              minW='5'
+                              flexShrink={0}
+                              borderRadius='sm'
+                              border='2px solid'
+                              borderColor={isSelected ? 'brand' : 'fg'}
+                              bg={isSelected ? 'brand' : 'canvas'}
+                              display='flex'
+                              alignItems='center'
+                              justifyContent='center'
+                              onClick={() =>
+                                handleUserSelection(
+                                  orgUser.uniqueID,
+                                  !isSelected
+                                )
+                              }
+                              _hover={{
+                                borderColor: 'fg.hover',
+                                bg: isSelected ? 'brand.hover' : 'bg.hover',
+                              }}
+                            >
+                              {isSelected ? (
+                                <LuCheck size={12} style={{ color: 'white' }} />
+                              ) : (
+                                <Text fontSize='xs' color='fg.muted'>
+                                  -
+                                </Text>
+                              )}
+                            </Box>
+
+                            {/* User card */}
+                            <Box
+                              flex='1'
+                              p={3}
+                              bg='bg.canvas'
+                              borderRadius='md'
+                              borderWidth='1px'
+                              borderColor={
+                                isSelected ? 'brand' : 'border.emphasized'
+                              }
+                              cursor='pointer'
+                              onClick={() =>
+                                handleUserSelection(
+                                  orgUser.uniqueID,
+                                  !isSelected
+                                )
+                              }
+                              _hover={{
+                                borderColor: 'brand',
+                              }}
+                              transition='all 0.2s'
+                            >
+                              <HStack gap={3}>
+                                <Avatar.Root size='sm'>
+                                  <Avatar.Fallback
+                                    name={
+                                      orgUser.profile.fullname || orgUser.email
+                                    }
+                                  />
+                                  {orgUser.profile.picture_url && (
+                                    <Avatar.Image
+                                      src={orgUser.profile.picture_url}
+                                    />
+                                  )}
+                                </Avatar.Root>
+                                <VStack align='start' gap={0}>
+                                  <Text
+                                    fontWeight='medium'
+                                    color='fg'
+                                    fontFamily='body'
+                                  >
+                                    {orgUser.profile.fullname || orgUser.email}
+                                    {isCurrentUser(orgUser) && ' (You)'}
+                                  </Text>
+                                  <Text
+                                    fontSize='sm'
+                                    color='fg.secondary'
+                                    fontFamily='body'
+                                  >
+                                    {orgUser.email}
+                                  </Text>
+                                </VStack>
+                              </HStack>
+                            </Box>
+                          </HStack>
+                        );
+                      })}
+                    </VStack>
+                  </VStack>
+                )}
+
+                {/* Existing users */}
+                {!isLoadingOrgUsers && existingUsers.length > 0 && (
+                  <VStack align='start' gap={2}>
+                    <Text
+                      fontWeight='medium'
+                      color='fg.muted'
+                      fontFamily='body'
+                    >
+                      Already in team
+                    </Text>
+                    <VStack
+                      gap={2}
+                      align='stretch'
+                      maxH='200px'
+                      overflowY='auto'
+                    >
+                      {existingUsers.map((orgUser) => (
+                        <HStack key={orgUser.uniqueID} gap={3} align='center'>
+                          {/* Disabled external checkbox */}
+                          <Box
+                            w='5'
+                            h='5'
+                            minW='5'
+                            flexShrink={0}
+                            borderRadius='sm'
+                            border='2px solid'
+                            borderColor='brand'
+                            bg='brand'
+                            display='flex'
+                            alignItems='center'
+                            justifyContent='center'
+                            opacity={0.6}
+                          >
+                            <LuCheck size={12} color='white' />
+                          </Box>
+
+                          {/* User card */}
+                          <Box
+                            flex='1'
+                            p={3}
+                            bg='bg.muted'
+                            borderRadius='md'
+                            borderWidth='1px'
+                            borderColor='border.muted'
+                            opacity={0.6}
+                          >
+                            <HStack gap={3}>
+                              <Avatar.Root size='sm'>
+                                <Avatar.Fallback
+                                  name={
+                                    orgUser.profile.fullname || orgUser.email
+                                  }
+                                />
+                                {orgUser.profile.picture_url && (
+                                  <Avatar.Image
+                                    src={orgUser.profile.picture_url}
+                                  />
+                                )}
+                              </Avatar.Root>
+                              <VStack align='start' gap={0}>
+                                <Text
+                                  fontWeight='medium'
+                                  color='fg.muted'
+                                  fontFamily='body'
+                                >
+                                  {orgUser.profile.fullname || orgUser.email}
+                                  {isCurrentUser(orgUser) && ' (You)'}
+                                </Text>
+                                <Text
+                                  fontSize='sm'
+                                  color='fg.muted'
+                                  fontFamily='body'
+                                >
+                                  {orgUser.email}
+                                </Text>
+                              </VStack>
+                            </HStack>
+                          </Box>
+                        </HStack>
+                      ))}
+                    </VStack>
+                  </VStack>
+                )}
+
+                {/* No users available */}
+                {!isLoadingOrgUsers && availableUsers.length === 0 && (
+                  <Box textAlign='center' py={4}>
+                    <Text color='fg.secondary' fontFamily='body'>
+                      All organization members are already in this team.
+                    </Text>
+                  </Box>
+                )}
               </VStack>
             </Dialog.Body>
             <Dialog.Footer>
@@ -511,15 +881,16 @@ const TeamManage: React.FC = () => {
                 </Button>
               </Dialog.CloseTrigger>
               <Button
-                onClick={handleAddMember}
-                loading={isAddingMember}
+                onClick={handleAddMembers}
+                loading={isAddingMembers}
                 bg='brand'
                 color='white'
                 fontFamily='body'
                 _hover={{ bg: 'brand.hover' }}
-                disabled={!selectedUserEmail || !selectedRole}
+                disabled={selectedUsersToAdd.size === 0}
               >
-                Add Member
+                Add {selectedUsersToAdd.size} Member
+                {selectedUsersToAdd.size !== 1 ? 's' : ''}
               </Button>
             </Dialog.Footer>
           </Dialog.Content>
@@ -528,8 +899,8 @@ const TeamManage: React.FC = () => {
 
       {/* Delete Member Confirmation Dialog */}
       <Dialog.Root
-        open={!!deletingMemberId}
-        onOpenChange={(e) => !e.open && setDeletingMemberId(null)}
+        open={!!deletingMember}
+        onOpenChange={(e) => !e.open && setDeletingMember(null)}
       >
         <Dialog.Backdrop />
         <Dialog.Positioner>
@@ -541,8 +912,9 @@ const TeamManage: React.FC = () => {
             </Dialog.Header>
             <Dialog.Body>
               <Text fontFamily='body'>
-                Are you sure you want to remove this member from the team? This
-                action cannot be undone.
+                Are you sure you want to remove{' '}
+                {deletingMember?.profile.fullname || deletingMember?.email} from
+                the team? This action cannot be undone.
               </Text>
             </Dialog.Body>
             <Dialog.Footer>
