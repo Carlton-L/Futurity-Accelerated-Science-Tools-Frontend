@@ -11,7 +11,6 @@ import {
   Avatar,
   Button,
   Dialog,
-  CheckboxCard,
 } from '@chakra-ui/react';
 import { LuUsers, LuPlus, LuTrash, LuCheck } from 'react-icons/lu';
 import { useAuth } from '../../context/AuthContext';
@@ -671,57 +670,112 @@ const TeamManage: React.FC = () => {
                       maxH='300px'
                       overflowY='auto'
                     >
-                      {availableUsers.map((orgUser) => (
-                        <CheckboxCard.Root
-                          key={orgUser.uniqueID}
-                          checked={selectedUsersToAdd.has(orgUser.uniqueID)}
-                          onCheckedChange={(checked) =>
-                            handleUserSelection(
-                              orgUser.uniqueID,
-                              checked.checked
-                            )
-                          }
-                        >
-                          <CheckboxCard.Control>
-                            <CheckboxCard.Indicator>
-                              <LuCheck />
-                            </CheckboxCard.Indicator>
-                          </CheckboxCard.Control>
-                          <CheckboxCard.Content>
-                            <HStack gap={3}>
-                              <Avatar.Root size='sm'>
-                                <Avatar.Fallback
-                                  name={
-                                    orgUser.profile.fullname || orgUser.email
-                                  }
-                                />
-                                {orgUser.profile.picture_url && (
-                                  <Avatar.Image
-                                    src={orgUser.profile.picture_url}
+                      {availableUsers.map((orgUser) => {
+                        const isSelected = selectedUsersToAdd.has(
+                          orgUser.uniqueID
+                        );
+                        console.log(
+                          `User ${orgUser.email} - Selected:`,
+                          isSelected,
+                          'UniqueID:',
+                          orgUser.uniqueID,
+                          'Selected Set:',
+                          Array.from(selectedUsersToAdd)
+                        );
+                        return (
+                          <HStack key={orgUser.uniqueID} gap={3} align='center'>
+                            {/* External checkbox */}
+
+                            {/* User card */}
+                            <Box
+                              w='5'
+                              h='5'
+                              minW='5'
+                              flexShrink={0}
+                              borderRadius='sm'
+                              border='2px solid'
+                              borderColor={isSelected ? 'brand' : 'fg'}
+                              bg={isSelected ? 'brand' : 'canvas'}
+                              display='flex'
+                              alignItems='center'
+                              justifyContent='center'
+                              onClick={() =>
+                                handleUserSelection(
+                                  orgUser.uniqueID,
+                                  !isSelected
+                                )
+                              }
+                              _hover={{
+                                borderColor: 'fg.hover',
+                                bg: isSelected ? 'brand.hover' : 'bg.hover',
+                              }}
+                            >
+                              {isSelected ? (
+                                <LuCheck size={12} style={{ color: 'white' }} />
+                              ) : (
+                                <Text fontSize='xs' color='fg.muted'>
+                                  -
+                                </Text>
+                              )}
+                            </Box>
+
+                            {/* User card */}
+                            <Box
+                              flex='1'
+                              p={3}
+                              bg='bg.canvas'
+                              borderRadius='md'
+                              borderWidth='1px'
+                              borderColor={
+                                isSelected ? 'brand' : 'border.emphasized'
+                              }
+                              cursor='pointer'
+                              onClick={() =>
+                                handleUserSelection(
+                                  orgUser.uniqueID,
+                                  !isSelected
+                                )
+                              }
+                              _hover={{
+                                borderColor: 'brand',
+                              }}
+                              transition='all 0.2s'
+                            >
+                              <HStack gap={3}>
+                                <Avatar.Root size='sm'>
+                                  <Avatar.Fallback
+                                    name={
+                                      orgUser.profile.fullname || orgUser.email
+                                    }
                                   />
-                                )}
-                              </Avatar.Root>
-                              <VStack align='start' gap={0}>
-                                <Text
-                                  fontWeight='medium'
-                                  color='fg'
-                                  fontFamily='body'
-                                >
-                                  {orgUser.profile.fullname || orgUser.email}
-                                  {isCurrentUser(orgUser) && ' (You)'}
-                                </Text>
-                                <Text
-                                  fontSize='sm'
-                                  color='fg.secondary'
-                                  fontFamily='body'
-                                >
-                                  {orgUser.email}
-                                </Text>
-                              </VStack>
-                            </HStack>
-                          </CheckboxCard.Content>
-                        </CheckboxCard.Root>
-                      ))}
+                                  {orgUser.profile.picture_url && (
+                                    <Avatar.Image
+                                      src={orgUser.profile.picture_url}
+                                    />
+                                  )}
+                                </Avatar.Root>
+                                <VStack align='start' gap={0}>
+                                  <Text
+                                    fontWeight='medium'
+                                    color='fg'
+                                    fontFamily='body'
+                                  >
+                                    {orgUser.profile.fullname || orgUser.email}
+                                    {isCurrentUser(orgUser) && ' (You)'}
+                                  </Text>
+                                  <Text
+                                    fontSize='sm'
+                                    color='fg.secondary'
+                                    fontFamily='body'
+                                  >
+                                    {orgUser.email}
+                                  </Text>
+                                </VStack>
+                              </HStack>
+                            </Box>
+                          </HStack>
+                        );
+                      })}
                     </VStack>
                   </VStack>
                 )}
@@ -743,38 +797,67 @@ const TeamManage: React.FC = () => {
                       overflowY='auto'
                     >
                       {existingUsers.map((orgUser) => (
-                        <HStack
-                          key={orgUser.uniqueID}
-                          p={3}
-                          bg='bg.muted'
-                          borderRadius='md'
-                          opacity={0.6}
-                        >
-                          <Avatar.Root size='sm'>
-                            <Avatar.Fallback
-                              name={orgUser.profile.fullname || orgUser.email}
-                            />
-                            {orgUser.profile.picture_url && (
-                              <Avatar.Image src={orgUser.profile.picture_url} />
-                            )}
-                          </Avatar.Root>
-                          <VStack align='start' gap={0}>
-                            <Text
-                              fontWeight='medium'
-                              color='fg.muted'
-                              fontFamily='body'
-                            >
-                              {orgUser.profile.fullname || orgUser.email}
-                              {isCurrentUser(orgUser) && ' (You)'}
-                            </Text>
-                            <Text
-                              fontSize='sm'
-                              color='fg.muted'
-                              fontFamily='body'
-                            >
-                              {orgUser.email}
-                            </Text>
-                          </VStack>
+                        <HStack key={orgUser.uniqueID} gap={3} align='center'>
+                          {/* Disabled external checkbox */}
+                          <Box
+                            w='5'
+                            h='5'
+                            minW='5'
+                            flexShrink={0}
+                            borderRadius='sm'
+                            border='2px solid'
+                            borderColor='brand'
+                            bg='brand'
+                            display='flex'
+                            alignItems='center'
+                            justifyContent='center'
+                            opacity={0.6}
+                          >
+                            <LuCheck size={12} color='white' />
+                          </Box>
+
+                          {/* User card */}
+                          <Box
+                            flex='1'
+                            p={3}
+                            bg='bg.muted'
+                            borderRadius='md'
+                            borderWidth='1px'
+                            borderColor='border.muted'
+                            opacity={0.6}
+                          >
+                            <HStack gap={3}>
+                              <Avatar.Root size='sm'>
+                                <Avatar.Fallback
+                                  name={
+                                    orgUser.profile.fullname || orgUser.email
+                                  }
+                                />
+                                {orgUser.profile.picture_url && (
+                                  <Avatar.Image
+                                    src={orgUser.profile.picture_url}
+                                  />
+                                )}
+                              </Avatar.Root>
+                              <VStack align='start' gap={0}>
+                                <Text
+                                  fontWeight='medium'
+                                  color='fg.muted'
+                                  fontFamily='body'
+                                >
+                                  {orgUser.profile.fullname || orgUser.email}
+                                  {isCurrentUser(orgUser) && ' (You)'}
+                                </Text>
+                                <Text
+                                  fontSize='sm'
+                                  color='fg.muted'
+                                  fontFamily='body'
+                                >
+                                  {orgUser.email}
+                                </Text>
+                              </VStack>
+                            </HStack>
+                          </Box>
                         </HStack>
                       ))}
                     </VStack>
