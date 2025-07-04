@@ -187,7 +187,6 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
   nodeSpacing = 80, // Reduced from 120
   levelSpacing = 240, // Reduced from 280
   itemSpacing = 40, // Reduced from 60
-  width = '100%',
   height = 'auto',
 }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -202,33 +201,29 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Function to smoothly scroll to center a category in the viewport
-  const centerCategoryInViewport = useCallback(
-    (categoryId: string, categoryY: number) => {
-      const container = containerRef.current;
-      if (!container) return;
+  const centerCategoryInViewport = useCallback((categoryY: number) => {
+    const container = containerRef.current;
+    if (!container) return;
 
-      // Get container dimensions
-      const containerRect = container.getBoundingClientRect();
-      const containerHeight = containerRect.height;
-      const containerScrollTop = container.scrollTop;
+    // Get container dimensions
+    const containerRect = container.getBoundingClientRect();
+    const containerHeight = containerRect.height;
 
-      // Calculate the center of the container viewport
-      const viewportCenter = containerHeight / 2;
+    // Calculate the center of the container viewport
+    const viewportCenter = containerHeight / 2;
 
-      // Calculate where the category currently is in the viewport
-      const categoryScreenY = categoryY; // SVG coordinate
+    // Calculate where the category currently is in the viewport
+    const categoryScreenY = categoryY; // SVG coordinate
 
-      // Calculate the desired scroll position to center the category
-      const desiredScrollTop = categoryScreenY - viewportCenter;
+    // Calculate the desired scroll position to center the category
+    const desiredScrollTop = categoryScreenY - viewportCenter;
 
-      // Smooth scroll to the calculated position
-      container.scrollTo({
-        top: Math.max(0, desiredScrollTop), // Ensure we don't scroll to negative
-        behavior: 'smooth',
-      });
-    },
-    []
-  );
+    // Smooth scroll to the calculated position
+    container.scrollTo({
+      top: Math.max(0, desiredScrollTop), // Ensure we don't scroll to negative
+      behavior: 'smooth',
+    });
+  }, []);
 
   const toggleCategory = useCallback(
     (categoryId: string) => {
@@ -259,7 +254,7 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
 
             const categoryY = dimensions.subcategoryPositions[categoryId];
             if (categoryY !== undefined) {
-              centerCategoryInViewport(categoryId, categoryY);
+              centerCategoryInViewport(categoryY);
             }
           }, 100); // Small delay to allow React to update the DOM
         }
@@ -369,7 +364,7 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
           >
             {/* Square root node with dynamic width that fits text exactly */}
             {(() => {
-              const rootTextWidth = getTextWidth(data.root.name, 12);
+              const rootTextWidth = getTextWidth('lab', 12);
               const rootWidth = rootTextWidth + 48; // Doubled padding from 24 to 48
               return (
                 <>
@@ -394,7 +389,7 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                     fontFamily='var(--chakra-fonts-heading)'
                     transition={{ duration: 0.4, ease: 'easeOut' }}
                   >
-                    {data.root.name}
+                    Lab
                   </motion.text>
                 </>
               );
@@ -403,7 +398,7 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
 
           {/* Main horizontal line from root */}
           {(() => {
-            const rootTextWidth = getTextWidth(data.root.name, 12);
+            const rootTextWidth = getTextWidth('Lab', 12);
             const rootWidth = rootTextWidth + 48; // Updated to match rect width
             return (
               <motion.line
@@ -440,10 +435,10 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
             // Get previous position for this category
             const prevPos = previousPositions.current[subcategory.id] || yPos;
 
-            // Update previous position for next render using useEffect
-            useEffect(() => {
+            // Store the position for smooth transitions
+            if (previousPositions.current[subcategory.id] !== yPos) {
               previousPositions.current[subcategory.id] = yPos;
-            }, [subcategory.id, yPos]);
+            }
 
             return (
               <MotionG

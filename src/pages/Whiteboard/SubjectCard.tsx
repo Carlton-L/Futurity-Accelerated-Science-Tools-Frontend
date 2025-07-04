@@ -7,7 +7,6 @@ import {
   Menu,
   Box,
   IconButton,
-  Badge,
 } from '@chakra-ui/react';
 import {
   FiMove,
@@ -19,7 +18,25 @@ import {
 import { useDrag } from 'react-dnd';
 import type { WhiteboardSubject } from './types';
 import { getMetricValue } from './types';
-import IconSubject from '../../components/shared/IconSubject';
+
+// Blue hexagon icon component for subjects
+const SubjectHexagonIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox='0 0 24 24'
+    fill='none'
+    xmlns='http://www.w3.org/2000/svg'
+  >
+    <path
+      d='M12 2L20.196 7V17L12 22L3.804 17V7L12 2Z'
+      fill='#0005E9'
+      stroke='#0005E9'
+      strokeWidth='1'
+      strokeLinejoin='round'
+    />
+  </svg>
+);
 
 interface WhiteboardSubjectCardProps {
   subject: WhiteboardSubject;
@@ -28,8 +45,8 @@ interface WhiteboardSubjectCardProps {
   showQuickActions?: boolean;
   onRemoveFromWhiteboard?: (subjectFsid: string) => void;
   onRemoveFromLabSeed?: (labSeedId: string, subjectFsid: string) => void;
-  onQuickAddToLabSeed?: (subjectFsid: string) => void;
   onViewSubject?: (subject: WhiteboardSubject) => void;
+  onQuickAddToLabSeed?: (subjectFsid: string) => void;
 }
 
 interface MetricBarProps {
@@ -152,8 +169,8 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
   showQuickActions = false,
   onRemoveFromWhiteboard,
   onRemoveFromLabSeed,
-  onQuickAddToLabSeed,
   onViewSubject,
+  onQuickAddToLabSeed,
 }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: ItemTypes.SUBJECT,
@@ -182,17 +199,17 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
     }
   };
 
-  const handleQuickAdd = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onQuickAddToLabSeed) {
-      onQuickAddToLabSeed(subject.ent_fsid);
-    }
-  };
-
   const handleViewSubject = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onViewSubject) {
       onViewSubject(subject);
+    }
+  };
+
+  const handleQuickAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onQuickAddToLabSeed) {
+      onQuickAddToLabSeed(subject.ent_fsid);
     }
   };
 
@@ -210,8 +227,9 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
       opacity={isDragging ? 0.5 : 1}
       cursor='grab'
       _hover={{
-        shadow: 'md',
+        bg: 'bg.hover',
         borderColor: 'brand',
+        boxShadow: 'md',
       }}
       transition='all 0.2s'
       bg='bg.canvas'
@@ -222,12 +240,28 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
         <VStack gap={2} align='stretch'>
           <HStack justify='space-between' align='flex-start'>
             <HStack gap={2} flex='1' align='start'>
-              <IconSubject size='md' />
+              <SubjectHexagonIcon size={24} />
               <Text fontSize='sm' fontWeight='medium' color='fg' flex='1'>
                 {subject.ent_name}
               </Text>
             </HStack>
             <HStack gap={1}>
+              {/* Quick add button for whiteboard subjects */}
+              {showQuickActions &&
+                sourceType === 'whiteboard' &&
+                onQuickAddToLabSeed && (
+                  <IconButton
+                    size='xs'
+                    variant='ghost'
+                    aria-label='Quick add to lab seed'
+                    onClick={handleQuickAdd}
+                    color='fg.muted'
+                    _hover={{ color: 'success', bg: 'successSubtle' }}
+                  >
+                    <FiPlus size={10} />
+                  </IconButton>
+                )}
+
               {/* Drag handle */}
               <Box color='fg.muted' cursor='grab'>
                 <FiMove size={10} />
@@ -252,12 +286,6 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
                       <Menu.Item value='view' onClick={handleViewSubject}>
                         <FiEye size={14} />
                         View Details
-                      </Menu.Item>
-                    )}
-                    {showQuickActions && onQuickAddToLabSeed && (
-                      <Menu.Item value='add' onClick={handleQuickAdd}>
-                        <FiPlus size={14} />
-                        Quick Add to Lab Seed
                       </Menu.Item>
                     )}
                     {sourceType === 'labSeed' && onRemoveFromLabSeed && (
@@ -293,15 +321,24 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
             <MetricBar label='WS' value={wsValue} color='#FF6B47' />
           </VStack>
 
-          {/* Summary */}
-          <Text fontSize='xs' color='fg.muted' lineHeight='1.3' lineClamp={2}>
+          {/* Summary - with truncation similar to lab version */}
+          <Text
+            fontSize='xs'
+            color='fg.muted'
+            lineHeight='1.3'
+            lineClamp={2}
+            css={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {subject.ent_summary}
           </Text>
 
-          {/* Show fsid as a badge for debugging */}
-          <Badge size='sm' colorScheme='gray' fontSize='xs'>
-            {subject.ent_fsid}
-          </Badge>
+          {/* Removed the fsid badge completely */}
         </VStack>
       </Card.Body>
     </Card.Root>

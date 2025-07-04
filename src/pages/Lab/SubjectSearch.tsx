@@ -49,10 +49,6 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
   const [hasSearched, setHasSearched] = useState(false);
   const [lastExecutedQuery, setLastExecutedQuery] = useState('');
 
-  // TODO: Replace with your actual auth context
-  // You'll need to import and use your auth context in the Gather component
-  // where the API call is now handled
-
   // Handle search execution (called when user presses Enter or clicks search)
   const handleSearchExecute = async () => {
     if (!searchQuery.trim() || isSearching) {
@@ -138,10 +134,13 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
             onKeyDown={handleKeyPress}
             size='md'
             bg='bg.canvas'
-            borderColor='border.primary'
-            color='white'
-            _placeholder={{ color: 'gray.400' }}
-            _focus={{ borderColor: 'blue.400' }}
+            borderColor='border.emphasized'
+            color='fg'
+            _placeholder={{ color: 'fg.muted' }}
+            _focus={{
+              borderColor: 'brand',
+              boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+            }}
             borderRightRadius={0}
             disabled={userRole === 'reader'}
           />
@@ -174,8 +173,8 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
             variant='ghost'
             aria-label='Clear search'
             onClick={handleClearSearch}
-            color='gray.400'
-            _hover={{ color: 'gray.200' }}
+            color='fg.muted'
+            _hover={{ color: 'fg' }}
             zIndex={2}
           >
             <FiX size={14} />
@@ -192,30 +191,39 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
           left='0'
           right='0'
           mt={1}
-          bg='gray.800'
+          bg='bg.canvas'
           border='1px solid'
-          borderColor='gray.600'
+          borderColor='border.emphasized'
           borderRadius='md'
           boxShadow='lg'
-          zIndex='20'
+          zIndex='999999' // Very high z-index to ensure it's above everything
           maxH='400px'
           overflowY='auto'
+          // Prevent mouse events from passing through
+          onMouseEnter={(e) => e.stopPropagation()}
+          onMouseLeave={(e) => e.stopPropagation()}
+          onMouseMove={(e) => e.stopPropagation()}
+          css={{
+            zIndex: '999999 !important',
+            position: 'relative !important',
+            isolation: 'isolate', // Creates new stacking context
+          }}
         >
           {/* Search Info Header */}
           <Box
             p={3}
             borderBottom='1px solid'
-            borderBottomColor='gray.600'
-            bg='gray.750'
+            borderBottomColor='border.muted'
+            bg='bg.subtle'
           >
             <HStack justify='space-between' align='center'>
-              <Text fontSize='sm' color='gray.300'>
+              <Text fontSize='sm' color='fg.muted'>
                 Search results for:{' '}
-                <Text as='span' fontWeight='medium' color='white'>
+                <Text as='span' fontWeight='medium' color='fg'>
                   "{lastExecutedQuery}"
                 </Text>
               </Text>
-              <Text fontSize='xs' color='gray.400'>
+              <Text fontSize='xs' color='fg.muted'>
                 {searchResults.length} results
               </Text>
             </HStack>
@@ -227,13 +235,20 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
               w='100%'
               variant='ghost'
               justifyContent='flex-start'
-              onClick={onGoToSearchResults}
-              color='blue.300'
-              _hover={{ bg: 'gray.700' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onGoToSearchResults();
+              }}
+              color='brand'
+              _hover={{ bg: 'bg.hover' }}
               borderRadius='0'
               borderBottom='1px solid'
-              borderBottomColor='gray.600'
+              borderBottomColor='border.muted'
               py={3}
+              onMouseEnter={(e) => e.stopPropagation()}
+              onMouseMove={(e) => e.stopPropagation()}
+              position='relative'
+              zIndex='999999'
             >
               <FiSearch size={16} />
               <Text ml={2}>View all search results</Text>
@@ -244,8 +259,8 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
           {/* Loading state */}
           {isSearching && (
             <Flex align='center' justify='center' py={6}>
-              <Spinner size='sm' color='blue.400' />
-              <Text ml={2} fontSize='sm' color='gray.400'>
+              <Spinner size='sm' color='brand' />
+              <Text ml={2} fontSize='sm' color='fg.muted'>
                 Searching subjects...
               </Text>
             </Flex>
@@ -256,24 +271,29 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
             <VStack gap={0} align='stretch'>
               {searchResults.slice(0, 10).map((result) => {
                 // Show max 10 results
-                const subjectFsid = result.ent_fsid; // Use fsid instead of objectId
+                const subjectFsid = result.ent_fsid;
                 const alreadyInLab = isSubjectInLab(subjectFsid);
                 return (
                   <HStack
                     key={subjectFsid}
                     p={3}
-                    _hover={{ bg: 'gray.700' }}
+                    _hover={{ bg: 'bg.hover' }}
                     justify='space-between'
                     opacity={alreadyInLab ? 0.6 : 1}
+                    // Prevent hover events from passing through
+                    onMouseEnter={(e) => e.stopPropagation()}
+                    onMouseMove={(e) => e.stopPropagation()}
+                    position='relative'
+                    zIndex='999999'
                   >
                     <VStack gap={1} align='stretch' flex='1'>
                       <HStack gap={2}>
-                        <Text fontSize='sm' fontWeight='medium' color='white'>
+                        <Text fontSize='sm' fontWeight='medium' color='fg'>
                           {result.ent_name}
                         </Text>
                         {alreadyInLab && (
                           <Box
-                            bg='green.600'
+                            bg='success'
                             color='white'
                             fontSize='xs'
                             px={2}
@@ -284,7 +304,7 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                           </Box>
                         )}
                       </HStack>
-                      <Text fontSize='xs' color='gray.400' lineClamp={2}>
+                      <Text fontSize='xs' color='fg.muted' lineClamp={2}>
                         {result.ent_summary}
                       </Text>
                     </VStack>
@@ -293,14 +313,15 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                       size='sm'
                       variant='ghost'
                       colorScheme={alreadyInLab ? 'gray' : 'green'}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (!alreadyInLab) onAddSubject(result);
                       }}
-                      color={alreadyInLab ? 'gray.400' : 'green.400'}
+                      color={alreadyInLab ? 'fg.muted' : 'success'}
                       _hover={
                         alreadyInLab
                           ? {}
-                          : { color: 'green.300', bg: 'green.900' }
+                          : { color: 'success', bg: 'successSubtle' }
                       }
                       minW='auto'
                       p={2}
@@ -311,6 +332,8 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                           ? `${result.ent_name} already in lab`
                           : `Add ${result.ent_name} to lab`
                       }
+                      zIndex='999999'
+                      position='relative'
                     >
                       {alreadyInLab ? (
                         <FiCheck size={16} />
@@ -326,17 +349,17 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                 <Box
                   p={3}
                   borderTop='1px solid'
-                  borderTopColor='gray.600'
-                  bg='gray.750'
+                  borderTopColor='border.muted'
+                  bg='bg.subtle'
                   textAlign='center'
                 >
-                  <Text fontSize='xs' color='gray.400'>
+                  <Text fontSize='xs' color='fg.muted'>
                     Showing first 10 of {searchResults.length} results
                   </Text>
                   <Button
                     size='sm'
                     variant='ghost'
-                    color='blue.300'
+                    color='brand'
                     onClick={onGoToSearchResults}
                     mt={1}
                   >
@@ -351,10 +374,10 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
           {!isSearching && hasSearched && searchResults.length === 0 && (
             <Flex align='center' justify='center' py={6}>
               <VStack gap={2}>
-                <Text fontSize='sm' color='gray.400'>
+                <Text fontSize='sm' color='fg.muted'>
                   No subjects found for "{lastExecutedQuery}"
                 </Text>
-                <Text fontSize='xs' color='gray.500'>
+                <Text fontSize='xs' color='fg.muted'>
                   Try different keywords or check your spelling
                 </Text>
               </VStack>

@@ -335,7 +335,7 @@ const Search: React.FC = () => {
                       </Box>
 
                       {/* Stats */}
-                      <SimpleGrid columns={5} gap={4}>
+                      <SimpleGrid columns={4} gap={4}>
                         {/* Books */}
                         <Box
                           bg='bg.canvas'
@@ -435,32 +435,6 @@ const Search: React.FC = () => {
                               </Text>
                               <Text fontSize='sm' color='fg.secondary'>
                                 Patents
-                              </Text>
-                            </>
-                          )}
-                        </Box>
-
-                        {/* Organizations */}
-                        <Box
-                          bg='bg.canvas'
-                          p={3}
-                          borderRadius='lg'
-                          textAlign='center'
-                          border='1px solid'
-                          borderColor='border.muted'
-                        >
-                          {isLoadingStats ? (
-                            <VStack gap={2}>
-                              <Skeleton height='20px' width='40px' mx='auto' />
-                              <Skeleton height='14px' width='50px' mx='auto' />
-                            </VStack>
-                          ) : (
-                            <>
-                              <Text fontSize='xl' fontWeight='bold' color='fg'>
-                                {formattedStats?.organizations || 'N/A'}
-                              </Text>
-                              <Text fontSize='sm' color='fg.secondary'>
-                                Organizations
                               </Text>
                             </>
                           )}

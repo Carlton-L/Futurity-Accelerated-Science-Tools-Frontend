@@ -28,17 +28,17 @@ export interface Team {
 }
 
 export interface UserOrganizationsResponse {
-  user_id: string;
+  user_id: string; // NOTE: DO NOT use this user_id for any API calls - it's not the correct format
   organizations: Organization[];
 }
 
 export interface UserTeamsResponse {
-  user_id: string;
+  user_id: string; // NOTE: DO NOT use this user_id for any API calls - it's not the correct format
   teams: Team[];
 }
 
 export interface UserRelationshipsResponse {
-  user_id: string;
+  user_id: string; // NOTE: DO NOT use this user_id for any API calls - it's not the correct format
   organizations: Organization[];
   teams: Team[];
   total_relationships: number;
@@ -46,7 +46,7 @@ export interface UserRelationshipsResponse {
 
 export interface OrganizationUser {
   _id: string;
-  uniqueID: string;
+  uniqueID: string; // NOTE: DO NOT use this uniqueID for any API calls - it's not the correct format
   email: string;
   profile: {
     fullname: string;
@@ -62,8 +62,8 @@ export interface OrganizationUser {
     verification_token: string;
     email_validated: boolean;
   };
-  workspace: any;
-  teamspaces: any[];
+  workspace: any; // NOTE: This will always be null
+  teamspaces: any[]; // NOTE: This will always be empty
   whiteboard: any;
   status: string;
   createdAt: string;
@@ -73,7 +73,7 @@ export interface OrganizationUser {
 
 export interface TeamUser {
   _id: string;
-  uniqueID: string;
+  uniqueID: string; // NOTE: DO NOT use this uniqueID for any API calls - it's not the correct format
   email: string;
   profile: {
     fullname: string;
@@ -89,8 +89,8 @@ export interface TeamUser {
     verification_token: string;
     email_validated: boolean;
   };
-  workspace: any;
-  teamspaces: any[];
+  workspace: any; // NOTE: This will always be null
+  teamspaces: any[]; // NOTE: This will always be empty
   whiteboard: any;
   status: string;
   createdAt: string;
@@ -116,8 +116,8 @@ export interface TeamUsersResponse {
 }
 
 export interface RoleAssignmentRequest {
-  user_id: string;
-  entity_id: string;
+  user_id: string; // This should be the auth context user._id (objectId)
+  entity_id: string; // This should be the team/organization uniqueID
 }
 
 export interface RoleAssignmentResponse {
@@ -170,7 +170,7 @@ class RelationshipService {
     return response.json();
   }
 
-  // Get all user relationships (organizations and teams)
+  // Get all user relationships (organizations and teams) - MOST USEFUL ENDPOINT
   async getUserRelationships(
     userId: string,
     token: string
@@ -394,6 +394,80 @@ class RelationshipService {
     }
 
     return response.json();
+  }
+
+  // Helper method to change a user's role by adding new role and removing old ones
+  // NOTE: API only ADDS roles, doesn't automatically remove old ones
+  async changeTeamUserRole(
+    authContextUserId: string, // The _id from auth context (correct objectId for API calls)
+    teamId: string,
+    newRole: 'admin' | 'editor' | 'viewer',
+    currentRoles: string[],
+    token: string
+  ): Promise<void> {
+    const request: RoleAssignmentRequest = {
+      user_id: authContextUserId, // Use the auth context user._id
+      entity_id: teamId,
+    };
+
+    // First assign the new role
+    if (newRole === 'admin') {
+      await this.assignTeamAdmin(request, token);
+    } else if (newRole === 'editor') {
+      await this.assignTeamEditor(request, token);
+    } else {
+      await this.assignTeamViewer(request, token);
+    }
+
+    // Then remove old roles (ignore errors if role doesn't exist)
+    const removePromises = [];
+
+    // Remove roles that are different from the new role
+    if (newRole !== 'admin' && currentRoles.includes('admin')) {
+      removePromises.push(
+        this.removeTeamAdmin(request, token).catch(() => {
+          // Ignore errors - role might not exist
+        })
+      );
+    }
+    if (newRole !== 'editor' && currentRoles.includes('editor')) {
+      removePromises.push(
+        this.removeTeamEditor(request, token).catch(() => {
+          // Ignore errors - role might not exist
+        })
+      );
+    }
+    if (newRole !== 'viewer' && currentRoles.includes('viewer')) {
+      removePromises.push(
+        this.removeTeamViewer(request, token).catch(() => {
+          // Ignore errors - role might not exist
+        })
+      );
+    }
+
+    // Wait for all removals to complete
+    await Promise.all(removePromises);
+  }
+
+  // Helper method to remove all roles for a user from a team
+  async removeAllTeamRoles(
+    authContextUserId: string, // The _id from auth context (correct objectId for API calls)
+    teamId: string,
+    token: string
+  ): Promise<void> {
+    const request: RoleAssignmentRequest = {
+      user_id: authContextUserId, // Use the auth context user._id
+      entity_id: teamId,
+    };
+
+    // Remove all possible roles (ignore errors if role doesn't exist)
+    const removePromises = [
+      this.removeTeamAdmin(request, token).catch(() => {}),
+      this.removeTeamEditor(request, token).catch(() => {}),
+      this.removeTeamViewer(request, token).catch(() => {}),
+    ];
+
+    await Promise.all(removePromises);
   }
 }
 
