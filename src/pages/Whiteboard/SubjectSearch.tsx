@@ -18,8 +18,7 @@ interface SubjectSearchProps {
   searchResults: SubjectSearchResult[];
   isSearching: boolean;
   showSearchDropdown: boolean;
-  userRole: 'reader' | 'editor' | 'admin';
-  isSubjectInLab: (subjectId: string) => boolean;
+  isSubjectInWhiteboard: (subjectFsid: string) => boolean;
   onSearchChange: (value: string) => void;
   onSearchExecute: (query: string) => void;
   onSearchFocus: () => void;
@@ -29,13 +28,12 @@ interface SubjectSearchProps {
   setShowSearchDropdown: (show: boolean) => void;
 }
 
-export const SubjectSearch: React.FC<SubjectSearchProps> = ({
+const SubjectSearch: React.FC<SubjectSearchProps> = ({
   searchQuery,
   searchResults,
   isSearching,
   showSearchDropdown,
-  userRole,
-  isSubjectInLab,
+  isSubjectInWhiteboard,
   onSearchChange,
   onSearchExecute,
   onSearchFocus,
@@ -127,7 +125,7 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
         <HStack gap={0}>
           <Input
             ref={searchInputRef}
-            placeholder='Search subjects...'
+            placeholder='Search and add subjects...'
             value={searchQuery}
             onChange={(e) => handleInputChange(e.target.value)}
             onFocus={handleInputFocus}
@@ -135,21 +133,15 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
             size='md'
             bg='bg.canvas'
             borderColor='border.emphasized'
-            color='fg'
-            _placeholder={{ color: 'fg.muted' }}
-            _focus={{
-              borderColor: 'brand',
-              boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-            }}
+            _focus={{ borderColor: 'brand' }}
             borderRightRadius={0}
-            disabled={userRole === 'reader'}
           />
 
           {/* Search Button */}
           <Button
             size='md'
             onClick={handleSearchClick}
-            disabled={!canSearch || userRole === 'reader'}
+            disabled={!canSearch}
             bg='brand'
             color='white'
             borderLeftRadius={0}
@@ -196,18 +188,9 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
           borderColor='border.emphasized'
           borderRadius='md'
           boxShadow='lg'
-          zIndex='999999' // Very high z-index to ensure it's above everything
+          zIndex='20'
           maxH='400px'
           overflowY='auto'
-          // Prevent mouse events from passing through
-          onMouseEnter={(e) => e.stopPropagation()}
-          onMouseLeave={(e) => e.stopPropagation()}
-          onMouseMove={(e) => e.stopPropagation()}
-          css={{
-            zIndex: '999999 !important',
-            position: 'relative !important',
-            isolation: 'isolate', // Creates new stacking context
-          }}
         >
           {/* Search Info Header */}
           <Box
@@ -235,20 +218,13 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
               w='100%'
               variant='ghost'
               justifyContent='flex-start'
-              onClick={(e) => {
-                e.stopPropagation();
-                onGoToSearchResults();
-              }}
+              onClick={onGoToSearchResults}
               color='brand'
               _hover={{ bg: 'bg.hover' }}
               borderRadius='0'
               borderBottom='1px solid'
               borderBottomColor='border.muted'
               py={3}
-              onMouseEnter={(e) => e.stopPropagation()}
-              onMouseMove={(e) => e.stopPropagation()}
-              position='relative'
-              zIndex='999999'
             >
               <FiSearch size={16} />
               <Text ml={2}>View all search results</Text>
@@ -272,26 +248,21 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
               {searchResults.slice(0, 10).map((result) => {
                 // Show max 10 results
                 const subjectFsid = result.ent_fsid;
-                const alreadyInLab = isSubjectInLab(subjectFsid);
+                const alreadyInWhiteboard = isSubjectInWhiteboard(subjectFsid);
                 return (
                   <HStack
                     key={subjectFsid}
                     p={3}
                     _hover={{ bg: 'bg.hover' }}
                     justify='space-between'
-                    opacity={alreadyInLab ? 0.6 : 1}
-                    // Prevent hover events from passing through
-                    onMouseEnter={(e) => e.stopPropagation()}
-                    onMouseMove={(e) => e.stopPropagation()}
-                    position='relative'
-                    zIndex='999999'
+                    opacity={alreadyInWhiteboard ? 0.6 : 1}
                   >
                     <VStack gap={1} align='stretch' flex='1'>
                       <HStack gap={2}>
                         <Text fontSize='sm' fontWeight='medium' color='fg'>
                           {result.ent_name}
                         </Text>
-                        {alreadyInLab && (
+                        {alreadyInWhiteboard && (
                           <Box
                             bg='success'
                             color='white'
@@ -300,7 +271,7 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                             py={1}
                             borderRadius='md'
                           >
-                            In Lab
+                            In Whiteboard
                           </Box>
                         )}
                       </HStack>
@@ -312,30 +283,27 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                     <Button
                       size='sm'
                       variant='ghost'
-                      colorScheme={alreadyInLab ? 'gray' : 'green'}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!alreadyInLab) onAddSubject(result);
+                      colorScheme={alreadyInWhiteboard ? 'gray' : 'green'}
+                      onClick={() => {
+                        if (!alreadyInWhiteboard) onAddSubject(result);
                       }}
-                      color={alreadyInLab ? 'fg.muted' : 'success'}
+                      color={alreadyInWhiteboard ? 'fg.muted' : 'success'}
                       _hover={
-                        alreadyInLab
+                        alreadyInWhiteboard
                           ? {}
                           : { color: 'success', bg: 'successSubtle' }
                       }
                       minW='auto'
                       p={2}
-                      cursor={alreadyInLab ? 'not-allowed' : 'pointer'}
-                      disabled={alreadyInLab || userRole === 'reader'}
+                      cursor={alreadyInWhiteboard ? 'not-allowed' : 'pointer'}
+                      disabled={alreadyInWhiteboard}
                       aria-label={
-                        alreadyInLab
-                          ? `${result.ent_name} already in lab`
-                          : `Add ${result.ent_name} to lab`
+                        alreadyInWhiteboard
+                          ? `${result.ent_name} already in whiteboard`
+                          : `Add ${result.ent_name} to whiteboard`
                       }
-                      zIndex='999999'
-                      position='relative'
                     >
-                      {alreadyInLab ? (
+                      {alreadyInWhiteboard ? (
                         <FiCheck size={16} />
                       ) : (
                         <FiPlus size={16} />
@@ -388,3 +356,5 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
     </Box>
   );
 };
+
+export default SubjectSearch;

@@ -321,11 +321,11 @@ const NetworkGraph = forwardRef<NetworkGraphRef, NetworkGraphProps>(
         abortControllerRef.current = new AbortController();
 
         try {
-          const limit = '1000';
+          const limit = '1300';
           const subjects = params.subjects || params.subject;
 
           // Use direct HTTPS URL with trailing slash to avoid redirect
-          const apiUrl = `https://fast.futurity.science/graphs/graph-data?subjects=${encodeURIComponent(
+          const apiUrl = `https://fast.futurity.science/graphs/graph-data?subject=${encodeURIComponent(
             subjects || ''
           )}&limit=${limit}&debug=false`;
 

@@ -268,5 +268,6 @@ export type AuthContextType = {
   isTeamEditor: (teamId?: string) => boolean;
   isTeamViewer: (teamId?: string) => boolean;
   isLoading: boolean;
+  isLoadingUser: boolean; // Add this new flag
   isAuthenticated: boolean;
 };

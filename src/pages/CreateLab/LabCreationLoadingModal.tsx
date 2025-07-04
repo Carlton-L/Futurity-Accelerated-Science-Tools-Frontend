@@ -7,8 +7,14 @@ import {
   Progress,
   Spinner,
   Box,
+  Button,
 } from '@chakra-ui/react';
-import { FiCheck, FiLayers, FiAlertCircle } from 'react-icons/fi';
+import {
+  FiCheck,
+  FiLayers,
+  FiAlertCircle,
+  FiAlertTriangle,
+} from 'react-icons/fi';
 
 interface LabCreationLoadingModalProps {
   isOpen: boolean;
@@ -16,6 +22,7 @@ interface LabCreationLoadingModalProps {
   message: string;
   progress: number;
   errorMessage?: string;
+  onClose?: () => void;
 }
 
 const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
@@ -24,6 +31,7 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
   message,
   progress,
   errorMessage,
+  onClose,
 }) => {
   const getStageIcon = () => {
     switch (stage) {
@@ -52,7 +60,7 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
       case 'creating':
         return 'Creating Lab';
       case 'processing':
-        return 'Processing Terms';
+        return 'Processing Lab Data';
       case 'completed':
         return 'Lab Created Successfully!';
       case 'error':
@@ -62,6 +70,8 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
     }
   };
 
+  const showCloseButton = stage === 'error' && onClose;
+
   return (
     <Dialog.Root
       open={isOpen}
@@ -69,14 +79,20 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
       closeOnInteractOutside={false}
       closeOnEscape={false}
     >
-      <Dialog.Backdrop bg='blackAlpha.700' zIndex={1300} />
-      <Dialog.Positioner zIndex={1301}>
+      <Dialog.Backdrop
+        bg='blackAlpha.700'
+        zIndex={1500}
+        backdropFilter='blur(4px)'
+      />
+      <Dialog.Positioner zIndex={1501}>
         <Dialog.Content
           bg='bg.canvas'
           borderColor='border.emphasized'
           maxW='md'
           w='90vw'
-          zIndex={1302}
+          zIndex={1502}
+          boxShadow='2xl'
+          borderWidth='1px'
         >
           <Dialog.Header>
             <HStack gap={3} align='center'>
@@ -119,7 +135,7 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
 
               {/* Progress bar - only show during processing stages */}
               {(stage === 'creating' || stage === 'processing') && (
-                <VStack gap={2} w='100%'>
+                <VStack gap={3} w='100%'>
                   <Progress.Root
                     value={progress}
                     size='md'
@@ -141,19 +157,90 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
                 </VStack>
               )}
 
+              {/* Warning about navigation - only during active processing */}
+              {(stage === 'creating' || stage === 'processing') && (
+                <Box
+                  p={3}
+                  bg='warning'
+                  _dark={{ bg: 'orange.900' }}
+                  borderRadius='md'
+                  borderWidth='1px'
+                  borderColor='warning'
+                  _dark={{ borderColor: 'orange.700' }}
+                  w='100%'
+                >
+                  <HStack gap={2} align='start'>
+                    <FiAlertTriangle
+                      size={16}
+                      color='var(--chakra-colors-orange-800)'
+                      style={{ flexShrink: 0, marginTop: '2px' }}
+                    />
+                    <VStack gap={1} align='start'>
+                      <Text
+                        fontSize='sm'
+                        fontWeight='medium'
+                        color='orange.800'
+                        _dark={{ color: 'orange.200' }}
+                        fontFamily='heading'
+                      >
+                        Please don't navigate away
+                      </Text>
+                      <Text
+                        fontSize='xs'
+                        color='orange.700'
+                        _dark={{ color: 'orange.300' }}
+                        fontFamily='body'
+                        lineHeight='1.4'
+                      >
+                        Your lab is being created. Closing this page may
+                        interrupt the process.
+                      </Text>
+                    </VStack>
+                  </HStack>
+                </Box>
+              )}
+
               {/* Success message */}
               {stage === 'completed' && (
-                <Text
-                  fontSize='sm'
-                  color='success'
-                  fontFamily='body'
-                  textAlign='center'
-                >
-                  Your lab has been created and is ready to use!
-                </Text>
+                <VStack gap={2} align='center'>
+                  <Text
+                    fontSize='sm'
+                    color='success'
+                    fontFamily='body'
+                    textAlign='center'
+                  >
+                    Your lab has been created and is ready to use!
+                  </Text>
+                  <Text
+                    fontSize='xs'
+                    color='fg.muted'
+                    fontFamily='body'
+                    textAlign='center'
+                  >
+                    Redirecting to your new lab...
+                  </Text>
+                </VStack>
               )}
             </VStack>
           </Dialog.Body>
+
+          {/* Footer with close button for errors */}
+          {showCloseButton && (
+            <Dialog.Footer>
+              <Button
+                onClick={onClose}
+                variant='outline'
+                w='100%'
+                color='fg'
+                borderColor='border.emphasized'
+                bg='bg.canvas'
+                _hover={{ bg: 'bg.hover' }}
+                fontFamily='heading'
+              >
+                Close
+              </Button>
+            </Dialog.Footer>
+          )}
         </Dialog.Content>
       </Dialog.Positioner>
     </Dialog.Root>

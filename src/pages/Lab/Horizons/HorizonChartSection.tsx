@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState, useRef } from 'react';
 import {
   Box,
   Button,
@@ -55,6 +55,43 @@ const HorizonChartSection = forwardRef<
   ) => {
     const maxSubjects = 20;
     const [horizonDataTimeout, setHorizonDataTimeout] = useState(false);
+    const [chartDimensions, setChartDimensions] = useState({
+      width: 1000,
+      height: 650,
+    });
+    const chartContainerRef = useRef<HTMLDivElement>(null);
+    const selectionPanelRef = useRef<HTMLDivElement>(null);
+
+    // Simplified horizon rank detection - just check the horizonRank property
+    const hasValidHorizonRank = (subject: LabSubject): boolean => {
+      return (
+        subject.horizonRank !== undefined &&
+        subject.horizonRank !== null &&
+        !isNaN(Number(subject.horizonRank))
+      );
+    };
+
+    // Calculate subjects with and without horizon rank using enhanced detection
+    const subjectsWithHorizonRank = allSubjects.filter(hasValidHorizonRank);
+    const subjectsWithoutHorizonRank = allSubjects.filter(
+      (subject) => !hasValidHorizonRank(subject)
+    );
+
+    // Group subjects by horizon rank availability using enhanced detection
+    const groupedSubjectsByHorizonRank = {
+      selected: {
+        withHorizonRank: groupedSubjects.selected.filter(hasValidHorizonRank),
+        withoutHorizonRank: groupedSubjects.selected.filter(
+          (subject) => !hasValidHorizonRank(subject)
+        ),
+      },
+      unselected: {
+        withHorizonRank: groupedSubjects.unselected.filter(hasValidHorizonRank),
+        withoutHorizonRank: groupedSubjects.unselected.filter(
+          (subject) => !hasValidHorizonRank(subject)
+        ),
+      },
+    };
 
     // Check if we're still waiting for horizon rank data
     const selectedSubjectsWithoutHorizonRank = groupedSubjects.selected.filter(
@@ -62,31 +99,86 @@ const HorizonChartSection = forwardRef<
     );
     const isLoadingHorizonData = selectedSubjectsWithoutHorizonRank.length > 0;
 
-    // Debug logging
+    // Calculate chart dimensions based on data
+    useEffect(() => {
+      if (chartContainerRef.current && horizonData.length > 0) {
+        const containerWidth = chartContainerRef.current.offsetWidth;
+        const uniqueCategories = Array.from(
+          new Set(horizonData.map((item) => item.category))
+        );
+        const minRowHeight = 140; // Increased base row height
+        const rowSpacing = 16; // Increased spacing
+        const marginTop = 100; // Increased top margin for column labels
+        const marginBottom = 60; // Increased bottom margin
+
+        // Calculate height based on number of categories with more generous spacing
+        const contentHeight =
+          uniqueCategories.length * minRowHeight +
+          (uniqueCategories.length - 1) * rowSpacing;
+        const totalHeight = contentHeight + marginTop + marginBottom;
+
+        // More generous minimum height
+        const finalHeight = Math.max(500, totalHeight);
+
+        console.log('Chart dimensions calculation:', {
+          uniqueCategories: uniqueCategories.length,
+          minRowHeight,
+          contentHeight,
+          totalHeight,
+          finalHeight,
+          containerWidth,
+        });
+
+        setChartDimensions({
+          width: Math.max(800, containerWidth),
+          height: finalHeight,
+        });
+      } else if (horizonData.length === 0) {
+        // Set minimum dimensions for empty state
+        setChartDimensions({
+          width: Math.max(800, chartContainerRef.current?.offsetWidth || 1000),
+          height: 400,
+        });
+      }
+    }, [horizonData, chartContainerRef.current?.offsetWidth]);
+
+    // Handle window resize
+    useEffect(() => {
+      const handleResize = () => {
+        if (chartContainerRef.current) {
+          const containerWidth = chartContainerRef.current.offsetWidth;
+          setChartDimensions((prev) => ({
+            ...prev,
+            width: Math.max(800, containerWidth),
+          }));
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Simple debugging - check first subject data
     console.log('=== HORIZON CHART DEBUG ===');
-    console.log('Total selected subjects:', selectedSubjects.size);
-    console.log('Grouped selected subjects:', groupedSubjects.selected.length);
+    console.log('Total subjects:', allSubjects.length);
+    console.log('Subjects with horizon rank:', subjectsWithHorizonRank.length);
     console.log(
       'Subjects without horizon rank:',
-      selectedSubjectsWithoutHorizonRank.length
+      subjectsWithoutHorizonRank.length
     );
-    console.log(
-      'Selected subjects with horizon rank data:',
-      groupedSubjects.selected.filter((s) => s.horizonRank !== undefined).length
-    );
-    console.log('isLoadingHorizonData:', isLoadingHorizonData);
-    console.log('horizonDataTimeout:', horizonDataTimeout);
-    console.log('Horizon data length:', horizonData.length);
 
-    // Log individual subjects and their horizon rank status
-    groupedSubjects.selected.forEach((subject, index) => {
+    // Check first subject structure
+    if (allSubjects.length > 0) {
+      const firstSubject = allSubjects[0];
+      console.log('First subject sample:');
+      console.log('  name:', firstSubject.subjectName);
       console.log(
-        `Subject ${index + 1}: ${subject.subjectName} - HR: ${
-          subject.horizonRank
-        }`
+        '  horizonRank:',
+        firstSubject.horizonRank,
+        typeof firstSubject.horizonRank
       );
-    });
-    console.log('=== END DEBUG ===');
+      console.log('  hasValidHorizonRank:', hasValidHorizonRank(firstSubject));
+    }
 
     // Set a timeout for horizon data loading (10 seconds)
     useEffect(() => {
@@ -97,7 +189,7 @@ const HorizonChartSection = forwardRef<
             'Horizon data timeout reached, proceeding with available data'
           );
           setHorizonDataTimeout(true);
-        }, 10000); // 10 second timeout
+        }, 10000);
 
         return () => {
           console.log('Clearing horizon data timeout');
@@ -133,18 +225,33 @@ const HorizonChartSection = forwardRef<
                 mb={4}
               >
                 The Horizon Chart visualizes your selected subjects across four
-                time horizons (Business, Engineering, Science, and Idea) and
-                organizes them by category. Each subject is positioned based on
-                its technological maturity and relevance, helping you understand
-                the development timeline and strategic positioning of your
-                research areas. <strong>Note:</strong> A maximum of 20 subjects
-                can be displayed on the chart at once for optimal readability.
+                time horizons (Business, Engineering, Science, and Imagination)
+                and organizes them by category. Each subject is positioned based
+                on its technological maturity and relevance, helping you
+                understand the development timeline and strategic positioning of
+                your research areas. <strong>Note:</strong> Only subjects with
+                horizon rank data can be displayed on the chart. A maximum of 20
+                subjects can be displayed at once for optimal readability.
               </Text>
             </Box>
 
             <Flex gap={6} align='flex-start'>
-              {/* Subject Selection Panel */}
-              <Box minW='300px' maxW='300px'>
+              {/* Sticky Subject Selection Panel */}
+              <Box
+                ref={selectionPanelRef}
+                position='sticky'
+                top='140px' // Below the floating navbar (64px) + tab navigation (76px)
+                zIndex={9}
+                minW='350px'
+                maxW='350px'
+                maxH='calc(100vh - 160px)' // Leave space for navbar and tabs
+                overflowY='auto'
+                bg='bg.canvas'
+                borderRadius='md'
+                border='1px solid'
+                borderColor='border.emphasized'
+                p={4}
+              >
                 <VStack gap={4} align='stretch'>
                   <HStack justify='space-between' align='center'>
                     <Text
@@ -153,20 +260,19 @@ const HorizonChartSection = forwardRef<
                       color='fg'
                       fontFamily='heading'
                     >
-                      Select Subjects (
-                      {loading
-                        ? '...'
-                        : `${selectedSubjects.size}/${maxSubjects}`}
-                      )
+                      Select Subjects ({selectedSubjects.size}/{maxSubjects})
                     </Text>
                     <HStack gap={2}>
                       <Button
                         size='xs'
                         variant='ghost'
                         onClick={onSelectAll}
-                        disabled={loading || allSubjects.length === 0}
+                        disabled={
+                          loading || subjectsWithHorizonRank.length === 0
+                        }
                       >
-                        First {maxSubjects}
+                        First{' '}
+                        {Math.min(maxSubjects, subjectsWithHorizonRank.length)}
                       </Button>
                       <Button
                         size='xs'
@@ -193,8 +299,6 @@ const HorizonChartSection = forwardRef<
                   </HStack>
 
                   <Box
-                    maxH='500px'
-                    overflowY='auto'
                     border='1px solid'
                     borderColor='border.emphasized'
                     borderRadius='md'
@@ -261,10 +365,11 @@ const HorizonChartSection = forwardRef<
                         </VStack>
                       )}
 
-                      {/* Selected subjects first */}
+                      {/* Selected subjects with horizon rank */}
                       {!loading &&
                         !error &&
-                        groupedSubjects.selected.length > 0 && (
+                        groupedSubjectsByHorizonRank.selected.withHorizonRank
+                          .length > 0 && (
                           <>
                             <Text
                               fontSize='xs'
@@ -273,109 +378,22 @@ const HorizonChartSection = forwardRef<
                               textTransform='uppercase'
                               fontFamily='heading'
                             >
-                              Included ({groupedSubjects.selected.length})
+                              Selected - With Horizon Rank (
+                              {
+                                groupedSubjectsByHorizonRank.selected
+                                  .withHorizonRank.length
+                              }
+                              )
                             </Text>
-                            {groupedSubjects.selected.map((subject) => (
-                              <HStack key={subject.id} gap={2} align='center'>
-                                <Checkbox.Root
-                                  checked={selectedSubjects.has(subject.id)}
-                                  onCheckedChange={() =>
-                                    onSubjectToggle(subject.id)
-                                  }
-                                  size='sm'
-                                >
-                                  <Checkbox.HiddenInput />
-                                  <Checkbox.Control>
-                                    <Checkbox.Indicator />
-                                  </Checkbox.Control>
-                                </Checkbox.Root>
-                                <VStack gap={0} align='stretch' flex='1'>
-                                  <HStack gap={2} align='center'>
-                                    <Text
-                                      fontSize='sm'
-                                      fontWeight='medium'
-                                      color='fg'
-                                      fontFamily='heading'
-                                      flex='1'
-                                    >
-                                      {subject.subjectName}
-                                    </Text>
-                                    {/* Horizon rank status indicator */}
-                                    {subject.horizonRank !== undefined ? (
-                                      <Text
-                                        fontSize='xs'
-                                        color='success'
-                                        fontFamily='mono'
-                                        fontWeight='medium'
-                                      >
-                                        HR: {subject.horizonRank.toFixed(1)}
-                                      </Text>
-                                    ) : (
-                                      <Text
-                                        fontSize='xs'
-                                        color='warning'
-                                        fontFamily='mono'
-                                        fontWeight='medium'
-                                      >
-                                        Loading...
-                                      </Text>
-                                    )}
-                                  </HStack>
-                                  {subject.notes && (
-                                    <Text
-                                      fontSize='xs'
-                                      color='fg.muted'
-                                      overflow='hidden'
-                                      textOverflow='ellipsis'
-                                      whiteSpace='nowrap'
-                                      fontFamily='body'
-                                    >
-                                      {subject.notes}
-                                    </Text>
-                                  )}
-                                </VStack>
-                              </HStack>
-                            ))}
-                          </>
-                        )}
-
-                      {/* Unselected subjects */}
-                      {!loading &&
-                        !error &&
-                        groupedSubjects.unselected.length > 0 && (
-                          <>
-                            {groupedSubjects.selected.length > 0 && (
-                              <Box height='1px' bg='border.muted' my={2} />
-                            )}
-                            <Text
-                              fontSize='xs'
-                              fontWeight='bold'
-                              color='fg.muted'
-                              textTransform='uppercase'
-                              fontFamily='heading'
-                            >
-                              Available ({groupedSubjects.unselected.length})
-                            </Text>
-                            {groupedSubjects.unselected.map((subject) => {
-                              const isAtLimit =
-                                selectedSubjects.size >= maxSubjects;
-                              const isDisabled =
-                                isAtLimit && !selectedSubjects.has(subject.id);
-
-                              return (
-                                <HStack
-                                  key={subject.id}
-                                  gap={2}
-                                  align='center'
-                                  opacity={isDisabled ? 0.5 : 1}
-                                >
+                            {groupedSubjectsByHorizonRank.selected.withHorizonRank.map(
+                              (subject) => (
+                                <HStack key={subject.id} gap={2} align='center'>
                                   <Checkbox.Root
                                     checked={selectedSubjects.has(subject.id)}
                                     onCheckedChange={() =>
                                       onSubjectToggle(subject.id)
                                     }
                                     size='sm'
-                                    disabled={isDisabled}
                                   >
                                     <Checkbox.HiddenInput />
                                     <Checkbox.Control>
@@ -387,32 +405,20 @@ const HorizonChartSection = forwardRef<
                                       <Text
                                         fontSize='sm'
                                         fontWeight='medium'
-                                        color={isDisabled ? 'fg.muted' : 'fg'}
+                                        color='fg'
                                         fontFamily='heading'
                                         flex='1'
                                       >
                                         {subject.subjectName}
                                       </Text>
-                                      {/* Horizon rank status indicator */}
-                                      {subject.horizonRank !== undefined ? (
-                                        <Text
-                                          fontSize='xs'
-                                          color='success'
-                                          fontFamily='mono'
-                                          fontWeight='medium'
-                                        >
-                                          HR: {subject.horizonRank.toFixed(1)}
-                                        </Text>
-                                      ) : (
-                                        <Text
-                                          fontSize='xs'
-                                          color='fg.muted'
-                                          fontFamily='mono'
-                                          fontWeight='medium'
-                                        >
-                                          ---
-                                        </Text>
-                                      )}
+                                      <Text
+                                        fontSize='xs'
+                                        color='success'
+                                        fontFamily='mono'
+                                        fontWeight='medium'
+                                      >
+                                        HR: {subject.horizonRank!.toFixed(1)}
+                                      </Text>
                                     </HStack>
                                     {subject.notes && (
                                       <Text
@@ -428,8 +434,271 @@ const HorizonChartSection = forwardRef<
                                     )}
                                   </VStack>
                                 </HStack>
-                              );
-                            })}
+                              )
+                            )}
+                          </>
+                        )}
+
+                      {/* Selected subjects without horizon rank */}
+                      {!loading &&
+                        !error &&
+                        groupedSubjectsByHorizonRank.selected.withoutHorizonRank
+                          .length > 0 && (
+                          <>
+                            {groupedSubjectsByHorizonRank.selected
+                              .withHorizonRank.length > 0 && (
+                              <Box height='1px' bg='border.muted' my={2} />
+                            )}
+                            <Text
+                              fontSize='xs'
+                              fontWeight='bold'
+                              color='warning'
+                              textTransform='uppercase'
+                              fontFamily='heading'
+                            >
+                              Selected - No Horizon Rank (
+                              {
+                                groupedSubjectsByHorizonRank.selected
+                                  .withoutHorizonRank.length
+                              }
+                              )
+                            </Text>
+                            {groupedSubjectsByHorizonRank.selected.withoutHorizonRank.map(
+                              (subject) => (
+                                <HStack
+                                  key={subject.id}
+                                  gap={2}
+                                  align='center'
+                                  opacity={0.7}
+                                >
+                                  <Checkbox.Root
+                                    checked={selectedSubjects.has(subject.id)}
+                                    onCheckedChange={() =>
+                                      onSubjectToggle(subject.id)
+                                    }
+                                    size='sm'
+                                    disabled={true}
+                                  >
+                                    <Checkbox.HiddenInput />
+                                    <Checkbox.Control>
+                                      <Checkbox.Indicator />
+                                    </Checkbox.Control>
+                                  </Checkbox.Root>
+                                  <VStack gap={0} align='stretch' flex='1'>
+                                    <HStack gap={2} align='center'>
+                                      <Text
+                                        fontSize='sm'
+                                        fontWeight='medium'
+                                        color='fg.muted'
+                                        fontFamily='heading'
+                                        flex='1'
+                                      >
+                                        {subject.subjectName}
+                                      </Text>
+                                      <Text
+                                        fontSize='xs'
+                                        color='warning'
+                                        fontFamily='mono'
+                                        fontWeight='medium'
+                                      >
+                                        No HR
+                                      </Text>
+                                    </HStack>
+                                    {subject.notes && (
+                                      <Text
+                                        fontSize='xs'
+                                        color='fg.muted'
+                                        overflow='hidden'
+                                        textOverflow='ellipsis'
+                                        whiteSpace='nowrap'
+                                        fontFamily='body'
+                                      >
+                                        {subject.notes}
+                                      </Text>
+                                    )}
+                                  </VStack>
+                                </HStack>
+                              )
+                            )}
+                          </>
+                        )}
+
+                      {/* Available subjects with horizon rank */}
+                      {!loading &&
+                        !error &&
+                        groupedSubjectsByHorizonRank.unselected.withHorizonRank
+                          .length > 0 && (
+                          <>
+                            {(groupedSubjectsByHorizonRank.selected
+                              .withHorizonRank.length > 0 ||
+                              groupedSubjectsByHorizonRank.selected
+                                .withoutHorizonRank.length > 0) && (
+                              <Box height='1px' bg='border.muted' my={2} />
+                            )}
+                            <Text
+                              fontSize='xs'
+                              fontWeight='bold'
+                              color='fg.muted'
+                              textTransform='uppercase'
+                              fontFamily='heading'
+                            >
+                              Available - With Horizon Rank (
+                              {
+                                groupedSubjectsByHorizonRank.unselected
+                                  .withHorizonRank.length
+                              }
+                              )
+                            </Text>
+                            {groupedSubjectsByHorizonRank.unselected.withHorizonRank.map(
+                              (subject) => {
+                                const isAtLimit =
+                                  selectedSubjects.size >= maxSubjects;
+                                const isDisabled =
+                                  isAtLimit &&
+                                  !selectedSubjects.has(subject.id);
+
+                                return (
+                                  <HStack
+                                    key={subject.id}
+                                    gap={2}
+                                    align='center'
+                                    opacity={isDisabled ? 0.5 : 1}
+                                  >
+                                    <Checkbox.Root
+                                      checked={selectedSubjects.has(subject.id)}
+                                      onCheckedChange={() =>
+                                        onSubjectToggle(subject.id)
+                                      }
+                                      size='sm'
+                                      disabled={isDisabled}
+                                    >
+                                      <Checkbox.HiddenInput />
+                                      <Checkbox.Control>
+                                        <Checkbox.Indicator />
+                                      </Checkbox.Control>
+                                    </Checkbox.Root>
+                                    <VStack gap={0} align='stretch' flex='1'>
+                                      <HStack gap={2} align='center'>
+                                        <Text
+                                          fontSize='sm'
+                                          fontWeight='medium'
+                                          color={isDisabled ? 'fg.muted' : 'fg'}
+                                          fontFamily='heading'
+                                          flex='1'
+                                        >
+                                          {subject.subjectName}
+                                        </Text>
+                                        <Text
+                                          fontSize='xs'
+                                          color='success'
+                                          fontFamily='mono'
+                                          fontWeight='medium'
+                                        >
+                                          HR: {subject.horizonRank!.toFixed(1)}
+                                        </Text>
+                                      </HStack>
+                                      {subject.notes && (
+                                        <Text
+                                          fontSize='xs'
+                                          color='fg.muted'
+                                          overflow='hidden'
+                                          textOverflow='ellipsis'
+                                          whiteSpace='nowrap'
+                                          fontFamily='body'
+                                        >
+                                          {subject.notes}
+                                        </Text>
+                                      )}
+                                    </VStack>
+                                  </HStack>
+                                );
+                              }
+                            )}
+                          </>
+                        )}
+
+                      {/* Available subjects without horizon rank */}
+                      {!loading &&
+                        !error &&
+                        groupedSubjectsByHorizonRank.unselected
+                          .withoutHorizonRank.length > 0 && (
+                          <>
+                            {(groupedSubjectsByHorizonRank.selected
+                              .withHorizonRank.length > 0 ||
+                              groupedSubjectsByHorizonRank.selected
+                                .withoutHorizonRank.length > 0 ||
+                              groupedSubjectsByHorizonRank.unselected
+                                .withHorizonRank.length > 0) && (
+                              <Box height='1px' bg='border.muted' my={2} />
+                            )}
+                            <Text
+                              fontSize='xs'
+                              fontWeight='bold'
+                              color='fg.muted'
+                              textTransform='uppercase'
+                              fontFamily='heading'
+                            >
+                              Available - No Horizon Rank (
+                              {
+                                groupedSubjectsByHorizonRank.unselected
+                                  .withoutHorizonRank.length
+                              }
+                              )
+                            </Text>
+                            {groupedSubjectsByHorizonRank.unselected.withoutHorizonRank.map(
+                              (subject) => (
+                                <HStack
+                                  key={subject.id}
+                                  gap={2}
+                                  align='center'
+                                  opacity={0.5}
+                                >
+                                  <Checkbox.Root
+                                    checked={false}
+                                    size='sm'
+                                    disabled={true}
+                                  >
+                                    <Checkbox.HiddenInput />
+                                    <Checkbox.Control>
+                                      <Checkbox.Indicator />
+                                    </Checkbox.Control>
+                                  </Checkbox.Root>
+                                  <VStack gap={0} align='stretch' flex='1'>
+                                    <HStack gap={2} align='center'>
+                                      <Text
+                                        fontSize='sm'
+                                        fontWeight='medium'
+                                        color='fg.muted'
+                                        fontFamily='heading'
+                                        flex='1'
+                                      >
+                                        {subject.subjectName}
+                                      </Text>
+                                      <Text
+                                        fontSize='xs'
+                                        color='fg.muted'
+                                        fontFamily='mono'
+                                        fontWeight='medium'
+                                      >
+                                        No HR
+                                      </Text>
+                                    </HStack>
+                                    {subject.notes && (
+                                      <Text
+                                        fontSize='xs'
+                                        color='fg.muted'
+                                        overflow='hidden'
+                                        textOverflow='ellipsis'
+                                        whiteSpace='nowrap'
+                                        fontFamily='body'
+                                      >
+                                        {subject.notes}
+                                      </Text>
+                                    )}
+                                  </VStack>
+                                </HStack>
+                              )
+                            )}
                           </>
                         )}
 
@@ -497,15 +766,42 @@ const HorizonChartSection = forwardRef<
                         </VStack>
                       </Box>
                     )}
+
+                  {/* Summary of data availability */}
+                  {!loading && !error && allSubjects.length > 0 && (
+                    <Box
+                      p={3}
+                      bg='bg.muted'
+                      borderRadius='md'
+                      fontSize='xs'
+                      color='fg.muted'
+                      fontFamily='body'
+                    >
+                      <VStack gap={1} align='stretch'>
+                        <Text>
+                          <strong>Available:</strong>{' '}
+                          {subjectsWithHorizonRank.length} with horizon rank,{' '}
+                          {subjectsWithoutHorizonRank.length} without
+                        </Text>
+                        <Text>
+                          <strong>Chart Ready:</strong>{' '}
+                          {
+                            groupedSubjectsByHorizonRank.selected
+                              .withHorizonRank.length
+                          }{' '}
+                          selected subjects
+                        </Text>
+                      </VStack>
+                    </Box>
+                  )}
                 </VStack>
               </Box>
 
-              {/* Horizon Chart */}
-              <Box flex='1'>
+              {/* Horizon Chart Container */}
+              <Box flex='1' ref={chartContainerRef}>
                 {loading ? (
                   // Loading skeleton for the chart
                   <Flex
-                    height='400px'
                     align='center'
                     justify='center'
                     border='2px dashed'
@@ -529,7 +825,6 @@ const HorizonChartSection = forwardRef<
                 ) : error ? (
                   // Error state for the chart
                   <Flex
-                    height='400px'
                     align='center'
                     justify='center'
                     border='2px dashed'
@@ -568,9 +863,8 @@ const HorizonChartSection = forwardRef<
                     </VStack>
                   </Flex>
                 ) : isLoadingHorizonData && !horizonDataTimeout ? (
-                  // Loading state while waiting for horizon data (with timeout)
+                  // Loading state while waiting for horizon data
                   <Flex
-                    height='400px'
                     align='center'
                     justify='center'
                     border='2px dashed'
@@ -608,22 +902,12 @@ const HorizonChartSection = forwardRef<
                           {selectedSubjectsWithoutHorizonRank.length} of{' '}
                           {selectedSubjects.size} selected subjects...
                         </Text>
-                        <Text
-                          color='blue.500'
-                          fontSize='xs'
-                          fontFamily='body'
-                          textAlign='center'
-                          fontStyle='italic'
-                        >
-                          (Will proceed with available data after 10 seconds)
-                        </Text>
                       </VStack>
                     </VStack>
                   </Flex>
                 ) : selectedSubjects.size === 0 ? (
                   // Empty state - no subjects selected
                   <Flex
-                    height='400px'
                     align='center'
                     justify='center'
                     border='2px dashed'
@@ -638,12 +922,44 @@ const HorizonChartSection = forwardRef<
                         textAlign='center'
                         fontFamily='body'
                       >
-                        Select subjects to view horizon chart
+                        Select subjects with horizon rank data to view chart
+                      </Text>
+                    </VStack>
+                  </Flex>
+                ) : groupedSubjectsByHorizonRank.selected.withHorizonRank
+                    .length === 0 ? (
+                  // No subjects with horizon rank selected
+                  <Flex
+                    align='center'
+                    justify='center'
+                    border='2px dashed'
+                    borderColor='orange.200'
+                    borderRadius='md'
+                    bg='orange.50'
+                  >
+                    <VStack gap={2}>
+                      <Text
+                        color='orange.700'
+                        fontSize='sm'
+                        textAlign='center'
+                        fontFamily='body'
+                        fontWeight='medium'
+                      >
+                        No subjects with horizon rank data selected
+                      </Text>
+                      <Text
+                        color='orange.600'
+                        fontSize='xs'
+                        textAlign='center'
+                        fontFamily='body'
+                      >
+                        Select subjects that have horizon rank data to view the
+                        chart
                       </Text>
                     </VStack>
                   </Flex>
                 ) : (
-                  // Horizon chart component - show when ready or after timeout
+                  // Horizon chart component
                   <VStack gap={2} align='stretch'>
                     {isLoadingHorizonData && horizonDataTimeout && (
                       <Box
@@ -664,16 +980,28 @@ const HorizonChartSection = forwardRef<
                           {selectedSubjectsWithoutHorizonRank.length !== 1
                             ? 's'
                             : ''}{' '}
-                          without horizon ranks will use random values for
-                          display.
+                          without horizon ranks are not displayed.
                         </Text>
                       </Box>
                     )}
-                    <Horizons
-                      data={horizonData}
-                      showLegend={false}
-                      isLoading={false}
-                    />
+                    <Box
+                      w='100%'
+                      minH='400px'
+                      // h={`${chartDimensions.height}px`}
+                      border='1px solid'
+                      borderColor='border.muted'
+                      borderRadius='md'
+                      overflow='visible' // Changed from 'hidden' to 'visible'
+                      position='relative'
+                    >
+                      <Horizons
+                        data={horizonData}
+                        showLegend={false}
+                        isLoading={false}
+                        containerWidth={chartDimensions.width}
+                        containerHeight={chartDimensions.height}
+                      />
+                    </Box>
                   </VStack>
                 )}
               </Box>

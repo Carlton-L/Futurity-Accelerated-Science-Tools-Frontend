@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   Alert,
   Progress,
   Spinner,
+  Badge,
 } from '@chakra-ui/react';
 import {
   FiUpload,
@@ -19,27 +20,156 @@ import {
   FiFile,
   FiDatabase,
   FiEdit3,
+  FiRefreshCw,
 } from 'react-icons/fi';
 
+// Services
+import {
+  whiteboardService,
+  type WhiteboardLabSeedData,
+} from '../../services/whiteboardService';
+import { useAuth } from '../../context/AuthContext';
+
+// Components
+import WhiteboardSubjectCard from '../Whiteboard/SubjectCard';
+
 // Types and utils
-import type { DataSourceControlsProps } from './types';
-import { checkSubjectExists } from './utils';
+import type { DataSourceControlsProps, CreationSubject } from './types';
+import { checkSubjectExists, generateCreationId } from './utils';
+
+// Transform whiteboard lab seed to creation format
+const transformWhiteboardLabSeed = (
+  whiteboardLabSeed: WhiteboardLabSeedData
+) => {
+  return {
+    id: whiteboardLabSeed.uniqueID,
+    name: whiteboardLabSeed.name,
+    description: whiteboardLabSeed.description,
+    categories: [], // Will be populated when imported
+    subjects: whiteboardLabSeed.subjects.map((subject) => ({
+      id: generateCreationId('subj'),
+      subjectId: subject.ent_fsid,
+      subjectName: subject.ent_name,
+      subjectSlug: subject.ent_fsid,
+      subjectSummary: subject.ent_summary,
+      categoryId: 'uncategorized', // Lab seeds add to uncategorized by default
+      source: 'lab_seed' as const,
+      isNewTerm: false,
+      addedAt: new Date().toISOString(),
+    })),
+    includeTerms: whiteboardLabSeed.terms || [], // Terms from lab seed become include terms
+    excludeTerms: [],
+    createdAt: whiteboardLabSeed.createdAt,
+    updatedAt: whiteboardLabSeed.createdAt,
+  };
+};
 
 const DataSourcesControls: React.FC<DataSourceControlsProps> = ({
   formData,
-  availableLabSeeds,
+  availableLabSeeds, // This will be populated from whiteboard
   onLabSeedSelect,
   onLabSeedOptionsChange,
   onCSVUpload,
   onManualTermAdd,
   isLoading,
 }) => {
+  const { user, token } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [manualTermInput, setManualTermInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('uncategorized');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState('');
   const [manualEntryError, setManualEntryError] = useState('');
+
+  // Lab seeds state
+  const [whiteboardLabSeeds, setWhiteboardLabSeeds] = useState<
+    WhiteboardLabSeedData[]
+  >([]);
+  const [isLoadingLabSeeds, setIsLoadingLabSeeds] = useState(false);
+  const [labSeedsError, setLabSeedsError] = useState('');
+  const [selectedWhiteboardLabSeed, setSelectedWhiteboardLabSeed] =
+    useState<WhiteboardLabSeedData | null>(null);
+
+  // Fetch lab seeds from whiteboard when component mounts
+  useEffect(() => {
+    const fetchLabSeeds = async () => {
+      if (!user?._id || !token) return;
+
+      setIsLoadingLabSeeds(true);
+      setLabSeedsError('');
+
+      try {
+        const whiteboardData = await whiteboardService.getUserWhiteboard(
+          user._id,
+          token
+        );
+        setWhiteboardLabSeeds(whiteboardData.labSeeds || []);
+      } catch (error) {
+        console.error('Failed to fetch lab seeds:', error);
+        setLabSeedsError(
+          error instanceof Error ? error.message : 'Failed to load lab seeds'
+        );
+      } finally {
+        setIsLoadingLabSeeds(false);
+      }
+    };
+
+    fetchLabSeeds();
+  }, [user?._id, token]);
+
+  // Refresh lab seeds
+  const handleRefreshLabSeeds = useCallback(async () => {
+    if (!user?._id || !token) return;
+
+    setIsLoadingLabSeeds(true);
+    setLabSeedsError('');
+
+    try {
+      const whiteboardData = await whiteboardService.getUserWhiteboard(
+        user._id,
+        token
+      );
+      setWhiteboardLabSeeds(whiteboardData.labSeeds || []);
+    } catch (error) {
+      console.error('Failed to refresh lab seeds:', error);
+      setLabSeedsError(
+        error instanceof Error ? error.message : 'Failed to refresh lab seeds'
+      );
+    } finally {
+      setIsLoadingLabSeeds(false);
+    }
+  }, [user?._id, token]);
+
+  // Handle Lab Seed selection from dropdown
+  const handleLabSeedDropdownChange = useCallback(
+    (labSeedId: string) => {
+      if (!labSeedId) {
+        setSelectedWhiteboardLabSeed(null);
+        onLabSeedSelect(undefined);
+        return;
+      }
+
+      const whiteboardLabSeed = whiteboardLabSeeds.find(
+        (seed) => seed.uniqueID === labSeedId
+      );
+
+      if (whiteboardLabSeed) {
+        setSelectedWhiteboardLabSeed(whiteboardLabSeed);
+        // Don't auto-import yet - wait for user to click import button
+      }
+    },
+    [whiteboardLabSeeds, onLabSeedSelect]
+  );
+
+  // Handle Lab Seed import
+  const handleImportLabSeed = useCallback(() => {
+    if (!selectedWhiteboardLabSeed) return;
+
+    const transformedLabSeed = transformWhiteboardLabSeed(
+      selectedWhiteboardLabSeed
+    );
+    onLabSeedSelect(transformedLabSeed);
+  }, [selectedWhiteboardLabSeed, onLabSeedSelect]);
 
   // Handle Lab Seed option changes
   const handleReplaceNameChange = useCallback(
@@ -196,29 +326,32 @@ const DataSourcesControls: React.FC<DataSourceControlsProps> = ({
             >
               Lab Seed
             </Text>
+            <Button
+              variant='ghost'
+              size='xs'
+              onClick={handleRefreshLabSeeds}
+              disabled={isLoadingLabSeeds || isLoading}
+              aria-label='Refresh lab seeds'
+              color='fg.muted'
+              _hover={{ color: 'fg' }}
+            >
+              <FiRefreshCw size={12} />
+            </Button>
           </HStack>
 
           <VStack gap={3} align='stretch'>
+            {/* Lab Seeds Dropdown */}
             <Select.Root
               value={
-                formData.selectedLabSeed?.id
-                  ? [formData.selectedLabSeed.id]
+                selectedWhiteboardLabSeed
+                  ? [selectedWhiteboardLabSeed.uniqueID]
                   : []
               }
               onValueChange={(details) => {
                 const selectedId = details.value[0];
-                if (!selectedId) {
-                  onLabSeedSelect(undefined);
-                  return;
-                }
-                const selectedLabSeed = availableLabSeeds.find(
-                  (seed) => seed.id === selectedId
-                );
-                if (selectedLabSeed) {
-                  onLabSeedSelect(selectedLabSeed);
-                }
+                handleLabSeedDropdownChange(selectedId || '');
               }}
-              disabled={isLoading}
+              disabled={isLoadingLabSeeds || isLoading}
             >
               <Select.Label>Select a Lab Seed</Select.Label>
               <Select.Trigger
@@ -231,16 +364,24 @@ const DataSourcesControls: React.FC<DataSourceControlsProps> = ({
                 }}
                 fontFamily='body'
               >
-                <Select.ValueText placeholder='Select a Lab Seed...' />
+                <Select.ValueText
+                  placeholder={
+                    isLoadingLabSeeds
+                      ? 'Loading lab seeds...'
+                      : whiteboardLabSeeds.length === 0
+                      ? 'No lab seeds available'
+                      : 'Select a Lab Seed...'
+                  }
+                />
                 <Select.Indicator />
               </Select.Trigger>
               <Select.Positioner>
                 <Select.Content>
                   <Select.ItemGroup>
-                    {availableLabSeeds.map((seed) => (
-                      <Select.Item key={seed.id} item={seed.id}>
+                    {whiteboardLabSeeds.map((seed) => (
+                      <Select.Item key={seed.uniqueID} item={seed.uniqueID}>
                         <Select.ItemText>
-                          {seed.name} ({seed.subjects.length} subjects)
+                          {seed.name} ({seed.subjects?.length || 0} subjects)
                         </Select.ItemText>
                         <Select.ItemIndicator />
                       </Select.Item>
@@ -250,55 +391,196 @@ const DataSourcesControls: React.FC<DataSourceControlsProps> = ({
               </Select.Positioner>
             </Select.Root>
 
-            {formData.selectedLabSeed && (
+            {/* Loading state */}
+            {isLoadingLabSeeds && (
+              <HStack gap={2}>
+                <Spinner size='xs' />
+                <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                  Loading lab seeds from whiteboard...
+                </Text>
+              </HStack>
+            )}
+
+            {/* Error state */}
+            {labSeedsError && (
+              <Alert.Root status='error' size='sm'>
+                <Alert.Indicator />
+                <Alert.Description fontSize='xs' fontFamily='body'>
+                  {labSeedsError}
+                </Alert.Description>
+              </Alert.Root>
+            )}
+
+            {/* Selected Lab Seed Preview */}
+            {selectedWhiteboardLabSeed && (
               <Box
                 p={3}
                 bg='bg.subtle'
-                borderRadius='sm'
+                borderRadius='md'
                 borderWidth='1px'
                 borderColor='border.muted'
               >
-                <VStack gap={2} align='stretch'>
-                  <Text
-                    fontSize='xs'
-                    fontWeight='medium'
-                    color='fg'
-                    fontFamily='heading'
-                  >
-                    Replace lab info with Lab Seed data:
-                  </Text>
-
-                  <HStack gap={4}>
-                    <Checkbox.Root
-                      checked={formData.replaceTitleFromLabSeed}
-                      onCheckedChange={(details) =>
-                        handleReplaceNameChange(!!details.checked)
-                      }
-                      disabled={isLoading}
-                    >
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Checkbox.Label fontSize='xs' fontFamily='body'>
-                        Replace title
-                      </Checkbox.Label>
-                    </Checkbox.Root>
-
-                    <Checkbox.Root
-                      checked={formData.replaceSummaryFromLabSeed}
-                      onCheckedChange={(details) =>
-                        handleReplaceSummaryChange(!!details.checked)
-                      }
-                      disabled={isLoading}
-                    >
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Checkbox.Label fontSize='xs' fontFamily='body'>
-                        Replace summary
-                      </Checkbox.Label>
-                    </Checkbox.Root>
+                <VStack gap={3} align='stretch'>
+                  <HStack justify='space-between' align='center'>
+                    <VStack gap={1} align='start'>
+                      <Text
+                        fontSize='sm'
+                        fontWeight='medium'
+                        color='fg'
+                        fontFamily='heading'
+                      >
+                        {selectedWhiteboardLabSeed.name}
+                      </Text>
+                      {selectedWhiteboardLabSeed.description && (
+                        <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                          {selectedWhiteboardLabSeed.description}
+                        </Text>
+                      )}
+                    </VStack>
+                    <Badge size='sm' variant='subtle'>
+                      {selectedWhiteboardLabSeed.subjects?.length || 0} subjects
+                    </Badge>
                   </HStack>
+
+                  {/* Subject previews */}
+                  {selectedWhiteboardLabSeed.subjects &&
+                    selectedWhiteboardLabSeed.subjects.length > 0 && (
+                      <Box>
+                        <Text
+                          fontSize='xs'
+                          fontWeight='medium'
+                          color='fg'
+                          fontFamily='heading'
+                          mb={2}
+                        >
+                          Subjects in this Lab Seed:
+                        </Text>
+                        <VStack
+                          gap={1}
+                          align='stretch'
+                          maxH='200px'
+                          overflowY='auto'
+                        >
+                          {selectedWhiteboardLabSeed.subjects
+                            .slice(0, 5)
+                            .map((subject) => (
+                              <Box
+                                key={subject.ent_fsid}
+                                fontSize='xs'
+                                color='fg.secondary'
+                                fontFamily='body'
+                              >
+                                • {subject.ent_name}
+                              </Box>
+                            ))}
+                          {selectedWhiteboardLabSeed.subjects.length > 5 && (
+                            <Text
+                              fontSize='xs'
+                              color='fg.muted'
+                              fontFamily='body'
+                            >
+                              ... and{' '}
+                              {selectedWhiteboardLabSeed.subjects.length - 5}{' '}
+                              more
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
+
+                  {/* Terms preview */}
+                  {selectedWhiteboardLabSeed.terms &&
+                    selectedWhiteboardLabSeed.terms.length > 0 && (
+                      <Box>
+                        <Text
+                          fontSize='xs'
+                          fontWeight='medium'
+                          color='fg'
+                          fontFamily='heading'
+                          mb={1}
+                        >
+                          Terms:
+                        </Text>
+                        <HStack gap={1} wrap='wrap'>
+                          {selectedWhiteboardLabSeed.terms.map(
+                            (term, index) => (
+                              <Badge key={index} size='xs' variant='outline'>
+                                {term}
+                              </Badge>
+                            )
+                          )}
+                        </HStack>
+                      </Box>
+                    )}
+
+                  {/* Import button */}
+                  <Button
+                    onClick={handleImportLabSeed}
+                    size='sm'
+                    variant='solid'
+                    bg='brand'
+                    color='white'
+                    _hover={{ bg: 'brand.hover' }}
+                    disabled={isLoading}
+                    fontFamily='heading'
+                    leftIcon={<FiPlus size={14} />}
+                  >
+                    Import Lab Seed
+                  </Button>
+
+                  {/* Lab seed options (only show if imported) */}
+                  {formData.selectedLabSeed && (
+                    <Box
+                      p={2}
+                      bg='bg.canvas'
+                      borderRadius='sm'
+                      borderWidth='1px'
+                      borderColor='border.muted'
+                    >
+                      <VStack gap={2} align='stretch'>
+                        <Text
+                          fontSize='xs'
+                          fontWeight='medium'
+                          color='fg'
+                          fontFamily='heading'
+                        >
+                          Replace lab info with Lab Seed data:
+                        </Text>
+
+                        <HStack gap={4}>
+                          <Checkbox.Root
+                            checked={formData.replaceTitleFromLabSeed}
+                            onCheckedChange={(details) =>
+                              handleReplaceNameChange(!!details.checked)
+                            }
+                            disabled={isLoading}
+                          >
+                            <Checkbox.Control>
+                              <Checkbox.Indicator />
+                            </Checkbox.Control>
+                            <Checkbox.Label fontSize='xs' fontFamily='body'>
+                              Replace title
+                            </Checkbox.Label>
+                          </Checkbox.Root>
+
+                          <Checkbox.Root
+                            checked={formData.replaceSummaryFromLabSeed}
+                            onCheckedChange={(details) =>
+                              handleReplaceSummaryChange(!!details.checked)
+                            }
+                            disabled={isLoading}
+                          >
+                            <Checkbox.Control>
+                              <Checkbox.Indicator />
+                            </Checkbox.Control>
+                            <Checkbox.Label fontSize='xs' fontFamily='body'>
+                              Replace summary
+                            </Checkbox.Label>
+                          </Checkbox.Root>
+                        </HStack>
+                      </VStack>
+                    </Box>
+                  )}
                 </VStack>
               </Box>
             )}
