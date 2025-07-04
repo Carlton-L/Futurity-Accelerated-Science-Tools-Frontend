@@ -24,6 +24,7 @@ import CreateLab from './pages/CreateLab';
 import { Profile } from './pages/Profile';
 import FuturityAnalysis from './pages/FuturityAnalysis';
 import FuturityAnalysesDirectory from './pages/FuturityAnalysesDirectory';
+import Unauthorized from './pages/Unauthorized'; // Import the Unauthorized component
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import NotFound from './pages/NotFound';
@@ -107,7 +108,8 @@ const AppWithAuth = () => {
         </Route>
       </Route>
 
-      <Route path='/unauthorized' element={<div>Unauthorized</div>} />
+      {/* Unauthorized route - outside of Layout to be fullscreen */}
+      <Route path='/unauthorized' element={<Unauthorized />} />
       {/* Redirect login attempts to home if already authenticated */}
       <Route path='/login' element={<Navigate to='/' replace />} />
       <Route path='*' element={<NotFound />} />

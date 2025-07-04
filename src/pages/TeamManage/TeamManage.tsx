@@ -74,9 +74,10 @@ const TeamManage: React.FC = () => {
       return;
     }
 
-    // Check if user can manage this team
+    // Check if user can manage this team (must be admin)
     if (!team.user_relationships.includes('admin')) {
-      navigate(`/team/${teamId}`); // Redirect to view page if no admin access
+      console.log('User is not admin for this team, redirecting to team view');
+      navigate(`/team/${teamId}`, { replace: true }); // Use replace to prevent back button issues
       return;
     }
 
@@ -95,11 +96,11 @@ const TeamManage: React.FC = () => {
         return;
       }
 
-      // Check if user has admin access to this team
+      // Check if user has admin access to this team (double-check)
       const team = userRelationships.teams.find((t) => t.uniqueID === teamId);
       if (!team || !team.user_relationships.includes('admin')) {
-        setError('You do not have permission to manage this team');
-        setIsLoading(false);
+        console.log('User lost admin access or team not found, redirecting');
+        navigate(`/team/${teamId}`, { replace: true });
         return;
       }
 
@@ -151,15 +152,37 @@ const TeamManage: React.FC = () => {
     );
   };
 
-  // Check if a team member is the current user (compare by uniqueID)
+  // Check if a team member is the current user (comprehensive comparison)
   const isCurrentUser = (member: TeamUser | OrganizationUser): boolean => {
     if (!user) return false;
-    // First try to compare by uniqueID if both have it
-    if (user.guid && member.uniqueID) {
-      return user.guid === member.uniqueID;
+
+    // Method 1: Compare by uniqueID (most reliable)
+    if (user.guid && member.uniqueID && user.guid === member.uniqueID) {
+      return true;
     }
-    // Fallback: compare by email if uniqueID comparison isn't possible
-    return user.email === member.email;
+
+    // Method 2: Compare by _id (for current user from auth context)
+    if (user._id && member._id && user._id === member._id) {
+      return true;
+    }
+
+    // Method 3: Compare by email (fallback)
+    if (user.email && member.email && user.email === member.email) {
+      return true;
+    }
+
+    // Method 4: Compare by fullname if available and not empty
+    if (
+      user.fullname &&
+      member.profile?.fullname &&
+      user.fullname.trim() !== '' &&
+      member.profile.fullname.trim() !== '' &&
+      user.fullname === member.profile.fullname
+    ) {
+      return true;
+    }
+
+    return false;
   };
 
   // Get the correct user ID to use for API calls
