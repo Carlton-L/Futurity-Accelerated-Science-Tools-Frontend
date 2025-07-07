@@ -134,15 +134,15 @@ const WarningHypercube = ({
         stroke-width: 0.3; 
         opacity: 0.2; 
       }
-      .concentric-grid-1 { stroke: ${colors.concentricGridColor}; stroke-width: 1.5; opacity: 0.4; fill: none; }
-      .concentric-grid-2 { stroke: ${colors.concentricGridColor}; stroke-width: 1.2; opacity: 0.35; fill: none; }
-      .concentric-grid-3 { stroke: ${colors.concentricGridColor}; stroke-width: 1; opacity: 0.3; fill: none; }
-      .concentric-grid-4 { stroke: ${colors.concentricGridColor}; stroke-width: 0.8; opacity: 0.25; fill: none; }
-      .concentric-grid-5 { stroke: ${colors.concentricGridColor}; stroke-width: 0.6; opacity: 0.2; fill: none; }
-      .concentric-grid-6 { stroke: ${colors.concentricGridColor}; stroke-width: 0.4; opacity: 0.15; fill: none; }
-      .concentric-grid-7 { stroke: ${colors.concentricGridColor}; stroke-width: 0.3; opacity: 0.1; fill: none; }
-      .concentric-grid-8 { stroke: ${colors.concentricGridColor}; stroke-width: 0.2; opacity: 0.05; fill: none; }
-      .concentric-grid-far { stroke: ${colors.concentricGridColor}; stroke-width: 0.1; opacity: 0.03; fill: none; }
+      .concentric-grid-1 { stroke: ${colors.stroke}; stroke-width: 2; opacity: 0.4; fill: none; }
+      .concentric-grid-2 { stroke: ${colors.stroke}; stroke-width: 1.5; opacity: 0.35; fill: none; }
+      .concentric-grid-3 { stroke: ${colors.stroke}; stroke-width: 1; opacity: 0.3; fill: none; }
+      .concentric-grid-4 { stroke: ${colors.stroke}; stroke-width: 0.8; opacity: 0.25; fill: none; }
+      .concentric-grid-5 { stroke: ${colors.stroke}; stroke-width: 0.6; opacity: 0.2; fill: none; }
+      .concentric-grid-6 { stroke: ${colors.stroke}; stroke-width: 0.4; opacity: 0.15; fill: none; }
+      .concentric-grid-7 { stroke: ${colors.stroke}; stroke-width: 0.3; opacity: 0.1; fill: none; }
+      .concentric-grid-8 { stroke: ${colors.stroke}; stroke-width: 0.2; opacity: 0.05; fill: none; }
+      .concentric-grid-far { stroke: ${colors.stroke}; stroke-width: 0.1; opacity: 0.03; fill: none; }
     `;
     svg.appendChild(style);
 
@@ -204,22 +204,26 @@ const WarningHypercube = ({
       svg.appendChild(createLine(-400, i, 400, i, 'security-grid'));
     }
 
-    // Draw concentric grid circles emanating from center (like black hole gravity wells)
+    // Draw concentric grid circles emanating from center (same as NotFound gravity wells)
     const concentricGridRings = [
-      { radius: 150, class: 'concentric-grid-1' },
-      { radius: 200, class: 'concentric-grid-2' },
-      { radius: 250, class: 'concentric-grid-3' },
-      { radius: 300, class: 'concentric-grid-4' },
-      { radius: 350, class: 'concentric-grid-5' },
-      { radius: 400, class: 'concentric-grid-6' },
-      { radius: 450, class: 'concentric-grid-7' },
-      { radius: 500, class: 'concentric-grid-8' },
-      { radius: 550, class: 'concentric-grid-far' },
-      { radius: 600, class: 'concentric-grid-far' },
-      { radius: 650, class: 'concentric-grid-far' },
-      { radius: 700, class: 'concentric-grid-far' },
-      { radius: 750, class: 'concentric-grid-far' },
-      { radius: 800, class: 'concentric-grid-far' },
+      { radius: 90, class: 'concentric-grid-1' },
+      { radius: 120, class: 'concentric-grid-2' },
+      { radius: 160, class: 'concentric-grid-3' },
+      { radius: 210, class: 'concentric-grid-4' },
+      { radius: 270, class: 'concentric-grid-5' },
+      { radius: 340, class: 'concentric-grid-6' },
+      { radius: 420, class: 'concentric-grid-7' },
+      { radius: 510, class: 'concentric-grid-8' },
+      { radius: 610, class: 'concentric-grid-far' },
+      { radius: 710, class: 'concentric-grid-far' },
+      { radius: 810, class: 'concentric-grid-far' },
+      { radius: 910, class: 'concentric-grid-far' },
+      { radius: 1010, class: 'concentric-grid-far' },
+      { radius: 1110, class: 'concentric-grid-far' },
+      { radius: 1210, class: 'concentric-grid-far' },
+      { radius: 1310, class: 'concentric-grid-far' },
+      { radius: 1410, class: 'concentric-grid-far' },
+      { radius: 1510, class: 'concentric-grid-far' },
     ];
 
     concentricGridRings.forEach((ring) => {
