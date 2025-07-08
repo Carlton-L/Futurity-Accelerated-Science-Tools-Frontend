@@ -26,6 +26,7 @@ import {
   FiEye,
   FiEyeOff,
   FiCheck,
+  FiGlobe,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -43,6 +44,13 @@ interface TermItem {
   type: 'include' | 'exclude';
   isLoading?: boolean;
   source: 'api' | 'manual';
+}
+
+// Goal interface with loading state
+interface GoalItem extends ApiLabGoal {
+  id: string;
+  isLoading?: boolean;
+  isTemporary?: boolean;
 }
 
 interface PlanProps {
@@ -71,8 +79,8 @@ const Plan: React.FC<PlanProps> = ({
   const [labData, setLabData] = useState<ApiLabResponse | null>(null);
   const [loadingLabData, setLoadingLabData] = useState(false);
 
-  // Goals state
-  const [goals, setGoals] = useState<ApiLabGoal[]>([]);
+  // Goals state with loading management
+  const [goals, setGoals] = useState<GoalItem[]>([]);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<ApiLabGoal | null>(null);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
@@ -87,10 +95,130 @@ const Plan: React.FC<PlanProps> = ({
   const [validationError, setValidationError] = useState('');
 
   // Loading states
-  const [savingGoals, setSavingGoals] = useState(false);
+  const [savingGoals, setSavingGoals] = useState(false); // Remove this as we're not using it anymore
 
   // Error states
   const [error, setError] = useState<string>('');
+
+  // Helper function to get readable region names
+  const getRegionDisplayName = useCallback((regionValue: string): string => {
+    // Map of region values to display names
+    const regionNames: Record<string, string> = {
+      // Continents
+      africa: 'Africa',
+      antarctica: 'Antarctica',
+      asia: 'Asia',
+      europe: 'Europe',
+      'north-america': 'North America',
+      oceania: 'Oceania',
+      'south-america': 'South America',
+
+      // UN Subregions - Africa
+      'northern-africa': 'Northern Africa',
+      'sub-saharan-africa': 'Sub-Saharan Africa',
+      'eastern-africa': 'Eastern Africa',
+      'middle-africa': 'Middle Africa',
+      'southern-africa': 'Southern Africa',
+      'western-africa': 'Western Africa',
+
+      // UN Subregions - Americas
+      latam: 'Latin America and the Caribbean',
+      caribbean: 'Caribbean',
+      'central-america': 'Central America',
+      'south-america-un': 'South America',
+      'northern-america': 'Northern America',
+
+      // UN Subregions - Asia
+      'central-asia': 'Central Asia',
+      'eastern-asia': 'Eastern Asia',
+      'south-eastern-asia': 'South-Eastern Asia',
+      'southern-asia': 'Southern Asia',
+      'western-asia': 'Western Asia',
+
+      // UN Subregions - Europe
+      'eastern-europe': 'Eastern Europe',
+      'northern-europe': 'Northern Europe',
+      'southern-europe': 'Southern Europe',
+      'western-europe': 'Western Europe',
+
+      // UN Subregions - Oceania
+      'australia-new-zealand': 'Australia and New Zealand',
+      melanesia: 'Melanesia',
+      micronesia: 'Micronesia',
+      polynesia: 'Polynesia',
+
+      // Economic/Trade
+      eu: 'European Union',
+      eea: 'European Economic Area',
+      schengen: 'Schengen Area',
+      eurozone: 'Eurozone',
+      mercosur: 'MERCOSUR',
+      'nafta-usmca': 'NAFTA/USMCA',
+      asean: 'ASEAN',
+      gcc: 'Gulf Cooperation Council',
+      efta: 'European Free Trade Association',
+      au: 'African Union',
+      caricom: 'CARICOM',
+      apec: 'APEC',
+      saarc: 'SAARC',
+      cis: 'Commonwealth of Independent States',
+
+      // Cultural/Linguistic
+      anglophone: 'Anglophone World',
+      francophone: 'Francophone World',
+      lusophone: 'Lusophone World',
+      'arab-world': 'Arab World',
+      hispanophone: 'Hispanophone World',
+      'latin-world': 'Latin World',
+      'chinese-cultural': 'Chinese Cultural Sphere',
+      'post-soviet': 'Post-Soviet States',
+
+      // Geopolitical
+      nato: 'NATO',
+      brics: 'BRICS',
+      g7: 'G7',
+      g20: 'G20',
+      'non-aligned': 'Non-Aligned Movement',
+      oecd: 'OECD',
+      opec: 'OPEC',
+      'five-eyes': 'Five Eyes',
+      commonwealth: 'Commonwealth of Nations',
+      'global-majority': 'Global Majority',
+    };
+
+    return regionNames[regionValue] || regionValue;
+  }, []);
+
+  // Helper function to format regions for display
+  const formatRegionsDisplay = useCallback(
+    (regions: string[]): string => {
+      if (!regions || regions.length === 0) return '';
+
+      if (regions.length === 1) {
+        return getRegionDisplayName(regions[0]);
+      }
+
+      if (regions.length === 2) {
+        return `${getRegionDisplayName(regions[0])} and ${getRegionDisplayName(
+          regions[1]
+        )}`;
+      }
+
+      if (regions.length <= 3) {
+        const lastRegion = regions[regions.length - 1];
+        const otherRegions = regions.slice(0, -1);
+        return `${otherRegions
+          .map(getRegionDisplayName)
+          .join(', ')}, and ${getRegionDisplayName(lastRegion)}`;
+      }
+
+      // For more than 3 regions, show first few and count
+      return `${getRegionDisplayName(regions[0])}, ${getRegionDisplayName(
+        regions[1]
+      )}, and ${regions.length - 2} more`;
+    },
+    [getRegionDisplayName]
+  );
 
   // Generate term items from lab data
   const generateTermItems = useCallback(
@@ -122,6 +250,17 @@ const Plan: React.FC<PlanProps> = ({
     []
   );
 
+  // Generate goal items from lab data
+  const generateGoalItems = useCallback(
+    (apiLab: ApiLabResponse): GoalItem[] => {
+      return (apiLab.goals || []).map((goal, index) => ({
+        ...goal,
+        id: `goal-${index}-${goal.name}`,
+      }));
+    },
+    []
+  );
+
   // Load lab data from API
   const loadLabData = useCallback(async () => {
     if (!token || !labId) return;
@@ -132,7 +271,7 @@ const Plan: React.FC<PlanProps> = ({
     try {
       const apiLabData = await labService.getLabById(labId, token);
       setLabData(apiLabData);
-      setGoals(apiLabData.goals || []);
+      setGoals(generateGoalItems(apiLabData));
       setTerms(generateTermItems(apiLabData));
 
       console.log('Loaded lab data:', apiLabData);
@@ -144,51 +283,84 @@ const Plan: React.FC<PlanProps> = ({
     } finally {
       setLoadingLabData(false);
     }
-  }, [token, labId, generateTermItems]);
+  }, [token, labId, generateTermItems, generateGoalItems]);
 
   // Initialize data when component mounts or dependencies change
   useEffect(() => {
     loadLabData();
   }, [loadLabData]);
 
-  // Handle goal form changes
+  // Handle goal form changes with local state management
   const handleSaveGoal = useCallback(
     async (goalToAdd: ApiLabGoal) => {
       if (!token || !labId) return;
 
-      setSavingGoals(true);
       setError('');
 
       try {
-        let updatedLab;
-
         if (isEditingGoal && editingGoal) {
-          // Update existing goal
-          const currentLab = await labService.getLabById(labId, token);
-          const updatedGoals = (currentLab.goals || []).map((goal) =>
-            goal.name === editingGoal.name &&
-            goal.description === editingGoal.description
-              ? goalToAdd
-              : goal
+          // Update existing goal - find the goal by matching content
+          const goalIndex = goals.findIndex(
+            (g) =>
+              g.name === editingGoal.name &&
+              g.description === editingGoal.description
           );
-          updatedLab = await labService.updateLabGoals(
+
+          if (goalIndex >= 0) {
+            // Set loading state for this specific goal in the background
+            setGoals((prev) =>
+              prev.map((goal, index) =>
+                index === goalIndex ? { ...goal, isLoading: true } : goal
+              )
+            );
+
+            // Close dialog immediately - save happens in background
+            setIsEditingGoal(false);
+            setEditingGoal(null);
+
+            // Make API call in background
+            const currentLab = await labService.getLabById(labId, token);
+            const updatedGoals = (currentLab.goals || []).map((goal) =>
+              goal.name === editingGoal.name &&
+              goal.description === editingGoal.description
+                ? goalToAdd
+                : goal
+            );
+
+            const updatedLab = await labService.updateLabGoals(
+              labId,
+              updatedGoals,
+              token
+            );
+
+            // Update lab data and regenerate goals
+            setLabData(updatedLab);
+            setGoals(generateGoalItems(updatedLab));
+          }
+        } else {
+          // Add new goal - create temporary goal item for immediate feedback
+          const tempGoal: GoalItem = {
+            ...goalToAdd,
+            id: `temp-${Date.now()}`,
+            isLoading: true,
+            isTemporary: true,
+          };
+
+          setGoals((prev) => [...prev, tempGoal]);
+
+          // Close dialog immediately - save happens in background
+          setIsAddingGoal(false);
+
+          // Make API call in background
+          const updatedLab = await labService.addLabGoal(
             labId,
-            updatedGoals,
+            goalToAdd,
             token
           );
-        } else {
-          // Add new goal
-          updatedLab = await labService.addLabGoal(labId, goalToAdd, token);
-        }
 
-        setLabData(updatedLab);
-        setGoals(updatedLab.goals || []);
-        setIsAddingGoal(false);
-        setIsEditingGoal(false);
-        setEditingGoal(null);
-
-        if (onRefreshLab) {
-          await onRefreshLab();
+          // Update lab data and regenerate goals from API response
+          setLabData(updatedLab);
+          setGoals(generateGoalItems(updatedLab));
         }
 
         console.log('Successfully saved goal:', goalToAdd);
@@ -197,11 +369,27 @@ const Plan: React.FC<PlanProps> = ({
         setError(
           error instanceof Error ? error.message : 'Failed to save goal'
         );
-      } finally {
-        setSavingGoals(false);
+
+        // Remove temporary goal on error or reload goals to restore correct state
+        if (!isEditingGoal) {
+          setGoals((prev) => prev.filter((g) => !g.isTemporary));
+        } else {
+          // Reload goals to restore correct state
+          if (labData) {
+            setGoals(generateGoalItems(labData));
+          }
+        }
       }
     },
-    [token, labId, onRefreshLab, isEditingGoal, editingGoal]
+    [
+      token,
+      labId,
+      isEditingGoal,
+      editingGoal,
+      goals,
+      generateGoalItems,
+      labData,
+    ]
   );
 
   // Handle goal editing
@@ -217,39 +405,54 @@ const Plan: React.FC<PlanProps> = ({
     setEditingGoal(null);
   }, []);
 
-  // Remove goal
+  // Remove goal with local state management
   const handleRemoveGoal = useCallback(
     async (goalToRemove: ApiLabGoal) => {
       if (!token || !labId) return;
 
-      setSavingGoals(true);
-      setError('');
+      // Find the goal in our local state
+      const goalIndex = goals.findIndex(
+        (g) =>
+          g.name === goalToRemove.name &&
+          g.description === goalToRemove.description
+      );
 
-      try {
-        const updatedLab = await labService.removeLabGoalByContent(
-          labId,
-          goalToRemove,
-          token
-        );
+      if (goalIndex >= 0) {
+        try {
+          // Set loading state for this specific goal
+          setGoals((prev) =>
+            prev.map((goal, index) =>
+              index === goalIndex ? { ...goal, isLoading: true } : goal
+            )
+          );
 
-        setLabData(updatedLab);
-        setGoals(updatedLab.goals || []);
+          const updatedLab = await labService.removeLabGoalByContent(
+            labId,
+            goalToRemove,
+            token
+          );
 
-        if (onRefreshLab) {
-          await onRefreshLab();
+          // Update lab data and regenerate goals
+          setLabData(updatedLab);
+          setGoals(generateGoalItems(updatedLab));
+
+          console.log('Successfully removed goal:', goalToRemove);
+        } catch (error) {
+          console.error('Failed to remove goal:', error);
+          setError(
+            error instanceof Error ? error.message : 'Failed to remove goal'
+          );
+
+          // Remove loading state on error
+          setGoals((prev) =>
+            prev.map((goal, index) =>
+              index === goalIndex ? { ...goal, isLoading: false } : goal
+            )
+          );
         }
-
-        console.log('Successfully removed goal:', goalToRemove);
-      } catch (error) {
-        console.error('Failed to remove goal:', error);
-        setError(
-          error instanceof Error ? error.message : 'Failed to remove goal'
-        );
-      } finally {
-        setSavingGoals(false);
       }
     },
-    [token, labId, onRefreshLab]
+    [token, labId, goals, generateGoalItems]
   );
 
   // Validate new term
@@ -476,7 +679,6 @@ const Plan: React.FC<PlanProps> = ({
   };
 
   // Display current data
-  const displayGoals = labData?.goals || goals;
   const includeTermsCount = terms.filter((t) => t.type === 'include').length;
   const excludeTermsCount = terms.filter((t) => t.type === 'exclude').length;
 
@@ -504,18 +706,20 @@ const Plan: React.FC<PlanProps> = ({
     <VStack gap={6} align='stretch'>
       {/* Error Display */}
       {error && (
-        <Card.Root borderColor='red.200' borderWidth='2px' bg='bg.canvas'>
+        <Card.Root borderColor='error' borderWidth='2px' bg='bg.canvas'>
           <Card.Body p={4}>
             <HStack>
-              <FiAlertCircle color='red' />
-              <Text color='red.600' fontSize='sm'>
+              <Box color='error'>
+                <FiAlertCircle />
+              </Box>
+              <Text color='error' fontSize='sm'>
                 {error}
               </Text>
               <Button
                 size='xs'
                 variant='ghost'
                 onClick={() => setError('')}
-                color='red.600'
+                color='error'
               >
                 <FiX size={12} />
               </Button>
@@ -553,7 +757,7 @@ const Plan: React.FC<PlanProps> = ({
                     <FiTarget size={16} />
                     <Text fontWeight='medium'>Goals</Text>
                     <Badge colorScheme='blue' size='sm'>
-                      {displayGoals.length}
+                      {goals.length}
                     </Badge>
                   </HStack>
                   <Accordion.ItemIndicator />
@@ -561,152 +765,205 @@ const Plan: React.FC<PlanProps> = ({
                 <Accordion.ItemContent>
                   <VStack gap={4} align='stretch' pt={2}>
                     {/* Goals List */}
-                    {displayGoals.length > 0 && (
+                    {goals.length > 0 && (
                       <VStack gap={3} align='stretch'>
                         <Text fontSize='sm' fontWeight='medium' color='fg'>
                           Lab Goals:
                         </Text>
-                        {displayGoals.map((goal, index) => (
+                        {goals.map((goal, index) => (
                           <Card.Root
-                            key={`${goal.name}-${index}`}
+                            key={goal.id}
                             variant='outline'
                             size='sm'
                             bg='bg.canvas'
                             borderColor='border.emphasized'
                           >
                             <Card.Body p={4}>
-                              <HStack justify='space-between' align='start'>
-                                <VStack gap={3} align='start' flex='1'>
-                                  <Text
-                                    fontWeight='medium'
-                                    color='fg'
-                                    fontSize='md'
-                                  >
-                                    {goal.name}
-                                  </Text>
-                                  <Text
-                                    fontSize='sm'
-                                    color='fg.muted'
-                                    lineHeight='1.5'
-                                  >
-                                    {goal.description}
-                                  </Text>
-
-                                  {/* Impact Level */}
-                                  <HStack gap={2}>
+                              {goal.isLoading ? (
+                                // Goal loading skeleton
+                                <VStack gap={3} align='stretch'>
+                                  <Skeleton height='20px' width='70%' />
+                                  <Skeleton height='40px' width='100%' />
+                                  <HStack gap={4}>
+                                    <Skeleton height='16px' width='80px' />
+                                    <Skeleton height='16px' width='120px' />
+                                  </HStack>
+                                </VStack>
+                              ) : (
+                                <HStack justify='space-between' align='start'>
+                                  <VStack gap={3} align='start' flex='1'>
                                     <Text
-                                      fontSize='xs'
                                       fontWeight='medium'
                                       color='fg'
+                                      fontSize='md'
                                     >
-                                      Impact:
+                                      {goal.name}
                                     </Text>
                                     <Text
-                                      fontSize='xs'
-                                      color={{
-                                        _light: 'purple.600',
-                                        _dark: 'purple.300',
-                                      }}
+                                      fontSize='sm'
+                                      color='fg.muted'
+                                      lineHeight='1.5'
                                     >
-                                      {goal.impact_level}% (
-                                      {getImpactDescription(goal.impact_level)})
+                                      {goal.description}
                                     </Text>
-                                  </HStack>
 
-                                  {/* User Groups */}
-                                  {goal.user_groups &&
-                                    goal.user_groups.length > 0 && (
-                                      <VStack gap={1} align='start' w='100%'>
-                                        <Text
-                                          fontSize='xs'
-                                          fontWeight='medium'
-                                          color='fg'
-                                        >
-                                          User Groups ({goal.user_groups.length}
-                                          ):
-                                        </Text>
-                                        {goal.user_groups.map(
-                                          (group, groupIndex) => (
-                                            <HStack
-                                              key={groupIndex}
-                                              fontSize='xs'
-                                              color='fg.muted'
-                                            >
-                                              <Text>•</Text>
-                                              <Text>{group.description}</Text>
-                                              <Text
-                                                color={{
-                                                  _light: 'blue.600',
-                                                  _dark: 'blue.300',
-                                                }}
+                                    {/* Impact Level */}
+                                    <HStack gap={2}>
+                                      <Text
+                                        fontSize='xs'
+                                        fontWeight='medium'
+                                        color='fg'
+                                      >
+                                        Impact:
+                                      </Text>
+                                      <Text
+                                        fontSize='xs'
+                                        color={{
+                                          _light: 'purple.600',
+                                          _dark: 'purple.300',
+                                        }}
+                                      >
+                                        {goal.impact_level}% (
+                                        {getImpactDescription(
+                                          goal.impact_level
+                                        )}
+                                        )
+                                      </Text>
+                                    </HStack>
+
+                                    {/* User Groups */}
+                                    {goal.user_groups &&
+                                      goal.user_groups.length > 0 && (
+                                        <VStack gap={1} align='start' w='100%'>
+                                          <Text
+                                            fontSize='xs'
+                                            fontWeight='medium'
+                                            color='fg'
+                                          >
+                                            User Groups (
+                                            {goal.user_groups.length}
+                                            ):
+                                          </Text>
+                                          {goal.user_groups.map(
+                                            (group, groupIndex) => (
+                                              <VStack
+                                                key={groupIndex}
+                                                gap={1}
+                                                align='start'
+                                                w='100%'
                                               >
-                                                ({group.size.toLocaleString()}{' '}
-                                                {group.size === 1
-                                                  ? 'person'
-                                                  : 'people'}
-                                                )
-                                              </Text>
-                                            </HStack>
-                                          )
-                                        )}
-                                      </VStack>
-                                    )}
+                                                <HStack
+                                                  fontSize='xs'
+                                                  color='fg.muted'
+                                                >
+                                                  <Text>•</Text>
+                                                  <Text>
+                                                    {group.description}
+                                                  </Text>
+                                                  <Text
+                                                    color={{
+                                                      _light: 'blue.600',
+                                                      _dark: 'blue.300',
+                                                    }}
+                                                  >
+                                                    (
+                                                    {parseInt(
+                                                      group.size
+                                                    ).toLocaleString()}{' '}
+                                                    {parseInt(group.size) === 1
+                                                      ? 'person'
+                                                      : 'people'}
+                                                    )
+                                                  </Text>
+                                                </HStack>
+                                                {/* Display regions if they exist */}
+                                                {group.regions &&
+                                                  group.regions.length > 0 && (
+                                                    <HStack
+                                                      fontSize='xs'
+                                                      color='fg.muted'
+                                                      pl={3}
+                                                      align='start'
+                                                    >
+                                                      <Box color='fg'>
+                                                        <FiGlobe size={18} />
+                                                      </Box>
+                                                      <Text
+                                                        color={{
+                                                          _light: 'green.600',
+                                                          _dark: 'green.300',
+                                                        }}
+                                                      >
+                                                        Regions:{' '}
+                                                        {formatRegionsDisplay(
+                                                          group.regions
+                                                        )}
+                                                      </Text>
+                                                    </HStack>
+                                                  )}
+                                              </VStack>
+                                            )
+                                          )}
+                                        </VStack>
+                                      )}
 
-                                  {/* Problem Statements */}
-                                  {goal.problem_statements &&
-                                    goal.problem_statements.length > 0 && (
-                                      <VStack gap={1} align='start' w='100%'>
-                                        <Text
-                                          fontSize='xs'
-                                          fontWeight='medium'
-                                          color='fg'
-                                        >
-                                          Problem Statements (
-                                          {goal.problem_statements.length}):
-                                        </Text>
-                                        {goal.problem_statements.map(
-                                          (statement, statementIndex) => (
-                                            <HStack
-                                              key={statementIndex}
-                                              fontSize='xs'
-                                              color='fg.muted'
-                                              align='start'
-                                            >
-                                              <Text>•</Text>
-                                              <Text lineHeight='1.4'>
-                                                {statement.description}
-                                              </Text>
-                                            </HStack>
-                                          )
-                                        )}
-                                      </VStack>
-                                    )}
-                                </VStack>
+                                    {/* Problem Statements */}
+                                    {goal.problem_statements &&
+                                      goal.problem_statements.length > 0 && (
+                                        <VStack gap={1} align='start' w='100%'>
+                                          <Text
+                                            fontSize='xs'
+                                            fontWeight='medium'
+                                            color='fg'
+                                          >
+                                            Problem Statements (
+                                            {goal.problem_statements.length}):
+                                          </Text>
+                                          {goal.problem_statements.map(
+                                            (statement, statementIndex) => (
+                                              <HStack
+                                                key={statementIndex}
+                                                fontSize='xs'
+                                                color='fg.muted'
+                                                align='start'
+                                              >
+                                                <Text>•</Text>
+                                                <Text lineHeight='1.4'>
+                                                  {statement.description}
+                                                </Text>
+                                              </HStack>
+                                            )
+                                          )}
+                                        </VStack>
+                                      )}
+                                  </VStack>
 
-                                <VStack gap={2}>
-                                  <IconButton
-                                    size='xs'
-                                    variant='ghost'
-                                    color='fg'
-                                    _hover={{ bg: 'bg.hover' }}
-                                    onClick={() => handleEditGoal(goal)}
-                                    aria-label='Edit goal'
-                                  >
-                                    <FiEdit size={12} />
-                                  </IconButton>
-                                  <IconButton
-                                    size='xs'
-                                    variant='ghost'
-                                    color='red.500'
-                                    _hover={{ bg: 'red.50' }}
-                                    onClick={() => handleRemoveGoal(goal)}
-                                    aria-label='Remove goal'
-                                    loading={savingGoals}
-                                  >
-                                    <FiTrash2 size={12} />
-                                  </IconButton>
-                                </VStack>
-                              </HStack>
+                                  <VStack gap={2}>
+                                    <IconButton
+                                      size='xs'
+                                      variant='ghost'
+                                      color='fg'
+                                      _hover={{ bg: 'bg.hover' }}
+                                      onClick={() => handleEditGoal(goal)}
+                                      aria-label='Edit goal'
+                                      disabled={goal.isLoading}
+                                    >
+                                      <FiEdit size={12} />
+                                    </IconButton>
+                                    <IconButton
+                                      size='xs'
+                                      variant='ghost'
+                                      color='error'
+                                      _hover={{ bg: 'errorSubtle' }}
+                                      onClick={() => handleRemoveGoal(goal)}
+                                      aria-label='Remove goal'
+                                      disabled={goal.isLoading}
+                                    >
+                                      <FiTrash2 size={12} />
+                                    </IconButton>
+                                  </VStack>
+                                </HStack>
+                              )}
                             </Card.Body>
                           </Card.Root>
                         ))}
@@ -744,7 +1001,7 @@ const Plan: React.FC<PlanProps> = ({
                   <Accordion.ItemIndicator />
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
-                  <VStack gap={4} align='stretch' py={4}>
+                  <VStack gap={4} align='stretch' pt={4}>
                     {/* Header with info */}
                     <HStack gap={2} align='start'>
                       <Box color='fg.muted'>
@@ -753,7 +1010,7 @@ const Plan: React.FC<PlanProps> = ({
                       <VStack gap={1} align='start' flex='1'>
                         <Text
                           fontSize='sm'
-                          color='fg.subtle'
+                          color='fg.muted'
                           fontFamily='body'
                           lineHeight='1.5'
                         >
@@ -776,19 +1033,16 @@ const Plan: React.FC<PlanProps> = ({
                     {validationError && (
                       <Box
                         p={3}
-                        bg='red.50'
-                        _dark={{ bg: 'red.900' }}
-                        borderColor='red.200'
+                        bg='errorSubtle'
+                        borderColor='error'
                         borderWidth='1px'
                         borderRadius='md'
                       >
                         <HStack>
-                          <FiAlertCircle color='red' />
-                          <Text
-                            color='red.600'
-                            _dark={{ color: 'red.300' }}
-                            fontSize='sm'
-                          >
+                          <Box color='error'>
+                            <FiAlertCircle />
+                          </Box>
+                          <Text color='error' fontSize='sm'>
                             {validationError}
                           </Text>
                         </HStack>
@@ -802,7 +1056,7 @@ const Plan: React.FC<PlanProps> = ({
                         <Box
                           p={3}
                           border='1px solid'
-                          borderColor={validationError ? 'red.500' : 'brand'}
+                          borderColor={validationError ? 'error' : 'brand'}
                           borderRadius='md'
                           bg='bg.canvas'
                         >
@@ -815,16 +1069,16 @@ const Plan: React.FC<PlanProps> = ({
                               autoFocus
                               bg='bg'
                               borderColor={
-                                validationError ? 'red.500' : 'border.muted'
+                                validationError ? 'error' : 'border.muted'
                               }
                               color='fg'
                               _focus={{
                                 borderColor: validationError
-                                  ? 'red.500'
+                                  ? 'error'
                                   : 'brand',
                                 boxShadow: validationError
-                                  ? '0 0 0 1px var(--chakra-colors-red-500)'
-                                  : '0 0 0 1px var(--chakra-colors-brand)',
+                                  ? '0 0 0 1px token(colors.error)'
+                                  : '0 0 0 1px token(colors.brand)',
                               }}
                               onKeyDown={handleKeyPress}
                               fontFamily='body'
@@ -842,7 +1096,7 @@ const Plan: React.FC<PlanProps> = ({
                                 flex='1'
                                 fontSize='sm'
                                 fontFamily='body'
-                                colorScheme='green'
+                                color='fg'
                               >
                                 Include
                               </Button>
@@ -857,7 +1111,7 @@ const Plan: React.FC<PlanProps> = ({
                                 flex='1'
                                 fontSize='sm'
                                 fontFamily='body'
-                                colorScheme='red'
+                                color='fg'
                               >
                                 Exclude
                               </Button>
@@ -888,6 +1142,7 @@ const Plan: React.FC<PlanProps> = ({
                                 flex='1'
                                 fontSize='sm'
                                 fontFamily='body'
+                                color='fg'
                               >
                                 Cancel
                               </Button>
@@ -917,22 +1172,14 @@ const Plan: React.FC<PlanProps> = ({
                             p={3}
                             border='1px solid'
                             borderColor={
-                              term.type === 'include' ? 'green.300' : 'red.300'
+                              term.type === 'include' ? 'success' : 'error'
                             }
-                            _dark={{
-                              borderColor:
-                                term.type === 'include'
-                                  ? 'green.700'
-                                  : 'red.700',
-                            }}
                             borderRadius='md'
-                            bg={term.type === 'include' ? 'green.50' : 'red.50'}
-                            _dark={{
-                              bg:
-                                term.type === 'include'
-                                  ? 'green.900'
-                                  : 'red.900',
-                            }}
+                            bg={
+                              term.type === 'include'
+                                ? 'successSubtle'
+                                : 'errorSubtle'
+                            }
                             transition='all 0.2s'
                             opacity={term.isLoading ? 0.7 : 1}
                           >
@@ -944,15 +1191,9 @@ const Plan: React.FC<PlanProps> = ({
                                   <Box
                                     color={
                                       term.type === 'include'
-                                        ? 'green.600'
-                                        : 'red.600'
+                                        ? 'success'
+                                        : 'error'
                                     }
-                                    _dark={{
-                                      color:
-                                        term.type === 'include'
-                                          ? 'green.300'
-                                          : 'red.300',
-                                    }}
                                   >
                                     {term.type === 'include' ? (
                                       <FiEye size={16} />
@@ -1005,11 +1246,10 @@ const Plan: React.FC<PlanProps> = ({
                                 <IconButton
                                   size='xs'
                                   variant='ghost'
-                                  color='red'
+                                  color='error'
                                   onClick={() => handleDeleteTerm(term)}
                                   aria-label='Delete term'
                                   title='Delete this term'
-                                  _hover={{ colorScheme: 'red' }}
                                 >
                                   <FiTrash2 size={12} />
                                 </IconButton>
@@ -1056,12 +1296,11 @@ const Plan: React.FC<PlanProps> = ({
         </Card.Body>
       </Card.Root>
 
-      {/* Add/Edit Goal Dialog */}
+      {/* Add/Edit Goal Dialog - Non-blocking, immediate close on save */}
       <AddGoalDialog
         isOpen={isAddingGoal || isEditingGoal}
         onClose={handleCloseGoalDialog}
         onSave={handleSaveGoal}
-        saving={savingGoals}
         initialGoal={editingGoal || undefined}
         isEditing={isEditingGoal}
       />

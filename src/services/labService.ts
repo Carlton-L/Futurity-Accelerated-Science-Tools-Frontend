@@ -13,7 +13,8 @@ export interface ApiLabGoal {
   description: string;
   user_groups: Array<{
     description: string;
-    size: number;
+    size: string;
+    regions?: string[]; // Changed from region to regions and string to array
   }>;
   problem_statements: Array<{
     description: string;
