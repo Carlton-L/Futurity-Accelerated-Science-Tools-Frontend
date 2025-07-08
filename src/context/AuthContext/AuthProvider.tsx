@@ -19,6 +19,12 @@ import { workspaceService } from '../../services/workspaceService';
 import { userService, type ExtendedUserData } from '../../services/userService';
 import { relationshipService } from '../../services/relationshipService';
 import { labService } from '../../services/labService';
+import {
+  cacheService,
+  createCachedFetcher,
+  invalidateCache,
+  invalidateRelatedCaches,
+} from '../../services/cacheService';
 
 // Constants for localStorage keys
 const CURRENT_TEAM_STORAGE_KEY = 'futurity_current_team';
@@ -50,6 +56,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingLabs, setIsLoadingLabs] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Initialize cache service on mount
+  useEffect(() => {
+    cacheService.init();
+  }, []);
 
   // Team persistence functions
   const saveCurrentTeamToStorage = (team: UserTeam | null) => {
@@ -93,7 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  // Load labs for current team
+  // CACHED: Load labs for current team
   const loadLabsForCurrentTeam = async (team: UserTeam, userToken: string) => {
     if (!team || !userToken) {
       setCurrentTeamLabs([]);
@@ -104,12 +115,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoadingLabs(true);
       console.log('Loading labs for team:', team.ent_name);
 
-      const labs = await labService.getLabsForTeam(
-        team.uniqueID,
-        userToken,
-        false // don't include archived labs
+      // Create cached fetcher for team labs
+      const cachedLabsFetcher = createCachedFetcher(
+        'teamLabs',
+        () => labService.getLabsForTeam(team.uniqueID, userToken, false),
+        team.uniqueID
       );
 
+      const labs = await cachedLabsFetcher();
       setCurrentTeamLabs(labs);
       console.log(`Loaded ${labs.length} labs for team:`, team.ent_name);
     } catch (error) {
@@ -134,7 +147,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Refresh labs function
+  // Refresh labs function with cache invalidation
   const refreshLabs = async (): Promise<void> => {
     if (!currentTeam || !token) {
       setCurrentTeamLabs([]);
@@ -142,6 +155,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // Invalidate cache before refreshing
+      invalidateCache('teamLabs', currentTeam.uniqueID);
       await loadLabsForCurrentTeam(currentTeam, token);
     } catch (error) {
       console.error('Failed to refresh labs:', error);
@@ -149,14 +164,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // OPTIMIZED: Load extended user data without blocking
+  // CACHED: Load extended user data
   const loadExtendedUserData = async (basicUser: User, userToken: string) => {
     try {
       console.log('Loading extended user data for user ID:', basicUser._id);
-      const extendedData = await userService.getExtendedUserData(
-        basicUser._id,
-        userToken
+
+      // Create cached fetcher for extended user data
+      const cachedUserDataFetcher = createCachedFetcher(
+        'extendedUserData',
+        () => userService.getExtendedUserData(basicUser._id, userToken),
+        basicUser._id
       );
+
+      const extendedData = await cachedUserDataFetcher();
       setExtendedUser(extendedData);
 
       // CRITICAL: Merge extended data with basic user data BUT NEVER overwrite the _id
@@ -184,16 +204,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // OPTIMIZED: Load whiteboard data without blocking
+  // CACHED: Load whiteboard data
   const loadWhiteboardData = async (basicUser: User, userToken: string) => {
     try {
       console.log('Loading whiteboard data for user ID:', basicUser._id);
 
-      const whiteboardData = await userService.getUserWhiteboard(
-        basicUser._id,
-        userToken
+      // Create cached fetcher for whiteboard data
+      const cachedWhiteboardFetcher = createCachedFetcher(
+        'whiteboard',
+        () => userService.getUserWhiteboard(basicUser._id, userToken),
+        basicUser._id
       );
 
+      const whiteboardData = await cachedWhiteboardFetcher();
       setWhiteboardId(whiteboardData.uniqueID);
 
       console.log(
@@ -216,7 +239,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // OPTIMIZED: Load relationship data and return team info for labs loading
+  // CACHED: Load relationship data and return team info for labs loading
   const loadRelationshipData = async (
     basicUser: User,
     userToken: string
@@ -224,11 +247,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log('Loading relationship data for user ID:', basicUser._id);
 
-      // Get user's organizations and teams
-      const relationships = await relationshipService.getUserRelationships(
-        basicUser._id,
-        userToken
+      // Create cached fetcher for user relationships
+      const cachedRelationshipsFetcher = createCachedFetcher(
+        'userRelationships',
+        () =>
+          relationshipService.getUserRelationships(basicUser._id, userToken),
+        basicUser._id
       );
+
+      const relationships = await cachedRelationshipsFetcher();
 
       setUserRelationships({
         organizations: relationships.organizations,
@@ -256,7 +283,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // OPTIMIZED: Handle team selection without async lab loading
+  // Handle team selection without async lab loading
   const handleTeamSelection = async (
     availableTeams: UserTeam[]
   ): Promise<UserTeam | null> => {
@@ -312,21 +339,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return selectedTeam;
   };
 
-  // OPTIMIZED: Load workspace data without blocking
+  // CACHED: Load workspace data
   const loadWorkspaceData = async (userToken: string) => {
     try {
-      // Get user's workspace list from the API
-      const userWorkspaces = await userService.getUserWorkspaces(userToken);
+      // Create cached fetcher for workspace list
+      const cachedWorkspaceListFetcher = createCachedFetcher(
+        'workspaceList',
+        () => userService.getUserWorkspaces(userToken),
+        'user_workspaces'
+      );
+
+      const userWorkspaces = await cachedWorkspaceListFetcher();
 
       if (userWorkspaces.length > 0) {
         // Use the first workspace the user has access to
         const firstWorkspaceItem = userWorkspaces[0];
 
-        // Now fetch the full workspace details with teamspaces
-        const fullWorkspaceData = await workspaceService.getWorkspace(
-          firstWorkspaceItem._id,
-          userToken
+        // Create cached fetcher for full workspace data
+        const cachedWorkspaceFetcher = createCachedFetcher(
+          'workspace',
+          () =>
+            workspaceService.getWorkspace(firstWorkspaceItem._id, userToken),
+          firstWorkspaceItem._id
         );
+
+        const fullWorkspaceData = await cachedWorkspaceFetcher();
         setWorkspace(fullWorkspaceData);
 
         // Set teamspaces from workspace data
@@ -353,7 +390,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // OPTIMIZED: Initialize auth with strategic parallelization
+  // OPTIMIZED: Initialize auth with strategic parallelization and caching
   useEffect(() => {
     const initializeAuth = async () => {
       setIsLoadingUser(true);
@@ -406,8 +443,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Only clear token if it's definitely invalid (401/403)
           if (error instanceof Error && error.message.includes('401')) {
-            console.log('Token is invalid, clearing auth state');
+            console.log('Token is invalid, clearing auth state and cache');
             await authService.logout();
+
+            // Clear all cached data on auth failure
+            cacheService.clearAll();
+
             setUser(null);
             setExtendedUser(null);
             setToken(null);
@@ -439,7 +480,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initializeAuth();
   }, []);
 
-  // OPTIMIZED: Login with strategic parallelization
+  // OPTIMIZED: Login with strategic parallelization and caching
   const login = async (credentials: LoginRequest): Promise<void> => {
     setIsLoading(true);
     setIsLoadingUser(true);
@@ -488,9 +529,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.logout();
 
-      // Clear stored team data
+      // Clear stored team data and all cached data
       localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
-      console.log('Cleared stored team data on logout');
+      cacheService.clearAll();
+      console.log('Cleared stored team data and cache on logout');
 
       setUser(null);
       setExtendedUser(null);
@@ -507,6 +549,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Logout failed:', error);
       // Still clear local state even if API call fails
       localStorage.removeItem(CURRENT_TEAM_STORAGE_KEY);
+      cacheService.clearAll();
       setUser(null);
       setExtendedUser(null);
       setToken(null);
@@ -530,6 +573,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // Invalidate workspace caches before refreshing
+      invalidateCache('workspaceList', 'user_workspaces');
+      invalidateCache('workspace', workspace._id);
+
       await loadWorkspaceData(token);
     } catch (error) {
       console.error('Failed to refresh workspace data:', error);
@@ -543,6 +590,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // Invalidate user cache before refreshing
+      invalidateCache('extendedUserData', user._id);
+
       const userData = await authService.verifyToken(token);
       await loadExtendedUserData(userData, token);
     } catch (error) {
@@ -557,6 +607,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // Invalidate relationships cache before refreshing
+      invalidateCache('userRelationships', user._id);
+
       await loadRelationshipData(user, token);
     } catch (error) {
       console.error('Failed to refresh relationship data:', error);
@@ -570,6 +623,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
+      // Invalidate whiteboard cache before refreshing
+      invalidateCache('whiteboard', user._id);
+
       await loadWhiteboardData(user, token);
     } catch (error) {
       console.error('Failed to refresh whiteboard data:', error);
@@ -620,6 +676,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return team.user_relationships.includes('viewer');
   };
 
+  // Enhanced context value with cache invalidation helpers
   const contextValue: AuthContextType = {
     user,
     token,
@@ -649,6 +706,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoadingUser,
     isAuthenticated: !!user,
     extendedUser,
+    // Add cache management functions for components to use
+    invalidateCache: (type: string, identifier?: string) => {
+      invalidateCache(type, identifier);
+    },
+    invalidateRelatedCaches: (
+      changedType: string,
+      teamId?: string,
+      userId?: string
+    ) => {
+      invalidateRelatedCaches(changedType, teamId, userId);
+    },
   };
 
   return (

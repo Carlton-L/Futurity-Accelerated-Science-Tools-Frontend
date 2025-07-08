@@ -10,11 +10,38 @@ import {
   IconButton,
   Dialog,
   Field,
-  Spinner,
-  Center,
 } from '@chakra-ui/react';
 import { FiEdit, FiSave, FiX, FiPlus, FiCheck } from 'react-icons/fi';
-import type { ApiLabGoal } from '../../services/labService';
+
+// Updated type definitions to match the API - size should be number internally, string for API
+export interface ApiLabGoal {
+  name: string;
+  description: string;
+  user_groups: Array<{
+    description: string;
+    size: string; // API expects string
+    regions?: string[];
+  }>;
+  problem_statements: Array<{
+    description: string;
+  }>;
+  impact_level: number; // 0-100 scale
+}
+
+// Internal type for component state - size as number for slider logic
+interface InternalLabGoal {
+  name: string;
+  description: string;
+  user_groups: Array<{
+    description: string;
+    size: number; // Internal as number
+    regions?: string[];
+  }>;
+  problem_statements: Array<{
+    description: string;
+  }>;
+  impact_level: number;
+}
 
 // Logarithmic population scale helper
 const createLogScale = () => {
@@ -55,8 +82,630 @@ const createLogScale = () => {
 
 const POPULATION_SCALE = createLogScale();
 
+// Type definitions for regions
+interface RegionItem {
+  value: string;
+  label: string;
+  description?: string;
+  children?: RegionItem[];
+}
+
+// Region data structure
+const REGIONS = {
+  continents: {
+    groups: {
+      continents: {
+        label: 'Continents',
+        items: [
+          { value: 'africa', label: 'Africa' },
+          { value: 'antarctica', label: 'Antarctica' },
+          { value: 'asia', label: 'Asia' },
+          { value: 'europe', label: 'Europe' },
+          { value: 'north-america', label: 'North America' },
+          { value: 'oceania', label: 'Oceania' },
+          { value: 'south-america', label: 'South America' },
+        ] as RegionItem[],
+      },
+    },
+  },
+  unSubregions: {
+    groups: {
+      africaUn: {
+        label: 'Africa (UN Standard Subregions)',
+        items: [
+          { value: 'northern-africa', label: 'Northern Africa' },
+          {
+            value: 'sub-saharan-africa',
+            label: 'Sub-Saharan Africa',
+            children: [
+              { value: 'eastern-africa', label: 'Eastern Africa' },
+              { value: 'middle-africa', label: 'Middle Africa' },
+              { value: 'southern-africa', label: 'Southern Africa' },
+              { value: 'western-africa', label: 'Western Africa' },
+            ],
+          },
+        ] as RegionItem[],
+      },
+      americasUn: {
+        label: 'Americas (UN Standard Subregions)',
+        items: [
+          {
+            value: 'latam',
+            label: 'Latin America and the Caribbean',
+            description: 'LATAM',
+            children: [
+              { value: 'caribbean', label: 'Caribbean' },
+              { value: 'central-america', label: 'Central America' },
+              { value: 'south-america-un', label: 'South America' },
+            ],
+          },
+          { value: 'northern-america', label: 'Northern America' },
+        ] as RegionItem[],
+      },
+      asiaUn: {
+        label: 'Asia (UN Standard Subregions)',
+        items: [
+          { value: 'central-asia', label: 'Central Asia' },
+          { value: 'eastern-asia', label: 'Eastern Asia' },
+          { value: 'south-eastern-asia', label: 'South-Eastern Asia' },
+          { value: 'southern-asia', label: 'Southern Asia' },
+          { value: 'western-asia', label: 'Western Asia' },
+        ] as RegionItem[],
+      },
+      europeUn: {
+        label: 'Europe (UN Standard Subregions)',
+        items: [
+          { value: 'eastern-europe', label: 'Eastern Europe' },
+          { value: 'northern-europe', label: 'Northern Europe' },
+          { value: 'southern-europe', label: 'Southern Europe' },
+          { value: 'western-europe', label: 'Western Europe' },
+        ] as RegionItem[],
+      },
+      oceaniaUn: {
+        label: 'Oceania (UN Standard Subregions)',
+        items: [
+          {
+            value: 'australia-new-zealand',
+            label: 'Australia and New Zealand',
+          },
+          { value: 'melanesia', label: 'Melanesia' },
+          { value: 'micronesia', label: 'Micronesia' },
+          { value: 'polynesia', label: 'Polynesia' },
+        ] as RegionItem[],
+      },
+    },
+  },
+  economicTrade: {
+    groups: {
+      commonMarket: {
+        label: 'Common Market / Economic Zones',
+        items: [
+          {
+            value: 'eu',
+            label: 'European Union',
+            description: 'EU common market',
+          },
+          {
+            value: 'eea',
+            label: 'European Economic Area',
+            description: 'EEA, EU + 3 EFTA states',
+          },
+          { value: 'schengen', label: 'Schengen Area' },
+          {
+            value: 'eurozone',
+            label: 'Eurozone',
+            description: 'Countries using the Euro',
+          },
+          { value: 'mercosur', label: 'MERCOSUR' },
+          {
+            value: 'nafta-usmca',
+            label: 'NAFTA / USMCA',
+            description: 'US, Mexico, Canada',
+          },
+          {
+            value: 'asean',
+            label: 'ASEAN',
+            description: 'SE Asia cooperation',
+          },
+          {
+            value: 'gcc',
+            label: 'GCC',
+            description: 'Gulf Cooperation Council',
+          },
+          {
+            value: 'efta',
+            label: 'EFTA',
+            description: 'European Free Trade Association',
+          },
+          {
+            value: 'au',
+            label: 'AU',
+            description: 'Continental Union of African States',
+          },
+          {
+            value: 'caricom',
+            label: 'CARICOM',
+            description: 'Caribbean Economic Community',
+          },
+          {
+            value: 'apec',
+            label: 'APEC',
+            description: 'Asia-Pacific trade forum',
+          },
+          {
+            value: 'saarc',
+            label: 'SAARC',
+            description: 'South Asian cooperation',
+          },
+          {
+            value: 'cis',
+            label: 'CIS',
+            description:
+              'Commonwealth of Independent States, Former Soviet Republics',
+          },
+        ],
+      },
+    },
+  },
+  culturalLinguistic: {
+    groups: {
+      culturalLinguistic: {
+        label: 'Cultural/Linguistic Regions',
+        items: [
+          {
+            value: 'anglophone',
+            label: 'Anglophone World',
+            description: 'English-speaking',
+          },
+          {
+            value: 'francophone',
+            label: 'Francophone World',
+            description: 'French-speaking',
+          },
+          {
+            value: 'lusophone',
+            label: 'Lusophone World',
+            description: 'Portuguese-speaking',
+          },
+          { value: 'arab-world', label: 'Arab World' },
+          {
+            value: 'hispanophone',
+            label: 'Hispanophone World',
+            description: 'Spanish-speaking',
+          },
+          {
+            value: 'latin-world',
+            label: 'Latin World',
+            description: 'Romance language speaking',
+          },
+          { value: 'chinese-cultural', label: 'Chinese Cultural Sphere' },
+          { value: 'post-soviet', label: 'Post-Soviet States' },
+        ],
+      },
+    },
+  },
+  geopolitical: {
+    groups: {
+      geopolitical: {
+        label: 'Geopolitical Groups',
+        items: [
+          { value: 'nato', label: 'NATO' },
+          {
+            value: 'brics',
+            label: 'BRICS',
+            description: 'Brazil, Russia, India, China, SA',
+          },
+          { value: 'g7', label: 'G7' },
+          { value: 'g20', label: 'G20' },
+          {
+            value: 'non-aligned',
+            label: 'Non-Aligned Movement',
+            description: '121 countries neutral from major blocs',
+          },
+          { value: 'oecd', label: 'OECD', description: 'Developed nations' },
+          {
+            value: 'opec',
+            label: 'OPEC',
+            description: 'Oil-exporting countries',
+          },
+          {
+            value: 'five-eyes',
+            label: 'Five Eyes',
+            description: 'intelligence sharing alliance FVEY',
+          },
+          {
+            value: 'commonwealth',
+            label: 'Commonwealth of Nations',
+            description: 'UK plus former colonies',
+          },
+          {
+            value: 'global-majority',
+            label: 'Global Majority',
+            description: 'AKA Global South, Emerging/developing nations',
+          },
+        ],
+      },
+    },
+  },
+};
+
+// Helper function to get all child values for a parent item
+const getChildValues = (item: RegionItem): string[] => {
+  if (!item.children) return [];
+  return item.children.map((child: RegionItem) => child.value);
+};
+
+// Helper function to check if all children are selected
+const areAllChildrenSelected = (
+  item: RegionItem,
+  selectedValues: string[]
+): boolean => {
+  if (!item.children) return false;
+  return item.children.every((child: RegionItem) =>
+    selectedValues.includes(child.value)
+  );
+};
+
 // Impact levels for the stepped slider (11 steps: 1, 10, 20, ..., 100)
 const IMPACT_LEVELS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
+// Add the missing RegionSelectProps interface
+interface RegionSelectProps {
+  selectedRegions: string[];
+  onChange: (regions: string[]) => void;
+}
+
+const RegionSelect: React.FC<RegionSelectProps> = ({
+  selectedRegions,
+  onChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleItemToggle = (value: string, item?: RegionItem) => {
+    const newSelection = [...selectedRegions];
+
+    if (item?.children) {
+      // Parent item with children
+      const childValues = getChildValues(item);
+      const allChildrenSelected = areAllChildrenSelected(item, selectedRegions);
+
+      if (allChildrenSelected) {
+        // Deselect parent and all children
+        const filtered = newSelection.filter(
+          (v) => v !== value && !childValues.includes(v)
+        );
+        onChange(filtered);
+      } else {
+        // Select parent and all children
+        const toAdd = [value, ...childValues].filter(
+          (v) => !newSelection.includes(v)
+        );
+        onChange([...newSelection, ...toAdd]);
+      }
+    } else {
+      // Regular item or child item
+      if (selectedRegions.includes(value)) {
+        // Deselecting - also need to check if this affects parent selection
+        const filtered = newSelection.filter((v) => v !== value);
+
+        // Check all items to see if any parents should be deselected
+        const finalSelection = [...filtered];
+
+        // Find and deselect any parents whose children are no longer all selected
+        Object.values(REGIONS).forEach((category) => {
+          if ('items' in category) {
+            category.items.forEach((item) => {
+              if (item.children && finalSelection.includes(item.value)) {
+                const allChildrenStillSelected = item.children.every((child) =>
+                  finalSelection.includes(child.value)
+                );
+                if (!allChildrenStillSelected) {
+                  const parentIndex = finalSelection.indexOf(item.value);
+                  if (parentIndex > -1) {
+                    finalSelection.splice(parentIndex, 1);
+                  }
+                }
+              }
+            });
+          } else if ('groups' in category) {
+            Object.values(category.groups).forEach((group) => {
+              group.items.forEach((item) => {
+                if (item.children && finalSelection.includes(item.value)) {
+                  const allChildrenStillSelected = item.children.every(
+                    (child) => finalSelection.includes(child.value)
+                  );
+                  if (!allChildrenStillSelected) {
+                    const parentIndex = finalSelection.indexOf(item.value);
+                    if (parentIndex > -1) {
+                      finalSelection.splice(parentIndex, 1);
+                    }
+                  }
+                }
+              });
+            });
+          }
+        });
+
+        onChange(finalSelection);
+      } else {
+        // Selecting
+        onChange([...newSelection, value]);
+      }
+    }
+  };
+
+  const handleClear = () => {
+    onChange([]);
+  };
+
+  const selectedCount = selectedRegions.length;
+  const displayText =
+    selectedCount === 0
+      ? 'Select regions (optional)'
+      : selectedCount === 1
+      ? '1 region selected'
+      : `${selectedCount} regions selected`;
+
+  const renderItem = (item: RegionItem, isChild = false) => {
+    const isSelected = selectedRegions.includes(item.value);
+    const isParentPartiallySelected =
+      item.children &&
+      item.children.some((child: RegionItem) =>
+        selectedRegions.includes(child.value)
+      ) &&
+      !areAllChildrenSelected(item, selectedRegions);
+
+    return (
+      <Box key={item.value}>
+        <HStack
+          p={2}
+          pl={isChild ? 6 : 3}
+          cursor='pointer'
+          _hover={{ bg: 'bg.hover' }}
+          onClick={() => handleItemToggle(item.value, item)}
+        >
+          <Box
+            w={4}
+            h={4}
+            border='2px solid'
+            borderColor={isSelected ? 'brand' : 'border.emphasized'}
+            borderRadius='2px'
+            bg={isSelected ? 'brand' : 'transparent'}
+            position='relative'
+          >
+            {(isSelected || isParentPartiallySelected) && (
+              <Box
+                position='absolute'
+                top='50%'
+                left='50%'
+                transform='translate(-50%, -50%)'
+                color='white'
+                fontSize='xs'
+              >
+                {isParentPartiallySelected ? '−' : '✓'}
+              </Box>
+            )}
+          </Box>
+          <VStack gap={0} align='start' flex='1'>
+            <Text fontSize='sm' color='fg' fontFamily='body'>
+              {item.label}
+            </Text>
+            {item.description && (
+              <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                ({item.description})
+              </Text>
+            )}
+          </VStack>
+        </HStack>
+
+        {/* Render children if they exist */}
+        {item.children &&
+          item.children.map((child: RegionItem) => renderItem(child, true))}
+      </Box>
+    );
+  };
+
+  return (
+    <Box position='relative' w='100%'>
+      <Button
+        variant='outline'
+        w='100%'
+        justifyContent='space-between'
+        onClick={() => setIsOpen(!isOpen)}
+        borderColor='border.emphasized'
+        color='fg'
+        _hover={{ bg: 'bg.hover' }}
+      >
+        <Text>{displayText}</Text>
+        <Text
+          transform={isOpen ? 'rotate(180deg)' : 'rotate(0deg)'}
+          transition='transform 0.2s'
+        >
+          ▼
+        </Text>
+      </Button>
+
+      {isOpen && (
+        <Box
+          position='absolute'
+          top='100%'
+          left={0}
+          right={0}
+          zIndex={1000}
+          mt={1}
+          bg='bg.canvas'
+          border='1px solid'
+          borderColor='border.emphasized'
+          borderRadius='md'
+          maxH='400px'
+          overflowY='auto'
+          boxShadow='lg'
+        >
+          {/* Header with clear button */}
+          {selectedCount > 0 && (
+            <HStack
+              justify='space-between'
+              p={3}
+              borderBottom='1px solid'
+              borderBottomColor='border.muted'
+            >
+              <Text fontSize='sm' color='fg' fontFamily='body'>
+                {selectedCount} selected
+              </Text>
+              <Button
+                size='xs'
+                variant='ghost'
+                onClick={handleClear}
+                color='fg.muted'
+              >
+                Clear all
+              </Button>
+            </HStack>
+          )}
+
+          {/* Continents */}
+          <Box>
+            <Box key={REGIONS.continents.groups.continents.label}>
+              <Text
+                fontSize='xs'
+                fontWeight='medium'
+                color='fg.muted'
+                p={2}
+                pl={4}
+                bg='bg.hover'
+              >
+                {REGIONS.continents.groups.continents.label}
+              </Text>
+            </Box>
+            {REGIONS.continents.groups.continents.items.map((item) =>
+              renderItem(item)
+            )}
+          </Box>
+
+          {/* UN Subregions */}
+          <Box>
+            <Text
+              fontSize='sm'
+              fontWeight='medium'
+              color='fg'
+              p={3}
+              bg='bg.subtle'
+              borderBottom='1px solid'
+              borderBottomColor='border.muted'
+            >
+              {''}
+            </Text>
+            {Object.values(REGIONS.unSubregions.groups).map((group) => (
+              <Box key={group.label}>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  color='fg.muted'
+                  p={2}
+                  pl={4}
+                  bg='bg.hover'
+                >
+                  {group.label}
+                </Text>
+                {group.items.map((item) => renderItem(item))}
+              </Box>
+            ))}
+          </Box>
+
+          {/* Economic/Trade Regions */}
+          <Box>
+            <Text
+              fontSize='sm'
+              fontWeight='medium'
+              color='fg'
+              p={3}
+              bg='bg.subtle'
+              borderBottom='1px solid'
+              borderBottomColor='border.muted'
+            >
+              {REGIONS.economicTrade.label}
+            </Text>
+            {Object.values(REGIONS.economicTrade.groups).map((group) => (
+              <Box key={group.label}>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  color='fg.muted'
+                  p={2}
+                  pl={4}
+                  bg='bg.hover'
+                >
+                  {group.label}
+                </Text>
+                {group.items.map((item) => renderItem(item))}
+              </Box>
+            ))}
+          </Box>
+
+          {/* Cultural/Linguistic Regions */}
+          <Box>
+            <Text
+              fontSize='sm'
+              fontWeight='medium'
+              color='fg'
+              p={3}
+              bg='bg.subtle'
+              borderBottom='1px solid'
+              borderBottomColor='border.muted'
+            >
+              {REGIONS.culturalLinguistic.label}
+            </Text>
+            {Object.values(REGIONS.culturalLinguistic.groups).map((group) => (
+              <Box key={group.label}>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  color='fg.muted'
+                  p={2}
+                  pl={4}
+                  bg='bg.hover'
+                >
+                  {group.label}
+                </Text>
+                {group.items.map((item) => renderItem(item))}
+              </Box>
+            ))}
+          </Box>
+
+          {/* Geopolitical Groupings */}
+          <Box>
+            <Text
+              fontSize='sm'
+              fontWeight='medium'
+              color='fg'
+              p={3}
+              bg='bg.subtle'
+              borderBottom='1px solid'
+              borderBottomColor='border.muted'
+            >
+              {REGIONS.geopolitical.label}
+            </Text>
+            {Object.values(REGIONS.geopolitical.groups).map((group) => (
+              <Box key={group.label}>
+                <Text
+                  fontSize='xs'
+                  fontWeight='medium'
+                  color='fg.muted'
+                  p={2}
+                  pl={4}
+                  bg='bg.hover'
+                >
+                  {group.label}
+                </Text>
+                {group.items.map((item) => renderItem(item))}
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+};
 
 const formatPopulation = (value: number): string => {
   if (value === 1) return '1 person';
@@ -159,14 +808,13 @@ const getImpactDescription = (
   return getImpactDescription(100);
 };
 
-// Custom Slider Component since Chakra UI v3 might not have Slider
+// Custom Slider Component with fixed CSS
 interface CustomSliderProps {
   value: number;
   onChange: (value: number) => void;
   min: number;
   max: number;
   step: number;
-  label?: string;
 }
 
 const CustomSlider: React.FC<CustomSliderProps> = ({
@@ -175,7 +823,6 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
   min,
   max,
   step,
-  label,
 }) => {
   return (
     <VStack gap={2} align='stretch' w='100%'>
@@ -192,14 +839,15 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
           borderRadius: '3px',
           background: `linear-gradient(to right, var(--chakra-colors-brand) 0%, var(--chakra-colors-brand) ${
             ((value - min) / (max - min)) * 100
-          }%, var(--chakra-colors-gray-200) ${
+          }%, var(--chakra-colors-border-muted) ${
             ((value - min) / (max - min)) * 100
-          }%, var(--chakra-colors-gray-200) 100%)`,
+          }%, var(--chakra-colors-border-muted) 100%)`,
           outline: 'none',
           appearance: 'none',
         }}
       />
-      <style jsx>{`
+      <style>
+        {`
         input[type='range']::-webkit-slider-thumb {
           appearance: none;
           width: 20px;
@@ -219,20 +867,21 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
           border: 2px solid white;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
-      `}</style>
+      `}
+      </style>
     </VStack>
   );
 };
 
 // User Group component with OK/Cancel editing
 interface UserGroupItemProps {
-  group: { description: string; size: number };
+  group: { description: string; size: number; regions?: string[] };
   index: number;
   isEditing: boolean;
   onChange: (
     index: number,
-    field: 'description' | 'size',
-    value: string | number
+    field: 'description' | 'size' | 'regions',
+    value: string | number | string[]
   ) => void;
   onRemove: (index: number) => void;
   onConfirm: (index: number) => void;
@@ -260,6 +909,13 @@ const UserGroupItem: React.FC<UserGroupItemProps> = ({
     (value: number) => {
       const newSize = POPULATION_SCALE[value] || 1;
       onChange(index, 'size', newSize);
+    },
+    [index, onChange]
+  );
+
+  const handleRegionChange = useCallback(
+    (regions: string[]) => {
+      onChange(index, 'regions', regions);
     },
     [index, onChange]
   );
@@ -296,9 +952,19 @@ const UserGroupItem: React.FC<UserGroupItemProps> = ({
           />
           <HStack justify='space-between' fontSize='xs' color='fg.muted'>
             <Text>1 person</Text>
-
             <Text>everyone</Text>
           </HStack>
+        </VStack>
+
+        {/* Regional Focus */}
+        <VStack gap={2} align='stretch' w='100%'>
+          <Text fontSize='sm' fontWeight='medium' color='fg'>
+            Regional Focus (Optional)
+          </Text>
+          <RegionSelect
+            selectedRegions={group.regions || []}
+            onChange={handleRegionChange}
+          />
         </VStack>
 
         <HStack justify='space-between'>
@@ -330,8 +996,8 @@ const UserGroupItem: React.FC<UserGroupItemProps> = ({
               size='sm'
               variant='ghost'
               onClick={() => onRemove(index)}
-              color='red.500'
-              _hover={{ bg: 'red.50' }}
+              color='error'
+              _hover={{ bg: 'errorSubtle' }}
             >
               Delete
             </Button>
@@ -350,6 +1016,11 @@ const UserGroupItem: React.FC<UserGroupItemProps> = ({
         <Text fontSize='xs' color='fg.muted'>
           Size: {formatPopulation(group.size)}
         </Text>
+        {group.regions && group.regions.length > 0 && (
+          <Text fontSize='xs' color='fg.muted'>
+            Regions: {group.regions.length} selected
+          </Text>
+        )}
       </VStack>
       <HStack gap={2}>
         <IconButton
@@ -366,8 +1037,8 @@ const UserGroupItem: React.FC<UserGroupItemProps> = ({
           <IconButton
             size='sm'
             variant='ghost'
-            color='red.500'
-            _hover={{ bg: 'red.50' }}
+            color='error'
+            _hover={{ bg: 'errorSubtle' }}
             onClick={() => onRemove(index)}
             aria-label='Remove group'
           >
@@ -451,8 +1122,8 @@ const ProblemStatementItem: React.FC<ProblemStatementItemProps> = ({
               size='sm'
               variant='ghost'
               onClick={() => onRemove(index)}
-              color='red.500'
-              _hover={{ bg: 'red.50' }}
+              color='error'
+              _hover={{ bg: 'errorSubtle' }}
             >
               Delete
             </Button>
@@ -482,8 +1153,8 @@ const ProblemStatementItem: React.FC<ProblemStatementItemProps> = ({
           <IconButton
             size='sm'
             variant='ghost'
-            color='red.500'
-            _hover={{ bg: 'red.50' }}
+            color='error'
+            _hover={{ bg: 'errorSubtle' }}
             onClick={() => onRemove(index)}
             aria-label='Remove statement'
           >
@@ -499,7 +1170,6 @@ interface AddGoalDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (goal: ApiLabGoal) => void;
-  saving: boolean;
   initialGoal?: ApiLabGoal; // For editing existing goals
   isEditing?: boolean;
 }
@@ -508,20 +1178,39 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
   isOpen,
   onClose,
   onSave,
-  saving,
   initialGoal,
   isEditing = false,
 }) => {
-  const [newGoal, setNewGoal] = useState<ApiLabGoal>(
-    () =>
-      initialGoal || {
-        name: '',
-        description: '',
-        user_groups: [{ description: '', size: 1 }],
-        problem_statements: [{ description: '' }],
-        impact_level: 1, // Start at 1 (Personal Spark)
-      }
-  );
+  // Helper function to convert API goal to internal format
+  const apiToInternal = (apiGoal: ApiLabGoal): InternalLabGoal => ({
+    ...apiGoal,
+    user_groups: apiGoal.user_groups.map((group) => ({
+      ...group,
+      size: parseInt(group.size) || 1,
+    })),
+  });
+
+  // Helper function to convert internal format to API format
+  const internalToApi = (internalGoal: InternalLabGoal): ApiLabGoal => ({
+    ...internalGoal,
+    user_groups: internalGoal.user_groups.map((group) => ({
+      ...group,
+      size: group.size.toString(),
+    })),
+  });
+
+  const [newGoal, setNewGoal] = useState<InternalLabGoal>(() => {
+    if (initialGoal) {
+      return apiToInternal(initialGoal);
+    }
+    return {
+      name: '',
+      description: '',
+      user_groups: [{ description: '', size: 1, regions: [] }],
+      problem_statements: [{ description: '' }],
+      impact_level: 1, // Start at 1 (Personal Spark)
+    };
+  });
 
   // Track which items are being edited - only edit the last item initially
   const [editingUserGroups, setEditingUserGroups] = useState<Set<number>>(
@@ -545,10 +1234,10 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
   });
 
   const resetForm = useCallback(() => {
-    const defaultGoal = {
+    const defaultGoal: InternalLabGoal = {
       name: '',
       description: '',
-      user_groups: [{ description: '', size: 1 }],
+      user_groups: [{ description: '', size: 1, regions: [] }],
       problem_statements: [{ description: '' }],
       impact_level: 1, // Start at 1 (Personal Spark)
     };
@@ -561,7 +1250,7 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       if (initialGoal) {
-        setNewGoal(initialGoal);
+        setNewGoal(apiToInternal(initialGoal));
         setEditingUserGroups(new Set());
         setEditingProblemStatements(new Set());
       } else {
@@ -580,7 +1269,7 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
   const handleSave = useCallback(() => {
     if (!newGoal.name.trim() || !newGoal.description.trim()) return;
 
-    const goalToAdd: ApiLabGoal = {
+    const internalGoalToSave: InternalLabGoal = {
       name: newGoal.name.trim(),
       description: newGoal.description.trim(),
       user_groups: newGoal.user_groups.filter((group) =>
@@ -592,7 +1281,12 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
       impact_level: newGoal.impact_level,
     };
 
-    onSave(goalToAdd);
+    // Convert to API format before saving
+    const apiGoalToSave = internalToApi(internalGoalToSave);
+
+    // Save happens immediately, dialog closes, and skeleton shows in background
+    onSave(apiGoalToSave);
+
     if (!isEditing) {
       resetForm();
     }
@@ -609,7 +1303,10 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
   const addUserGroup = useCallback(() => {
     setNewGoal((prev) => ({
       ...prev,
-      user_groups: [...prev.user_groups, { description: '', size: 1 }],
+      user_groups: [
+        ...prev.user_groups,
+        { description: '', size: 1, regions: [] },
+      ],
     }));
 
     // Set the new group to editing mode
@@ -621,7 +1318,11 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
   }, [newGoal.user_groups.length]);
 
   const updateUserGroup = useCallback(
-    (index: number, field: 'description' | 'size', value: string | number) => {
+    (
+      index: number,
+      field: 'description' | 'size' | 'regions',
+      value: string | number | string[]
+    ) => {
       setNewGoal((prev) => ({
         ...prev,
         user_groups: prev.user_groups.map((group, i) =>
@@ -798,221 +1499,188 @@ const AddGoalDialog: React.FC<AddGoalDialogProps> = ({
                 onClick={handleClose}
                 color='fg'
                 _hover={{ bg: 'bg.hover' }}
-                disabled={saving}
               >
                 <FiX />
               </IconButton>
             </Dialog.CloseTrigger>
           </Dialog.Header>
 
-          {saving ? (
-            // Loading State - Replace entire dialog content
-            <Box p={8}>
-              <Center>
-                <VStack gap={6} textAlign='center'>
-                  <Spinner
-                    size='xl'
-                    color='brand'
-                    thickness='4px'
-                    speed='0.65s'
+          {/* Always show the form - no loading state since dialog closes immediately */}
+          <Dialog.Body maxH='calc(90vh - 140px)' overflowY='auto'>
+            <VStack gap={8} align='stretch' w='100%'>
+              {/* Goal Name */}
+              <Field.Root w='100%'>
+                <Field.Label color='fg'>Goal Name</Field.Label>
+                <Input
+                  value={newGoal.name}
+                  onChange={(e) =>
+                    setNewGoal((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
+                  placeholder='e.g., Reduce fashion waste in luxury market'
+                  size='lg'
+                  w='100%'
+                  bg='bg.canvas'
+                  borderColor='border.emphasized'
+                  color='fg'
+                  _placeholder={{ color: 'fg.muted' }}
+                  _focus={{
+                    borderColor: 'brand',
+                    boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                  }}
+                />
+              </Field.Root>
+
+              {/* Goal Description */}
+              <Field.Root w='100%'>
+                <Field.Label color='fg'>Goal Description</Field.Label>
+                <Textarea
+                  value={newGoal.description}
+                  onChange={(e) =>
+                    setNewGoal((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  placeholder='Describe what this goal aims to achieve...'
+                  rows={4}
+                  size='lg'
+                  w='100%'
+                  bg='bg.canvas'
+                  borderColor='border.emphasized'
+                  color='fg'
+                  _placeholder={{ color: 'fg.muted' }}
+                  _focus={{
+                    borderColor: 'brand',
+                    boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                  }}
+                />
+              </Field.Root>
+
+              {/* Impact Level - Slider first, then description */}
+              <Field.Root w='100%'>
+                <Field.Label color='fg'>
+                  Impact Level ({newGoal.impact_level}%)
+                </Field.Label>
+                <VStack gap={4} align='stretch' w='100%'>
+                  <CustomSlider
+                    value={impactSliderIndex}
+                    onChange={handleImpactChange}
+                    min={0}
+                    max={IMPACT_LEVELS.length - 1}
+                    step={1}
                   />
-                  <VStack gap={2}>
-                    <Text
-                      fontSize='lg'
-                      fontWeight='medium'
-                      color='fg'
-                      fontFamily='heading'
-                    >
-                      {isEditing ? 'Updating Lab Goal' : 'Adding New Lab Goal'}
+                  <VStack gap={0} align='start' w='100%'>
+                    <Text fontSize='lg' fontWeight='bold' color='fg'>
+                      {impactInfo.title}
                     </Text>
-                    <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                      Please wait while we save your goal to the lab...
+                    <Text fontSize='sm' color='fg.muted' lineHeight='1.4'>
+                      {impactInfo.description}
                     </Text>
                   </VStack>
                 </VStack>
-              </Center>
-            </Box>
-          ) : (
-            // Normal Form Content
-            <>
-              <Dialog.Body maxH='calc(90vh - 140px)' overflowY='auto'>
-                <VStack gap={8} align='stretch' w='100%'>
-                  {/* Goal Name */}
-                  <Field.Root w='100%'>
-                    <Field.Label color='fg'>Goal Name</Field.Label>
-                    <Input
-                      value={newGoal.name}
-                      onChange={(e) =>
-                        setNewGoal((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder='e.g., Reduce fashion waste in luxury market'
-                      size='lg'
-                      w='100%'
-                      bg='bg.canvas'
-                      borderColor='border.emphasized'
-                      color='fg'
-                      _placeholder={{ color: 'fg.muted' }}
-                      _focus={{
-                        borderColor: 'brand',
-                        boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-                      }}
+              </Field.Root>
+
+              {/* Target Demographics */}
+              <Field.Root w='100%'>
+                <Field.Label color='fg'>Target Demographics</Field.Label>
+                <VStack gap={4} align='stretch' w='100%'>
+                  {newGoal.user_groups.map((group, index) => (
+                    <UserGroupItem
+                      key={index}
+                      group={group}
+                      index={index}
+                      isEditing={editingUserGroups.has(index)}
+                      onChange={updateUserGroup}
+                      onRemove={removeUserGroup}
+                      onConfirm={confirmUserGroup}
+                      onCancel={cancelUserGroup}
+                      onEdit={editUserGroup}
+                      canRemove={true}
                     />
-                  </Field.Root>
+                  ))}
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={addUserGroup}
+                    color='fg.muted'
+                    borderColor='border.muted'
+                    borderStyle='dashed'
+                    _hover={{ bg: 'bg.hover' }}
+                  >
+                    <FiPlus size={12} />
+                    <Text ml={2}>Add Another Group</Text>
+                  </Button>
+                </VStack>
+              </Field.Root>
 
-                  {/* Goal Description */}
-                  <Field.Root w='100%'>
-                    <Field.Label color='fg'>Goal Description</Field.Label>
-                    <Textarea
-                      value={newGoal.description}
-                      onChange={(e) =>
-                        setNewGoal((prev) => ({
-                          ...prev,
-                          description: e.target.value,
-                        }))
-                      }
-                      placeholder='Describe what this goal aims to achieve...'
-                      rows={4}
-                      size='lg'
-                      w='100%'
-                      bg='bg.canvas'
-                      borderColor='border.emphasized'
-                      color='fg'
-                      _placeholder={{ color: 'fg.muted' }}
-                      _focus={{
-                        borderColor: 'brand',
-                        boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-                      }}
+              {/* Problem Statements */}
+              <Field.Root w='100%'>
+                <Field.Label color='fg'>Problem Statements</Field.Label>
+                <VStack gap={4} align='stretch' w='100%'>
+                  {newGoal.problem_statements.map((statement, index) => (
+                    <ProblemStatementItem
+                      key={index}
+                      statement={statement}
+                      index={index}
+                      isEditing={editingProblemStatements.has(index)}
+                      onChange={updateProblemStatement}
+                      onRemove={removeProblemStatement}
+                      onConfirm={confirmProblemStatement}
+                      onCancel={cancelProblemStatement}
+                      onEdit={editProblemStatement}
+                      canRemove={true}
                     />
-                  </Field.Root>
-
-                  {/* Impact Level - Slider first, then description */}
-                  <Field.Root w='100%'>
-                    <Field.Label color='fg'>
-                      Impact Level ({newGoal.impact_level}%)
-                    </Field.Label>
-                    <VStack gap={4} align='stretch' w='100%'>
-                      <CustomSlider
-                        value={impactSliderIndex}
-                        onChange={handleImpactChange}
-                        min={0}
-                        max={IMPACT_LEVELS.length - 1}
-                        step={1}
-                      />
-                      <VStack gap={0} align='start' w='100%'>
-                        <Text fontSize='lg' fontWeight='bold' color='fg'>
-                          {impactInfo.title}
-                        </Text>
-                        <Text fontSize='sm' color='fg.muted' lineHeight='1.4'>
-                          {impactInfo.description}
-                        </Text>
-                      </VStack>
-                    </VStack>
-                  </Field.Root>
-
-                  {/* User Groups */}
-                  <Field.Root w='100%'>
-                    <Field.Label color='fg'>User Groups</Field.Label>
-                    <VStack gap={4} align='stretch' w='100%'>
-                      {newGoal.user_groups.map((group, index) => (
-                        <UserGroupItem
-                          key={index}
-                          group={group}
-                          index={index}
-                          isEditing={editingUserGroups.has(index)}
-                          onChange={updateUserGroup}
-                          onRemove={removeUserGroup}
-                          onConfirm={confirmUserGroup}
-                          onCancel={cancelUserGroup}
-                          onEdit={editUserGroup}
-                          canRemove={true}
-                        />
-                      ))}
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        onClick={addUserGroup}
-                        color='fg.muted'
-                        borderColor='border.muted'
-                        borderStyle='dashed'
-                        _hover={{ bg: 'bg.hover' }}
-                      >
-                        <FiPlus size={12} />
-                        <Text ml={2}>Add Another Group</Text>
-                      </Button>
-                    </VStack>
-                  </Field.Root>
-
-                  {/* Problem Statements */}
-                  <Field.Root w='100%'>
-                    <Field.Label color='fg'>Problem Statements</Field.Label>
-                    <VStack gap={4} align='stretch' w='100%'>
-                      {newGoal.problem_statements.map((statement, index) => (
-                        <ProblemStatementItem
-                          key={index}
-                          statement={statement}
-                          index={index}
-                          isEditing={editingProblemStatements.has(index)}
-                          onChange={updateProblemStatement}
-                          onRemove={removeProblemStatement}
-                          onConfirm={confirmProblemStatement}
-                          onCancel={cancelProblemStatement}
-                          onEdit={editProblemStatement}
-                          canRemove={true}
-                        />
-                      ))}
-                      <Button
-                        size='sm'
-                        variant='outline'
-                        onClick={addProblemStatement}
-                        color='fg.muted'
-                        borderColor='border.muted'
-                        borderStyle='dashed'
-                        _hover={{ bg: 'bg.hover' }}
-                      >
-                        <FiPlus size={12} />
-                        <Text ml={2}>Add Another Problem</Text>
-                      </Button>
-                    </VStack>
-                  </Field.Root>
+                  ))}
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={addProblemStatement}
+                    color='fg.muted'
+                    borderColor='border.muted'
+                    borderStyle='dashed'
+                    _hover={{ bg: 'bg.hover' }}
+                  >
+                    <FiPlus size={12} />
+                    <Text ml={2}>Add Another Problem</Text>
+                  </Button>
                 </VStack>
-              </Dialog.Body>
+              </Field.Root>
+            </VStack>
+          </Dialog.Body>
 
-              <Dialog.Footer>
-                <VStack gap={3} align='stretch' w='100%'>
-                  {!hasValidUserGroups && (
-                    <Text fontSize='sm' color='red.500' textAlign='center'>
-                      Please add at least one user group to save this goal.
-                    </Text>
-                  )}
-                  <HStack gap={3} justify='center'>
-                    <Button
-                      variant='outline'
-                      onClick={handleClose}
-                      color='fg'
-                      borderColor='border.emphasized'
-                      _hover={{ bg: 'bg.hover' }}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSave}
-                      disabled={!canSaveGoal || saving}
-                      bg='brand'
-                      color='white'
-                      _hover={{ bg: 'brand.hover' }}
-                    >
-                      <FiSave size={14} />
-                      {isEditing ? 'Update Goal' : 'Save Goal'}
-                    </Button>
-                  </HStack>
-                </VStack>
-              </Dialog.Footer>
-            </>
-          )}
+          <Dialog.Footer>
+            <VStack gap={3} align='stretch' w='100%'>
+              {!hasValidUserGroups && (
+                <Text fontSize='sm' color='error' textAlign='center'>
+                  Please add at least one user group to save this goal.
+                </Text>
+              )}
+              <HStack gap={3} justify='center'>
+                <Button
+                  variant='outline'
+                  onClick={handleClose}
+                  color='fg'
+                  borderColor='border.emphasized'
+                  _hover={{ bg: 'bg.hover' }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={!canSaveGoal}
+                  bg='brand'
+                  color='white'
+                  _hover={{ bg: 'brand.hover' }}
+                >
+                  <FiSave size={14} />
+                  <Text ml={2}>{isEditing ? 'Update Goal' : 'Save Goal'}</Text>
+                </Button>
+              </HStack>
+            </VStack>
+          </Dialog.Footer>
         </Dialog.Content>
       </Dialog.Positioner>
     </Dialog.Root>

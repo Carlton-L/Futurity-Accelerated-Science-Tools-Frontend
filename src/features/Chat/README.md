@@ -1,8 +1,74 @@
 # Context Passing for ChatPanel iframe
 
-This document describes three different approaches for passing page context data from the parent application to the ChatPanel iframe.
+This document describes the current implementation and alternative approaches for passing page context data from the parent application to the ChatPanel iframe.
 
-## Overview
+## Current Implementation
+
+The ChatPanel currently uses **PostMessage API** to send structured context data to the AI chat iframe. The implementation sends a specific message format required by the backend:
+
+### Message Format
+
+```javascript
+{
+  "mode": "expert" | "full-agency",
+  "subject": "metaverse",
+  "subject_fsid": "fsid_metaverse",
+  "page": "Subject page for metaverse"
+}
+```
+
+### Mode Selection Logic
+
+- **Expert Mode**: Used when viewing a subject page (pageType === 'subject')
+  - Sends the subject name and subject_fsid
+  - AI acts as an expert on that specific subject
+- **Full Agency Mode**: Used for all other pages
+  - Subject fields are sent as empty strings
+  - AI acts as a general assistant
+
+### Implementation Details
+
+```typescript
+const generateChatMessage = () => {
+  if (pageContext.pageType === 'subject' && pageContext.subject) {
+    return {
+      mode: 'expert',
+      subject: pageContext.subject.name,
+      subject_fsid: pageContext.subject.id,
+      page: `Subject page for ${pageContext.subject.name}`,
+    };
+  } else {
+    return {
+      mode: 'full-agency',
+      subject: '',
+      subject_fsid: '',
+      page: getPageDescription(), // Human-readable page description
+    };
+  }
+};
+
+// Send via postMessage with '*' origin
+iframe.contentWindow.postMessage(message, '*');
+```
+
+### Context Updates
+
+- Messages are sent automatically when the iframe loads
+- New messages are sent whenever the page context changes
+- Each message includes a human-readable page description
+
+### Page Descriptions
+
+The `page` field contains human-readable descriptions like:
+
+- "Subject page for metaverse"
+- "Lab page for Innovation Lab (analyze tab)"
+- "Search results for 'quantum computing'"
+- "Team admin page for Research Team"
+
+---
+
+## Overview of Alternative Approaches
 
 The ChatPanel has been replaced with an iframe that loads an external Chainlit AI chat application. The parent application needs to pass contextual information about the current page to enhance the AI's responses with relevant context.
 
@@ -126,7 +192,7 @@ const contextData = JSON.parse(decodeURIComponent(params.get('context')));
 - When you need to pass objects but don't want server-side visibility
 - Static context that doesn't change frequently
 
-## Approach 3: PostMessage API
+## Approach 3: PostMessage API (Current Implementation)
 
 ### Description
 
@@ -137,18 +203,10 @@ Context data is sent from the parent window to the iframe using the `window.post
 ```typescript
 const sendContextToIframe = () => {
   if (iframeRef.current && iframeLoaded) {
-    const contextData = {
-      type: 'PAGE_CONTEXT_UPDATE',
-      pageContext: pageContext,
-      contextString: contextString,
-      timestamp: Date.now(),
-    };
+    const message = generateChatMessage();
 
     try {
-      iframeRef.current.contentWindow?.postMessage(
-        contextData,
-        'https://agents.futurity.science'
-      );
+      iframeRef.current.contentWindow?.postMessage(message, '*');
     } catch (error) {
       console.error('Failed to send context to iframe:', error);
     }
@@ -160,7 +218,7 @@ useEffect(() => {
   if (iframeLoaded) {
     sendContextToIframe();
   }
-}, [pageContext, contextString, iframeLoaded]);
+}, [pageContext, iframeLoaded]);
 ```
 
 ### Receiving Context (iframe side)
@@ -170,10 +228,10 @@ window.addEventListener('message', (event) => {
   // Security check
   if (event.origin !== 'https://your-parent-domain.com') return;
 
-  if (event.data.type === 'PAGE_CONTEXT_UPDATE') {
-    const { pageContext, contextString } = event.data;
+  if (event.data.mode && event.data.page) {
+    const { mode, subject, subject_fsid, page } = event.data;
     // Use context in your application
-    updateChatContext(pageContext);
+    updateChatContext(event.data);
   }
 });
 ```
