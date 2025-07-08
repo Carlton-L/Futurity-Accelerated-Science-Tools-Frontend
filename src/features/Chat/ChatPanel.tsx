@@ -193,21 +193,95 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     return () => clearInterval(interval);
   }, [iframeStatus, hasTimedOut]);
 
+  // Generate the AI chat context message based on current page
+  const generateChatMessage = () => {
+    // Get human-readable page description
+    const getPageDescription = () => {
+      switch (pageContext.pageType) {
+        case 'subject':
+          if ('subject' in pageContext && pageContext.subject) {
+            return `Subject page for ${pageContext.subject.name}`;
+          }
+          return 'Subject page';
+        case 'lab':
+          if ('lab' in pageContext && pageContext.lab) {
+            return `Lab page for ${pageContext.lab.name} (${pageContext.currentTab} tab)`;
+          }
+          return 'Lab page';
+        case 'search':
+          if ('searchQuery' in pageContext) {
+            return `Search results for "${pageContext.searchQuery}"`;
+          }
+          return 'Search page';
+        case 'organization':
+          if ('organization' in pageContext && pageContext.organization) {
+            return `Organization page for ${pageContext.organization.name}`;
+          }
+          return 'Organization page';
+        case 'whiteboard':
+          return 'My Whiteboard page';
+        case 'team-home':
+          if ('team' in pageContext && pageContext.team) {
+            return `Team page for ${pageContext.team.name}`;
+          }
+          return 'Team page';
+        case 'team-admin':
+          if ('team' in pageContext && pageContext.team) {
+            return `Team admin page for ${pageContext.team.name}`;
+          }
+          return 'Team admin page';
+        case 'user-profile':
+          return 'User profile page';
+        case 'create-lab':
+          return 'Create lab page';
+        case 'lab-admin':
+          if ('lab' in pageContext && pageContext.lab) {
+            return `Lab admin page for ${pageContext.lab.name}`;
+          }
+          return 'Lab admin page';
+        case 'idea-seed':
+          if ('ideaSeed' in pageContext && pageContext.ideaSeed) {
+            return `IdeaSeed page for ${pageContext.ideaSeed.name}`;
+          }
+          return 'IdeaSeed page';
+        default:
+          return pageContext.pageTitle || 'Unknown page';
+      }
+    };
+
+    // Determine mode and subject data
+    if (
+      pageContext.pageType === 'subject' &&
+      'subject' in pageContext &&
+      pageContext.subject
+    ) {
+      // Expert mode for subject pages
+      return {
+        mode: 'expert' as const,
+        subject: pageContext.subject.name,
+        subject_fsid: pageContext.subject.id, // Using id as fsid for now
+        page: getPageDescription(),
+      };
+    } else {
+      // Full agency mode for all other pages
+      return {
+        mode: 'full-agency' as const,
+        subject: '',
+        subject_fsid: '',
+        page: getPageDescription(),
+      };
+    }
+  };
+
   // PostMessage method to send context to iframe
   const sendContextToIframe = () => {
     if (iframeRef.current && iframeStatus === 'loaded') {
-      const contextData = {
-        type: 'PAGE_CONTEXT_UPDATE',
-        pageContext: pageContext,
-        contextString: contextString,
-        timestamp: Date.now(),
-      };
+      const message = generateChatMessage();
 
       try {
-        // Use '*' as target origin to avoid origin mismatch issues
-        // In production, you should replace '*' with the actual iframe origin for security
-        iframeRef.current.contentWindow?.postMessage(contextData, '*');
-        console.log('🖼️ Context sent to iframe via postMessage:', contextData);
+        // Use '*' as target origin as specified by backend engineer
+        iframeRef.current.contentWindow?.postMessage(message, '*');
+        console.log('🖼️ Context message sent to iframe:', message);
       } catch (error) {
         console.error('🖼️ Failed to send context to iframe:', error);
       }
@@ -220,7 +294,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
       sendContextToIframe();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageContext, contextString, iframeStatus]);
+  }, [pageContext, iframeStatus]);
 
   // URL generation methods (kept for potential future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
