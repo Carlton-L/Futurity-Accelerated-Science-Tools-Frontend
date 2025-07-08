@@ -7,17 +7,14 @@ import {
   Text,
   VStack,
   HStack,
-  Grid,
   Input,
   IconButton,
   Accordion,
   Badge,
-  Field,
   Skeleton,
 } from '@chakra-ui/react';
 import {
   FiTarget,
-  FiUsers,
   FiFilter,
   FiEdit,
   FiSave,
@@ -25,6 +22,10 @@ import {
   FiPlus,
   FiTrash2,
   FiAlertCircle,
+  FiInfo,
+  FiEye,
+  FiEyeOff,
+  FiCheck,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -32,21 +33,16 @@ import {
   type ApiLabGoal,
   type Lab as ApiLabResponse,
 } from '../../services/labService';
-import {
-  relationshipService,
-  type TeamUser,
-} from '../../services/relationshipService';
 import type { Lab } from './types';
 import AddGoalDialog from './AddGoalDialog';
 
-// User info for the Users section
-interface UserInfo {
+// Term interface for the UI
+interface TermItem {
   id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'editor' | 'viewer';
-  joinedAt: string;
-  pictureUrl?: string;
+  text: string;
+  type: 'include' | 'exclude';
+  isLoading?: boolean;
+  source: 'api' | 'manual';
 }
 
 interface PlanProps {
@@ -75,34 +71,56 @@ const Plan: React.FC<PlanProps> = ({
   const [labData, setLabData] = useState<ApiLabResponse | null>(null);
   const [loadingLabData, setLoadingLabData] = useState(false);
 
-  // Overview card editing state
-  const [isEditingOverview, setIsEditingOverview] = useState(false);
-  const [overviewForm, setOverviewForm] = useState({
-    name: '',
-    description: '',
-  });
-
   // Goals state
   const [goals, setGoals] = useState<ApiLabGoal[]>([]);
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState<ApiLabGoal | null>(null);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
 
-  // Users state
-  const [users, setUsers] = useState<UserInfo[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-
-  // Terms editing state - simplified since always in edit mode
-  const [editingIncludeTerms, setEditingIncludeTerms] = useState<string[]>([]);
-  const [editingExcludeTerms, setEditingExcludeTerms] = useState<string[]>([]);
+  // Terms state
+  const [terms, setTerms] = useState<TermItem[]>([]);
+  const [isAddingTerm, setIsAddingTerm] = useState(false);
+  const [newTermText, setNewTermText] = useState('');
+  const [newTermType, setNewTermType] = useState<'include' | 'exclude'>(
+    'include'
+  );
+  const [validationError, setValidationError] = useState('');
 
   // Loading states
-  const [savingOverview, setSavingOverview] = useState(false);
   const [savingGoals, setSavingGoals] = useState(false);
-  const [savingTerms, setSavingTerms] = useState(false);
 
   // Error states
   const [error, setError] = useState<string>('');
+
+  // Generate term items from lab data
+  const generateTermItems = useCallback(
+    (apiLab: ApiLabResponse): TermItem[] => {
+      const termItems: TermItem[] = [];
+
+      // Add include terms
+      (apiLab.include_terms || []).forEach((term, index) => {
+        termItems.push({
+          id: `include-${index}-${term}`,
+          text: term,
+          type: 'include',
+          source: 'api',
+        });
+      });
+
+      // Add exclude terms
+      (apiLab.exclude_terms || []).forEach((term, index) => {
+        termItems.push({
+          id: `exclude-${index}-${term}`,
+          text: term,
+          type: 'exclude',
+          source: 'api',
+        });
+      });
+
+      return termItems;
+    },
+    []
+  );
 
   // Load lab data from API
   const loadLabData = useCallback(async () => {
@@ -114,17 +132,8 @@ const Plan: React.FC<PlanProps> = ({
     try {
       const apiLabData = await labService.getLabById(labId, token);
       setLabData(apiLabData);
-
-      // Update local state with API data
-      setOverviewForm({
-        name: apiLabData.ent_name,
-        description: apiLabData.ent_summary || '', // Fixed: Handle undefined summary
-      });
-
       setGoals(apiLabData.goals || []);
-      // FIXED: Handle undefined include/exclude terms safely
-      setEditingIncludeTerms([...(apiLabData.include_terms || [])]);
-      setEditingExcludeTerms([...(apiLabData.exclude_terms || [])]);
+      setTerms(generateTermItems(apiLabData));
 
       console.log('Loaded lab data:', apiLabData);
     } catch (error) {
@@ -135,95 +144,14 @@ const Plan: React.FC<PlanProps> = ({
     } finally {
       setLoadingLabData(false);
     }
-  }, [token, labId]);
-
-  // Load lab users from relationship service
-  const loadLabUsers = useCallback(async () => {
-    if (!token || !lab?.teamspaceId) return;
-
-    setLoadingUsers(true);
-    try {
-      const teamData = await relationshipService.getTeamUsers(
-        lab.teamspaceId,
-        token
-      );
-
-      const userInfos: UserInfo[] = teamData.users.map(
-        (teamUser: TeamUser) => ({
-          id: teamUser.uniqueID,
-          name: teamUser.profile.fullname || 'Unknown User',
-          email: teamUser.email,
-          role:
-            (teamUser.team_relationships[0] as 'admin' | 'editor' | 'viewer') ||
-            'viewer',
-          joinedAt: teamUser.createdAt,
-          pictureUrl: teamUser.profile.picture_url || undefined,
-        })
-      );
-
-      setUsers(userInfos);
-      console.log('Loaded team users:', userInfos);
-    } catch (error) {
-      console.error('Failed to load users:', error);
-      setError('Failed to load team members');
-    } finally {
-      setLoadingUsers(false);
-    }
-  }, [token, lab?.teamspaceId]);
+  }, [token, labId, generateTermItems]);
 
   // Initialize data when component mounts or dependencies change
   useEffect(() => {
     loadLabData();
   }, [loadLabData]);
 
-  useEffect(() => {
-    loadLabUsers();
-  }, [loadLabUsers]);
-
-  // Handle overview form changes
-  const handleOverviewChange = (
-    field: 'name' | 'description',
-    value: string
-  ) => {
-    setOverviewForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // Save overview changes
-  const handleSaveOverview = useCallback(async () => {
-    if (!token || !labId) return;
-
-    setSavingOverview(true);
-    setError('');
-
-    try {
-      const updatedLab = await labService.updateLabInfo(
-        labId,
-        overviewForm.name.trim(),
-        overviewForm.description.trim(),
-        token
-      );
-
-      setLabData(updatedLab);
-      setIsEditingOverview(false);
-
-      if (onRefreshLab) {
-        await onRefreshLab();
-      }
-
-      console.log('Successfully updated lab overview');
-    } catch (error) {
-      console.error('Failed to save overview:', error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to save overview changes'
-      );
-    } finally {
-      setSavingOverview(false);
-    }
-  }, [token, labId, overviewForm, onRefreshLab]);
-
-  // Handle goal form changes - now handled by AddGoalDialog
+  // Handle goal form changes
   const handleSaveGoal = useCallback(
     async (goalToAdd: ApiLabGoal) => {
       if (!token || !labId) return;
@@ -324,79 +252,213 @@ const Plan: React.FC<PlanProps> = ({
     [token, labId, onRefreshLab]
   );
 
-  // Handle terms editing
-  const handleTermChange = (
-    type: 'include' | 'exclude',
-    index: number,
-    value: string
-  ) => {
-    if (type === 'include') {
-      setEditingIncludeTerms((prev) =>
-        prev.map((term, i) => (i === index ? value : term))
+  // Validate new term
+  const validateTerm = useCallback(
+    (text: string) => {
+      const trimmedText = text.trim();
+
+      if (!trimmedText) return '';
+
+      // Check if term already exists
+      const termExists = terms.some(
+        (term) => term.text.toLowerCase() === trimmedText.toLowerCase()
       );
-    } else {
-      setEditingExcludeTerms((prev) =>
-        prev.map((term, i) => (i === index ? value : term))
-      );
+
+      if (termExists) {
+        return `"${trimmedText}" already exists in your terms list`;
+      }
+
+      return '';
+    },
+    [terms]
+  );
+
+  // Handle term addition
+  const handleAddTerm = useCallback(async () => {
+    if (!newTermText.trim() || !token) return;
+
+    const error = validateTerm(newTermText);
+    if (error) {
+      setValidationError(error);
+      return;
     }
-  };
-
-  // Add new term to existing terms list
-  const addTerm = (type: 'include' | 'exclude') => {
-    if (type === 'include') {
-      setEditingIncludeTerms((prev) => [...prev, '']);
-    } else {
-      setEditingExcludeTerms((prev) => [...prev, '']);
-    }
-  };
-
-  // Remove term
-  const removeTerm = (type: 'include' | 'exclude', index: number) => {
-    if (type === 'include') {
-      setEditingIncludeTerms((prev) => prev.filter((_, i) => i !== index));
-    } else {
-      setEditingExcludeTerms((prev) => prev.filter((_, i) => i !== index));
-    }
-  };
-
-  // Save terms changes - MISSING FUNCTION ADDED
-  const handleSaveTerms = useCallback(async () => {
-    if (!token || !labId || !onTermsUpdate) return;
-
-    setSavingTerms(true);
-    setError('');
 
     try {
-      // Filter out empty terms
-      const filteredIncludeTerms = editingIncludeTerms
-        .map((term) => term.trim())
-        .filter((term) => term !== '');
-      const filteredExcludeTerms = editingExcludeTerms
-        .map((term) => term.trim())
-        .filter((term) => term !== '');
+      // Create temporary term item for immediate UI feedback
+      const tempTerm: TermItem = {
+        id: `temp-${Date.now()}`,
+        text: newTermText.trim(),
+        type: newTermType,
+        isLoading: true,
+        source: 'manual',
+      };
 
-      // Call the parent's terms update function
-      await onTermsUpdate(filteredIncludeTerms, filteredExcludeTerms);
+      setTerms((prev) => [...prev, tempTerm]);
+      setNewTermText('');
+      setValidationError('');
+      setIsAddingTerm(false);
 
-      console.log('Successfully updated terms');
+      // Make API call
+      const updatedLab =
+        newTermType === 'include'
+          ? await labService.addIncludeTerm(labId, newTermText.trim(), token)
+          : await labService.addExcludeTerm(labId, newTermText.trim(), token);
+
+      // Update lab data and regenerate terms from API response
+      setLabData(updatedLab);
+      setTerms(generateTermItems(updatedLab));
+
+      // Call parent callback to update lab context
+      if (onTermsUpdate) {
+        await onTermsUpdate(
+          updatedLab.include_terms || [],
+          updatedLab.exclude_terms || []
+        );
+      }
+
+      console.log('Successfully added term:', newTermText.trim());
     } catch (error) {
-      console.error('Failed to save terms:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save terms');
-    } finally {
-      setSavingTerms(false);
+      console.error('Failed to add term:', error);
+      setError(error instanceof Error ? error.message : 'Failed to add term');
+
+      // Remove the temporary term on error
+      setTerms((prev) => prev.filter((t) => !t.id.startsWith('temp-')));
     }
-  }, [token, labId, editingIncludeTerms, editingExcludeTerms, onTermsUpdate]);
+  }, [
+    newTermText,
+    newTermType,
+    token,
+    labId,
+    validateTerm,
+    generateTermItems,
+    onTermsUpdate,
+  ]);
 
-  // Cancel terms editing - MISSING FUNCTION ADDED
-  const handleCancelTermsEdit = useCallback(() => {
-    // Reset editing terms to current lab data
-    const currentIncludeTerms = labData?.include_terms || includeTerms || [];
-    const currentExcludeTerms = labData?.exclude_terms || excludeTerms || [];
+  // Handle term deletion
+  const handleDeleteTerm = useCallback(
+    async (termItem: TermItem) => {
+      if (!token) return;
 
-    setEditingIncludeTerms([...currentIncludeTerms]);
-    setEditingExcludeTerms([...currentExcludeTerms]);
-    setError('');
-  }, [labData, includeTerms, excludeTerms]);
+      try {
+        // Remove from UI immediately
+        setTerms((prev) => prev.filter((t) => t.id !== termItem.id));
+
+        // Make API call
+        const updatedLab =
+          termItem.type === 'include'
+            ? await labService.removeIncludeTerm(labId, termItem.text, token)
+            : await labService.removeExcludeTerm(labId, termItem.text, token);
+
+        // Update lab data
+        setLabData(updatedLab);
+
+        // Call parent callback to update lab context
+        if (onTermsUpdate) {
+          await onTermsUpdate(
+            updatedLab.include_terms || [],
+            updatedLab.exclude_terms || []
+          );
+        }
+
+        console.log('Successfully removed term:', termItem.text);
+      } catch (error) {
+        console.error('Failed to remove term:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to remove term'
+        );
+
+        // Reload lab data to restore correct state
+        loadLabData();
+      }
+    },
+    [token, labId, onTermsUpdate, loadLabData]
+  );
+
+  // Handle term type toggle
+  const handleToggleTermType = useCallback(
+    async (termItem: TermItem) => {
+      if (!token) return;
+
+      try {
+        // Set loading state for this specific term
+        setTerms((prev) =>
+          prev.map((t) =>
+            t.id === termItem.id ? { ...t, isLoading: true } : t
+          )
+        );
+
+        // Make API call
+        const updatedLab = await labService.toggleTermType(
+          labId,
+          termItem.text,
+          termItem.type,
+          token
+        );
+
+        // Update lab data and regenerate terms from API response
+        setLabData(updatedLab);
+        setTerms(generateTermItems(updatedLab));
+
+        // Call parent callback to update lab context
+        if (onTermsUpdate) {
+          await onTermsUpdate(
+            updatedLab.include_terms || [],
+            updatedLab.exclude_terms || []
+          );
+        }
+
+        console.log('Successfully toggled term type:', termItem.text);
+      } catch (error) {
+        console.error('Failed to toggle term type:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to toggle term type'
+        );
+
+        // Remove loading state and reload data to restore correct state
+        setTerms((prev) =>
+          prev.map((t) =>
+            t.id === termItem.id ? { ...t, isLoading: false } : t
+          )
+        );
+        loadLabData();
+      }
+    },
+    [token, labId, generateTermItems, onTermsUpdate, loadLabData]
+  );
+
+  // Handle input changes with validation
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setNewTermText(value);
+
+      // Clear error when user starts typing
+      if (validationError) {
+        setValidationError('');
+      }
+
+      // Real-time validation
+      if (value.trim()) {
+        const error = validateTerm(value);
+        setValidationError(error);
+      }
+    },
+    [validationError, validateTerm]
+  );
+
+  // Handle input key press
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleAddTerm();
+      } else if (e.key === 'Escape') {
+        setNewTermText('');
+        setValidationError('');
+        setIsAddingTerm(false);
+      }
+    },
+    [handleAddTerm]
+  );
 
   // Get impact level description
   const getImpactDescription = (level: number): string => {
@@ -413,26 +475,10 @@ const Plan: React.FC<PlanProps> = ({
     return 'Personal Spark';
   };
 
-  // Get role badge color
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'red';
-      case 'editor':
-        return 'blue';
-      case 'viewer':
-        return 'gray';
-      default:
-        return 'gray';
-    }
-  };
-
-  // Display current data (preference: labData from API, fallback to props) - FIXED: Handle undefined safely
-  const displayLabName = labData?.ent_name || lab?.name || 'Loading...';
-  const displayLabDescription = labData?.ent_summary || lab?.description || '';
-  const displayIncludeTerms = labData?.include_terms || includeTerms || [];
-  const displayExcludeTerms = labData?.exclude_terms || excludeTerms || [];
+  // Display current data
   const displayGoals = labData?.goals || goals;
+  const includeTermsCount = terms.filter((t) => t.type === 'include').length;
+  const excludeTermsCount = terms.filter((t) => t.type === 'exclude').length;
 
   if (loadingLabData) {
     return (
@@ -493,12 +539,12 @@ const Plan: React.FC<PlanProps> = ({
                   Lab Plan Overview
                 </Heading>
                 <Text color='fg.muted' fontSize='sm' fontFamily='body'>
-                  Define your lab's goals, team, and search parameters
+                  Define your lab's goals and search parameters
                 </Text>
               </VStack>
             </HStack>
 
-            {/* Overview Content - Remove lab name and description editing */}
+            {/* Overview Content */}
             <Accordion.Root collapsible defaultValue={['goals']}>
               {/* Goals Section */}
               <Accordion.Item value='goals'>
@@ -685,323 +731,322 @@ const Plan: React.FC<PlanProps> = ({
                 </Accordion.ItemContent>
               </Accordion.Item>
 
-              {/* Users Section */}
-              <Accordion.Item value='users'>
-                <Accordion.ItemTrigger>
-                  <HStack>
-                    <FiUsers size={16} />
-                    <Text fontWeight='medium'>Team Members</Text>
-                    <Badge colorScheme='green' size='sm'>
-                      {users.length}
-                    </Badge>
-                  </HStack>
-                  <Accordion.ItemIndicator />
-                </Accordion.ItemTrigger>
-                <Accordion.ItemContent>
-                  <VStack gap={3} align='stretch' pt={2}>
-                    {loadingUsers ? (
-                      <Text fontSize='sm' color='fg.muted'>
-                        Loading team members...
-                      </Text>
-                    ) : users.length > 0 ? (
-                      users.map((user) => (
-                        <HStack
-                          key={user.id}
-                          justify='space-between'
-                          p={3}
-                          bg='bg.subtle'
-                          borderRadius='md'
-                        >
-                          <VStack gap={1} align='start'>
-                            <Text fontSize='sm' fontWeight='medium' color='fg'>
-                              {user.name}
-                            </Text>
-                            <Text fontSize='xs' color='fg.muted'>
-                              {user.email}
-                            </Text>
-                            <Text fontSize='xs' color='fg.muted'>
-                              Joined{' '}
-                              {new Date(user.joinedAt).toLocaleDateString()}
-                            </Text>
-                          </VStack>
-                          <Badge
-                            colorScheme={getRoleBadgeColor(user.role)}
-                            size='sm'
-                          >
-                            {user.role}
-                          </Badge>
-                        </HStack>
-                      ))
-                    ) : (
-                      <Text fontSize='sm' color='fg.muted'>
-                        No team members found
-                      </Text>
-                    )}
-                  </VStack>
-                </Accordion.ItemContent>
-              </Accordion.Item>
-
-              {/* Include/Exclude Terms Section */}
+              {/* Include/Exclude Terms Section - Creation Style */}
               <Accordion.Item value='terms'>
                 <Accordion.ItemTrigger>
                   <HStack>
                     <FiFilter size={16} />
                     <Text fontWeight='medium'>Search Terms</Text>
                     <Badge colorScheme='purple' size='sm'>
-                      {displayIncludeTerms.length + displayExcludeTerms.length}
+                      {includeTermsCount + excludeTermsCount}
                     </Badge>
                   </HStack>
                   <Accordion.ItemIndicator />
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
-                  <VStack gap={4} align='stretch' pt={2}>
-                    {/* Always in "edit" mode - no toggle needed */}
-                    <VStack gap={4} align='stretch'>
-                      <HStack gap={2} align='center'>
-                        <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                          These terms affect search results and analysis in this
-                          lab
+                  <VStack gap={4} align='stretch' py={4}>
+                    {/* Header with info */}
+                    <HStack gap={2} align='start'>
+                      <Box color='fg.muted'>
+                        <FiInfo size={16} />
+                      </Box>
+                      <VStack gap={1} align='start' flex='1'>
+                        <Text
+                          fontSize='sm'
+                          color='fg.subtle'
+                          fontFamily='body'
+                          lineHeight='1.5'
+                        >
+                          Include terms help find relevant content. Exclude
+                          terms filter out unwanted results.
                         </Text>
-                      </HStack>
+                        <HStack
+                          gap={4}
+                          fontSize='xs'
+                          color='fg.muted'
+                          fontFamily='body'
+                        >
+                          <Text>Include: {includeTermsCount}</Text>
+                          <Text>Exclude: {excludeTermsCount}</Text>
+                        </HStack>
+                      </VStack>
+                    </HStack>
 
-                      <Grid templateColumns='1fr 1fr' gap={6}>
-                        {/* Include Terms Management */}
-                        <VStack gap={3} align='stretch'>
-                          <HStack justify='space-between' align='center'>
-                            <Text
-                              fontSize='sm'
-                              fontWeight='medium'
-                              color='success'
-                              fontFamily='heading'
-                            >
-                              Include Terms
-                            </Text>
-                            <Badge
-                              colorScheme='green'
-                              size='sm'
-                              variant='subtle'
-                            >
-                              {editingIncludeTerms.length}
-                            </Badge>
-                          </HStack>
+                    {/* Validation Error */}
+                    {validationError && (
+                      <Box
+                        p={3}
+                        bg='red.50'
+                        _dark={{ bg: 'red.900' }}
+                        borderColor='red.200'
+                        borderWidth='1px'
+                        borderRadius='md'
+                      >
+                        <HStack>
+                          <FiAlertCircle color='red' />
+                          <Text
+                            color='red.600'
+                            _dark={{ color: 'red.300' }}
+                            fontSize='sm'
+                          >
+                            {validationError}
+                          </Text>
+                        </HStack>
+                      </Box>
+                    )}
 
-                          <VStack gap={2} align='stretch'>
-                            {editingIncludeTerms.length > 0 ? (
-                              editingIncludeTerms.map((term, index) => (
-                                <HStack key={index} gap={2}>
-                                  <Input
-                                    size='sm'
-                                    value={term}
-                                    onChange={(e) =>
-                                      handleTermChange(
-                                        'include',
-                                        index,
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder='Enter include term...'
-                                    bg='bg.canvas'
-                                    borderColor='success'
-                                    color='fg'
-                                    _placeholder={{ color: 'fg.muted' }}
-                                    _focus={{
-                                      borderColor: 'success',
-                                      boxShadow:
-                                        '0 0 0 1px var(--chakra-colors-success)',
-                                    }}
-                                    fontFamily='body'
-                                  />
-                                  <IconButton
-                                    size='sm'
-                                    variant='ghost'
-                                    color='fg.muted'
-                                    _hover={{ color: 'error', bg: 'bg.hover' }}
-                                    onClick={() => removeTerm('include', index)}
-                                    aria-label='Remove term'
-                                  >
-                                    <FiX size={14} />
-                                  </IconButton>
-                                </HStack>
-                              ))
-                            ) : (
-                              <Box
-                                p={4}
-                                textAlign='center'
-                                border='2px dashed'
-                                borderColor='border.muted'
-                                borderRadius='md'
-                                bg='bg.subtle'
-                                cursor='pointer'
-                                _hover={{
-                                  borderColor: 'border.emphasized',
-                                  bg: 'bg.hover',
-                                }}
-                                onClick={() => addTerm('include')}
-                                transition='all 0.2s'
+                    {/* Terms List */}
+                    <VStack gap={3} align='stretch'>
+                      {/* Add new term input */}
+                      {isAddingTerm ? (
+                        <Box
+                          p={3}
+                          border='1px solid'
+                          borderColor={validationError ? 'red.500' : 'brand'}
+                          borderRadius='md'
+                          bg='bg.canvas'
+                        >
+                          <VStack gap={3}>
+                            <Input
+                              value={newTermText}
+                              onChange={handleInputChange}
+                              placeholder='Enter term...'
+                              size='md'
+                              autoFocus
+                              bg='bg'
+                              borderColor={
+                                validationError ? 'red.500' : 'border.muted'
+                              }
+                              color='fg'
+                              _focus={{
+                                borderColor: validationError
+                                  ? 'red.500'
+                                  : 'brand',
+                                boxShadow: validationError
+                                  ? '0 0 0 1px var(--chakra-colors-red-500)'
+                                  : '0 0 0 1px var(--chakra-colors-brand)',
+                              }}
+                              onKeyDown={handleKeyPress}
+                              fontFamily='body'
+                            />
+
+                            <HStack gap={2} w='100%'>
+                              <Button
+                                size='sm'
+                                variant={
+                                  newTermType === 'include'
+                                    ? 'solid'
+                                    : 'outline'
+                                }
+                                onClick={() => setNewTermType('include')}
+                                flex='1'
+                                fontSize='sm'
+                                fontFamily='body'
+                                colorScheme='green'
                               >
-                                <VStack gap={2}>
-                                  <Box color='fg.muted'>
-                                    <FiPlus size={20} />
-                                  </Box>
-                                  <Text
-                                    color='fg.muted'
-                                    fontSize='sm'
-                                    fontFamily='body'
-                                  >
-                                    Add include term
-                                  </Text>
-                                </VStack>
-                              </Box>
-                            )}
-                          </VStack>
-
-                          {/* Add button if terms exist */}
-                          {editingIncludeTerms.length > 0 && (
-                            <Button
-                              size='sm'
-                              variant='outline'
-                              onClick={() => addTerm('include')}
-                              color='success'
-                              borderColor='success'
-                              borderStyle='dashed'
-                              _hover={{ bg: 'bg.hover' }}
-                            >
-                              <FiPlus size={14} />
-                              Add Include Term
-                            </Button>
-                          )}
-                        </VStack>
-
-                        {/* Exclude Terms Management */}
-                        <VStack gap={3} align='stretch'>
-                          <HStack justify='space-between' align='center'>
-                            <Text
-                              fontSize='sm'
-                              fontWeight='medium'
-                              color='error'
-                              fontFamily='heading'
-                            >
-                              Exclude Terms
-                            </Text>
-                            <Badge colorScheme='red' size='sm' variant='subtle'>
-                              {editingExcludeTerms.length}
-                            </Badge>
-                          </HStack>
-
-                          <VStack gap={2} align='stretch'>
-                            {editingExcludeTerms.length > 0 ? (
-                              editingExcludeTerms.map((term, index) => (
-                                <HStack key={index} gap={2}>
-                                  <Input
-                                    size='sm'
-                                    value={term}
-                                    onChange={(e) =>
-                                      handleTermChange(
-                                        'exclude',
-                                        index,
-                                        e.target.value
-                                      )
-                                    }
-                                    placeholder='Enter exclude term...'
-                                    bg='bg.canvas'
-                                    borderColor='error'
-                                    color='fg'
-                                    _placeholder={{ color: 'fg.muted' }}
-                                    _focus={{
-                                      borderColor: 'error',
-                                      boxShadow:
-                                        '0 0 0 1px var(--chakra-colors-error)',
-                                    }}
-                                    fontFamily='body'
-                                  />
-                                  <IconButton
-                                    size='sm'
-                                    variant='ghost'
-                                    color='fg.muted'
-                                    _hover={{ color: 'error', bg: 'bg.hover' }}
-                                    onClick={() => removeTerm('exclude', index)}
-                                    aria-label='Remove term'
-                                  >
-                                    <FiX size={14} />
-                                  </IconButton>
-                                </HStack>
-                              ))
-                            ) : (
-                              <Box
-                                p={4}
-                                textAlign='center'
-                                border='2px dashed'
-                                borderColor='border.muted'
-                                borderRadius='md'
-                                bg='bg.subtle'
-                                cursor='pointer'
-                                _hover={{
-                                  borderColor: 'border.emphasized',
-                                  bg: 'bg.hover',
-                                }}
-                                onClick={() => addTerm('exclude')}
-                                transition='all 0.2s'
+                                Include
+                              </Button>
+                              <Button
+                                size='sm'
+                                variant={
+                                  newTermType === 'exclude'
+                                    ? 'solid'
+                                    : 'outline'
+                                }
+                                onClick={() => setNewTermType('exclude')}
+                                flex='1'
+                                fontSize='sm'
+                                fontFamily='body'
+                                colorScheme='red'
                               >
-                                <VStack gap={2}>
-                                  <Box color='fg.muted'>
-                                    <FiPlus size={20} />
-                                  </Box>
-                                  <Text
-                                    color='fg.muted'
-                                    fontSize='sm'
-                                    fontFamily='body'
-                                  >
-                                    Add exclude term
-                                  </Text>
-                                </VStack>
-                              </Box>
-                            )}
+                                Exclude
+                              </Button>
+                            </HStack>
+
+                            <HStack gap={2} w='100%'>
+                              <IconButton
+                                size='sm'
+                                variant='solid'
+                                colorScheme='green'
+                                onClick={handleAddTerm}
+                                aria-label='Add term'
+                                disabled={
+                                  !newTermText.trim() || !!validationError
+                                }
+                                flex='1'
+                              >
+                                <FiCheck size={14} />
+                              </IconButton>
+                              <Button
+                                size='sm'
+                                variant='ghost'
+                                onClick={() => {
+                                  setNewTermText('');
+                                  setValidationError('');
+                                  setIsAddingTerm(false);
+                                }}
+                                flex='1'
+                                fontSize='sm'
+                                fontFamily='body'
+                              >
+                                Cancel
+                              </Button>
+                            </HStack>
                           </VStack>
-
-                          {/* Add button if terms exist */}
-                          {editingExcludeTerms.length > 0 && (
-                            <Button
-                              size='sm'
-                              variant='outline'
-                              onClick={() => addTerm('exclude')}
-                              color='error'
-                              borderColor='error'
-                              borderStyle='dashed'
-                              _hover={{ bg: 'bg.hover' }}
-                            >
-                              <FiPlus size={14} />
-                              Add Exclude Term
-                            </Button>
-                          )}
-                        </VStack>
-                      </Grid>
-
-                      {/* Action Buttons */}
-                      <HStack gap={3} pt={2}>
+                        </Box>
+                      ) : (
                         <Button
                           size='md'
-                          onClick={handleSaveTerms}
-                          loading={savingTerms}
-                          bg='brand'
-                          color='white'
-                          _hover={{ bg: 'brand.hover' }}
-                          fontFamily='heading'
+                          variant='ghost'
+                          onClick={() => setIsAddingTerm(true)}
+                          justifyContent='flex-start'
+                          color='fg.muted'
+                          _hover={{ color: 'fg', bg: 'bg.hover' }}
+                          fontFamily='body'
                         >
-                          <FiSave size={16} />
-                          Save Terms
+                          <FiPlus size={16} />
+                          Add Term
                         </Button>
-                        <Button
-                          size='md'
-                          variant='outline'
-                          onClick={handleCancelTermsEdit}
-                          color='fg'
-                          borderColor='border.emphasized'
-                          _hover={{ bg: 'bg.hover' }}
-                          fontFamily='heading'
+                      )}
+
+                      {/* Existing terms */}
+                      {terms.length > 0 ? (
+                        terms.map((term) => (
+                          <Box
+                            key={term.id}
+                            p={3}
+                            border='1px solid'
+                            borderColor={
+                              term.type === 'include' ? 'green.300' : 'red.300'
+                            }
+                            _dark={{
+                              borderColor:
+                                term.type === 'include'
+                                  ? 'green.700'
+                                  : 'red.700',
+                            }}
+                            borderRadius='md'
+                            bg={term.type === 'include' ? 'green.50' : 'red.50'}
+                            _dark={{
+                              bg:
+                                term.type === 'include'
+                                  ? 'green.900'
+                                  : 'red.900',
+                            }}
+                            transition='all 0.2s'
+                            opacity={term.isLoading ? 0.7 : 1}
+                          >
+                            <HStack justify='space-between' align='center'>
+                              <HStack gap={3} flex='1' align='center'>
+                                {term.isLoading ? (
+                                  <Skeleton height='20px' width='20px' />
+                                ) : (
+                                  <Box
+                                    color={
+                                      term.type === 'include'
+                                        ? 'green.600'
+                                        : 'red.600'
+                                    }
+                                    _dark={{
+                                      color:
+                                        term.type === 'include'
+                                          ? 'green.300'
+                                          : 'red.300',
+                                    }}
+                                  >
+                                    {term.type === 'include' ? (
+                                      <FiEye size={16} />
+                                    ) : (
+                                      <FiEyeOff size={16} />
+                                    )}
+                                  </Box>
+                                )}
+                                <Text
+                                  fontSize='sm'
+                                  color='fg'
+                                  fontWeight='medium'
+                                  fontFamily='body'
+                                  flex='1'
+                                >
+                                  {term.text}
+                                </Text>
+                              </HStack>
+
+                              <HStack gap={1}>
+                                {/* Toggle include/exclude */}
+                                {term.isLoading ? (
+                                  <Skeleton height='24px' width='24px' />
+                                ) : (
+                                  <IconButton
+                                    size='xs'
+                                    variant='ghost'
+                                    color='fg.muted'
+                                    onClick={() => handleToggleTermType(term)}
+                                    aria-label={`Toggle to ${
+                                      term.type === 'include'
+                                        ? 'exclude'
+                                        : 'include'
+                                    }`}
+                                    title={`Click to ${
+                                      term.type === 'include'
+                                        ? 'exclude'
+                                        : 'include'
+                                    } this term`}
+                                  >
+                                    {term.type === 'include' ? (
+                                      <FiEyeOff size={12} />
+                                    ) : (
+                                      <FiEye size={12} />
+                                    )}
+                                  </IconButton>
+                                )}
+
+                                {/* Delete term */}
+                                <IconButton
+                                  size='xs'
+                                  variant='ghost'
+                                  color='red'
+                                  onClick={() => handleDeleteTerm(term)}
+                                  aria-label='Delete term'
+                                  title='Delete this term'
+                                  _hover={{ colorScheme: 'red' }}
+                                >
+                                  <FiTrash2 size={12} />
+                                </IconButton>
+                              </HStack>
+                            </HStack>
+                          </Box>
+                        ))
+                      ) : (
+                        <Box
+                          p={6}
+                          textAlign='center'
+                          border='2px dashed'
+                          borderColor='border.muted'
+                          borderRadius='md'
+                          bg='bg.subtle'
                         >
-                          Cancel
-                        </Button>
-                      </HStack>
+                          <VStack gap={3}>
+                            <Box color='fg.muted'>
+                              <FiFilter size={24} />
+                            </Box>
+                            <Text
+                              color='fg.muted'
+                              fontSize='sm'
+                              fontFamily='body'
+                            >
+                              No search terms yet
+                            </Text>
+                            <Text
+                              color='fg.muted'
+                              fontSize='xs'
+                              fontFamily='body'
+                            >
+                              Click "Add Term" to get started
+                            </Text>
+                          </VStack>
+                        </Box>
+                      )}
                     </VStack>
                   </VStack>
                 </Accordion.ItemContent>

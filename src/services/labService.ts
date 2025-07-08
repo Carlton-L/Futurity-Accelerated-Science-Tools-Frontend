@@ -26,7 +26,7 @@ export interface ApiLabMetadata {
   [key: string]: any;
 }
 
-// Lab update request interface
+// Lab update request interface - enhanced with terms management
 export interface LabUpdateRequest {
   ent_name?: string;
   ent_summary?: string;
@@ -36,6 +36,29 @@ export interface LabUpdateRequest {
   include_terms?: string[];
   goals?: ApiLabGoal[];
   metadata?: ApiLabMetadata;
+  // New terms management fields
+  include_terms_add?: string[];
+  include_terms_remove?: string[];
+  exclude_terms_add?: string[];
+  exclude_terms_remove?: string[];
+}
+
+// Terms management specific interfaces
+export interface AddTermRequest {
+  include_terms_add?: string[];
+  exclude_terms_add?: string[];
+}
+
+export interface RemoveTermRequest {
+  include_terms_remove?: string[];
+  exclude_terms_remove?: string[];
+}
+
+export interface ToggleTermRequest {
+  include_terms_add?: string[];
+  include_terms_remove?: string[];
+  exclude_terms_add?: string[];
+  exclude_terms_remove?: string[];
 }
 
 // Updated subject interface to match new API response
@@ -517,6 +540,99 @@ class LabService {
     return this.transformLabResponse(rawLab);
   }
 
+  // ===================
+  // TERMS MANAGEMENT METHODS
+  // ===================
+
+  /**
+   * Add an include term to the lab
+   */
+  async addIncludeTerm(
+    labId: string,
+    term: string,
+    token: string
+  ): Promise<Lab> {
+    const updates: AddTermRequest = {
+      include_terms_add: [term.trim()],
+    };
+
+    return this.updateLab(labId, updates, token);
+  }
+
+  /**
+   * Add an exclude term to the lab
+   */
+  async addExcludeTerm(
+    labId: string,
+    term: string,
+    token: string
+  ): Promise<Lab> {
+    const updates: AddTermRequest = {
+      exclude_terms_add: [term.trim()],
+    };
+
+    return this.updateLab(labId, updates, token);
+  }
+
+  /**
+   * Remove an include term from the lab
+   */
+  async removeIncludeTerm(
+    labId: string,
+    term: string,
+    token: string
+  ): Promise<Lab> {
+    const updates: RemoveTermRequest = {
+      include_terms_remove: [term.trim()],
+    };
+
+    return this.updateLab(labId, updates, token);
+  }
+
+  /**
+   * Remove an exclude term from the lab
+   */
+  async removeExcludeTerm(
+    labId: string,
+    term: string,
+    token: string
+  ): Promise<Lab> {
+    const updates: RemoveTermRequest = {
+      exclude_terms_remove: [term.trim()],
+    };
+
+    return this.updateLab(labId, updates, token);
+  }
+
+  /**
+   * Toggle a term between include and exclude
+   */
+  async toggleTermType(
+    labId: string,
+    term: string,
+    fromType: 'include' | 'exclude',
+    token: string
+  ): Promise<Lab> {
+    const trimmedTerm = term.trim();
+
+    const updates: ToggleTermRequest =
+      fromType === 'include'
+        ? {
+            include_terms_remove: [trimmedTerm],
+            exclude_terms_add: [trimmedTerm],
+          }
+        : {
+            exclude_terms_remove: [trimmedTerm],
+            include_terms_add: [trimmedTerm],
+          };
+
+    return this.updateLab(labId, updates, token);
+  }
+
+  // ===================
+  // END TERMS MANAGEMENT METHODS
+  // ===================
+
   // Update lab basic info (name and description)
   async updateLabInfo(
     labId: string,
@@ -540,7 +656,7 @@ class LabService {
     return this.updateLab(labId, updates, token);
   }
 
-  // Update lab terms
+  // Update lab terms (bulk update - legacy method)
   async updateLabTerms(
     labId: string,
     includeTerms: string[],

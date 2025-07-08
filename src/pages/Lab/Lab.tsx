@@ -10,7 +10,6 @@ import {
   Input,
   Textarea,
   IconButton,
-  Dialog,
   Tabs,
   Skeleton,
   Alert,
@@ -18,13 +17,9 @@ import {
   MenuTrigger,
   MenuContent,
   MenuItem,
-  Field,
 } from '@chakra-ui/react';
 import {
-  FiEdit,
   FiSave,
-  FiX,
-  FiSettings,
   FiMail,
   FiArrowLeft,
   FiMoreVertical,
@@ -52,6 +47,9 @@ const Lab: React.FC = () => {
   const { user, token } = useAuth();
   const { setPageContext, clearPageContext } = usePage();
 
+  // Get team permission helpers from auth context
+  const { isTeamAdmin, isTeamEditor } = useAuth();
+
   const [lab, setLab] = useState<LabType | null>(null);
   const [apiLabData, setApiLabData] = useState<ApiLab | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -68,7 +66,6 @@ const Lab: React.FC = () => {
 
   // Changed default tab to 'plan' and updated valid tabs
   const [activeTab, setActiveTab] = useState<LabTab>('plan');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
 
   // Transform API lab data to frontend format using new subcategories_map structure
   const transformApiLabToFrontend = useCallback(
@@ -170,9 +167,6 @@ const Lab: React.FC = () => {
         isArchived: apiLab.status === 'archived',
         isDeleted: apiLab.status === 'deleted',
         deletedAt: apiLab.status === 'deleted' ? apiLab.updatedAt : null,
-        adminIds: ['current-user'],
-        editorIds: [],
-        memberIds: ['current-user'],
         goals: [],
         subjects: allSubjects,
         categories: categories,
@@ -387,10 +381,13 @@ const Lab: React.FC = () => {
     fetchLabData();
   }, [fetchLabData]);
 
-  // Check if current user is admin of this lab
-  const isLabAdmin = (): boolean => {
-    if (!user || !lab) return false;
-    return lab.adminIds.includes(user._id);
+  // Check if current user can edit this lab (team admin or editor)
+  const canEditLab = (): boolean => {
+    if (!user) return false;
+
+    // Use the auth context helper methods to check team permissions
+    // Allow both team admins and editors to edit labs
+    return isTeamAdmin() || isTeamEditor();
   };
 
   // Handle header edit mode toggle
@@ -401,10 +398,8 @@ const Lab: React.FC = () => {
         description: lab?.description || '',
       });
       setIsEditingHeader(false);
-      setIsEditDialogOpen(false);
     } else {
       setIsEditingHeader(true);
-      setIsEditDialogOpen(true);
     }
   };
 
@@ -436,12 +431,11 @@ const Lab: React.FC = () => {
 
       // Update both the API data and transformed lab
       setApiLabData(updatedApiLab);
-      const updatedLab = transformApiLabToFrontend(updatedApiLab);
+      const updatedLab = await transformApiLabToFrontend(updatedApiLab);
       setLab(updatedLab);
 
       setIsEditingHeader(false);
       setSaving(false);
-      setIsEditDialogOpen(false);
 
       console.log('Successfully updated lab info');
     } catch (error) {
@@ -449,11 +443,6 @@ const Lab: React.FC = () => {
       setError(error instanceof Error ? error.message : 'Failed to update lab');
       setSaving(false);
     }
-  };
-
-  // Handle navigation to lab admin settings
-  const handleNavigateToSettings = (): void => {
-    navigate(`/lab/${id}/admin`);
   };
 
   // Handle tab change with proper typing - updated to include 'plan'
@@ -506,7 +495,7 @@ const Lab: React.FC = () => {
 
         // Update both the API data and transformed lab
         setApiLabData(updatedApiLab);
-        const updatedLab = transformApiLabToFrontend(updatedApiLab);
+        const updatedLab = await transformApiLabToFrontend(updatedApiLab);
         setLab(updatedLab);
 
         console.log('Successfully updated lab terms');
@@ -562,14 +551,13 @@ const Lab: React.FC = () => {
           <Box p={6}>
             <VStack gap={4} align='stretch'>
               <Flex justify='space-between' align='flex-start'>
-                <VStack gap={2} align='stretch' flex='1' mr={4}>
+                <VStack gap={2} align='stretch' flex='1'>
                   <Skeleton height='40px' width='300px' />
                   <Skeleton height='60px' width='100%' />
                 </VStack>
-                <HStack gap={2}>
-                  <Skeleton height='40px' width='100px' />
+                <Box flexShrink={0} ml={4}>
                   <Skeleton height='40px' width='40px' />
-                </HStack>
+                </Box>
               </Flex>
               <HStack
                 gap={6}
@@ -705,32 +693,97 @@ const Lab: React.FC = () => {
           <VStack gap={4} align='stretch'>
             {/* Header with Title and Three-Dot Menu */}
             <Flex justify='space-between' align='flex-start'>
-              <VStack gap={2} align='stretch' flex='1' mr={4}>
-                <Heading as='h1' size='xl' fontFamily='heading' color='fg'>
-                  {lab.name}
-                </Heading>
-                <Text color='fg.muted' lineHeight='1.6' fontFamily='body'>
-                  {lab.description}
-                </Text>
-              </VStack>
-
-              <HStack gap={2}>
-                {/* Lab Settings Button - Only show for admins */}
-                {isLabAdmin() && (
-                  <IconButton
-                    size='md'
-                    variant='ghost'
-                    onClick={handleNavigateToSettings}
-                    aria-label='Lab Settings'
+              <VStack gap={2} align='stretch' flex='1'>
+                {/* Title - Editable or Display */}
+                {isEditingHeader ? (
+                  <Input
+                    value={headerForm.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder='Enter lab name...'
+                    size='lg'
+                    fontSize='xl'
+                    fontWeight='bold'
+                    fontFamily='heading'
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
                     color='fg'
-                    _hover={{ bg: 'bg.hover' }}
-                  >
-                    <FiSettings size={16} />
-                  </IconButton>
+                    _placeholder={{ color: 'fg.muted' }}
+                    _focus={{
+                      borderColor: 'brand',
+                      boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                    }}
+                  />
+                ) : (
+                  <Heading as='h1' size='xl' fontFamily='heading' color='fg'>
+                    {lab.name}
+                  </Heading>
                 )}
 
-                {/* Three-Dot Menu - Only show for admins */}
-                {isLabAdmin() && (
+                {/* Description - Editable or Display */}
+                {isEditingHeader ? (
+                  <Textarea
+                    value={headerForm.description}
+                    onChange={(e) =>
+                      handleInputChange('description', e.target.value)
+                    }
+                    placeholder='Enter lab description...'
+                    rows={3}
+                    resize='vertical'
+                    bg='bg.canvas'
+                    borderColor='border.emphasized'
+                    color='fg'
+                    _placeholder={{ color: 'fg.muted' }}
+                    _focus={{
+                      borderColor: 'brand',
+                      boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
+                    }}
+                  />
+                ) : (
+                  <Text color='fg.muted' lineHeight='1.6' fontFamily='body'>
+                    {lab.description}
+                  </Text>
+                )}
+
+                {/* Edit Mode Buttons */}
+                {isEditingHeader && (
+                  <HStack gap={3} mt={2}>
+                    <Button
+                      variant='outline'
+                      onClick={handleHeaderEditToggle}
+                      disabled={saving}
+                      color='fg'
+                      borderColor='border.emphasized'
+                      bg='bg.canvas'
+                      _hover={{
+                        bg: 'bg.hover',
+                      }}
+                      fontFamily='heading'
+                      size='sm'
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant='solid'
+                      onClick={handleSave}
+                      loading={saving}
+                      bg='brand'
+                      color='white'
+                      _hover={{
+                        bg: 'brand.hover',
+                      }}
+                      fontFamily='heading'
+                      size='sm'
+                    >
+                      <FiSave size={16} />
+                      Save Changes
+                    </Button>
+                  </HStack>
+                )}
+              </VStack>
+
+              {/* Three-Dot Menu - Only show for team admins and editors and not in edit mode */}
+              {canEditLab() && !isEditingHeader && (
+                <Box position='relative' flexShrink={0} ml={4}>
                   <MenuRoot>
                     <MenuTrigger asChild>
                       <IconButton
@@ -743,19 +796,27 @@ const Lab: React.FC = () => {
                         <FiMoreVertical size={16} />
                       </IconButton>
                     </MenuTrigger>
-                    <MenuContent bg='bg.canvas' borderColor='border.emphasized'>
+                    <MenuContent
+                      bg='bg.canvas'
+                      borderColor='border.emphasized'
+                      position='absolute'
+                      right={0}
+                      top='100%'
+                      zIndex={1000}
+                      minW='200px'
+                    >
                       <MenuItem
+                        value='edit-lab'
                         onClick={handleHeaderEditToggle}
                         color='fg'
                         _hover={{ bg: 'bg.hover' }}
                       >
-                        <FiEdit size={14} />
                         Edit lab title and description
                       </MenuItem>
                     </MenuContent>
                   </MenuRoot>
-                )}
-              </HStack>
+                </Box>
+              )}
             </Flex>
 
             {/* Lab Metadata */}
@@ -765,9 +826,6 @@ const Lab: React.FC = () => {
               borderTop='1px solid'
               borderColor='border.muted'
             >
-              <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                Members: {lab.memberIds.length}
-              </Text>
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
                 Subjects: {lab.subjects.length}
               </Text>
@@ -865,122 +923,7 @@ const Lab: React.FC = () => {
       </Box>
 
       {/* Edit Dialog */}
-      <Dialog.Root
-        open={isEditDialogOpen}
-        onOpenChange={({ open }) => setIsEditDialogOpen(open)}
-      >
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content bg='bg.canvas' borderColor='border.emphasized'>
-            <Dialog.Header>
-              <Dialog.Title fontFamily='heading' color='fg'>
-                Edit Lab Details
-              </Dialog.Title>
-              <Dialog.CloseTrigger asChild>
-                <IconButton
-                  size='sm'
-                  variant='ghost'
-                  color='fg'
-                  _hover={{ bg: 'bg.hover' }}
-                >
-                  <FiX />
-                </IconButton>
-              </Dialog.CloseTrigger>
-            </Dialog.Header>
-
-            <Dialog.Body>
-              <VStack gap={4} align='stretch'>
-                <Box>
-                  <Text
-                    fontSize='sm'
-                    fontWeight='medium'
-                    mb={2}
-                    fontFamily='heading'
-                    color='fg'
-                  >
-                    Lab Name
-                  </Text>
-                  <Input
-                    value={headerForm.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder='Enter lab name...'
-                    bg='bg.canvas'
-                    borderColor='border.emphasized'
-                    color='fg'
-                    _placeholder={{ color: 'fg.muted' }}
-                    _focus={{
-                      borderColor: 'brand',
-                      boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-                    }}
-                  />
-                </Box>
-
-                <Box>
-                  <Text
-                    fontSize='sm'
-                    fontWeight='medium'
-                    mb={2}
-                    fontFamily='heading'
-                    color='fg'
-                  >
-                    Lab Description
-                  </Text>
-                  <Textarea
-                    value={headerForm.description}
-                    onChange={(e) =>
-                      handleInputChange('description', e.target.value)
-                    }
-                    placeholder='Enter lab description...'
-                    rows={6}
-                    resize='vertical'
-                    bg='bg.canvas'
-                    borderColor='border.emphasized'
-                    color='fg'
-                    _placeholder={{ color: 'fg.muted' }}
-                    _focus={{
-                      borderColor: 'brand',
-                      boxShadow: '0 0 0 1px var(--chakra-colors-brand)',
-                    }}
-                  />
-                </Box>
-              </VStack>
-            </Dialog.Body>
-
-            <Dialog.Footer>
-              <HStack gap={3}>
-                <Button
-                  variant='outline'
-                  onClick={handleHeaderEditToggle}
-                  disabled={saving}
-                  color='fg'
-                  borderColor='border.emphasized'
-                  bg='bg.canvas'
-                  _hover={{
-                    bg: 'bg.hover',
-                  }}
-                  fontFamily='heading'
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant='solid'
-                  onClick={handleSave}
-                  loading={saving}
-                  bg='brand'
-                  color='white'
-                  _hover={{
-                    bg: 'brand.hover',
-                  }}
-                  fontFamily='heading'
-                >
-                  <FiSave size={16} />
-                  Save Changes
-                </Button>
-              </HStack>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Dialog.Root>
+      {/* Removed - now using inline editing */}
     </Box>
   );
 };
