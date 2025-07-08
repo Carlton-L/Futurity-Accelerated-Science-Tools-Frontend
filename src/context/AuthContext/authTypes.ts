@@ -270,4 +270,10 @@ export type AuthContextType = {
   isLoading: boolean;
   isLoadingUser: boolean; // Add this new flag
   isAuthenticated: boolean;
+  invalidateCache?: (type: string, identifier?: string) => void;
+  invalidateRelatedCaches?: (
+    changedType: string,
+    teamId?: string,
+    userId?: string
+  ) => void;
 };
