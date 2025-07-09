@@ -13,7 +13,6 @@ import {
   Dialog,
   Badge,
   Image,
-  Tabs,
 } from '@chakra-ui/react';
 import {
   FiExternalLink,
@@ -181,14 +180,11 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId, labUniqueID }) => {
   return (
     <VStack gap={6} align='stretch'>
       {/* Header */}
-      <HStack justify='space-between' align='center'>
+      <HStack align='center'>
         <VStack gap={1} align='start'>
           <Heading as='h2' size='lg' color='fg' fontFamily='heading'>
             Analyze
           </Heading>
-          <Text color='fg.muted' fontSize='sm' fontFamily='body'>
-            Use analysis tools and manage lab research
-          </Text>
         </VStack>
 
         <HStack gap={2}>
@@ -214,177 +210,113 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId, labUniqueID }) => {
         </HStack>
       </HStack>
 
-      {/* Main Content Tabs */}
-      <Tabs.Root defaultValue='tools' variant='enclosed'>
-        <Tabs.List bg='bg.canvas' borderColor='border.emphasized'>
-          <Tabs.Trigger
-            value='tools'
-            fontFamily='heading'
-            fontSize='sm'
-            color='fg'
-            _selected={{
-              bg: 'brand',
-              color: 'white',
-              borderColor: 'brand',
-            }}
-          >
+      {/* Futurity Analyses Section */}
+      <VStack gap={4} align='stretch'>
+        <VStack gap={2} align='start'>
+          <Heading as='h3' size='md' color='fg' fontFamily='heading'>
             <HStack gap={2}>
-              <FiZap size={14} />
-              <Text>Analysis Tools</Text>
-            </HStack>
-          </Tabs.Trigger>
-
-          <Tabs.Trigger
-            value='analyses'
-            fontFamily='heading'
-            fontSize='sm'
-            color='fg'
-            _selected={{
-              bg: 'brand',
-              color: 'white',
-              borderColor: 'brand',
-            }}
-          >
-            <HStack gap={2}>
-              <FiFileText size={14} />
-              <Text>Lab Analyses</Text>
+              <FiFileText size={20} />
+              <Text>Futurity Analyses</Text>
               {analyses.length > 0 && (
                 <Badge size='sm' variant='subtle'>
                   {analyses.length}
                 </Badge>
               )}
             </HStack>
-          </Tabs.Trigger>
-        </Tabs.List>
+          </Heading>
+          <Text color='fg.muted' fontSize='sm' fontFamily='body'>
+            Research analyses associated with this lab
+          </Text>
+        </VStack>
 
-        <Tabs.Content value='tools'>
-          <VStack gap={6} align='stretch' pt={4}>
-            {/* Analysis Tools Section */}
-            <VStack gap={4} align='stretch'>
-              {/* Text Summarizer Tool */}
-              <TextSummarizerTool
-                onResultGenerated={(result) => {
-                  console.log('Text summarizer result:', result);
-                  // Could potentially save results to lab or show in results panel
-                }}
-              />
+        {/* Error Display */}
+        {error && (
+          <Card.Root borderColor='red.200' borderWidth='2px'>
+            <Card.Body p={4}>
+              <HStack justify='space-between'>
+                <HStack>
+                  <FiAlertCircle color='red' />
+                  <Text color='red.600' fontSize='sm'>
+                    {error}
+                  </Text>
+                </HStack>
+                <Button
+                  size='xs'
+                  variant='ghost'
+                  onClick={() => setError('')}
+                  color='red.600'
+                >
+                  <FiX size={12} />
+                </Button>
+              </HStack>
+            </Card.Body>
+          </Card.Root>
+        )}
 
-              {/* Correlation Finder Tool */}
-              <CorrelationFinderTool
-                onResultGenerated={(result) => {
-                  console.log('Correlation finder result:', result);
-                  // Could potentially save results to lab or show in results panel
-                }}
-              />
-            </VStack>
-          </VStack>
-        </Tabs.Content>
-
-        <Tabs.Content value='analyses'>
-          <VStack gap={4} align='stretch' pt={4}>
-            {/* Error Display */}
-            {error && (
-              <Card.Root borderColor='red.200' borderWidth='2px'>
+        {/* Loading State */}
+        {loading && (
+          <Grid
+            templateColumns={{
+              base: '1fr',
+              md: 'repeat(2, 1fr)',
+              lg: 'repeat(3, 1fr)',
+            }}
+            gap={4}
+          >
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card.Root key={i} variant='outline'>
                 <Card.Body p={4}>
-                  <HStack justify='space-between'>
-                    <HStack>
-                      <FiAlertCircle color='red' />
-                      <Text color='red.600' fontSize='sm'>
-                        {error}
-                      </Text>
+                  <VStack gap={3} align='stretch'>
+                    <Skeleton height='120px' borderRadius='md' />
+                    <Skeleton height='20px' width='80%' />
+                    <Skeleton height='40px' width='100%' />
+                    <HStack justify='space-between'>
+                      <Skeleton height='16px' width='60px' />
+                      <Skeleton height='16px' width='80px' />
                     </HStack>
-                    <Button
-                      size='xs'
-                      variant='ghost'
-                      onClick={() => setError('')}
-                      color='red.600'
-                    >
-                      <FiX size={12} />
-                    </Button>
-                  </HStack>
+                  </VStack>
                 </Card.Body>
               </Card.Root>
-            )}
+            ))}
+          </Grid>
+        )}
 
-            {/* Loading State */}
-            {loading && (
-              <Grid
-                templateColumns={{
-                  base: '1fr',
-                  md: 'repeat(2, 1fr)',
-                  lg: 'repeat(3, 1fr)',
+        {/* Analyses Grid */}
+        {!loading && analyses.length > 0 && (
+          <Grid
+            templateColumns={{
+              base: '1fr',
+              md: 'repeat(2, 1fr)',
+              lg: 'repeat(3, 1fr)',
+            }}
+            gap={4}
+          >
+            {analyses.map((analysis) => (
+              <Card.Root
+                key={analysis.uniqueID}
+                variant='outline'
+                cursor='pointer'
+                _hover={{
+                  bg: 'bg.hover',
+                  borderColor: 'border.hover',
+                  transform: 'translateY(-2px)',
                 }}
-                gap={4}
+                transition='all 0.2s'
+                opacity={removingAnalysisId === analysis.uniqueID ? 0.5 : 1}
+                onClick={() => handleAnalysisClick(analysis)}
               >
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <Card.Root key={i} variant='outline'>
-                    <Card.Body p={4}>
-                      <VStack gap={3} align='stretch'>
-                        <Skeleton height='120px' borderRadius='md' />
-                        <Skeleton height='20px' width='80%' />
-                        <Skeleton height='40px' width='100%' />
-                        <HStack justify='space-between'>
-                          <Skeleton height='16px' width='60px' />
-                          <Skeleton height='16px' width='80px' />
-                        </HStack>
-                      </VStack>
-                    </Card.Body>
-                  </Card.Root>
-                ))}
-              </Grid>
-            )}
-
-            {/* Analyses Grid */}
-            {!loading && analyses.length > 0 && (
-              <Grid
-                templateColumns={{
-                  base: '1fr',
-                  md: 'repeat(2, 1fr)',
-                  lg: 'repeat(3, 1fr)',
-                }}
-                gap={4}
-              >
-                {analyses.map((analysis) => (
-                  <Card.Root
-                    key={analysis.uniqueID}
-                    variant='outline'
-                    cursor='pointer'
-                    _hover={{
-                      bg: 'bg.hover',
-                      borderColor: 'border.hover',
-                      transform: 'translateY(-2px)',
-                    }}
-                    transition='all 0.2s'
-                    opacity={removingAnalysisId === analysis.uniqueID ? 0.5 : 1}
-                    onClick={() => handleAnalysisClick(analysis)}
-                  >
-                    <Card.Body p={4}>
-                      <VStack gap={3} align='stretch'>
-                        {/* Analysis Image */}
-                        {analysis.metadata.picture_url ? (
-                          <Image
-                            src={analysis.metadata.picture_url}
-                            alt={analysis.name}
-                            height='120px'
-                            width='100%'
-                            objectFit='cover'
-                            borderRadius='md'
-                            fallback={
-                              <Box
-                                height='120px'
-                                bg='bg.muted'
-                                borderRadius='md'
-                                display='flex'
-                                alignItems='center'
-                                justifyContent='center'
-                              >
-                                <Text color='fg.muted' fontSize='sm'>
-                                  No Image
-                                </Text>
-                              </Box>
-                            }
-                          />
-                        ) : (
+                <Card.Body p={4}>
+                  <VStack gap={3} align='stretch'>
+                    {/* Analysis Image */}
+                    {analysis.metadata.picture_url ? (
+                      <Image
+                        src={analysis.metadata.picture_url}
+                        alt={analysis.name}
+                        height='120px'
+                        width='100%'
+                        objectFit='cover'
+                        borderRadius='md'
+                        fallback={
                           <Box
                             height='120px'
                             bg='bg.muted'
@@ -394,211 +326,238 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId, labUniqueID }) => {
                             justifyContent='center'
                           >
                             <Text color='fg.muted' fontSize='sm'>
-                              {analysis.metadata.ent_image || 'No Image'}
+                              No Image
                             </Text>
                           </Box>
-                        )}
-
-                        {/* Title and Status */}
-                        <HStack justify='space-between' align='start'>
-                          <Text
-                            fontSize='md'
-                            fontWeight='medium'
-                            color='fg'
-                            flex='1'
-                            lineHeight='1.3'
-                            fontFamily='heading'
-                          >
-                            {analysis.name}
-                          </Text>
-                          {analysis.metadata.status && (
-                            <Badge
-                              colorScheme={getStatusColor(
-                                analysis.metadata.status
-                              )}
-                              size='sm'
-                            >
-                              {analysis.metadata.status}
-                            </Badge>
-                          )}
-                        </HStack>
-
-                        {/* Description */}
-                        <Text
-                          fontSize='sm'
-                          color='fg.muted'
-                          lineHeight='1.4'
-                          noOfLines={3}
-                          fontFamily='body'
-                        >
-                          {analysis.metadata.ent_summary}
+                        }
+                      />
+                    ) : (
+                      <Box
+                        height='120px'
+                        bg='bg.muted'
+                        borderRadius='md'
+                        display='flex'
+                        alignItems='center'
+                        justifyContent='center'
+                      >
+                        <Text color='fg.muted' fontSize='sm'>
+                          {analysis.metadata.ent_image || 'No Image'}
                         </Text>
+                      </Box>
+                    )}
 
-                        {/* Inventors */}
-                        {analysis.metadata.ent_inventors && (
-                          <HStack gap={1}>
-                            <FiUser
-                              size={12}
-                              color='var(--chakra-colors-fg-muted)'
-                            />
-                            <Text
-                              fontSize='xs'
-                              color='fg.muted'
-                              fontFamily='body'
-                            >
-                              {parseInventors(
-                                analysis.metadata.ent_inventors
-                              ).join(', ')}
-                            </Text>
-                          </HStack>
-                        )}
+                    {/* Title and Status */}
+                    <HStack justify='space-between' align='start'>
+                      <Text
+                        fontSize='md'
+                        fontWeight='medium'
+                        color='fg'
+                        flex='1'
+                        lineHeight='1.3'
+                        fontFamily='heading'
+                      >
+                        {analysis.name}
+                      </Text>
+                      {analysis.metadata.status && (
+                        <Badge
+                          colorScheme={getStatusColor(analysis.metadata.status)}
+                          size='sm'
+                        >
+                          {analysis.metadata.status}
+                        </Badge>
+                      )}
+                    </HStack>
 
-                        {/* Tags */}
-                        {analysis.metadata.ent_tags && (
-                          <Box>
-                            <HStack gap={1} mb={1}>
-                              <FiTag
-                                size={12}
-                                color='var(--chakra-colors-fg-muted)'
-                              />
-                              <Text
-                                fontSize='xs'
-                                color='fg.muted'
-                                fontFamily='body'
-                              >
-                                Tags:
-                              </Text>
-                            </HStack>
-                            <Box>
-                              {parseTags(analysis.metadata.ent_tags)
-                                .slice(0, 3)
-                                .map((tag, index) => (
-                                  <Badge
-                                    key={index}
-                                    size='xs'
-                                    variant='outline'
-                                    mr={1}
-                                    mb={1}
-                                  >
-                                    {tag}
-                                  </Badge>
-                                ))}
-                              {parseTags(analysis.metadata.ent_tags).length >
-                                3 && (
-                                <Badge
-                                  size='xs'
-                                  variant='outline'
-                                  colorScheme='gray'
-                                >
-                                  +
-                                  {parseTags(analysis.metadata.ent_tags)
-                                    .length - 3}
-                                </Badge>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Footer */}
-                        <HStack justify='space-between' align='center' pt={2}>
-                          <HStack gap={1}>
-                            <FiCalendar
-                              size={12}
-                              color='var(--chakra-colors-fg-muted)'
-                            />
-                            <Text
-                              fontSize='xs'
-                              color='fg.muted'
-                              fontFamily='body'
-                            >
-                              {formatDate(analysis.updatedAt)}
-                            </Text>
-                          </HStack>
-
-                          <HStack gap={1}>
-                            <IconButton
-                              size='xs'
-                              variant='ghost'
-                              color='fg.muted'
-                              _hover={{ color: 'brand' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAnalysisClick(analysis);
-                              }}
-                              aria-label='View analysis'
-                              disabled={
-                                removingAnalysisId === analysis.uniqueID
-                              }
-                            >
-                              <FiExternalLink size={12} />
-                            </IconButton>
-
-                            <IconButton
-                              size='xs'
-                              variant='ghost'
-                              color='fg.muted'
-                              _hover={{ color: 'red.500' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmRemoveDialog({
-                                  isOpen: true,
-                                  analysis: analysis,
-                                });
-                              }}
-                              aria-label='Remove from lab'
-                              disabled={
-                                removingAnalysisId === analysis.uniqueID
-                              }
-                              loading={removingAnalysisId === analysis.uniqueID}
-                            >
-                              <FiTrash2 size={12} />
-                            </IconButton>
-                          </HStack>
-                        </HStack>
-                      </VStack>
-                    </Card.Body>
-                  </Card.Root>
-                ))}
-              </Grid>
-            )}
-
-            {/* Empty State */}
-            {!loading && analyses.length === 0 && !error && (
-              <Card.Root
-                variant='outline'
-                borderStyle='dashed'
-                borderColor='border.muted'
-              >
-                <Card.Body p={8}>
-                  <VStack gap={3}>
-                    <Box color='fg.muted'>
-                      <FiExternalLink size={48} />
-                    </Box>
+                    {/* Description */}
                     <Text
-                      color='fg.muted'
-                      fontSize='lg'
-                      fontWeight='medium'
-                      fontFamily='heading'
-                    >
-                      No Futurity Analyses
-                    </Text>
-                    <Text
-                      color='fg.muted'
                       fontSize='sm'
-                      textAlign='center'
+                      color='fg.muted'
+                      lineHeight='1.4'
+                      noOfLines={3}
                       fontFamily='body'
                     >
-                      No analyses are currently associated with this lab.
-                      Analyses can be added from the main Futurity Analysis
-                      library.
+                      {analysis.metadata.ent_summary}
                     </Text>
+
+                    {/* Inventors */}
+                    {analysis.metadata.ent_inventors && (
+                      <HStack gap={1}>
+                        <FiUser
+                          size={12}
+                          color='var(--chakra-colors-fg-muted)'
+                        />
+                        <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                          {parseInventors(analysis.metadata.ent_inventors).join(
+                            ', '
+                          )}
+                        </Text>
+                      </HStack>
+                    )}
+
+                    {/* Tags */}
+                    {analysis.metadata.ent_tags && (
+                      <Box>
+                        <HStack gap={1} mb={1}>
+                          <FiTag
+                            size={12}
+                            color='var(--chakra-colors-fg-muted)'
+                          />
+                          <Text
+                            fontSize='xs'
+                            color='fg.muted'
+                            fontFamily='body'
+                          >
+                            Tags:
+                          </Text>
+                        </HStack>
+                        <Box>
+                          {parseTags(analysis.metadata.ent_tags)
+                            .slice(0, 3)
+                            .map((tag, index) => (
+                              <Badge
+                                key={index}
+                                size='xs'
+                                variant='outline'
+                                mr={1}
+                                mb={1}
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          {parseTags(analysis.metadata.ent_tags).length > 3 && (
+                            <Badge
+                              size='xs'
+                              variant='outline'
+                              colorScheme='gray'
+                            >
+                              +
+                              {parseTags(analysis.metadata.ent_tags).length - 3}
+                            </Badge>
+                          )}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* Footer */}
+                    <HStack justify='space-between' align='center' pt={2}>
+                      <HStack gap={1}>
+                        <FiCalendar
+                          size={12}
+                          color='var(--chakra-colors-fg-muted)'
+                        />
+                        <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                          {formatDate(analysis.updatedAt)}
+                        </Text>
+                      </HStack>
+
+                      <HStack gap={1}>
+                        <IconButton
+                          size='xs'
+                          variant='ghost'
+                          color='fg.muted'
+                          _hover={{ color: 'brand' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAnalysisClick(analysis);
+                          }}
+                          aria-label='View analysis'
+                          disabled={removingAnalysisId === analysis.uniqueID}
+                        >
+                          <FiExternalLink size={12} />
+                        </IconButton>
+
+                        <IconButton
+                          size='xs'
+                          variant='ghost'
+                          color='fg.muted'
+                          _hover={{ color: 'red.500' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmRemoveDialog({
+                              isOpen: true,
+                              analysis: analysis,
+                            });
+                          }}
+                          aria-label='Remove from lab'
+                          disabled={removingAnalysisId === analysis.uniqueID}
+                          loading={removingAnalysisId === analysis.uniqueID}
+                        >
+                          <FiTrash2 size={12} />
+                        </IconButton>
+                      </HStack>
+                    </HStack>
                   </VStack>
                 </Card.Body>
               </Card.Root>
-            )}
-          </VStack>
-        </Tabs.Content>
-      </Tabs.Root>
+            ))}
+          </Grid>
+        )}
+
+        {/* Empty State */}
+        {!loading && analyses.length === 0 && !error && (
+          <Card.Root
+            variant='outline'
+            borderStyle='dashed'
+            borderColor='border.muted'
+          >
+            <Card.Body p={8}>
+              <VStack gap={3}>
+                <Box color='fg.muted'>
+                  <FiExternalLink size={48} />
+                </Box>
+                <Text
+                  color='fg.muted'
+                  fontSize='lg'
+                  fontWeight='medium'
+                  fontFamily='heading'
+                >
+                  No Futurity Analyses
+                </Text>
+                <Text
+                  color='fg.muted'
+                  fontSize='sm'
+                  textAlign='center'
+                  fontFamily='body'
+                >
+                  No analyses are currently associated with this lab. Analyses
+                  can be added from the main Futurity Analysis library.
+                </Text>
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+        )}
+      </VStack>
+
+      {/* Analysis Tools Section */}
+      <VStack gap={4} align='stretch'>
+        <VStack gap={2} align='start'>
+          <Heading as='h3' size='md' color='fg' fontFamily='heading'>
+            <HStack gap={2}>
+              <FiZap size={20} />
+              <Text>Analysis Tools</Text>
+            </HStack>
+          </Heading>
+          <Text color='fg.muted' fontSize='sm' fontFamily='body'>
+            Use AI-powered tools to analyze and explore data
+          </Text>
+        </VStack>
+
+        {/* Text Summarizer Tool */}
+        <TextSummarizerTool
+          onResultGenerated={(result) => {
+            console.log('Text summarizer result:', result);
+            // Could potentially save results to lab or show in results panel
+          }}
+        />
+
+        {/* Correlation Finder Tool */}
+        <CorrelationFinderTool
+          onResultGenerated={(result) => {
+            console.log('Correlation finder result:', result);
+            // Could potentially save results to lab or show in results panel
+          }}
+        />
+      </VStack>
 
       {/* Confirm Remove Dialog */}
       <Dialog.Root
