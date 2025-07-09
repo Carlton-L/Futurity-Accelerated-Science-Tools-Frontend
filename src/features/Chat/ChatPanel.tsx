@@ -291,8 +291,10 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
 
       try {
         // Use '*' as target origin as specified by backend engineer
-        iframeRef.current.contentWindow?.postMessage(message, '*');
-        console.log('🖼️ Context message sent to iframe:', message);
+        // Convert the message object to a string and add the "Client: " prefix
+        const messageString = 'Client: ' + JSON.stringify(message);
+        iframeRef.current.contentWindow?.postMessage(messageString, '*');
+        console.log('🖼️ Context message sent to iframe:', messageString);
       } catch (error) {
         console.error('🖼️ Failed to send context to iframe:', error);
       }
