@@ -10,6 +10,7 @@ export interface Subject {
   id: string;
   name: string;
   title?: string;
+  fsid?: string; // Add fsid field for proper subject identification
 }
 
 export interface Organization {

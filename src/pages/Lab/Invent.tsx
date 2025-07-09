@@ -305,455 +305,409 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
       )}
 
       {/* Header */}
-      <Card.Root
-        variant='outline'
-        borderColor='border.emphasized'
-        bg='bg.canvas'
-      >
-        <Card.Body p={6}>
-          <VStack gap={4} align='stretch'>
-            <HStack justify='space-between' align='start'>
-              <VStack gap={1} align='start' flex='1'>
-                <Heading as='h2' size='lg' color='fg' fontFamily='heading'>
-                  Invention Tools
-                </Heading>
-                <Text color='fg.muted' fontSize='sm' fontFamily='body'>
-                  Transform your research into compelling future narratives and
-                  visualizations
-                </Text>
-              </VStack>
-            </HStack>
-
-            {/* Info about IdeaSeeds */}
-            <HStack gap={2} align='start'>
-              <Box color='fg.muted'>
-                <FiInfo size={16} />
-              </Box>
-              <VStack gap={1} align='start' flex='1'>
-                <Text
-                  fontSize='sm'
-                  color='fg.muted'
-                  fontFamily='body'
-                  lineHeight='1.5'
-                >
-                  Create compelling stories and images to bring your ideas to
-                  life. Future tools will integrate with IdeaSeeds for enhanced
-                  workflows.
-                </Text>
-                <HStack
-                  gap={4}
-                  fontSize='xs'
-                  color='fg.muted'
-                  fontFamily='body'
-                >
-                  <Text>Available Tools: 2</Text>
-                  <Text>IdeaSeeds: {ideaSeeds.length}</Text>
-                </HStack>
-              </VStack>
-            </HStack>
-          </VStack>
-        </Card.Body>
-      </Card.Root>
-
-      {/* Tools Content */}
-      <Card.Root
-        variant='outline'
-        borderColor='border.emphasized'
-        bg='bg.canvas'
-      >
-        <Card.Body p={6}>
-          <Accordion.Root collapsible defaultValue={['future-stories']}>
-            {/* Future Stories Tool */}
-            <Accordion.Item value='future-stories'>
-              <Accordion.ItemTrigger>
-                <HStack>
-                  <FiFileText size={16} />
-                  <Text fontWeight='medium'>Future Stories</Text>
-                  <Badge colorScheme='green' size='sm'>
-                    Available
-                  </Badge>
-                </HStack>
-                <Accordion.ItemIndicator />
-              </Accordion.ItemTrigger>
-              <Accordion.ItemContent>
-                <VStack gap={4} align='stretch' pt={4}>
-                  <Text color='fg.muted' fontSize='sm' fontFamily='body'>
-                    Generate compelling narratives set in future scenarios.
-                    Perfect for exploring the human impact of your innovations.
-                  </Text>
-
-                  {/* Story Details Input */}
-                  <VStack gap={2} align='stretch'>
-                    <Text fontSize='sm' fontWeight='medium' color='fg'>
-                      Story Details
-                    </Text>
-                    <Textarea
-                      value={storyDetails}
-                      onChange={(e) => setStoryDetails(e.target.value)}
-                      placeholder='Describe your future scenario (e.g., "an autonomous plant robot sells an NFT piece for one million euros")'
-                      minH='100px'
-                      bg='bg'
-                      borderColor='border.muted'
-                      color='fg'
-                      _focus={{
-                        borderColor: 'brand',
-                        boxShadow: '0 0 0 1px token(colors.brand)',
-                      }}
-                      fontFamily='body'
-                    />
-                  </VStack>
-
-                  {/* Format Selection */}
-                  <VStack gap={2} align='stretch'>
-                    <Text fontSize='sm' fontWeight='medium' color='fg'>
-                      Story Format
-                    </Text>
-                    <Select.Root
-                      value={[formatOption]}
-                      onValueChange={(details) =>
-                        setFormatOption(details.value[0] as any)
-                      }
-                    >
-                      <Select.Trigger
-                        bg='bg'
-                        borderColor='border.muted'
-                        color='fg'
-                        _focus={{
-                          borderColor: 'brand',
-                          boxShadow: '0 0 0 1px token(colors.brand)',
-                        }}
-                      >
-                        <Select.ValueText placeholder='Select format' />
-                      </Select.Trigger>
-                      <Select.Content>
-                        {formatOptions.map((option) => (
-                          <Select.Item key={option.value} item={option.value}>
-                            <Select.ItemText>{option.label}</Select.ItemText>
-                          </Select.Item>
-                        ))}
-                      </Select.Content>
-                    </Select.Root>
-                    <Text fontSize='xs' color='fg.muted' fontFamily='body'>
-                      {toolsService.getFormatOptionDescription(formatOption)}
-                    </Text>
-                  </VStack>
-
-                  {/* Custom Prompt (only for custom format) */}
-                  {formatOption === 'custom' && (
-                    <VStack gap={2} align='stretch'>
-                      <Text fontSize='sm' fontWeight='medium' color='fg'>
-                        Custom Prompt
-                      </Text>
-                      <Textarea
-                        value={customPrompt}
-                        onChange={(e) => setCustomPrompt(e.target.value)}
-                        placeholder='Enter your custom story format instructions...'
-                        minH='80px'
-                        bg='bg'
-                        borderColor='border.muted'
-                        color='fg'
-                        _focus={{
-                          borderColor: 'brand',
-                          boxShadow: '0 0 0 1px token(colors.brand)',
-                        }}
-                        fontFamily='body'
-                      />
-                    </VStack>
-                  )}
-
-                  {/* Year Range */}
-                  <VStack gap={2} align='stretch'>
-                    <Text fontSize='sm' fontWeight='medium' color='fg'>
-                      Year Range: {yearRange[0]} - {yearRange[1]}
-                    </Text>
-                    <Slider.Root
-                      value={yearRange}
-                      onValueChange={(details) =>
-                        setYearRange(details.value as [number, number])
-                      }
-                      min={new Date().getFullYear()}
-                      max={2100}
-                      step={1}
-                    >
-                      <Slider.Track>
-                        <Slider.Range />
-                      </Slider.Track>
-                      <Slider.Thumb index={0} />
-                      <Slider.Thumb index={1} />
-                    </Slider.Root>
-                    <HStack
-                      justify='space-between'
-                      fontSize='xs'
-                      color='fg.muted'
-                    >
-                      <Text>{new Date().getFullYear()}</Text>
-                      <Text>2100</Text>
-                    </HStack>
-                  </VStack>
-
-                  {/* Generate Button */}
-                  <Button
-                    onClick={handleGenerateFutureStory}
-                    loading={generatingStory}
-                    disabled={
-                      !storyDetails.trim() ||
-                      (formatOption === 'custom' && !customPrompt.trim())
-                    }
-                    colorScheme='blue'
-                    size='md'
-                  >
-                    <FiPlay size={16} />
-                    Generate Future Story
-                  </Button>
-
-                  {/* Story Result */}
-                  {storyResult && (
-                    <Card.Root
-                      variant='outline'
-                      bg='bg.canvas'
-                      borderColor='border.muted'
-                    >
-                      <Card.Body p={4}>
-                        <VStack gap={4} align='stretch'>
-                          <HStack justify='space-between' align='start'>
-                            <VStack gap={1} align='start' flex='1'>
-                              <Text
-                                fontSize='sm'
-                                fontWeight='medium'
-                                color='fg'
-                              >
-                                Generated Story
-                              </Text>
-                              <Text fontSize='xs' color='fg.muted'>
-                                Format:{' '}
-                                {toolsService.getFormatOptionDisplayName(
-                                  storyResult.formatOption
-                                )}{' '}
-                                • Years: {storyResult.yearRange[0]}-
-                                {storyResult.yearRange[1]}
-                              </Text>
-                            </VStack>
-                            <HStack gap={2}>
-                              <Button
-                                size='xs'
-                                variant='outline'
-                                onClick={handleShareStory}
-                              >
-                                <FiShare size={12} />
-                                Share
-                              </Button>
-                            </HStack>
-                          </HStack>
-
-                          {storyResult.error ? (
-                            <Text color='error' fontSize='sm'>
-                              Error: {storyResult.error}
-                            </Text>
-                          ) : (
-                            <Box
-                              maxH='400px'
-                              overflowY='auto'
-                              p={4}
-                              bg='bg.subtle'
-                              borderRadius='md'
-                              border='1px solid'
-                              borderColor='border.muted'
-                            >
-                              <VStack gap={2} align='stretch'>
-                                {formatStoryText(storyResult.story)}
-                              </VStack>
-                            </Box>
-                          )}
-                        </VStack>
-                      </Card.Body>
-                    </Card.Root>
-                  )}
-                </VStack>
-              </Accordion.ItemContent>
-            </Accordion.Item>
-
-            {/* Futuregrapher Tool */}
-            <Accordion.Item value='futuregrapher'>
-              <Accordion.ItemTrigger>
-                <HStack>
-                  <FiImage size={16} />
-                  <Text fontWeight='medium'>Futuregrapher</Text>
-                  <Badge colorScheme='green' size='sm'>
-                    Available
-                  </Badge>
-                </HStack>
-                <Accordion.ItemIndicator />
-              </Accordion.ItemTrigger>
-              <Accordion.ItemContent>
-                <VStack gap={4} align='stretch' pt={4}>
-                  <Text color='fg.muted' fontSize='sm' fontFamily='body'>
-                    Generate AI-powered images of future scenarios. Create
-                    visual representations of your innovative concepts.
-                  </Text>
-
-                  {/* Image Prompt Input */}
-                  <VStack gap={2} align='stretch'>
-                    <Text fontSize='sm' fontWeight='medium' color='fg'>
-                      Image Prompt
-                    </Text>
-                    <Textarea
-                      value={imagePrompt}
-                      onChange={(e) => setImagePrompt(e.target.value)}
-                      placeholder='Describe the future scene you want to visualize (e.g., "A futuristic city with flying cars and green energy systems")'
-                      minH='100px'
-                      bg='bg'
-                      borderColor='border.muted'
-                      color='fg'
-                      _focus={{
-                        borderColor: 'brand',
-                        boxShadow: '0 0 0 1px token(colors.brand)',
-                      }}
-                      fontFamily='body'
-                    />
-                  </VStack>
-
-                  {/* Generate Button */}
-                  <Button
-                    onClick={handleGenerateFutureImage}
-                    loading={generatingImage}
-                    disabled={!imagePrompt.trim()}
-                    colorScheme='blue'
-                    size='md'
-                  >
-                    <FiPlay size={16} />
-                    Generate Future Image
-                  </Button>
-
-                  {/* Image Result */}
-                  {imageResult && (
-                    <Card.Root
-                      variant='outline'
-                      bg='bg.canvas'
-                      borderColor='border.muted'
-                    >
-                      <Card.Body p={4}>
-                        <VStack gap={4} align='stretch'>
-                          <HStack justify='space-between' align='start'>
-                            <VStack gap={1} align='start' flex='1'>
-                              <Text
-                                fontSize='sm'
-                                fontWeight='medium'
-                                color='fg'
-                              >
-                                Generated Image
-                              </Text>
-                              <Text fontSize='xs' color='fg.muted'>
-                                {imageResult.filename}
-                              </Text>
-                            </VStack>
-                            <HStack gap={2}>
-                              <Button
-                                size='xs'
-                                variant='outline'
-                                onClick={handleDownloadImage}
-                                disabled={!imageResult.image_data}
-                              >
-                                <FiDownload size={12} />
-                                Download
-                              </Button>
-                            </HStack>
-                          </HStack>
-
-                          {imageResult.error ? (
-                            <Text color='error' fontSize='sm'>
-                              Error: {imageResult.error}
-                            </Text>
-                          ) : (
-                            <VStack gap={3} align='stretch'>
-                              {/* Enhanced Prompt */}
-                              <Box>
-                                <Text
-                                  fontSize='xs'
-                                  fontWeight='medium'
-                                  color='fg'
-                                  mb={1}
-                                >
-                                  Enhanced Prompt:
-                                </Text>
-                                <Text
-                                  fontSize='xs'
-                                  color='fg.muted'
-                                  p={2}
-                                  bg='bg.subtle'
-                                  borderRadius='md'
-                                >
-                                  {imageResult.enhanced_prompt.replace(
-                                    /"/g,
-                                    ''
-                                  )}
-                                </Text>
-                              </Box>
-
-                              {/* Generated Image */}
-                              {imageResult.image_data && (
-                                <Box>
-                                  <Image
-                                    src={`data:image/png;base64,${imageResult.image_data}`}
-                                    alt='Generated future image'
-                                    maxW='100%'
-                                    maxH='500px'
-                                    objectFit='contain'
-                                    borderRadius='md'
-                                    border='1px solid'
-                                    borderColor='border.muted'
-                                  />
-                                </Box>
-                              )}
-                            </VStack>
-                          )}
-                        </VStack>
-                      </Card.Body>
-                    </Card.Root>
-                  )}
-                </VStack>
-              </Accordion.ItemContent>
-            </Accordion.Item>
-          </Accordion.Root>
-        </Card.Body>
-      </Card.Root>
-
-      {/* Quick Actions */}
-      <Card.Root
-        variant='outline'
-        borderColor='border.emphasized'
-        bg='bg.canvas'
-      >
-        <Card.Body p={6}>
-          <Heading as='h3' size='md' mb={4}>
-            Quick Actions
+      <HStack align='center'>
+        <VStack gap={1} align='start'>
+          <Heading as='h2' size='lg' color='fg' fontFamily='heading'>
+            Invention Tools
           </Heading>
-          <HStack gap={4} wrap='wrap'>
-            <Button
-              size='sm'
-              variant='outline'
-              colorScheme='gray'
-              onClick={() => window.location.reload()}
-            >
-              <FiRefreshCw size={14} />
-              Refresh Tools
-            </Button>
-            <Button
-              size='sm'
-              variant='outline'
-              colorScheme='gray'
-              onClick={() => {
-                setStoryResult(null);
-                setImageResult(null);
-                setStoryDetails('');
-                setImagePrompt('');
-              }}
-            >
-              <FiX size={14} />
-              Clear Results
-            </Button>
+        </VStack>
+
+        <HStack gap={2}>
+          <Button
+            size='md'
+            variant='ghost'
+            onClick={() => window.location.reload()}
+            disabled={loading}
+            color='fg.muted'
+            _hover={{ color: 'brand', bg: 'bg.hover' }}
+          >
+            <FiRefreshCw size={16} />
+          </Button>
+        </HStack>
+      </HStack>
+
+      {/* Info about IdeaSeeds */}
+      <Card.Root variant='outline' borderColor='border.muted' bg='bg.canvas'>
+        <Card.Body p={4}>
+          <HStack gap={2} align='start'>
+            <Box color='fg.muted'>
+              <FiInfo size={16} />
+            </Box>
+            <VStack gap={1} align='start' flex='1'>
+              <Text
+                fontSize='sm'
+                color='fg.muted'
+                fontFamily='body'
+                lineHeight='1.5'
+              >
+                Create compelling stories and images to bring your ideas to
+                life. Future tools will integrate with IdeaSeeds for enhanced
+                workflows.
+              </Text>
+              <HStack gap={4} fontSize='xs' color='fg.muted' fontFamily='body'>
+                <Text>Available Tools: 2</Text>
+                <Text>IdeaSeeds: {ideaSeeds.length}</Text>
+              </HStack>
+            </VStack>
           </HStack>
         </Card.Body>
       </Card.Root>
+
+      {/* Future Stories Section */}
+      <VStack gap={4} align='stretch'>
+        <VStack gap={2} align='start'>
+          <Heading as='h3' size='md' color='fg' fontFamily='heading'>
+            <HStack gap={2}>
+              <FiFileText size={20} />
+              <Text>Future Stories</Text>
+              <Badge colorScheme='green' size='sm'>
+                Available
+              </Badge>
+            </HStack>
+          </Heading>
+          <Text color='fg.muted' fontSize='sm' fontFamily='body'>
+            Generate compelling narratives set in future scenarios. Perfect for
+            exploring the human impact of your innovations.
+          </Text>
+        </VStack>
+
+        <Card.Root
+          variant='outline'
+          borderColor='border.emphasized'
+          bg='bg.canvas'
+        >
+          <Card.Body p={6}>
+            <VStack gap={4} align='stretch'>
+              {/* Story Details Input */}
+              <VStack gap={2} align='stretch'>
+                <Text fontSize='sm' fontWeight='medium' color='fg'>
+                  Story Details
+                </Text>
+                <Textarea
+                  value={storyDetails}
+                  onChange={(e) => setStoryDetails(e.target.value)}
+                  placeholder='Describe your future scenario (e.g., "an autonomous plant robot sells an NFT piece for one million euros")'
+                  minH='100px'
+                  bg='bg'
+                  borderColor='border.muted'
+                  color='fg'
+                  _focus={{
+                    borderColor: 'brand',
+                    boxShadow: '0 0 0 1px token(colors.brand)',
+                  }}
+                  fontFamily='body'
+                />
+              </VStack>
+
+              {/* Format Selection */}
+              <VStack gap={2} align='stretch'>
+                <Text fontSize='sm' fontWeight='medium' color='fg'>
+                  Story Format
+                </Text>
+                <Select.Root
+                  value={[formatOption]}
+                  onValueChange={(details) =>
+                    setFormatOption(
+                      details.value[0] as
+                        | 'future_journalist'
+                        | 'microfiction'
+                        | 'aidvertising'
+                        | 'social_media'
+                        | 'screenplay_pitch'
+                        | 'custom'
+                    )
+                  }
+                >
+                  <Select.Trigger
+                    bg='bg'
+                    borderColor='border.muted'
+                    color='fg'
+                    _focus={{
+                      borderColor: 'brand',
+                      boxShadow: '0 0 0 1px token(colors.brand)',
+                    }}
+                  >
+                    <Select.ValueText placeholder='Select format'>
+                      {formatOptions.find((opt) => opt.value === formatOption)
+                        ?.label || 'Select format'}
+                    </Select.ValueText>
+                  </Select.Trigger>
+                  <Select.Content>
+                    {formatOptions.map((option) => (
+                      <Select.Item key={option.value} item={option.value}>
+                        <Select.ItemText>{option.label}</Select.ItemText>
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Root>
+                <Text fontSize='xs' color='fg.muted' fontFamily='body'>
+                  {toolsService.getFormatOptionDescription(formatOption)}
+                </Text>
+              </VStack>
+
+              {/* Custom Prompt (only for custom format) */}
+              {formatOption === 'custom' && (
+                <VStack gap={2} align='stretch'>
+                  <Text fontSize='sm' fontWeight='medium' color='fg'>
+                    Custom Prompt
+                  </Text>
+                  <Textarea
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder='Enter your custom story format instructions...'
+                    minH='80px'
+                    bg='bg'
+                    borderColor='border.muted'
+                    color='fg'
+                    _focus={{
+                      borderColor: 'brand',
+                      boxShadow: '0 0 0 1px token(colors.brand)',
+                    }}
+                    fontFamily='body'
+                  />
+                </VStack>
+              )}
+
+              {/* Year Range */}
+              <VStack gap={2} align='stretch'>
+                <Text fontSize='sm' fontWeight='medium' color='fg'>
+                  Year Range: {yearRange[0]} - {yearRange[1]}
+                </Text>
+                <Slider.Root
+                  value={yearRange}
+                  onValueChange={(details) =>
+                    setYearRange(details.value as [number, number])
+                  }
+                  min={new Date().getFullYear()}
+                  max={2100}
+                  step={1}
+                >
+                  <Slider.Track>
+                    <Slider.Range />
+                  </Slider.Track>
+                  <Slider.Thumb index={0} />
+                  <Slider.Thumb index={1} />
+                </Slider.Root>
+                <HStack justify='space-between' fontSize='xs' color='fg.muted'>
+                  <Text>{new Date().getFullYear()}</Text>
+                  <Text>2100</Text>
+                </HStack>
+              </VStack>
+
+              {/* Generate Button */}
+              <Button
+                onClick={handleGenerateFutureStory}
+                loading={generatingStory}
+                disabled={
+                  !storyDetails.trim() ||
+                  (formatOption === 'custom' && !customPrompt.trim())
+                }
+                colorScheme='blue'
+                size='md'
+              >
+                <FiPlay size={16} />
+                Generate Future Story
+              </Button>
+            </VStack>
+          </Card.Body>
+        </Card.Root>
+
+        {/* Story Result */}
+        {storyResult && (
+          <Card.Root
+            variant='outline'
+            bg='bg.canvas'
+            borderColor='border.muted'
+          >
+            <Card.Body p={4}>
+              <VStack gap={4} align='stretch'>
+                <HStack justify='space-between' align='start'>
+                  <VStack gap={1} align='start' flex='1'>
+                    <Text fontSize='sm' fontWeight='medium' color='fg'>
+                      Generated Story
+                    </Text>
+                    <Text fontSize='xs' color='fg.muted'>
+                      Format:{' '}
+                      {toolsService.getFormatOptionDisplayName(
+                        storyResult.formatOption
+                      )}{' '}
+                      • Years: {storyResult.yearRange[0]}-
+                      {storyResult.yearRange[1]}
+                    </Text>
+                  </VStack>
+                  <HStack gap={2}>
+                    <Button
+                      size='xs'
+                      variant='outline'
+                      onClick={handleShareStory}
+                    >
+                      <FiShare size={12} />
+                      Share
+                    </Button>
+                  </HStack>
+                </HStack>
+
+                {storyResult.error ? (
+                  <Text color='error' fontSize='sm'>
+                    Error: {storyResult.error}
+                  </Text>
+                ) : (
+                  <Box
+                    maxH='400px'
+                    overflowY='auto'
+                    p={4}
+                    bg='bg.subtle'
+                    borderRadius='md'
+                    border='1px solid'
+                    borderColor='border.muted'
+                  >
+                    <VStack gap={2} align='stretch'>
+                      {formatStoryText(storyResult.story)}
+                    </VStack>
+                  </Box>
+                )}
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+        )}
+      </VStack>
+
+      {/* Futuregrapher Section */}
+      <VStack gap={4} align='stretch'>
+        <VStack gap={2} align='start'>
+          <Heading as='h3' size='md' color='fg' fontFamily='heading'>
+            <HStack gap={2}>
+              <FiImage size={20} />
+              <Text>Futuregrapher</Text>
+              <Badge colorScheme='green' size='sm'>
+                Available
+              </Badge>
+            </HStack>
+          </Heading>
+          <Text color='fg.muted' fontSize='sm' fontFamily='body'>
+            Generate AI-powered images of future scenarios. Create visual
+            representations of your innovative concepts.
+          </Text>
+        </VStack>
+
+        <Card.Root
+          variant='outline'
+          borderColor='border.emphasized'
+          bg='bg.canvas'
+        >
+          <Card.Body p={6}>
+            <VStack gap={4} align='stretch'>
+              {/* Image Prompt Input */}
+              <VStack gap={2} align='stretch'>
+                <Text fontSize='sm' fontWeight='medium' color='fg'>
+                  Image Prompt
+                </Text>
+                <Textarea
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder='Describe the future scene you want to visualize (e.g., "A futuristic city with flying cars and green energy systems")'
+                  minH='100px'
+                  bg='bg'
+                  borderColor='border.muted'
+                  color='fg'
+                  _focus={{
+                    borderColor: 'brand',
+                    boxShadow: '0 0 0 1px token(colors.brand)',
+                  }}
+                  fontFamily='body'
+                />
+              </VStack>
+
+              {/* Generate Button */}
+              <Button
+                onClick={handleGenerateFutureImage}
+                loading={generatingImage}
+                disabled={!imagePrompt.trim()}
+                colorScheme='blue'
+                size='md'
+              >
+                <FiPlay size={16} />
+                Generate Future Image
+              </Button>
+            </VStack>
+          </Card.Body>
+        </Card.Root>
+
+        {/* Image Result */}
+        {imageResult && (
+          <Card.Root
+            variant='outline'
+            bg='bg.canvas'
+            borderColor='border.muted'
+          >
+            <Card.Body p={4}>
+              <VStack gap={4} align='stretch'>
+                <HStack justify='space-between' align='start'>
+                  <VStack gap={1} align='start' flex='1'>
+                    <Text fontSize='sm' fontWeight='medium' color='fg'>
+                      Generated Image
+                    </Text>
+                    <Text fontSize='xs' color='fg.muted'>
+                      {imageResult.filename}
+                    </Text>
+                  </VStack>
+                  <HStack gap={2}>
+                    <Button
+                      size='xs'
+                      variant='outline'
+                      onClick={handleDownloadImage}
+                      disabled={!imageResult.image_data}
+                    >
+                      <FiDownload size={12} />
+                      Download
+                    </Button>
+                  </HStack>
+                </HStack>
+
+                {imageResult.error ? (
+                  <Text color='error' fontSize='sm'>
+                    Error: {imageResult.error}
+                  </Text>
+                ) : (
+                  <VStack gap={3} align='stretch'>
+                    {/* Enhanced Prompt */}
+                    <Box>
+                      <Text fontSize='xs' fontWeight='medium' color='fg' mb={1}>
+                        Enhanced Prompt:
+                      </Text>
+                      <Text
+                        fontSize='xs'
+                        color='fg.muted'
+                        p={2}
+                        bg='bg.subtle'
+                        borderRadius='md'
+                      >
+                        {imageResult.enhanced_prompt.replace(/"/g, '')}
+                      </Text>
+                    </Box>
+
+                    {/* Generated Image */}
+                    {imageResult.image_data && (
+                      <Box>
+                        <Image
+                          src={`data:image/png;base64,${imageResult.image_data}`}
+                          alt='Generated future image'
+                          maxW='100%'
+                          maxH='500px'
+                          objectFit='contain'
+                          borderRadius='md'
+                          border='1px solid'
+                          borderColor='border.muted'
+                        />
+                      </Box>
+                    )}
+                  </VStack>
+                )}
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+        )}
+      </VStack>
 
       {/* Commented out - future tool categories layout */}
       {/*
