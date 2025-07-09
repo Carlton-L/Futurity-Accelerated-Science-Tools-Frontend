@@ -195,14 +195,21 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
 
   // Generate the AI chat context message based on current page
   const generateChatMessage = () => {
+    // Debug logging to help identify the issue
+    console.log('🔍 Debug - pageContext:', pageContext);
+    console.log('🔍 Debug - pageContext.pageType:', pageContext.pageType);
+    if (pageContext.pageType === 'subject') {
+      console.log(
+        '🔍 Debug - subject data:',
+        'subject' in pageContext ? pageContext.subject : 'NO SUBJECT DATA'
+      );
+    }
+
     // Get human-readable page description
     const getPageDescription = () => {
       switch (pageContext.pageType) {
         case 'subject':
-          if ('subject' in pageContext && pageContext.subject) {
-            return `Subject page for ${pageContext.subject.name}`;
-          }
-          return 'Subject page';
+          return 'snapshot page';
         case 'lab':
           if ('lab' in pageContext && pageContext.lab) {
             return `Lab page for ${pageContext.lab.name} (${pageContext.currentTab} tab)`;
@@ -256,20 +263,24 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
       pageContext.subject
     ) {
       // Expert mode for subject pages
-      return {
+      const message = {
         mode: 'expert' as const,
         subject: pageContext.subject.name,
-        subject_fsid: pageContext.subject.id, // Using id as fsid for now
+        subject_fsid: pageContext.subject.fsid || pageContext.subject.id, // Use fsid if available, fallback to id
         page: getPageDescription(),
       };
+      console.log('🔍 Debug - Generated EXPERT message:', message);
+      return message;
     } else {
       // Full agency mode for all other pages
-      return {
+      const message = {
         mode: 'full-agency' as const,
         subject: '',
         subject_fsid: '',
         page: getPageDescription(),
       };
+      console.log('🔍 Debug - Generated FULL-AGENCY message:', message);
+      return message;
     }
   };
 
