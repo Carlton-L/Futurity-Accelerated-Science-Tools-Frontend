@@ -252,6 +252,7 @@ const Subject: React.FC = () => {
         id: subject._id,
         name: subject.ent_name,
         title: subject.ent_name,
+        fsid: subject.ent_fsid, // Add the proper fsid here
       },
     };
   }, [subject]);
