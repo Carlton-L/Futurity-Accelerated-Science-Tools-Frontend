@@ -489,6 +489,215 @@ class ToolsService {
     const end = Math.max(...years);
     return years.length === 1 ? `${start}` : `${start}-${end}`;
   }
+
+  // ===================
+  // FUTURE STORIES
+  // ===================
+
+  /**
+   * Generate a future story
+   */
+  async generateFutureStory(
+    storyDetails: string,
+    formatOption:
+      | 'future_journalist'
+      | 'microfiction'
+      | 'aidvertising'
+      | 'social_media'
+      | 'screenplay_pitch'
+      | 'custom',
+    yearRange: [number, number],
+    customPrompt: string | null,
+    token: string
+  ): Promise<{ story: string; error: string | null }> {
+    const request = {
+      story_details: storyDetails.trim(),
+      format_option: formatOption,
+      year_range: yearRange,
+      ...(customPrompt && { custom_prompt: customPrompt }),
+    };
+
+    console.log('📝 Generating future story:', {
+      formatOption,
+      yearRange,
+      storyDetailsLength: storyDetails.length,
+      hasCustomPrompt: !!customPrompt,
+    });
+
+    const response = await fetch(
+      'https://fast.futurity.science/launch/future_stories/',
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(token),
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      if (response.status === 403) {
+        throw new Error('You do not have permission to use this tool.');
+      }
+      if (response.status === 400) {
+        const errorText = await response.text();
+        throw new Error(`Invalid request: ${errorText}`);
+      }
+
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to generate future story: ${response.status} ${response.statusText}. ${errorText}`
+      );
+    }
+
+    const result = await response.json();
+
+    console.log('✅ Future story generated successfully:', {
+      storyLength: result.story?.length || 0,
+      hasError: !!result.error,
+    });
+
+    return result;
+  }
+
+  // ===================
+  // FUTUREGRAPHER
+  // ===================
+
+  /**
+   * Generate a future image
+   */
+  async generateFutureImage(
+    prompt: string,
+    token: string
+  ): Promise<{
+    success: boolean;
+    enhanced_prompt: string;
+    used_prompt: string;
+    filename: string;
+    image_data: string;
+    message: string;
+    error: string | null;
+  }> {
+    const request = {
+      prompt: prompt.trim(),
+    };
+
+    console.log('🎨 Generating future image:', {
+      promptLength: prompt.length,
+      promptPreview: prompt.substring(0, 100) + '...',
+    });
+
+    const response = await fetch(
+      'https://fast.futurity.science/launch/futuregrapher/',
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(token),
+        body: JSON.stringify(request),
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      if (response.status === 403) {
+        throw new Error('You do not have permission to use this tool.');
+      }
+      if (response.status === 400) {
+        const errorText = await response.text();
+        throw new Error(`Invalid request: ${errorText}`);
+      }
+
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to generate future image: ${response.status} ${response.statusText}. ${errorText}`
+      );
+    }
+
+    const result = await response.json();
+
+    console.log('✅ Future image generated successfully:', {
+      success: result.success,
+      filename: result.filename,
+      hasImageData: !!result.image_data,
+      hasError: !!result.error,
+    });
+
+    return result;
+  }
+
+  // ===================
+  // HELPER METHODS FOR INVENTION TOOLS
+  // ===================
+
+  /**
+   * Get format option display names
+   */
+  getFormatOptionDisplayName(option: string): string {
+    const displayNames: Record<string, string> = {
+      future_journalist: 'Future Journalist Article',
+      microfiction: 'Microfiction (Short Story)',
+      aidvertising: 'Future Advertisement',
+      social_media: 'Social Media Post',
+      screenplay_pitch: 'Screenplay Pitch',
+      custom: 'Custom Format',
+    };
+
+    return displayNames[option] || option;
+  }
+
+  /**
+   * Get format option descriptions
+   */
+  getFormatOptionDescription(option: string): string {
+    const descriptions: Record<string, string> = {
+      future_journalist: 'Write a magazine article from a future date',
+      microfiction: 'Write a short story (1000 words or less)',
+      aidvertising: 'Make an ad for your future product or service',
+      social_media:
+        'Create a short social post from a person living in the future world',
+      screenplay_pitch: 'Write the pitch to make a movie of your idea',
+      custom: 'Use your own custom story format',
+    };
+
+    return descriptions[option] || '';
+  }
+
+  /**
+   * Convert base64 image data to blob URL
+   */
+  convertBase64ToBlob(
+    base64Data: string,
+    mimeType: string = 'image/png'
+  ): string {
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mimeType });
+
+    return URL.createObjectURL(blob);
+  }
+
+  /**
+   * Download image from base64 data
+   */
+  downloadImageFromBase64(base64Data: string, filename: string): void {
+    const blobUrl = this.convertBase64ToBlob(base64Data);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  }
 }
 
 export const toolsService = new ToolsService();

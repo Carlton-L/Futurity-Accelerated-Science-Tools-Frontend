@@ -109,10 +109,19 @@ const infoTexts: Record<ForecastType, string> = {
     'Books and publications provide comprehensive knowledge and educational resources in a field. The graph and table below show books related to this space.',
 };
 
-// Helper function to spoof data for recent years (2024-2025)
+// ============================================================================
+// DATA SPOOFING FUNCTIONS - REMOVE THIS ENTIRE SECTION TO DISABLE SPOOFING
+// ============================================================================
+
+// Helper function to spoof data for recent years (2020-2025) and forecast data
 const spoofRecentData = (data: PlotData[]): PlotData[] => {
-  return data.map((trace) => {
-    // Only modify the historical data trace (first trace with historical data)
+  // First, process historical data and capture the ending value
+  let historicalEndValue = 0;
+  let historicalEndYear = '';
+  let historicalTrend = 0;
+
+  // Step 1: Process historical data - spoofing can only maintain or increase values
+  const processedData = data.map((trace) => {
     if (
       trace.name === 'Historical Data' &&
       trace.x &&
@@ -123,69 +132,165 @@ const spoofRecentData = (data: PlotData[]): PlotData[] => {
       const years = trace.x as (string | number)[];
       const values = trace.y as number[];
 
-      // Find indices for recent years
-      const idx2024 = years.findIndex((year) => year.toString() === '2024');
-      const idx2025 = years.findIndex((year) => year.toString() === '2025');
+      // Get indices for years 2020-2025
+      const yearIndices = {
+        2020: years.findIndex((year) => year.toString() === '2020'),
+        2021: years.findIndex((year) => year.toString() === '2021'),
+        2022: years.findIndex((year) => year.toString() === '2022'),
+        2023: years.findIndex((year) => year.toString() === '2023'),
+        2024: years.findIndex((year) => year.toString() === '2024'),
+        2025: years.findIndex((year) => year.toString() === '2025'),
+      };
 
-      if (idx2024 !== -1 || idx2025 !== -1) {
+      const hasRecentData = Object.values(yearIndices).some(
+        (idx) => idx !== -1
+      );
+
+      if (hasRecentData) {
         const newValues = [...values];
 
-        // Get trend data from 2020-2023 for prediction
-        const trendYears = ['2020', '2021', '2022', '2023'];
-        const trendData = trendYears
+        // Get historical context (2015-2019) for baseline
+        const baselineYears = ['2015', '2016', '2017', '2018', '2019'];
+        const baselineData = baselineYears
           .map((year) => {
             const idx = years.findIndex((y) => y.toString() === year);
             return idx !== -1 ? values[idx] : 0;
           })
           .filter((val) => val > 0);
 
-        if (trendData.length >= 2) {
-          // Calculate trend direction and magnitude
-          const recentValues = trendData.slice(-2);
-          const avgRecent =
-            recentValues.reduce((a, b) => a + b, 0) / recentValues.length;
-          const maxRecent = Math.max(...trendData);
-          const trend = recentValues[1] - recentValues[0];
+        // Get actual recent data (2020-2023)
+        const recentYearsList = [2020, 2021, 2022, 2023];
+        const recentData = recentYearsList
+          .map((year) => {
+            const idx = yearIndices[year as keyof typeof yearIndices];
+            return idx !== -1 ? values[idx] : 0;
+          })
+          .filter((val) => val > 0);
 
-          // Spoof 2024 data
-          if (idx2024 !== -1) {
-            let spoofed2024 = avgRecent;
+        if (recentData.length >= 2) {
+          // Calculate baseline average (pre-2020)
+          const baselineAvg =
+            baselineData.length > 0
+              ? baselineData.reduce((a, b) => a + b, 0) / baselineData.length
+              : Math.max(...recentData) * 0.8;
 
-            // Apply dampened trend
-            if (trend > 0) {
-              // If trending up, add some growth but dampen it
-              spoofed2024 =
-                avgRecent +
-                trend * 0.3 +
-                (Math.random() - 0.5) * (avgRecent * 0.1);
-            } else if (trend < 0) {
-              // If trending down, reduce the decline
-              spoofed2024 =
-                avgRecent +
-                trend * 0.2 +
-                (Math.random() - 0.5) * (avgRecent * 0.1);
-            }
+          // Detect sharp drop-off
+          const maxRecent = Math.max(...recentData);
+          const minRecent = Math.min(...recentData);
+          const latestValue = recentData[recentData.length - 1];
 
-            // Ensure reasonable bounds
-            spoofed2024 = Math.max(spoofed2024, avgRecent * 0.5);
-            spoofed2024 = Math.min(spoofed2024, maxRecent * 1.2);
+          // Check if there's a sharp drop (latest value is significantly lower than max)
+          const dropRatio = latestValue / maxRecent;
+          const isSharpDrop = dropRatio < 0.4 && maxRecent > baselineAvg * 0.5;
 
-            newValues[idx2024] = Math.round(spoofed2024);
-          }
+          console.log(`Sharp drop detection for ${trace.name}:`, {
+            maxRecent,
+            minRecent,
+            latestValue,
+            dropRatio,
+            isSharpDrop,
+            baselineAvg,
+          });
 
-          // Spoof 2025 data (should be partial year, so lower)
-          if (idx2025 !== -1) {
-            const spoofed2024Value =
-              idx2024 !== -1 ? newValues[idx2024] : avgRecent;
-            let spoofed2025 = spoofed2024Value * 0.2; // Assume 2025 is only partial data
+          if (isSharpDrop) {
+            // Fix the sharp drop by creating a smoother transition
+            const targetLevel = Math.max(
+              baselineAvg * 0.7, // Don't go below 70% of baseline
+              maxRecent * 0.6, // Don't go below 60% of recent max
+              latestValue * 1.5 // Boost current value by 50%
+            );
 
-            // Add some randomness
-            spoofed2025 += (Math.random() - 0.5) * (spoofed2025 * 0.3);
-            spoofed2025 = Math.max(spoofed2025, 1);
+            // Smooth the transition from peak to target level
+            const peakIdx = recentData.indexOf(maxRecent);
+            const peakYear = recentYearsList[peakIdx];
 
-            newValues[idx2025] = Math.round(spoofed2025);
+            // Create smooth decline from peak year to 2025, but NEVER go below original values
+            const yearsToFix = [2021, 2022, 2023, 2024, 2025].filter(
+              (year) =>
+                year >= peakYear &&
+                yearIndices[year as keyof typeof yearIndices] !== -1
+            );
+
+            yearsToFix.forEach((year, i) => {
+              const idx = yearIndices[year as keyof typeof yearIndices];
+              if (idx !== -1) {
+                const originalValue = values[idx];
+                const progress = (i + 1) / yearsToFix.length;
+                const smoothedValue =
+                  maxRecent - (maxRecent - targetLevel) * progress;
+
+                // Add some randomness to make it look natural
+                const randomFactor = 0.9 + Math.random() * 0.2; // ±10% randomness
+                const proposedValue = Math.round(smoothedValue * randomFactor);
+
+                // CRITICAL: Never set value lower than original
+                newValues[idx] = Math.max(originalValue, proposedValue);
+              }
+            });
+          } else {
+            // No sharp drop, just apply light smoothing and realistic values
+            [2024, 2025].forEach((year) => {
+              const idx = yearIndices[year as keyof typeof yearIndices];
+              if (idx !== -1) {
+                const originalValue = values[idx];
+                const recentAvg =
+                  recentData.slice(-2).reduce((a, b) => a + b, 0) / 2;
+
+                if (year === 2024) {
+                  // 2024 should be similar to recent trend
+                  const trendFactor = 0.8 + Math.random() * 0.4; // 80-120% of recent avg
+                  const proposedValue = Math.round(recentAvg * trendFactor);
+                  // CRITICAL: Never set value lower than original
+                  newValues[idx] = Math.max(originalValue, proposedValue);
+                } else if (year === 2025) {
+                  // 2025 should be partial year data
+                  const partialYearFactor = 0.15 + Math.random() * 0.25; // 15-40% of 2024
+                  const proposedValue = Math.round(
+                    newValues[yearIndices[2024]] * partialYearFactor
+                  );
+                  // CRITICAL: Never set value lower than original
+                  newValues[idx] = Math.max(originalValue, proposedValue);
+                }
+              }
+            });
           }
         }
+
+        // Capture the ending value and trend for use in forecast adjustment
+        const lastYearWithData = [2025, 2024, 2023, 2022, 2021, 2020].find(
+          (year) => yearIndices[year as keyof typeof yearIndices] !== -1
+        );
+
+        if (lastYearWithData) {
+          const lastIdx =
+            yearIndices[lastYearWithData as keyof typeof yearIndices];
+          historicalEndValue = newValues[lastIdx];
+          historicalEndYear = lastYearWithData.toString();
+
+          // Calculate trend from the last few years of spoofed data
+          const trendYears = [2023, 2024, 2025].filter(
+            (year) => yearIndices[year as keyof typeof yearIndices] !== -1
+          );
+
+          if (trendYears.length >= 2) {
+            const trendValues = trendYears.map((year) => {
+              const idx = yearIndices[year as keyof typeof yearIndices];
+              return newValues[idx];
+            });
+
+            // Calculate average year-over-year change
+            const changes = [];
+            for (let i = 1; i < trendValues.length; i++) {
+              changes.push(trendValues[i] - trendValues[i - 1]);
+            }
+            historicalTrend =
+              changes.reduce((a, b) => a + b, 0) / changes.length;
+          }
+        }
+
+        console.log(
+          `Historical data ends at ${historicalEndYear} with value ${historicalEndValue}, trend: ${historicalTrend}`
+        );
 
         return {
           ...trace,
@@ -196,6 +301,540 @@ const spoofRecentData = (data: PlotData[]): PlotData[] => {
 
     return trace;
   });
+
+  // Step 2: Adjust the dotted connector line using more conservative spoofing logic
+  let connectorEndValue = 0;
+  const withConnectorAdjusted = processedData.map((trace) => {
+    if (
+      trace.name === 'Forecast start' &&
+      trace.x &&
+      trace.y &&
+      Array.isArray(trace.x) &&
+      Array.isArray(trace.y)
+    ) {
+      const connectorYears = trace.x as (string | number)[];
+      const connectorValues = trace.y as number[];
+
+      if (
+        connectorYears.length === 2 &&
+        connectorValues.length === 2 &&
+        historicalEndValue > 0
+      ) {
+        const [year1, year2] = connectorYears;
+        const [originalValue1, originalValue2] = connectorValues;
+
+        // First value should match our spoofed historical end
+        const newValue1 = historicalEndValue;
+
+        // Second value should follow conservative logic to avoid following data artifacts
+        // NOTE: Dotted line is more flexible and CAN go up or down
+        let newValue2 = originalValue2;
+
+        // Check for recent spike pattern (peak in 2020-2023 followed by sharp drop)
+        // Get the spoofed historical data to analyze for spikes
+        const historicalTrace = processedData.find(
+          (t) => t.name === 'Historical Data'
+        );
+        if (
+          historicalTrace &&
+          historicalTrace.x &&
+          historicalTrace.y &&
+          Array.isArray(historicalTrace.x) &&
+          Array.isArray(historicalTrace.y)
+        ) {
+          const years = historicalTrace.x as (string | number)[];
+          const values = historicalTrace.y as number[];
+
+          // Get values for 2020-2023 to detect recent spikes
+          const recentYears = [2020, 2021, 2022, 2023];
+          const recentValues = recentYears
+            .map((year) => {
+              const idx = years.findIndex(
+                (y) => y.toString() === year.toString()
+              );
+              return idx !== -1 ? values[idx] : 0;
+            })
+            .filter((val) => val > 0);
+
+          // Get baseline (pre-2020) for comparison
+          const baselineYears = [2015, 2016, 2017, 2018, 2019];
+          const baselineValues = baselineYears
+            .map((year) => {
+              const idx = years.findIndex(
+                (y) => y.toString() === year.toString()
+              );
+              return idx !== -1 ? values[idx] : 0;
+            })
+            .filter((val) => val > 0);
+
+          const baselineAvg =
+            baselineValues.length > 0
+              ? baselineValues.reduce((a, b) => a + b, 0) /
+                baselineValues.length
+              : 0;
+
+          const recentMax = Math.max(...recentValues);
+          const recentMin = Math.min(...recentValues);
+
+          // Detect spike pattern: high peak followed by sharp drop
+          const hasSpikePattern =
+            recentMax > baselineAvg * 2 && // Peak is 2x baseline
+            recentMin < recentMax * 0.3 && // Recent minimum is <30% of peak
+            newValue1 < recentMax * 0.5; // Current end is <50% of peak
+
+          console.log(`Spike detection for connector:`, {
+            recentMax,
+            recentMin,
+            baselineAvg,
+            currentEnd: newValue1,
+            hasSpikePattern,
+          });
+
+          if (hasSpikePattern) {
+            // Use conservative approach - don't follow the downward trend
+            // Instead, use a stable value based on pre-spike baseline
+            const conservativeValue = Math.max(
+              baselineAvg * 0.8, // 80% of baseline
+              recentMax * 0.4, // 40% of recent peak
+              newValue1 * 0.9 // 90% of current (slight decline)
+            );
+
+            // Apply tight limits for connector line
+            const minConnectorValue = newValue1 * 0.7; // Max 30% decline
+            const maxConnectorValue = newValue1 * 1.3; // Max 30% increase
+
+            newValue2 = Math.max(
+              minConnectorValue,
+              Math.min(maxConnectorValue, conservativeValue)
+            );
+          } else {
+            // No spike pattern, use trend-based approach with tighter limits
+            if (historicalTrend !== 0) {
+              const projectedValue = newValue1 + historicalTrend;
+
+              // Much tighter limits for connector line
+              const minValue = newValue1 * 0.6; // Max 40% decline
+              const maxValue = newValue1 * 1.5; // Max 50% increase
+
+              newValue2 = Math.max(
+                minValue,
+                Math.min(maxValue, projectedValue)
+              );
+            } else {
+              // No clear trend, use very conservative adjustment
+              const originalJump = originalValue2 - originalValue1;
+              const jumpRatio = Math.abs(originalJump) / newValue1;
+
+              if (jumpRatio > 0.3) {
+                // Limit jump to 30% max
+                const maxJump = newValue1 * 0.3;
+                const limitedJump =
+                  originalJump > 0
+                    ? Math.min(originalJump, maxJump)
+                    : Math.max(originalJump, -maxJump);
+                newValue2 = Math.round(newValue1 + limitedJump);
+              } else {
+                // Small jump, adjust proportionally
+                const adjustmentRatio = newValue1 / originalValue1;
+                newValue2 = Math.round(originalValue2 * adjustmentRatio);
+              }
+            }
+          }
+        }
+
+        // Final safety bounds for connector line (very conservative)
+        const safeMin = newValue1 * 0.5; // Never go below 50% of historical end
+        const safeMax = newValue1 * 2.0; // Never go above 200% of historical end
+        newValue2 = Math.max(safeMin, Math.min(safeMax, newValue2));
+
+        // Add minimal randomness to make it natural
+        const randomFactor = 0.95 + Math.random() * 0.1; // ±5% randomness (much less than historical)
+        newValue2 = Math.round(newValue2 * randomFactor);
+
+        connectorEndValue = newValue2;
+
+        console.log(`Spoofed forecast start connector:`, {
+          originalValues: [originalValue1, originalValue2],
+          newValues: [newValue1, newValue2],
+          historicalEnd: historicalEndValue,
+          historicalTrend,
+          connectorEndValue,
+        });
+
+        return {
+          ...trace,
+          y: [newValue1, newValue2],
+        };
+      }
+    }
+
+    return trace;
+  });
+
+  // Step 3: Adjust forecast data to start from the spoofed connector end - can only increase, never decrease
+  // First pass: process forecast data and smooth out peaks
+  let forecastStartValue = 0;
+
+  const forecastProcessed = withConnectorAdjusted.map((trace) => {
+    if (
+      (trace.name === 'Median Forecast' ||
+        trace.name === 'Forecast min' ||
+        trace.name === 'Forecast Range') &&
+      trace.x &&
+      trace.y &&
+      Array.isArray(trace.x) &&
+      Array.isArray(trace.y) &&
+      connectorEndValue > 0
+    ) {
+      const forecastYears = trace.x as (string | number)[];
+      const forecastValues = trace.y as number[];
+
+      if (forecastValues.length > 0) {
+        const newForecastValues = [...forecastValues];
+        const originalStartValue = forecastValues[0];
+
+        // Start from the spoofed connector end value
+        const startValue = connectorEndValue;
+        newForecastValues[0] = startValue;
+
+        // For Median Forecast, smooth out peaks and create relatively smooth slope
+        if (trace.name === 'Median Forecast') {
+          // Calculate a smooth linear progression from start to end
+          const originalEndValue = forecastValues[forecastValues.length - 1];
+          const adjustedEndValue = Math.max(originalEndValue, startValue * 1.1); // At least 10% growth
+
+          // Create smooth linear progression
+          for (let i = 1; i < newForecastValues.length; i++) {
+            const progress = i / (newForecastValues.length - 1);
+            const smoothValue =
+              startValue + (adjustedEndValue - startValue) * progress;
+
+            // Ensure it's never lower than original
+            const originalValue = forecastValues[i];
+            newForecastValues[i] = Math.max(
+              originalValue,
+              Math.round(smoothValue)
+            );
+          }
+
+          // Capture the forecast start value for connector adjustment
+          forecastStartValue = newForecastValues[0];
+        } else {
+          // For other forecast traces, use conservative scaling approach
+          const originalStartValue = forecastValues[0];
+
+          // Calculate scaling factor but cap it to prevent amplification
+          const scalingFactor = Math.min(
+            2.0,
+            Math.max(0.5, startValue / originalStartValue)
+          );
+
+          // Adjust subsequent values with conservative scaling
+          for (let i = 1; i < newForecastValues.length; i++) {
+            const originalValue = forecastValues[i];
+            const originalChangeFromStart = originalValue - originalStartValue;
+
+            // Scale the change conservatively
+            const scaledChange = originalChangeFromStart * scalingFactor;
+            const scaledValue = startValue + scaledChange;
+
+            // Apply dampening to prevent amplification of small peaks
+            const dampening = Math.min(
+              1.0,
+              Math.max(0.3, originalStartValue / 100)
+            ); // More dampening for small values
+            const dampenedValue =
+              startValue + (scaledValue - startValue) * dampening;
+
+            // CRITICAL: Never set forecast value lower than original
+            newForecastValues[i] = Math.max(
+              originalValue,
+              Math.round(dampenedValue)
+            );
+
+            // Also ensure we don't go negative
+            newForecastValues[i] = Math.max(1, newForecastValues[i]);
+          }
+        }
+
+        console.log(`Adjusted forecast ${trace.name}:`, {
+          originalStart: originalStartValue,
+          newStart: startValue,
+          connectorEnd: connectorEndValue,
+          historicalTrend,
+        });
+
+        return {
+          ...trace,
+          y: newForecastValues,
+        };
+      }
+    }
+
+    return trace;
+  });
+
+  // Second pass: ensure forecast range contains the median forecast with consistent spacing
+  const rangeAdjusted = forecastProcessed.map((trace) => {
+    // We'll handle all forecast traces together in the next step
+    return trace;
+  });
+
+  // Third pass: Comprehensive forecast bounds adjustment
+  const boundsAdjusted = rangeAdjusted.map((trace) => {
+    if (
+      trace.name === 'Median Forecast' &&
+      trace.x &&
+      trace.y &&
+      Array.isArray(trace.x) &&
+      Array.isArray(trace.y)
+    ) {
+      // Find the min and max traces
+      const minTrace = rangeAdjusted.find((t) => t.name === 'Forecast min');
+      const maxTrace = rangeAdjusted.find((t) => t.name === 'Forecast Range');
+
+      if (
+        (minTrace && minTrace.y && Array.isArray(minTrace.y)) ||
+        (maxTrace && maxTrace.y && Array.isArray(maxTrace.y))
+      ) {
+        const medianValues = trace.y as number[];
+        const newMedianValues = [...medianValues];
+
+        // Calculate consistent spacing based on median values
+        const averageMedian =
+          medianValues.reduce((sum, val) => sum + val, 0) / medianValues.length;
+        const targetSpacing = Math.max(averageMedian * 0.15, 10); // 15% of average or minimum 10 units
+
+        // Adjust median to ensure it can fit within bounds
+        for (let i = 0; i < medianValues.length; i++) {
+          const originalMedian = medianValues[i];
+          let adjustedMedian = originalMedian;
+
+          // Check if we have min and max traces
+          const hasMinTrace =
+            minTrace &&
+            minTrace.y &&
+            Array.isArray(minTrace.y) &&
+            i < minTrace.y.length;
+          const hasMaxTrace =
+            maxTrace &&
+            maxTrace.y &&
+            Array.isArray(maxTrace.y) &&
+            i < maxTrace.y.length;
+
+          if (hasMinTrace && hasMaxTrace) {
+            const originalMin = minTrace.y[i] as number;
+            const originalMax = maxTrace.y[i] as number;
+
+            // If median is outside the original bounds, adjust it to fit
+            if (originalMedian < originalMin) {
+              adjustedMedian = Math.max(
+                originalMedian,
+                originalMin + targetSpacing
+              );
+            } else if (originalMedian > originalMax) {
+              adjustedMedian = Math.max(
+                originalMedian,
+                originalMax - targetSpacing
+              );
+            }
+          }
+
+          // Ensure we still respect the "never decrease" constraint
+          newMedianValues[i] = Math.max(originalMedian, adjustedMedian);
+        }
+
+        console.log(
+          `Adjusted median forecast for consistent bounds with spacing: ${targetSpacing}`
+        );
+
+        return {
+          ...trace,
+          y: newMedianValues,
+        };
+      }
+    }
+
+    return trace;
+  });
+
+  // Fourth pass: Adjust min and max bounds to maintain consistent spacing around median
+  const finalBoundsAdjusted = boundsAdjusted.map((trace) => {
+    if (
+      (trace.name === 'Forecast min' || trace.name === 'Forecast Range') &&
+      trace.x &&
+      trace.y &&
+      Array.isArray(trace.x) &&
+      Array.isArray(trace.y)
+    ) {
+      // Find the median forecast trace
+      const medianTrace = boundsAdjusted.find(
+        (t) => t.name === 'Median Forecast'
+      );
+
+      if (medianTrace && medianTrace.y && Array.isArray(medianTrace.y)) {
+        const medianValues = medianTrace.y as number[];
+        const currentValues = trace.y as number[];
+        const newValues = [...currentValues];
+
+        // Calculate consistent spacing
+        const averageMedian =
+          medianValues.reduce((sum, val) => sum + val, 0) / medianValues.length;
+        const targetSpacing = Math.max(averageMedian * 0.15, 10); // 15% of average or minimum 10 units
+
+        for (
+          let i = 0;
+          i < Math.min(medianValues.length, currentValues.length);
+          i++
+        ) {
+          const medianValue = medianValues[i];
+          const originalValue = currentValues[i];
+
+          let newValue;
+          if (trace.name === 'Forecast Range') {
+            // Max bound: median + consistent spacing
+            newValue = Math.round(medianValue + targetSpacing);
+          } else if (trace.name === 'Forecast min') {
+            // Min bound: median - consistent spacing
+            newValue = Math.round(medianValue - targetSpacing);
+          }
+
+          // Ensure we still respect the "never decrease" constraint
+          newValues[i] = Math.max(originalValue, newValue || originalValue);
+
+          // Additional safety: ensure min is actually lower than median and max is higher
+          if (trace.name === 'Forecast min' && newValues[i] >= medianValue) {
+            newValues[i] = Math.max(
+              originalValue,
+              medianValue - Math.max(5, targetSpacing * 0.5)
+            );
+          } else if (
+            trace.name === 'Forecast Range' &&
+            newValues[i] <= medianValue
+          ) {
+            newValues[i] = Math.max(
+              originalValue,
+              medianValue + Math.max(5, targetSpacing * 0.5)
+            );
+          }
+        }
+
+        console.log(
+          `Adjusted forecast ${trace.name} with consistent spacing: ${targetSpacing}`
+        );
+
+        return {
+          ...trace,
+          y: newValues,
+        };
+      }
+    }
+
+    return trace;
+  });
+
+  // Fifth pass: adjust dotted connector line endpoint to meet forecast beginning
+  const finalData = finalBoundsAdjusted.map((trace) => {
+    if (
+      trace.name === 'Forecast start' &&
+      trace.x &&
+      trace.y &&
+      Array.isArray(trace.x) &&
+      Array.isArray(trace.y)
+    ) {
+      const connectorYears = trace.x as (string | number)[];
+      const connectorValues = trace.y as number[];
+
+      if (
+        connectorYears.length === 2 &&
+        connectorValues.length === 2 &&
+        forecastStartValue > 0
+      ) {
+        const [year1, year2] = connectorYears;
+        const [value1, originalValue2] = connectorValues;
+
+        // Second value should meet the forecast beginning and not be lower than it
+        const newValue2 = Math.max(originalValue2, forecastStartValue);
+
+        console.log(`Adjusted dotted connector endpoint to meet forecast:`, {
+          originalEndpoint: originalValue2,
+          forecastStart: forecastStartValue,
+          newEndpoint: newValue2,
+        });
+
+        return {
+          ...trace,
+          y: [value1, newValue2],
+        };
+      }
+    }
+
+    // Handle "Last Year Segment" - should be a smooth straight line from historical end
+    if (
+      trace.name === 'Last Year Segment' &&
+      trace.x &&
+      trace.y &&
+      Array.isArray(trace.x) &&
+      Array.isArray(trace.y)
+    ) {
+      const segmentYears = trace.x as (string | number)[];
+      const segmentValues = trace.y as number[];
+
+      if (segmentValues.length >= 2 && historicalEndValue > 0) {
+        const newSegmentValues = [...segmentValues];
+
+        // First point should match historical end value
+        newSegmentValues[0] = historicalEndValue;
+
+        // Create a smooth, straight line with minimal change
+        const originalChange =
+          segmentValues[segmentValues.length - 1] - segmentValues[0];
+
+        // Limit the change to be more conservative (max 20% change)
+        const maxChange = historicalEndValue * 0.2;
+        const limitedChange =
+          Math.abs(originalChange) > maxChange
+            ? originalChange > 0
+              ? maxChange
+              : -maxChange
+            : originalChange;
+
+        const endValue = historicalEndValue + limitedChange;
+
+        // Create linear interpolation for all points
+        for (let i = 1; i < newSegmentValues.length; i++) {
+          const progress = i / (newSegmentValues.length - 1);
+          const interpolatedValue =
+            historicalEndValue + (endValue - historicalEndValue) * progress;
+
+          // Still respect the "never decrease" constraint
+          const originalValue = segmentValues[i];
+          newSegmentValues[i] = Math.max(
+            originalValue,
+            Math.round(interpolatedValue)
+          );
+        }
+
+        console.log(`Adjusted Last Year Segment to smooth line:`, {
+          originalStart: segmentValues[0],
+          originalEnd: segmentValues[segmentValues.length - 1],
+          newStart: newSegmentValues[0],
+          newEnd: newSegmentValues[newSegmentValues.length - 1],
+          historicalEnd: historicalEndValue,
+          limitedChange,
+        });
+
+        return {
+          ...trace,
+          y: newSegmentValues,
+        };
+      }
+    }
+
+    return trace;
+  });
+
+  return finalData;
 };
 
 // Helper function to modify plot colors for real data
@@ -226,6 +865,10 @@ const modifyColorsForRealData = (data: PlotData[]): PlotData[] => {
     return trace;
   });
 };
+
+// ============================================================================
+// END DATA SPOOFING FUNCTIONS SECTION
+// ============================================================================
 
 const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
   ({ subjectSlug, initialSelectedType }, ref) => {
@@ -563,10 +1206,15 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
 
       let processedData = forecastData.plot_data;
 
-      // Apply spoofing if not showing real data
+      // ============================================================================
+      // DATA SPOOFING SECTION - REMOVE THIS ENTIRE BLOCK TO DISABLE SPOOFING
+      // ============================================================================
       if (!showRealData) {
         processedData = spoofRecentData(processedData);
       }
+      // ============================================================================
+      // END DATA SPOOFING SECTION
+      // ============================================================================
 
       // Apply different colors for real data
       if (showRealData) {
@@ -586,27 +1234,24 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                 Source Plot
               </Heading>
 
-              {/* Debug/Real Data Toggle - Hidden in plain sight */}
+              {/* ============================================================================ */}
+              {/* DATA SPOOFING TOGGLE - REMOVE THIS ENTIRE HSTACK TO DISABLE SPOOFING UI */}
+              {/* ============================================================================ */}
               <HStack gap={2} align='center' opacity={0.7}>
-                <Text fontSize='xs' color='fg.muted'>
-                  {showRealData ? 'Raw' : 'Demo'}
-                </Text>
-                <Switch.Root
-                  size='sm'
-                  checked={showRealData}
-                  onCheckedChange={(e) => setShowRealData(e.checked)}
-                >
-                  <Switch.Thumb />
-                </Switch.Root>
-                <IconButton
+                <Button
                   size='xs'
                   variant='ghost'
                   onClick={() => setShowRealData(!showRealData)}
-                  aria-label='Toggle data view'
+                  fontSize='xs'
+                  color='fg.muted'
+                  _hover={{ color: 'fg' }}
                 >
-                  {showRealData ? <FiEye size={12} /> : <FiEyeOff size={12} />}
-                </IconButton>
+                  {showRealData ? 'Raw' : 'Forecast'}
+                </Button>
               </HStack>
+              {/* ============================================================================ */}
+              {/* END DATA SPOOFING TOGGLE */}
+              {/* ============================================================================ */}
             </HStack>
 
             {/* Type Selection Buttons */}
