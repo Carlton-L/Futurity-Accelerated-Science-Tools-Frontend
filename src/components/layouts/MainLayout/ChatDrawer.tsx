@@ -81,7 +81,7 @@ const ChatDrawer = ({ isOpen, onClose }: ChatDrawerProps) => {
                 position='relative'
                 bg='bg.canvas'
               >
-                <ChatPanel />
+                <ChatPanel isOpen={isOpen} />
 
                 {/* Close Warning Dialog - Positioned within the drawer */}
                 {showCloseWarning && (

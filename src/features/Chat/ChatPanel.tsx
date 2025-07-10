@@ -13,11 +13,12 @@ import { MdError, MdRefresh, MdWifi } from 'react-icons/md';
 
 interface ChatPanelProps {
   onPageContextChange?: (pageType: string) => void;
+  isOpen?: boolean; // Add prop to track if panel is open
 }
 
 type IframeStatus = 'loading' | 'loaded' | 'error' | 'timeout';
 
-export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
+export function ChatPanel({ onPageContextChange, isOpen = true }: ChatPanelProps) {
   const { pageContext, contextString } = useChatContext();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeStatus, setIframeStatus] = useState<IframeStatus>('loading');
@@ -26,8 +27,11 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [componentKey, setComponentKey] = useState<number>(0); // For component re-mounting
   const [hasTimedOut, setHasTimedOut] = useState<boolean>(false); // Track if timeout occurred
+  const [iframeUrl, setIframeUrl] = useState<string>(''); // For unique iframe URL
   const timeoutRef = useRef<NodeJS.Timeout>();
   const elapsedTimerRef = useRef<NodeJS.Timeout>();
+  const hasIframeLoadedRef = useRef<boolean>(false); // Track if iframe has ever loaded
+  const lastSentMessageRef = useRef<string>(''); // Track last sent message to avoid duplicates
 
   // Notify parent when page context changes (for refresh logic)
   useEffect(() => {
@@ -51,9 +55,13 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     setErrorMessage('');
     clearTimeout(timeoutRef.current);
     clearInterval(elapsedTimerRef.current);
+    hasIframeLoadedRef.current = true;
 
-    // Send initial context via postMessage once iframe loads
-    sendContextToIframe();
+    // Send context immediately when iframe loads
+    setTimeout(() => {
+      console.log('🖼️ Iframe loaded, sending initial message...');
+      sendContextMessage();
+    }, 200); // Small delay to ensure iframe is fully ready
   };
 
   // Handle iframe load error
@@ -251,8 +259,10 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
             return `IdeaSeed page for ${pageContext.ideaSeed.name}`;
           }
           return 'IdeaSeed page';
+        case 'unknown':
+          return pageContext.pageTitle || 'Current page';
         default:
-          return pageContext.pageTitle || 'Unknown page';
+          return pageContext.pageTitle || 'Current page';
       }
     };
 
@@ -284,35 +294,129 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     }
   };
 
-  // PostMessage method to send context to iframe
-  const sendContextToIframe = () => {
-    if (iframeRef.current && iframeStatus === 'loaded') {
-      const message = generateChatMessage();
+  // Send context message to iframe
+  const sendContextMessage = () => {
+    console.log('🖼️ sendContextMessage called');
+    console.log('🖼️ - iframeRef.current:', !!iframeRef.current);
+    console.log('🖼️ - pageContext.pageType:', pageContext.pageType);
+    console.log('🖼️ - iframeStatus:', iframeStatus);
+    
+    if (!iframeRef.current) {
+      console.log('🖼️ Cannot send message - iframe ref not available');
+      return;
+    }
 
-      try {
-        // Use '*' as target origin as specified by backend engineer
-        // Convert the message object to a string and add the "Client: " prefix
-        const messageString = 'Client: ' + JSON.stringify(message);
-        iframeRef.current.contentWindow?.postMessage(messageString, '*');
-        console.log('🖼️ Context message sent to iframe:', messageString);
-      } catch (error) {
-        console.error('🖼️ Failed to send context to iframe:', error);
+    // Remove the check for 'unknown' - we should always send a message
+    // even if the page type is unknown
+
+    const message = generateChatMessage();
+    const messageString = 'Client: ' + JSON.stringify(message);
+
+    // Avoid sending duplicate messages only if we're sure the last one was received
+    if (messageString === lastSentMessageRef.current && iframeStatus === 'loaded') {
+      console.log('🖼️ Skipping duplicate message (iframe already loaded with this message)');
+      return;
+    }
+
+    try {
+      // Check if contentWindow exists
+      if (!iframeRef.current.contentWindow) {
+        console.error('🖼️ Iframe contentWindow not available');
+        return;
       }
+      
+      // Send the message
+      iframeRef.current.contentWindow.postMessage(messageString, '*');
+      lastSentMessageRef.current = messageString;
+      console.log('🖼️ ✅ Context message sent to iframe:', messageString);
+      console.log('🖼️ - Target origin: *');
+      console.log('🖼️ - Iframe src:', iframeRef.current.src);
+    } catch (error) {
+      console.error('🖼️ ❌ Failed to send context to iframe:', error);
     }
   };
 
-  // Send context updates to iframe when context changes
+  // Force send message when panel opens
   useEffect(() => {
-    if (iframeStatus === 'loaded') {
-      sendContextToIframe();
+    if (!isOpen) {
+      // Reset last sent message when panel closes
+      lastSentMessageRef.current = '';
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageContext, iframeStatus]);
+
+    // Panel just opened - force send message after a delay
+    console.log('🖼️ Panel opened, scheduling message send...');
+    console.log('🖼️ Current pageContext:', pageContext);
+    
+    // Try multiple times to ensure message is sent
+    const attempts = [50, 200, 500, 1000, 2000]; // milliseconds - start earlier
+    const timers: NodeJS.Timeout[] = [];
+    
+    attempts.forEach((delay) => {
+      const timer = setTimeout(() => {
+        console.log(`🖼️ Attempting to send message (${delay}ms delay)...`);
+        sendContextMessage();
+      }, delay);
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [isOpen]); // Only depend on isOpen to trigger when panel opens/closes
+
+  // Send message when context changes (while panel is open)
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // Context changed while panel is open - send message regardless of page type
+    console.log('🖼️ Context changed while panel open, sending message...');
+    const timer = setTimeout(() => {
+      sendContextMessage();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [pageContext, isOpen]);
+
+  // Send message when iframe loads
+  useEffect(() => {
+    if (iframeStatus === 'loaded' && isOpen) {
+      console.log('🖼️ Iframe loaded while panel open, sending message...');
+      sendContextMessage();
+    }
+  }, [iframeStatus, isOpen]);
+
+  // Add an event listener to receive messages from the iframe for debugging
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // IMPORTANT: Check the origin for security, but log all for debugging.
+      console.log('📬 Message received from iframe:', {
+        origin: event.origin,
+        data: event.data,
+      });
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup the event listener on component unmount
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []); // Empty dependency array ensures this runs only once
+
+  useEffect(() => {
+    // By creating a unique URL on each mount (or remount via componentKey),
+    // we force the iframe to reload and trigger the onLoad event, bypassing browser caching issues.
+    const baseUrl = 'http://localhost:8000';
+    const uniqueUrl = `${baseUrl}?timestamp=${Date.now()}`;
+    setIframeUrl(uniqueUrl);
+    console.log(`🖼️ Setting iframe URL to: ${uniqueUrl}`);
+  }, [componentKey]);
 
   // URL generation methods (kept for potential future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _getIframeUrlWithParams = () => {
-    const baseUrl = 'https://agents.futurity.science/';
+    const baseUrl =  'localhost:8000'; //'https://agents.futurity.science/';
     const params = new URLSearchParams();
 
     params.set('pageType', pageContext.pageType);
@@ -359,7 +463,9 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _getIframeUrlWithHash = () => {
-    const baseUrl = 'https://agents.futurity.science/';
+    // const baseUrl = 'https://agents.futurity.science/';
+    const baseUrl = 'http://localhost:8000';
+    
     const contextHash = encodeURIComponent(
       JSON.stringify({
         pageType: pageContext.pageType,
@@ -374,7 +480,8 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
   // Choose which URL approach to use
   // const iframeUrl = getIframeUrlWithParams(); // Option 1
   // const iframeUrl = getIframeUrlWithHash(); // Option 2
-  const iframeUrl = 'https://agents.futurity.science/'; // Option 3 (use postMessage)
+  // const iframeUrl = 'https://agents.futurity.science/'; // Option 3 (use postMessage)
+
 
   // Render loading state - FIXED to use theme tokens
   const renderLoadingState = () => (
