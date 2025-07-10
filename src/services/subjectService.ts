@@ -46,13 +46,17 @@ export interface SubjectData {
   xRL: SubjectXRL[];
 }
 
-// Legacy stats types (for fallback)
-export interface SubjectStats {
-  Press?: number;
-  Patents?: number;
-  Papers?: number;
-  Books?: number;
-  Organizations?: number;
+// Legacy stats types
+export interface LegacyStatsResponse {
+  counts: {
+    _generated_at: number;
+    Book: number;
+    Press: number;
+    Patent: number;
+    Paper: number;
+    Organization: number;
+    Documents: number;
+  };
 }
 
 export interface SubjectStatsResponse {
@@ -97,6 +101,13 @@ class SubjectService {
     return {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
+    };
+  }
+
+  private getLegacyAuthHeaders(): HeadersInit {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
     };
   }
 
@@ -199,73 +210,151 @@ class SubjectService {
   }
 
   /**
-   * Get subject statistics - try new API first, fallback to legacy
+   * Get stats from legacy API
+   * @param subjectFsid - The fsid of the subject
+   * @returns Promise<LegacyStatsResponse>
+   */
+  private async getLegacyStats(
+    subjectFsid: string
+  ): Promise<LegacyStatsResponse> {
+    const slug = this.createSlugFromFsid(subjectFsid);
+
+    const response = await fetch(
+      `${LEGACY_API_BASE_URL}/subject/get-counts?slug=${slug}`,
+      {
+        headers: this.getLegacyAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Legacy stats API failed: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const data: LegacyStatsResponse = await response.json();
+    return data;
+  }
+
+  /**
+   * Check if a stat value is missing or invalid
+   * @param value - The stat value to check
+   * @returns boolean - True if the value is missing/invalid
+   */
+  private isStatMissing(value: number | undefined | null): boolean {
+    return value === undefined || value === null || value === 0;
+  }
+
+  /**
+   * Get subject statistics - with selective fallback per stat type
    * @param subjectFsid - The fsid of the subject
    * @returns Promise<SubjectStatsResponse>
    */
   async getSubjectStats(subjectFsid: string): Promise<SubjectStatsResponse> {
     try {
-      // First try the new API
-      const response = await fetch(
-        `${API_BASE_URL}/hitcounts/get-subject-stats/${subjectFsid}`,
-        {
-          method: 'GET',
-          headers: this.getAuthHeaders(),
-        }
-      );
+      console.log('Fetching subject stats for:', subjectFsid);
 
-      if (response.ok) {
-        const data: SubjectStatsResponse = await response.json();
-        return data;
+      let newApiData: SubjectStatsResponse = {};
+      let needsFallback = false;
+
+      // First, try the new API
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/hitcounts/get-subject-stats/${subjectFsid}`,
+          {
+            method: 'GET',
+            headers: this.getAuthHeaders(),
+          }
+        );
+
+        if (response.ok) {
+          newApiData = await response.json();
+          console.log('New API response:', newApiData);
+
+          // Check which stats are missing from the new API
+          const missingStats = {
+            Organizations: this.isStatMissing(newApiData.Organizations),
+            Press: this.isStatMissing(newApiData.Press),
+            Patents: this.isStatMissing(newApiData.Patents),
+            Papers: this.isStatMissing(newApiData.Papers),
+            Books: this.isStatMissing(newApiData.Books),
+          };
+
+          console.log('Missing stats from new API:', missingStats);
+          needsFallback = Object.values(missingStats).some(
+            (missing) => missing
+          );
+
+          if (needsFallback) {
+            console.log('Some stats are missing, will fetch from legacy API');
+          }
+        } else {
+          console.log('New API failed, will use legacy API for all stats');
+          needsFallback = true;
+        }
+      } catch (error) {
+        console.log('New API error, will use legacy API for all stats:', error);
+        needsFallback = true;
       }
 
-      // If new API fails, try legacy API for organizations
-      console.warn('New stats API failed, trying legacy API for organizations');
-      return await this.getLegacySubjectStats(subjectFsid);
+      // If we need fallback data, fetch from legacy API
+      let legacyData: LegacyStatsResponse | null = null;
+      if (needsFallback) {
+        try {
+          legacyData = await this.getLegacyStats(subjectFsid);
+          console.log('Legacy API response:', legacyData);
+        } catch (error) {
+          console.error('Legacy API also failed:', error);
+          if (Object.keys(newApiData).length === 0) {
+            // If both APIs failed, throw the error
+            throw error;
+          }
+          // If we have some data from new API, continue with partial data
+          console.log('Continuing with partial data from new API');
+        }
+      }
+
+      // Merge data from both APIs, preferring new API when available
+      const finalStats: SubjectStatsResponse = {
+        Organizations: !this.isStatMissing(newApiData.Organizations)
+          ? newApiData.Organizations
+          : legacyData?.counts.Organization || 0,
+        Press: !this.isStatMissing(newApiData.Press)
+          ? newApiData.Press
+          : legacyData?.counts.Press || 0,
+        Patents: !this.isStatMissing(newApiData.Patents)
+          ? newApiData.Patents
+          : legacyData?.counts.Patent || 0,
+        Papers: !this.isStatMissing(newApiData.Papers)
+          ? newApiData.Papers
+          : legacyData?.counts.Paper || 0,
+        Books: !this.isStatMissing(newApiData.Books)
+          ? newApiData.Books
+          : legacyData?.counts.Book || 0,
+      };
+
+      console.log('Final merged stats:', finalStats);
+
+      // Log which sources were used for each stat
+      console.log('Stats sources:', {
+        Organizations: !this.isStatMissing(newApiData.Organizations)
+          ? 'new API'
+          : 'legacy API',
+        Press: !this.isStatMissing(newApiData.Press) ? 'new API' : 'legacy API',
+        Patents: !this.isStatMissing(newApiData.Patents)
+          ? 'new API'
+          : 'legacy API',
+        Papers: !this.isStatMissing(newApiData.Papers)
+          ? 'new API'
+          : 'legacy API',
+        Books: !this.isStatMissing(newApiData.Books) ? 'new API' : 'legacy API',
+      });
+
+      return finalStats;
     } catch (error) {
       console.error('Get subject stats error:', error);
-      // Try legacy API as fallback
-      try {
-        return await this.getLegacySubjectStats(subjectFsid);
-      } catch (legacyError) {
-        console.error('Legacy stats API also failed:', legacyError);
-        throw error; // Throw original error
-      }
+      throw error;
     }
-  }
-
-  /**
-   * Fallback method for getting stats from legacy API
-   * @param subjectFsid - The fsid of the subject
-   * @returns Promise<SubjectStatsResponse>
-   */
-  private async getLegacySubjectStats(
-    subjectFsid: string
-  ): Promise<SubjectStatsResponse> {
-    // Convert fsid back to slug for legacy API
-    const slug = subjectFsid.replace('fsid_', '');
-
-    const response = await fetch(
-      `${LEGACY_API_BASE_URL}/subject/get-counts?slug=${slug}`,
-      {
-        headers: this.getAuthHeaders(),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Legacy stats API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Transform legacy response to match new format
-    return {
-      Organizations: data.counts?.Organization || 0,
-      Press: data.counts?.Press || 0,
-      Patents: data.counts?.Patent || 0,
-      Papers: data.counts?.Paper || 0,
-      Books: data.counts?.Book || 0,
-    };
   }
 
   /**

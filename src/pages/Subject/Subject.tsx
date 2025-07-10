@@ -152,6 +152,16 @@ interface LabStatus {
   isAdding: boolean;
 }
 
+// Progressive loading states
+interface LoadingStates {
+  mainSubject: boolean;
+  stats: boolean;
+  relatedSubjects: boolean;
+  relatedAnalyses: boolean;
+  whiteboard: boolean;
+  labs: boolean;
+}
+
 // Map stat types to their corresponding forecast types
 const statTypeMapping: {
   [key: string]: 'Organizations' | 'Press' | 'Patents' | 'Papers' | 'Books';
@@ -179,17 +189,33 @@ const Subject: React.FC = () => {
   const { setPageContext, clearPageContext } = usePage();
   const theme = useTheme();
   const { whiteboardId, currentTeamLabs, currentTeam, token } = useAuth();
-  const [subject, setSubject] = useState<Subject | null>(null);
+
+  // Progressive loading states
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({
+    mainSubject: true,
+    stats: true,
+    relatedSubjects: true,
+    relatedAnalyses: true,
+    whiteboard: true,
+    labs: true,
+  });
+
+  // Data states
+  const [subjectData, setSubjectData] = useState<SubjectData | null>(null);
+  const [stats, setStats] = useState<SubjectStatsResponse | null>(null);
+  const [relatedSubjects, setRelatedSubjects] = useState<RelatedSubject[]>([]);
+  const [relatedAnalyses, setRelatedAnalyses] = useState<RelatedAnalysis[]>([]);
   const [isInWhiteboard, setIsInWhiteboard] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Error states
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
   const [hoveredStatType, setHoveredStatType] = useState<string | null>(null);
 
   // Lab management state - now tracks individual lab statuses
   const [labStatuses, setLabStatuses] = useState<Map<string, LabStatus>>(
     new Map()
   );
-  const [loadingWhiteboard, setLoadingWhiteboard] = useState<boolean>(false);
 
   // Refs for scrolling to sections and component control
   const trendsChartRef = useRef<HTMLDivElement>(null);
@@ -213,6 +239,25 @@ const Subject: React.FC = () => {
 
   // Get the correct background color from theme
   const appBgColor = theme.isDark ? '#111111' : '#FAFAFA';
+
+  // Helper function to update loading state for specific section
+  const updateLoadingState = (
+    section: keyof LoadingStates,
+    isLoading: boolean
+  ) => {
+    setLoadingStates((prev) => ({ ...prev, [section]: isLoading }));
+  };
+
+  // Helper function to set error for specific section
+  const setError = (section: string, error: string | null) => {
+    setErrors((prev) => {
+      if (error === null) {
+        const { [section]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [section]: error };
+    });
+  };
 
   // Helper function to get lab status
   const getLabStatus = (labId: string): LabStatus => {
@@ -241,23 +286,28 @@ const Subject: React.FC = () => {
     });
   };
 
+  // Get subject fsid from slug
+  const subjectFsid = useMemo(() => {
+    return subjectService.createFsidFromSlug(slug!);
+  }, [slug]);
+
   // Memoize the page context to prevent infinite re-renders
   const subjectPageContext = useMemo(() => {
-    if (!subject) return null;
+    if (!subjectData) return null;
 
     return {
       pageType: 'subject' as const,
-      pageTitle: `Subject: ${subject.ent_name}`,
+      pageTitle: `Subject: ${subjectData.ent_name}`,
       subject: {
-        id: subject._id,
-        name: subject.ent_name,
-        title: subject.ent_name,
-        fsid: subject.ent_fsid, // Add the proper fsid here
+        id: subjectData._id,
+        name: subjectData.ent_name,
+        title: subjectData.ent_name,
+        fsid: subjectData.ent_fsid,
       },
     };
-  }, [subject]);
+  }, [subjectData]);
 
-  // Set up page context when subject data is loaded or tab changes
+  // Set up page context when subject data is loaded
   useEffect(() => {
     if (subjectPageContext) {
       setPageContext(subjectPageContext);
@@ -266,76 +316,137 @@ const Subject: React.FC = () => {
     return () => clearPageContext();
   }, [setPageContext, clearPageContext, subjectPageContext]);
 
-  // Fetch subject data from new API
+  // 1. Fetch main subject data (highest priority)
   useEffect(() => {
     const fetchSubjectData = async (): Promise<void> => {
-      if (!slug) {
-        setError('No subject slug provided');
-        setLoading(false);
-        return;
-      }
+      if (!subjectFsid) return;
 
-      setLoading(true);
-      setError(null);
+      updateLoadingState('mainSubject', true);
+      setError('mainSubject', null);
 
       try {
-        // Create fsid from slug
-        const subjectFsid = subjectService.createFsidFromSlug(slug);
+        const data = await subjectService.getSubjectData(subjectFsid);
+        setSubjectData(data);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load subject data';
+        setError('mainSubject', errorMessage);
+      } finally {
+        updateLoadingState('mainSubject', false);
+      }
+    };
 
-        // Fetch main subject data from new API
-        const subjectData: SubjectData = await subjectService.getSubjectData(
-          subjectFsid
-        );
+    fetchSubjectData();
+  }, [subjectFsid]);
 
-        // Fetch stats data (with fallback to legacy API)
-        const statsData: SubjectStatsResponse =
-          await subjectService.getSubjectStats(subjectFsid);
+  // 2. Fetch stats data (second priority - needed for stat cards)
+  useEffect(() => {
+    const fetchStats = async (): Promise<void> => {
+      if (!subjectFsid) return;
 
-        // FIXME: These still use the legacy API - need to be updated to use new management API
+      updateLoadingState('stats', true);
+      setError('stats', null);
+
+      try {
+        const statsData = await subjectService.getSubjectStats(subjectFsid);
+        setStats(statsData);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load stats';
+        setError('stats', errorMessage);
+        // Set default stats on error
+        setStats({
+          Organizations: 0,
+          Press: 0,
+          Patents: 0,
+          Papers: 0,
+          Books: 0,
+        });
+      } finally {
+        updateLoadingState('stats', false);
+      }
+    };
+
+    fetchStats();
+  }, [subjectFsid]);
+
+  // 3. Fetch related subjects (third priority)
+  useEffect(() => {
+    const fetchRelatedSubjects = async (): Promise<void> => {
+      if (!slug) return;
+
+      updateLoadingState('relatedSubjects', true);
+      setError('relatedSubjects', null);
+
+      try {
         const headers = {
           Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
           'Content-Type': 'application/json',
         };
 
-        // Fetch related subjects and analyses (still using legacy API for now)
-        const [relatedSubjectsResponse, relatedAnalysesResponse] =
-          await Promise.all([
-            fetch(
-              `https://tools.futurity.science/api/subject/related-snapshots?slug=${slug}`,
-              { headers }
-            ),
-            fetch(
-              `https://tools.futurity.science/api/subject/related-analyses?slug=${slug}`,
-              { headers }
-            ),
-          ]);
-
-        // Check if responses are ok
-        if (!relatedSubjectsResponse.ok || !relatedAnalysesResponse.ok) {
-          throw new Error('Failed to fetch related data');
-        }
-
-        // Parse related data responses
-        const relatedSubjectsData: ApiRelatedSubjectsResponse =
-          await relatedSubjectsResponse.json();
-        const relatedAnalysesData: ApiRelatedAnalysesResponse =
-          await relatedAnalysesResponse.json();
-
-        // Transform related subjects data
-        const relatedSubjects: RelatedSubject[] = relatedSubjectsData.rows.map(
-          (item) => ({
-            id: item.ent_fsid,
-            name: item.ent_name,
-            horizonRanking:
-              subjectService.getIndexValue(item.indexes, 'HR') ||
-              Math.random() * 0.5 + 0.5, // TODO: Remove fallback random value when all subjects have HR
-            subjectSlug: subjectService.createSlugFromFsid(item.ent_fsid),
-            indexes: item.indexes,
-          })
+        const response = await fetch(
+          `https://tools.futurity.science/api/subject/related-snapshots?slug=${slug}`,
+          { headers }
         );
 
-        // Transform related analyses data
-        const relatedAnalyses: RelatedAnalysis[] = relatedAnalysesData.rows.map(
+        if (!response.ok) {
+          throw new Error('Failed to fetch related subjects');
+        }
+
+        const data: ApiRelatedSubjectsResponse = await response.json();
+
+        const transformedSubjects: RelatedSubject[] = data.rows.map((item) => ({
+          id: item.ent_fsid,
+          name: item.ent_name,
+          horizonRanking:
+            subjectService.getIndexValue(item.indexes, 'HR') ||
+            Math.random() * 0.5 + 0.5,
+          subjectSlug: subjectService.createSlugFromFsid(item.ent_fsid),
+          indexes: item.indexes,
+        }));
+
+        setRelatedSubjects(transformedSubjects);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Failed to load related subjects';
+        setError('relatedSubjects', errorMessage);
+        setRelatedSubjects([]);
+      } finally {
+        updateLoadingState('relatedSubjects', false);
+      }
+    };
+
+    fetchRelatedSubjects();
+  }, [slug]);
+
+  // 4. Fetch related analyses (fourth priority)
+  useEffect(() => {
+    const fetchRelatedAnalyses = async (): Promise<void> => {
+      if (!slug) return;
+
+      updateLoadingState('relatedAnalyses', true);
+      setError('relatedAnalyses', null);
+
+      try {
+        const headers = {
+          Authorization: 'Bearer xE8C9T4QGRcbnUoZPrjkyI5mOVjKJAiJ',
+          'Content-Type': 'application/json',
+        };
+
+        const response = await fetch(
+          `https://tools.futurity.science/api/subject/related-analyses?slug=${slug}`,
+          { headers }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch related analyses');
+        }
+
+        const data: ApiRelatedAnalysesResponse = await response.json();
+
+        const transformedAnalyses: RelatedAnalysis[] = data.rows.map(
           (item) => ({
             _id: item._id,
             lab_id: item.lab_id,
@@ -350,77 +461,55 @@ const Subject: React.FC = () => {
           })
         );
 
-        // Get formatted stats
-        const formattedStats = subjectService.getFormattedStats(statsData);
-
-        // Combine all data into subject object
-        const combinedSubject: Subject = {
-          _id: subjectData._id,
-          ent_name: subjectData.ent_name,
-          ent_fsid: subjectData.ent_fsid,
-          ent_summary: subjectData.ent_summary,
-          slug: slug,
-          category: subjectService.shouldDisplayCategory(subjectData.category)
-            ? subjectData.category
-            : undefined,
-          inventor: subjectService.getInventorDisplay(subjectData.inventor),
-          indexes: subjectData.indexes,
-          stats: {
-            organizations: formattedStats.organizations.raw,
-            press: formattedStats.press.raw,
-            patents: formattedStats.patents.raw,
-            papers: formattedStats.papers.raw,
-            books: formattedStats.books.raw,
-            relatedDocs: 0, // FIXME: Get this from API when available
-          },
-          relatedSubjects,
-          relatedAnalyses,
-        };
-
-        setSubject(combinedSubject);
-        setLoading(false);
+        setRelatedAnalyses(transformedAnalyses);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load subject data'
-        );
-        setLoading(false);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : 'Failed to load related analyses';
+        setError('relatedAnalyses', errorMessage);
+        setRelatedAnalyses([]);
+      } finally {
+        updateLoadingState('relatedAnalyses', false);
       }
     };
 
-    fetchSubjectData();
+    fetchRelatedAnalyses();
   }, [slug]);
 
-  // Check whiteboard status when subject loads
+  // 5. Check whiteboard status (fifth priority)
   useEffect(() => {
-    const initializeSubjectStatus = async () => {
-      if (!subject || !whiteboardId) return;
+    const checkWhiteboardStatus = async () => {
+      if (!subjectData || !whiteboardId) return;
+
+      updateLoadingState('whiteboard', true);
 
       try {
-        setLoadingWhiteboard(true);
-
-        // Check if subject is in whiteboard using new API
         const inWhiteboard = await subjectService.isSubjectInWhiteboard(
           whiteboardId,
-          subject.ent_fsid
+          subjectData.ent_fsid
         );
         setIsInWhiteboard(inWhiteboard);
       } catch (error) {
         setIsInWhiteboard(false);
       } finally {
-        setLoadingWhiteboard(false);
+        updateLoadingState('whiteboard', false);
       }
     };
 
-    initializeSubjectStatus();
-  }, [subject, whiteboardId]);
+    checkWhiteboardStatus();
+  }, [subjectData, whiteboardId]);
 
-  // Initialize lab statuses and check labs individually
+  // 6. Initialize lab statuses (sixth priority)
   useEffect(() => {
     const initializeLabStatuses = async () => {
-      if (!subject || !currentTeamLabs.length || !token) {
+      if (!subjectData || !currentTeamLabs.length || !token) {
         setLabStatuses(new Map());
+        updateLoadingState('labs', false);
         return;
       }
+
+      updateLoadingState('labs', true);
 
       // Initialize all labs with checking state
       const initialStatuses = new Map<string, LabStatus>();
@@ -439,32 +528,24 @@ const Subject: React.FC = () => {
         try {
           // Helper function to extract subjects config from various locations
           const getSubjectsConfig = (lab: any): any[] => {
-            // Method 1: Check root level subjects_config
             if (lab.subjects_config && Array.isArray(lab.subjects_config)) {
               return lab.subjects_config;
             }
-
-            // Method 2: Check metadata.subjects_config
             if (
               lab.metadata?.subjects_config &&
               Array.isArray(lab.metadata.subjects_config)
             ) {
               return lab.metadata.subjects_config;
             }
-
-            // Method 3: Check root level subjects
             if (lab.subjects && Array.isArray(lab.subjects)) {
               return lab.subjects;
             }
-
-            // Method 4: Check metadata.subjects
             if (
               lab.metadata?.subjects &&
               Array.isArray(lab.metadata.subjects)
             ) {
               return lab.metadata.subjects;
             }
-
             return [];
           };
 
@@ -473,7 +554,6 @@ const Subject: React.FC = () => {
 
           if (subjectsConfig.length > 0) {
             containsSubject = subjectsConfig.some((subjectConfig) => {
-              // Extract fsid from various possible structures
               let subjectFsid = '';
 
               if (typeof subjectConfig === 'string') {
@@ -486,17 +566,15 @@ const Subject: React.FC = () => {
                 subjectFsid = subjectConfig.fsid;
               }
 
-              return subjectFsid === subject.ent_fsid;
+              return subjectFsid === subjectData.ent_fsid;
             });
           }
 
-          // Update this specific lab's status
           updateLabStatus(lab.uniqueID, {
             isChecking: false,
             containsSubject,
           });
         } catch (error) {
-          // On error, mark as not checking and not containing subject
           updateLabStatus(lab.uniqueID, {
             isChecking: false,
             containsSubject: false,
@@ -504,12 +582,12 @@ const Subject: React.FC = () => {
         }
       });
 
-      // Wait for all checks to complete (optional - the UI updates as each completes)
       await Promise.allSettled(checkPromises);
+      updateLoadingState('labs', false);
     };
 
     initializeLabStatuses();
-  }, [subject, currentTeamLabs, token]);
+  }, [subjectData, currentTeamLabs, token]);
 
   // Helper functions to get index values
   const getIndexValue = (
@@ -523,17 +601,14 @@ const Subject: React.FC = () => {
     return subjectService.formatIndexValue(value);
   };
 
-  const params = { subject: slug };
-
   // Add subject to lab function - using real API
   const addSubjectToLab = async (labUniqueId: string): Promise<boolean> => {
-    if (!subject || !token) return false;
+    if (!subjectData || !token) return false;
 
     try {
       updateLabStatus(labUniqueId, { isAdding: true });
 
       // TODO: Implement actual API call when lab subject management endpoints are available
-      // For now, simulate the API call
       await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate API delay
 
       updateLabStatus(labUniqueId, {
@@ -549,14 +624,19 @@ const Subject: React.FC = () => {
   };
 
   const handleAddToWhiteboard = async (): Promise<void> => {
-    if (!subject || !whiteboardId || isInWhiteboard || loadingWhiteboard)
+    if (
+      !subjectData ||
+      !whiteboardId ||
+      isInWhiteboard ||
+      loadingStates.whiteboard
+    )
       return;
 
-    setLoadingWhiteboard(true);
+    updateLoadingState('whiteboard', true);
     try {
       const result = await subjectService.addToWhiteboard(
         whiteboardId,
-        subject.ent_fsid
+        subjectData.ent_fsid
       );
       if (result && result.success !== false) {
         setIsInWhiteboard(true);
@@ -564,12 +644,12 @@ const Subject: React.FC = () => {
     } catch (error) {
       // Error handling without console.error
     } finally {
-      setLoadingWhiteboard(false);
+      updateLoadingState('whiteboard', false);
     }
   };
 
   const handleAddToLab = async (labUniqueId: string): Promise<void> => {
-    if (!subject) return;
+    if (!subjectData) return;
 
     const labStatus = getLabStatus(labUniqueId);
     if (labStatus.isAdding || labStatus.containsSubject) return;
@@ -589,7 +669,6 @@ const Subject: React.FC = () => {
   const handleStatCardHover = (statType: string | null) => {
     setHoveredStatType(statType);
 
-    // Highlight nodes in network graph if there's a corresponding node type
     if (
       statType &&
       networkNodeTypeMapping[statType] &&
@@ -605,29 +684,24 @@ const Subject: React.FC = () => {
 
   const handleStatCardClick = (statType: string) => {
     if (statType === 'relatedDocs') {
-      // Scroll to related documents section
       relatedDocumentsRef.current?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
       });
     } else {
-      // Scroll to forecast section and switch to the correct tab
       forecastChartRef.current?.scrollIntoView({
         behavior: 'smooth',
         block: 'start',
       });
 
-      // Trigger tab change in ForecastChart component
       const forecastType = statTypeMapping[statType];
       if (forecastType && forecastComponentRef.current) {
-        // Small delay to ensure scroll completes before switching tab
         setTimeout(() => {
           forecastComponentRef.current?.setSelectedType(forecastType);
         }, 500);
       }
     }
 
-    // Also pulse the corresponding nodes in the network graph
     if (
       statType &&
       networkNodeTypeMapping[statType] &&
@@ -641,10 +715,7 @@ const Subject: React.FC = () => {
 
   // Filter and sort related analyses
   const getFilteredAndSortedAnalyses = (): RelatedAnalysis[] => {
-    if (!subject?.relatedAnalyses) return [];
-
-    // Filter by search text
-    const filtered = subject.relatedAnalyses.filter(
+    const filtered = relatedAnalyses.filter(
       (analysis) =>
         analysis.ent_name
           .toLowerCase()
@@ -654,7 +725,6 @@ const Subject: React.FC = () => {
           .includes(analysisFilterText.toLowerCase())
     );
 
-    // Sort based on selected method
     switch (analysisSortMethod) {
       case 'most-recent':
         return filtered.sort((a, b) => b.ent_start.localeCompare(a.ent_start));
@@ -671,14 +741,10 @@ const Subject: React.FC = () => {
 
   // Filter and sort related subjects
   const getFilteredAndSortedSubjects = (): RelatedSubject[] => {
-    if (!subject?.relatedSubjects) return [];
-
-    // Filter by search text
-    const filtered = subject.relatedSubjects.filter((relatedSubject) =>
+    const filtered = relatedSubjects.filter((relatedSubject) =>
       relatedSubject.name.toLowerCase().includes(filterText.toLowerCase())
     );
 
-    // Sort based on selected method
     switch (sortMethod) {
       case 'horizon-high':
         return filtered.sort((a, b) => b.horizonRanking - a.horizonRanking);
@@ -693,13 +759,8 @@ const Subject: React.FC = () => {
     }
   };
 
-  // Determine if the lab dropdown should show loading state
-  const isLabDropdownLoading = () => {
-    return currentTeamLabs.some((lab) => getLabStatus(lab.uniqueID).isChecking);
-  };
-
-  // Error handling
-  if (error) {
+  // Critical error handling (main subject failed to load)
+  if (errors.mainSubject) {
     return (
       <Box position='relative' bg='bg' minHeight='calc(100vh - 64px)'>
         <Box
@@ -713,7 +774,7 @@ const Subject: React.FC = () => {
             <Text fontSize='xl' color='red.500'>
               Error Loading Subject
             </Text>
-            <Text color='gray.600'>{error}</Text>
+            <Text color='gray.600'>{errors.mainSubject}</Text>
             <Button onClick={() => window.location.reload()} colorScheme='blue'>
               Reload Page
             </Button>
@@ -723,35 +784,13 @@ const Subject: React.FC = () => {
     );
   }
 
-  // No subject found - keep this but modify to show within page structure
-  if (!loading && !subject) {
-    return (
-      <Box position='relative' bg='bg' minHeight='calc(100vh - 64px)'>
-        <Box
-          p={6}
-          display='flex'
-          justifyContent='center'
-          alignItems='center'
-          minHeight='400px'
-        >
-          <Text color='gray.500'>Subject not found</Text>
-        </Box>
-      </Box>
-    );
-  }
-
   return (
     <Box position='relative' bg='bg' minHeight='calc(100vh - 64px)'>
-      {/* Background Network Graph - Make it shorter to show stat cards */}
-      <Box
-        pt={40}
-        position='relative'
-        height='calc(90vh - 64px)' // Reduced from 100vh to 70vh
-        zIndex={0}
-      >
+      {/* Background Network Graph */}
+      <Box pt={40} position='relative' height='calc(90vh - 64px)' zIndex={0}>
         <NetworkGraph
           ref={networkGraphRef}
-          params={params}
+          params={{ subject: slug }}
           backgroundColor={appBgColor}
           hoveredNodeType={
             hoveredStatType
@@ -761,7 +800,7 @@ const Subject: React.FC = () => {
         />
       </Box>
 
-      {/* Top floating cards - positioned above the network graph with better spacing */}
+      {/* Top floating cards */}
       <Box
         position='absolute'
         top={0}
@@ -772,7 +811,7 @@ const Subject: React.FC = () => {
         pointerEvents='none'
       >
         {/* Main Subject Card */}
-        {loading ? (
+        {loadingStates.mainSubject ? (
           <GlassCard
             variant='glass'
             maxW='1024px'
@@ -792,7 +831,6 @@ const Subject: React.FC = () => {
                 </HStack>
               </Flex>
               <SkeletonText noOfLines={3} />
-              {/* Category and Inventor section skeleton */}
               <HStack gap={4} mt={4}>
                 <Skeleton height='20px' width='100px' />
                 <Skeleton height='20px' width='120px' />
@@ -813,15 +851,15 @@ const Subject: React.FC = () => {
             <Box p={6}>
               <Flex justify='space-between' align='flex-start' mb={4}>
                 <Heading as='h1' size='xl' flex='1' mr={4} color='fg'>
-                  {subject?.ent_name}
+                  {subjectData?.ent_name}
                 </Heading>
                 <HStack gap={3} pointerEvents='auto'>
                   <Button
                     size='md'
                     variant={'outline'}
-                    disabled={isInWhiteboard || loadingWhiteboard}
+                    disabled={isInWhiteboard || loadingStates.whiteboard}
                     onClick={handleAddToWhiteboard}
-                    loading={loadingWhiteboard}
+                    loading={loadingStates.whiteboard}
                     color='fg'
                   >
                     {isInWhiteboard ? (
@@ -950,25 +988,25 @@ const Subject: React.FC = () => {
                 </HStack>
               </Flex>
               <Text color='fg.muted' lineHeight='1.6' mb={4}>
-                {subject?.ent_summary}
+                {subjectData?.ent_summary}
               </Text>
 
               {/* Category and Inventor Information */}
               <HStack gap={4} fontSize='sm' color='fg.secondary'>
-                {subject?.inventor && (
+                {subjectData?.inventor && (
                   <Text>
                     <Text as='span' fontWeight='medium'>
                       Inventor:
                     </Text>{' '}
-                    {subject.inventor}
+                    {subjectData.inventor}
                   </Text>
                 )}
-                {subject?.category && (
+                {subjectData?.category && (
                   <Text>
                     <Text as='span' fontWeight='medium'>
                       Category:
                     </Text>{' '}
-                    {subject.category}
+                    {subjectData.category}
                   </Text>
                 )}
               </HStack>
@@ -976,9 +1014,9 @@ const Subject: React.FC = () => {
           </GlassCard>
         )}
 
-        {/* Subject Info Cards - Skeleton loading */}
+        {/* Subject Info Cards */}
         <HStack gap={3} w='fit-content' mb={4} pointerEvents='auto'>
-          {loading ? (
+          {loadingStates.mainSubject ? (
             // Skeleton cards
             <>
               {[1, 2, 3].map((i) => (
@@ -1026,12 +1064,14 @@ const Subject: React.FC = () => {
                       fontSize='lg'
                       fontWeight='bold'
                       color={
-                        getIndexValue(subject?.indexes, 'HR') !== null
+                        getIndexValue(subjectData?.indexes, 'HR') !== null
                           ? 'horizonRank'
                           : 'fg.muted'
                       }
                     >
-                      {formatIndexValue(getIndexValue(subject?.indexes, 'HR'))}
+                      {formatIndexValue(
+                        getIndexValue(subjectData?.indexes, 'HR')
+                      )}
                     </Stat.ValueText>
                   </Stat.Root>
                 </Box>
@@ -1062,12 +1102,14 @@ const Subject: React.FC = () => {
                       fontSize='lg'
                       fontWeight='bold'
                       color={
-                        getIndexValue(subject?.indexes, 'WS') !== null
+                        getIndexValue(subjectData?.indexes, 'WS') !== null
                           ? 'whiteSpace'
                           : 'fg.muted'
                       }
                     >
-                      {formatIndexValue(getIndexValue(subject?.indexes, 'WS'))}
+                      {formatIndexValue(
+                        getIndexValue(subjectData?.indexes, 'WS')
+                      )}
                     </Stat.ValueText>
                   </Stat.Root>
                 </Box>
@@ -1098,12 +1140,14 @@ const Subject: React.FC = () => {
                       fontSize='lg'
                       fontWeight='bold'
                       color={
-                        getIndexValue(subject?.indexes, 'TT') !== null
+                        getIndexValue(subjectData?.indexes, 'TT') !== null
                           ? 'techTransfer'
                           : 'fg.muted'
                       }
                     >
-                      {formatIndexValue(getIndexValue(subject?.indexes, 'TT'))}
+                      {formatIndexValue(
+                        getIndexValue(subjectData?.indexes, 'TT')
+                      )}
                     </Stat.ValueText>
                   </Stat.Root>
                 </Box>
@@ -1113,13 +1157,13 @@ const Subject: React.FC = () => {
         </HStack>
       </Box>
 
-      {/* Main content area - Position independent of floating cards */}
+      {/* Main content area */}
       <Box bg='bg' px={6} pb={6}>
-        {/* Interactive Stats Cards - Fixed position */}
+        {/* Interactive Stats Cards */}
         <Box mb={6} minHeight='120px'>
           <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} gap={4}>
-            {loading ? (
-              // Skeleton stats cards with consistent sizing
+            {loadingStates.stats ? (
+              // Skeleton stats cards
               <>
                 {[
                   'Organizations',
@@ -1149,30 +1193,30 @@ const Subject: React.FC = () => {
                 ))}
               </>
             ) : (
-              // Actual interactive stats cards with consistent sizing
+              // Actual interactive stats cards
               <>
                 {[
                   {
                     key: 'organizations',
                     label: 'Organizations',
-                    value: subject?.stats.organizations,
+                    value: stats?.Organizations || 0,
                   },
-                  { key: 'press', label: 'Press', value: subject?.stats.press },
+                  { key: 'press', label: 'Press', value: stats?.Press || 0 },
                   {
                     key: 'patents',
                     label: 'Patents',
-                    value: subject?.stats.patents,
+                    value: stats?.Patents || 0,
                   },
                   {
                     key: 'papers',
                     label: 'Papers',
-                    value: subject?.stats.papers,
+                    value: stats?.Papers || 0,
                   },
-                  { key: 'books', label: 'Books', value: subject?.stats.books },
+                  { key: 'books', label: 'Books', value: stats?.Books || 0 },
                   {
                     key: 'relatedDocs',
                     label: 'Related Docs',
-                    value: subject?.stats.relatedDocs,
+                    value: 0, // TODO: Get from API
                   },
                 ].map(({ key, label, value }) => (
                   <Card.Root
@@ -1220,7 +1264,7 @@ const Subject: React.FC = () => {
                             color='inherit'
                             transition='color 0.2s ease'
                           >
-                            {value?.toLocaleString()}
+                            {errors.stats ? 'Error' : value?.toLocaleString()}
                           </Stat.ValueText>
                         </Stat.Root>
                       </Box>
@@ -1230,95 +1274,21 @@ const Subject: React.FC = () => {
               </>
             )}
           </SimpleGrid>
+          {errors.stats && (
+            <Text color='red.500' fontSize='sm' mt={2} textAlign='center'>
+              Error loading stats: {errors.stats}
+            </Text>
+          )}
         </Box>
 
         {/* Trends Chart */}
         <div ref={trendsChartRef}>
-          {loading ? (
-            // Skeleton for TrendsChart
-            <Card.Root
-              variant='outline'
-              width='100%'
-              mt={6}
-              borderRadius='8px'
-              bg='bg.canvas'
-            >
-              <Card.Body p={6}>
-                <VStack gap={6} align='stretch'>
-                  <HStack justify='space-between' align='center'>
-                    <Skeleton height='24px' width='120px' />
-                    <Skeleton height='20px' width='20px' borderRadius='full' />
-                  </HStack>
-                  <Skeleton height='500px' width='100%' borderRadius='md' />
-                </VStack>
-              </Card.Body>
-            </Card.Root>
-          ) : subject ? (
-            <TrendsChart subjectSlug={subject.ent_fsid} />
-          ) : null}
+          <TrendsChart subjectSlug={subjectFsid} />
         </div>
 
         {/* Forecast Chart */}
         <div ref={forecastChartRef}>
-          {loading ? (
-            // Skeleton for ForecastChart
-            <Card.Root
-              variant='outline'
-              width='100%'
-              mt={6}
-              borderRadius='8px'
-              bg='bg.canvas'
-            >
-              <Card.Body p={6}>
-                <VStack gap={6} align='stretch'>
-                  <Skeleton height='24px' width='180px' />
-                  <HStack gap={2} wrap='wrap' mb={4}>
-                    {[
-                      'Organizations',
-                      'Press',
-                      'Patents',
-                      'Papers',
-                      'Books',
-                    ].map((type) => (
-                      <HStack key={type} gap={1}>
-                        <Skeleton
-                          height='32px'
-                          width='80px'
-                          borderRadius='md'
-                        />
-                        <Skeleton
-                          height='20px'
-                          width='20px'
-                          borderRadius='full'
-                        />
-                      </HStack>
-                    ))}
-                  </HStack>
-                  <Skeleton height='400px' width='100%' borderRadius='md' />
-                  <Box>
-                    <HStack justify='space-between' mb={4}>
-                      <HStack gap={2}>
-                        <Skeleton height='20px' width='40px' />
-                        <Skeleton height='32px' width='60px' />
-                        <Skeleton height='20px' width='40px' />
-                      </HStack>
-                      <HStack gap={2}>
-                        <Skeleton height='20px' width='50px' />
-                        <Skeleton height='32px' width='150px' />
-                        <Skeleton height='32px' width='32px' />
-                      </HStack>
-                    </HStack>
-                    <Skeleton height='200px' width='100%' borderRadius='md' />
-                  </Box>
-                </VStack>
-              </Card.Body>
-            </Card.Root>
-          ) : subject ? (
-            <ForecastChart
-              ref={forecastComponentRef}
-              subjectSlug={subject.slug}
-            />
-          ) : null}
+          <ForecastChart ref={forecastComponentRef} subjectSlug={slug!} />
         </div>
 
         {/* Related Subjects and Related Analyses */}
@@ -1337,7 +1307,7 @@ const Subject: React.FC = () => {
                   Related Subjects
                 </Heading>
 
-                {loading ? (
+                {loadingStates.relatedSubjects ? (
                   // Skeleton for Related Subjects
                   <VStack gap={4} align='stretch' height='100%'>
                     <HStack gap={4} align='center' flexShrink={0}>
@@ -1365,6 +1335,23 @@ const Subject: React.FC = () => {
                       </Flex>
                     </Box>
                   </VStack>
+                ) : errors.relatedSubjects ? (
+                  // Error state for Related Subjects
+                  <Box
+                    flex='1'
+                    display='flex'
+                    alignItems='center'
+                    justifyContent='center'
+                    flexDirection='column'
+                    gap={2}
+                  >
+                    <Text color='error' fontSize='md'>
+                      Error loading related subjects
+                    </Text>
+                    <Text color='fg.muted' fontSize='sm'>
+                      {errors.relatedSubjects}
+                    </Text>
+                  </Box>
                 ) : getFilteredAndSortedSubjects().length > 0 ? (
                   // Actual Related Subjects content with data
                   <>
@@ -1582,7 +1569,7 @@ const Subject: React.FC = () => {
                   Related Analyses
                 </Heading>
 
-                {loading ? (
+                {loadingStates.relatedAnalyses ? (
                   // Skeleton for Related Analyses
                   <VStack gap={4} align='stretch' height='100%'>
                     <HStack gap={4} align='center' flexShrink={0}>
@@ -1623,7 +1610,24 @@ const Subject: React.FC = () => {
                       </HStack>
                     </Box>
                   </VStack>
-                ) : subject ? (
+                ) : errors.relatedAnalyses ? (
+                  // Error state for Related Analyses
+                  <Box
+                    flex='1'
+                    display='flex'
+                    alignItems='center'
+                    justifyContent='center'
+                    flexDirection='column'
+                    gap={2}
+                  >
+                    <Text color='error' fontSize='md'>
+                      Error loading related analyses
+                    </Text>
+                    <Text color='fg.muted' fontSize='sm'>
+                      {errors.relatedAnalyses}
+                    </Text>
+                  </Box>
+                ) : (
                   // Actual Related Analyses content
                   <>
                     <HStack gap={4} align='center' flexShrink={0}>
@@ -1798,7 +1802,7 @@ const Subject: React.FC = () => {
                       )}
                     </CardScroller>
                   </>
-                ) : null}
+                )}
               </VStack>
             </Card.Body>
           </Card.Root>
@@ -1806,70 +1810,7 @@ const Subject: React.FC = () => {
 
         {/* Related Documents */}
         <div ref={relatedDocumentsRef}>
-          {loading ? (
-            // Skeleton for RelatedDocuments
-            <Card.Root
-              variant='outline'
-              width='100%'
-              mt={6}
-              borderRadius='8px'
-              bg='bg.canvas'
-            >
-              <Card.Body p={6}>
-                <VStack gap={6} align='stretch'>
-                  <HStack justify='space-between' align='center'>
-                    <Skeleton height='24px' width='180px' />
-                    <Skeleton height='24px' width='80px' borderRadius='full' />
-                  </HStack>
-                  <Box
-                    maxHeight='400px'
-                    border='1px solid'
-                    borderColor='border.muted'
-                    borderRadius='md'
-                    p={4}
-                    bg='bg'
-                  >
-                    <VStack gap={3} align='stretch'>
-                      {[1, 2, 3, 4].map((i) => (
-                        <Box
-                          key={i}
-                          p={4}
-                          border='1px solid'
-                          borderColor='border'
-                          borderRadius='md'
-                          bg='bg.canvas'
-                        >
-                          <HStack justify='space-between' align='flex-start'>
-                            <HStack gap={3} flex='1'>
-                              <Skeleton
-                                width='40px'
-                                height='40px'
-                                borderRadius='md'
-                              />
-                              <VStack gap={1} align='flex-start' flex='1'>
-                                <Skeleton height='16px' width='200px' />
-                                <HStack gap={3}>
-                                  <Skeleton height='12px' width='40px' />
-                                  <Skeleton height='12px' width='30px' />
-                                  <Skeleton height='12px' width='60px' />
-                                </HStack>
-                              </VStack>
-                            </HStack>
-                            <HStack gap={2}>
-                              <Skeleton height='32px' width='60px' />
-                              <Skeleton height='32px' width='80px' />
-                            </HStack>
-                          </HStack>
-                        </Box>
-                      ))}
-                    </VStack>
-                  </Box>
-                </VStack>
-              </Card.Body>
-            </Card.Root>
-          ) : subject ? (
-            <RelatedDocuments subjectSlug={subject.slug} />
-          ) : null}
+          <RelatedDocuments subjectSlug={slug} />
         </div>
       </Box>
     </Box>
