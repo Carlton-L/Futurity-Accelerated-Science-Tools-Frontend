@@ -26,8 +26,10 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [componentKey, setComponentKey] = useState<number>(0); // For component re-mounting
   const [hasTimedOut, setHasTimedOut] = useState<boolean>(false); // Track if timeout occurred
+  const [iframeReady, setIframeReady] = useState<boolean>(false); // Track if iframe is ready to receive messages
   const timeoutRef = useRef<NodeJS.Timeout>();
   const elapsedTimerRef = useRef<NodeJS.Timeout>();
+  const readyTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Notify parent when page context changes (for refresh logic)
   useEffect(() => {
@@ -52,8 +54,36 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     clearTimeout(timeoutRef.current);
     clearInterval(elapsedTimerRef.current);
 
-    // Send initial context via postMessage once iframe loads
-    sendContextToIframe();
+    // Wait for iframe to signal it's ready to receive messages
+    waitForIframeReady();
+  };
+
+  // Wait for iframe to send ready signal
+  const waitForIframeReady = () => {
+    console.log('🖼️ Waiting for iframe ready signal...');
+
+    // Set up timeout for ready signal (5 seconds)
+    readyTimeoutRef.current = setTimeout(() => {
+      console.log('🖼️ Iframe ready timeout - sending message anyway');
+      setIframeReady(true);
+    }, 5000);
+
+    // Listen for ready message from iframe
+    const handleReadyMessage = (event: MessageEvent) => {
+      // Security check - accept messages from iframe origin
+      if (event.origin !== 'https://agents.futurity.science') {
+        return;
+      }
+
+      if (event.data && event.data.type === 'IFRAME_READY') {
+        console.log('🖼️ Received iframe ready signal');
+        clearTimeout(readyTimeoutRef.current);
+        setIframeReady(true);
+        window.removeEventListener('message', handleReadyMessage);
+      }
+    };
+
+    window.addEventListener('message', handleReadyMessage);
   };
 
   // Handle iframe load error
@@ -171,6 +201,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     console.log('🖼️ Retrying iframe load via component re-mount');
     setIframeStatus('loading');
     setErrorMessage('');
+    setIframeReady(false); // Reset ready state
     setComponentKey((prev) => prev + 1); // This will re-mount the entire component
     setupLoadTimeout();
   };
@@ -181,6 +212,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     return () => {
       clearTimeout(timeoutRef.current);
       clearInterval(elapsedTimerRef.current);
+      clearTimeout(readyTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [componentKey]); // Re-run when component re-mounts
@@ -286,7 +318,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
 
   // PostMessage method to send context to iframe
   const sendContextToIframe = () => {
-    if (iframeRef.current && iframeStatus === 'loaded') {
+    if (iframeRef.current && iframeStatus === 'loaded' && iframeReady) {
       const message = generateChatMessage();
 
       try {
@@ -298,16 +330,22 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
       } catch (error) {
         console.error('🖼️ Failed to send context to iframe:', error);
       }
+    } else {
+      console.log('🖼️ Not sending context - iframe not ready:', {
+        iframeLoaded: iframeStatus === 'loaded',
+        iframeReady,
+        hasIframeRef: !!iframeRef.current,
+      });
     }
   };
 
-  // Send context updates to iframe when context changes
+  // Send context updates to iframe when context changes OR when iframe becomes ready
   useEffect(() => {
-    if (iframeStatus === 'loaded') {
+    if (iframeStatus === 'loaded' && iframeReady) {
       sendContextToIframe();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageContext, iframeStatus]);
+  }, [pageContext, iframeStatus, iframeReady]);
 
   // URL generation methods (kept for potential future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
