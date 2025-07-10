@@ -409,7 +409,7 @@ export function ChatPanel({ onPageContextChange, isOpen = true }: ChatPanelProps
   useEffect(() => {
     // By creating a unique URL on each mount (or remount via componentKey),
     // we force the iframe to reload and trigger the onLoad event, bypassing browser caching issues.
-    const baseUrl = 'http://localhost:8000';
+    const baseUrl = 'https://agents.futurity.science/';
     const uniqueUrl = `${baseUrl}?timestamp=${Date.now()}`;
     setIframeUrl(uniqueUrl);
     console.log(`🖼️ Setting iframe URL to: ${uniqueUrl}`);
@@ -418,7 +418,7 @@ export function ChatPanel({ onPageContextChange, isOpen = true }: ChatPanelProps
   // URL generation methods (kept for potential future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _getIframeUrlWithParams = () => {
-    const baseUrl =  'localhost:8000'; //'https://agents.futurity.science/';
+    const baseUrl =  'https://agents.futurity.science/'; //'https://agents.futurity.science/';
     const params = new URLSearchParams();
 
     params.set('pageType', pageContext.pageType);
@@ -466,7 +466,7 @@ export function ChatPanel({ onPageContextChange, isOpen = true }: ChatPanelProps
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _getIframeUrlWithHash = () => {
     // const baseUrl = 'https://agents.futurity.science/';
-    const baseUrl = 'http://localhost:8000';
+    const baseUrl = 'https://agents.futurity.science/';
     
     const contextHash = encodeURIComponent(
       JSON.stringify({
