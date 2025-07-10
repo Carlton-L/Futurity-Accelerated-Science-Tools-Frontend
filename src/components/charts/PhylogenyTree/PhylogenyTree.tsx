@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Box, Text, Card } from '@chakra-ui/react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Types
 export interface TreeItem {
   id: string;
   name: string;
+  fsid?: string; // Optional fsid for URL generation
 }
 
 export interface SubCategory {
@@ -30,6 +32,7 @@ export interface PhylogenyTreeProps {
   itemSpacing?: number;
   width?: string | number;
   height?: string | number;
+  generateSubjectUrl?: (item: TreeItem) => string; // Optional URL generator function
 }
 
 // Helper function to calculate text width (rough approximation)
@@ -61,6 +64,26 @@ function processSubcategories(subcategories: SubCategory[]): SubCategory[] {
     }
     return subcategory;
   });
+}
+
+// Default URL generator function
+function defaultGenerateSubjectUrl(item: TreeItem): string {
+  // Use fsid if available, otherwise convert name to URL-friendly format
+  const urlSlug =
+    item.fsid ||
+    item.name
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '');
+  return `/subject/${urlSlug}`;
+}
+
+// Helper function to convert name to URL-friendly format
+function nameToUrlSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
 }
 
 function calculateSubcategoryPositions(
@@ -181,13 +204,224 @@ function calculatePositions(subcategoryPositions: { [key: string]: number }) {
 const MotionCard = motion.create(Card.Root);
 const MotionG = motion.g;
 
+// Clickable item component with Link
+const ClickableItem: React.FC<{
+  item: TreeItem;
+  itemY: number;
+  isEmpty: boolean;
+  subcategoryWidth: number;
+  levelSpacing: number;
+  itemIndex: number;
+  generateUrl: (item: TreeItem) => string;
+}> = ({
+  item,
+  itemY,
+  isEmpty,
+  subcategoryWidth,
+  levelSpacing,
+  itemIndex,
+  generateUrl,
+}) => {
+  const hexagonX = isEmpty
+    ? levelSpacing - 20 + subcategoryWidth + 40
+    : levelSpacing - 20 + subcategoryWidth + 70;
+
+  const textX = isEmpty
+    ? levelSpacing - 20 + subcategoryWidth + 60
+    : levelSpacing - 20 + subcategoryWidth + 90;
+
+  // If it's empty, return non-clickable content
+  if (isEmpty) {
+    return (
+      <MotionG
+        key={item.id || `empty-${itemIndex}`}
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{
+          opacity: 0,
+          x: 30,
+          transition: {
+            duration: 0.3,
+            ease: 'easeIn',
+          },
+        }}
+        transition={{
+          duration: 0.1,
+          ease: 'easeOut',
+          delay: itemIndex * 0.05,
+        }}
+      >
+        {/* Item node - Empty hexagon */}
+        <motion.path
+          d={createHexagonPath(hexagonX, itemY, 8)}
+          animate={{
+            d: createHexagonPath(hexagonX, itemY, 8),
+          }}
+          fill='var(--chakra-colors-bg-canvas)'
+          stroke='var(--chakra-colors-border-muted)'
+          strokeWidth='1'
+          transition={{ duration: 0.3 }}
+        />
+
+        {/* Item label for empty items */}
+        <motion.text
+          initial={{
+            x: textX + 30,
+            y: itemY + 4, // Restored original Y offset
+            opacity: 0,
+          }}
+          animate={{
+            x: textX,
+            y: itemY + 4, // Restored original Y offset
+            opacity: 1,
+          }}
+          fill='var(--chakra-colors-fg-muted)'
+          fontSize='10'
+          fontWeight='500'
+          fontFamily='var(--chakra-fonts-body)'
+          transition={{
+            x: {
+              type: 'tween',
+              duration: 0.1,
+              ease: 'easeOut',
+            },
+            y: {
+              type: 'tween',
+              duration: 0.4,
+              ease: 'easeOut',
+            },
+            opacity: {
+              duration: 0.1,
+              ease: 'easeOut',
+            },
+          }}
+          style={{
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }}
+          dominantBaseline='middle'
+          textAnchor='start'
+        >
+          {item.name}
+        </motion.text>
+      </MotionG>
+    );
+  }
+
+  // For clickable items, wrap the entire group in a Link
+  return (
+    <Link
+      to={generateUrl(item)}
+      style={{
+        textDecoration: 'none',
+        display: 'contents',
+      }}
+    >
+      <MotionG
+        key={item.id || `empty-${itemIndex}`}
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{
+          opacity: 0,
+          x: 30,
+          transition: {
+            duration: 0.3,
+            ease: 'easeIn',
+          },
+        }}
+        transition={{
+          duration: 0.1,
+          ease: 'easeOut',
+          delay: itemIndex * 0.05,
+        }}
+        style={{ cursor: 'pointer' }}
+        whileHover={{ scale: 1.02 }} // Subtle hover scale
+      >
+        {/* Line to item */}
+        <motion.line
+          x1={levelSpacing - 20 + subcategoryWidth + 40}
+          animate={{ y1: itemY, y2: itemY }}
+          x2={levelSpacing - 20 + subcategoryWidth + 60}
+          stroke='var(--chakra-colors-border-muted)'
+          strokeWidth='2'
+          transition={{ duration: 0.3 }}
+        />
+
+        {/* Item node - Hexagon subject icon (rotated 90 degrees) */}
+        <motion.path
+          d={createHexagonPath(hexagonX, itemY, 8)}
+          animate={{
+            d: createHexagonPath(hexagonX, itemY, 8),
+          }}
+          fill='var(--chakra-colors-brand)'
+          stroke='var(--chakra-colors-border-emphasized)'
+          strokeWidth='1'
+          transition={{ duration: 0.3 }}
+          whileHover={{
+            fill: 'var(--chakra-colors-brand-hover)',
+            scale: 1.1,
+          }}
+        />
+
+        {/* Item label - Fixed positioning and sizing */}
+        <motion.text
+          initial={{
+            x: textX + 30,
+            y: itemY + 4, // Restored original Y offset
+            opacity: 0,
+          }}
+          animate={{
+            x: textX,
+            y: itemY + 4, // Restored original Y offset
+            opacity: 1,
+          }}
+          fill='var(--chakra-colors-fg)'
+          fontSize='10'
+          fontWeight='500'
+          fontFamily='var(--chakra-fonts-body)'
+          transition={{
+            x: {
+              type: 'tween',
+              duration: 0.1,
+              ease: 'easeOut',
+            },
+            y: {
+              type: 'tween',
+              duration: 0.4,
+              ease: 'easeOut',
+            },
+            opacity: {
+              duration: 0.1,
+              ease: 'easeOut',
+            },
+          }}
+          whileHover={{
+            fill: 'var(--chakra-colors-fg-hover)',
+            fontSize: '10.5',
+          }}
+          style={{
+            cursor: 'pointer',
+            userSelect: 'none', // Prevent text selection
+            whiteSpace: 'nowrap', // Prevent text wrapping
+          }}
+          dominantBaseline='middle' // Center text vertically
+          textAnchor='start' // Align text to start position
+        >
+          {item.name}
+        </motion.text>
+      </MotionG>
+    </Link>
+  );
+};
+
 // Main component
 export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
   data,
-  nodeSpacing = 80, // Reduced from 120
-  levelSpacing = 240, // Reduced from 280
-  itemSpacing = 40, // Reduced from 60
+  nodeSpacing = 80,
+  levelSpacing = 240,
+  itemSpacing = 40,
   height = 'auto',
+  generateSubjectUrl = defaultGenerateSubjectUrl,
 }) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
@@ -342,8 +576,12 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
             <Text as='strong' color='fg'>
               subcategory node
             </Text>{' '}
-            to expand and view the related items. The viewport will
-            automatically center on expanded branches for better focus.
+            to expand and view the related items. Click on{' '}
+            <Text as='strong' color='brand'>
+              subject hexagons
+            </Text>{' '}
+            to navigate to the subject page. The viewport will automatically
+            center on expanded branches.
           </Text>
         </Card.Body>
       </MotionCard>
@@ -547,120 +785,16 @@ export const PhylogenyTree: React.FC<PhylogenyTreeProps> = ({
                         const isEmpty = item.id === '';
 
                         return (
-                          <MotionG
+                          <ClickableItem
                             key={item.id || `empty-${itemIndex}`}
-                            initial={{ opacity: 0, x: 30 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{
-                              opacity: 0,
-                              x: 30,
-                              transition: {
-                                duration: 0.3, // Exit duration (regular)
-                                ease: 'easeIn',
-                              },
-                            }}
-                            transition={{
-                              duration: 0.1, // Enter duration (fast)
-                              ease: 'easeOut',
-                              delay: itemIndex * 0.05,
-                            }}
-                          >
-                            {/* Line to item - only show if not empty */}
-                            {!isEmpty && (
-                              <motion.line
-                                x1={levelSpacing - 20 + subcategoryWidth + 40}
-                                animate={{ y1: itemY, y2: itemY }}
-                                x2={levelSpacing - 20 + subcategoryWidth + 60}
-                                stroke='var(--chakra-colors-border-muted)'
-                                strokeWidth='2'
-                                transition={{ duration: 0.3 }}
-                              />
-                            )}
-
-                            {/* Item node - Hexagon subject icon (rotated 90 degrees) */}
-                            <motion.path
-                              d={createHexagonPath(
-                                isEmpty
-                                  ? levelSpacing - 20 + subcategoryWidth + 40 // Position empty hexagon where the line would start
-                                  : levelSpacing - 20 + subcategoryWidth + 70, // Normal position for regular items
-                                itemY,
-                                8
-                              )}
-                              animate={{
-                                d: createHexagonPath(
-                                  isEmpty
-                                    ? levelSpacing - 20 + subcategoryWidth + 40
-                                    : levelSpacing - 20 + subcategoryWidth + 70,
-                                  itemY,
-                                  8
-                                ),
-                              }}
-                              fill={
-                                isEmpty
-                                  ? 'var(--chakra-colors-bg-canvas)'
-                                  : 'var(--chakra-colors-brand)'
-                              }
-                              stroke={
-                                isEmpty
-                                  ? 'var(--chakra-colors-border-muted)'
-                                  : 'var(--chakra-colors-border-emphasized)'
-                              }
-                              strokeWidth='1'
-                              transition={{ duration: 0.3 }}
-                            />
-
-                            {/* Item label - show for all items now */}
-                            <motion.text
-                              initial={{
-                                x: isEmpty
-                                  ? levelSpacing -
-                                    20 +
-                                    subcategoryWidth +
-                                    60 +
-                                    30 // Start 30px to the right
-                                  : levelSpacing -
-                                    20 +
-                                    subcategoryWidth +
-                                    90 +
-                                    30,
-                                y: itemY + 3, // Set initial Y to final Y to prevent coming from top
-                                opacity: 0,
-                              }}
-                              animate={{
-                                x: isEmpty
-                                  ? levelSpacing - 20 + subcategoryWidth + 60 // Final position
-                                  : levelSpacing - 20 + subcategoryWidth + 90,
-                                y: itemY + 3, // Animate Y position for smooth repositioning
-                                opacity: 1,
-                              }}
-                              fill={
-                                isEmpty
-                                  ? 'var(--chakra-colors-fg-muted)'
-                                  : 'var(--chakra-colors-fg)'
-                              }
-                              fontSize='10'
-                              fontWeight='500'
-                              fontFamily='var(--chakra-fonts-body)'
-                              transition={{
-                                x: {
-                                  type: 'tween',
-                                  duration: 0.1, // Fast horizontal entry
-                                  ease: 'easeOut',
-                                },
-                                y: {
-                                  type: 'tween',
-                                  duration: 0.4, // Slower vertical repositioning
-                                  ease: 'easeOut',
-                                },
-                                opacity: {
-                                  duration: 0.1, // Fast opacity fade in
-                                  ease: 'easeOut',
-                                },
-                              }}
-                            >
-                              {item.name}
-                            </motion.text>
-                          </MotionG>
+                            item={item}
+                            itemY={itemY}
+                            isEmpty={isEmpty}
+                            subcategoryWidth={subcategoryWidth}
+                            levelSpacing={levelSpacing}
+                            itemIndex={itemIndex}
+                            generateUrl={generateSubjectUrl}
+                          />
                         );
                       })}
                     </MotionG>

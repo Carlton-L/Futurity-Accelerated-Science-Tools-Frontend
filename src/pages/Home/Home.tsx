@@ -1,5 +1,6 @@
 import React from 'react';
 import { Container, VStack } from '@chakra-ui/react';
+import SitewideStatsSection from './SitewideStatsSection';
 import FuturityLabsSection from './FuturityLabsSection';
 import FeaturedSubjectSection from './FeaturedSubjectSection';
 import AnalysesSection from './AnalysesSection';
@@ -8,6 +9,9 @@ const Home: React.FC = () => {
   return (
     <Container maxW='7xl' py='8'>
       <VStack gap='12' align='stretch'>
+        {/* Sitewide Stats Section */}
+        <SitewideStatsSection />
+
         {/* Featured Subject Section */}
         <FeaturedSubjectSection />
 

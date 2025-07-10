@@ -1,6 +1,7 @@
 export interface TreeItem {
   id: string;
   name: string;
+  fsid?: string; // Optional fsid for routing - will be used if available
 }
 
 export interface SubCategory {
@@ -25,4 +26,6 @@ export interface PhylogenyTreeProps {
   itemSpacing?: number;
   width?: string | number;
   height?: string | number;
+  onItemClick?: (item: TreeItem) => void; // Optional callback for custom click handling
+  generateItemUrl?: (item: TreeItem) => string; // Optional custom URL generator
 }

@@ -219,7 +219,7 @@ const SubjectSearch: React.FC<SubjectSearchProps> = ({
               variant='ghost'
               justifyContent='flex-start'
               onClick={onGoToSearchResults}
-              color='brand'
+              color='fg'
               _hover={{ bg: 'bg.hover' }}
               borderRadius='0'
               borderBottom='1px solid'
@@ -265,7 +265,7 @@ const SubjectSearch: React.FC<SubjectSearchProps> = ({
                         {alreadyInWhiteboard && (
                           <Box
                             bg='success'
-                            color='white'
+                            color='bg'
                             fontSize='xs'
                             px={2}
                             py={1}

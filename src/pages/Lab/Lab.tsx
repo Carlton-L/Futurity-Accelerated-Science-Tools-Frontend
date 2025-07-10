@@ -53,6 +53,7 @@ const Lab: React.FC = () => {
   const [lab, setLab] = useState<LabType | null>(null);
   const [apiLabData, setApiLabData] = useState<ApiLab | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingIndexes, setLoadingIndexes] = useState<boolean>(false); // New state for background loading
   const [error, setError] = useState<string | null>(null);
   const [isEditingHeader, setIsEditingHeader] = useState<boolean>(false);
   const [headerForm, setHeaderForm] = useState<{
@@ -67,16 +68,143 @@ const Lab: React.FC = () => {
   // Changed default tab to 'plan' and updated valid tabs
   const [activeTab, setActiveTab] = useState<LabTab>('plan');
 
-  // Transform API lab data to frontend format using new subcategories_map structure
-  const transformApiLabToFrontend = useCallback(
-    async (apiLab: ApiLab): Promise<LabType> => {
-      console.log('Transforming API lab data:', apiLab);
+  // 🚀 OPTIMIZATION 1: Parallel subject index fetching
+  const fetchSubjectIndexesParallel = useCallback(
+    async (lab: LabType): Promise<LabType> => {
+      if (!token) {
+        console.log('No token available, skipping subject index fetch');
+        return lab;
+      }
 
-      // Initialize categories array with default uncategorized
-      const categories: SubjectCategory[] = [];
+      console.log(
+        '🚀 Fetching indexes for',
+        lab.subjects.length,
+        'subjects in parallel'
+      );
+      setLoadingIndexes(true);
+
+      // Create all API calls simultaneously
+      const indexPromises = lab.subjects.map(async (subject) => {
+        try {
+          const subjectFsid = subject.subjectSlug.startsWith('fsid_')
+            ? subject.subjectSlug
+            : `fsid_${subject.subjectSlug}`;
+
+          const response = await fetch(
+            `https://fast.futurity.science/management/subjects/${encodeURIComponent(
+              subjectFsid
+            )}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            console.warn(
+              `Failed to fetch data for subject ${subject.subjectName}: ${response.status}`
+            );
+            return { subject, indexes: null };
+          }
+
+          const subjectData = await response.json();
+
+          // Extract index values
+          let horizonRank = undefined;
+          let techTransfer = undefined;
+          let whiteSpace = undefined;
+
+          if (
+            subjectData.indexes &&
+            Array.isArray(subjectData.indexes) &&
+            subjectData.indexes.length > 0
+          ) {
+            const firstIndex = subjectData.indexes[0];
+            if (firstIndex && typeof firstIndex === 'object') {
+              horizonRank = firstIndex.HR;
+              techTransfer = firstIndex.TT;
+              whiteSpace = firstIndex.WS;
+            }
+          }
+
+          return {
+            subject,
+            indexes: { horizonRank, techTransfer, whiteSpace },
+          };
+        } catch (error) {
+          console.error(
+            `Error fetching data for subject ${subject.subjectName}:`,
+            error
+          );
+          return { subject, indexes: null };
+        }
+      });
+
+      // Wait for all API calls to complete
+      const results = await Promise.all(indexPromises);
+
+      // Apply results to lab data
+      const updatedLab = { ...lab };
+      const updatedCategories = [...lab.categories];
+
+      let successfulFetches = 0;
+
+      results.forEach(({ subject, indexes }) => {
+        if (indexes) {
+          const updatedSubject = {
+            ...subject,
+            horizonRank: indexes.horizonRank,
+            techTransfer: indexes.techTransfer,
+            whiteSpace: indexes.whiteSpace,
+          };
+
+          // Update in main subjects array
+          const subjectIndex = updatedLab.subjects.findIndex(
+            (s) => s.id === subject.id
+          );
+          if (subjectIndex !== -1) {
+            updatedLab.subjects[subjectIndex] = updatedSubject;
+          }
+
+          // Update in categories
+          for (const category of updatedCategories) {
+            const categorySubjectIndex = category.subjects.findIndex(
+              (s) => s.id === subject.id
+            );
+            if (categorySubjectIndex !== -1) {
+              category.subjects[categorySubjectIndex] = updatedSubject;
+              break;
+            }
+          }
+
+          successfulFetches++;
+        }
+      });
+
+      updatedLab.categories = updatedCategories;
+      setLoadingIndexes(false);
+
+      console.log(
+        `✅ Successfully fetched indexes for ${successfulFetches}/${lab.subjects.length} subjects`
+      );
+
+      return updatedLab;
+    },
+    [token]
+  );
+
+  // 🚀 OPTIMIZATION 2: Optimized transform function with better data structures
+  const transformApiLabToFrontendOptimized = useCallback(
+    async (apiLab: ApiLab): Promise<LabType> => {
+      console.log('🔄 Transforming API lab data (optimized):', apiLab);
+
+      // Use Map for O(1) category lookups
+      const categoryMap = new Map<string, SubjectCategory>();
       const allSubjects: LabSubject[] = [];
 
-      // Add default uncategorized category first
+      // Initialize uncategorized category
       const uncategorizedCategory: SubjectCategory = {
         id: 'uncategorized',
         name: 'Uncategorized',
@@ -84,52 +212,46 @@ const Lab: React.FC = () => {
         subjects: [],
         description: 'Default category for new subjects',
       };
+      categoryMap.set('uncategorized', uncategorizedCategory);
 
-      // Process subcategories_map to create categories and subjects
+      // Process subcategories_map efficiently
       if (apiLab.subcategories_map && Array.isArray(apiLab.subcategories_map)) {
-        for (const subcategoryMap of apiLab.subcategories_map) {
-          // Determine if this is the uncategorized category
+        apiLab.subcategories_map.forEach((subcategoryMap) => {
           const isUncategorized =
             subcategoryMap.subcategory_name.toLowerCase() === 'uncategorized';
 
-          // Create category object
-          const category: SubjectCategory = {
-            id: isUncategorized
-              ? 'uncategorized'
-              : subcategoryMap.subcategory_id,
-            name: subcategoryMap.subcategory_name,
-            type: isUncategorized ? 'default' : 'custom',
-            subjects: [],
-            description: isUncategorized
-              ? 'Default category for new subjects'
-              : undefined,
-          };
+          let category: SubjectCategory;
+          if (isUncategorized) {
+            category = uncategorizedCategory;
+          } else {
+            category = {
+              id: subcategoryMap.subcategory_id,
+              name: subcategoryMap.subcategory_name,
+              type: 'custom',
+              subjects: [],
+            };
+            categoryMap.set(subcategoryMap.subcategory_id, category);
+          }
 
           // Process subjects in this subcategory
           if (
             subcategoryMap.subjects &&
             Array.isArray(subcategoryMap.subjects)
           ) {
-            for (const [
-              subjectIndex,
-              apiSubject,
-            ] of subcategoryMap.subjects.entries()) {
-              // Parse slug from ent_fsid by removing fsid_ prefix
+            subcategoryMap.subjects.forEach((apiSubject, subjectIndex) => {
               const subjectSlug = apiSubject.ent_fsid.startsWith('fsid_')
                 ? apiSubject.ent_fsid.substring(5)
                 : apiSubject.ent_fsid;
 
-              // Create basic subject first
               const frontendSubject: LabSubject = {
                 id: `subj-${category.id}-${subjectIndex}-${apiSubject.ent_fsid}`,
-                subjectId: apiSubject.ent_fsid, // Use ent_fsid as the ID for association
+                subjectId: apiSubject.ent_fsid,
                 subjectName: apiSubject.ent_name,
                 subjectSlug: subjectSlug,
                 addedAt: new Date().toISOString(),
                 addedById: 'unknown',
                 notes: apiSubject.ent_summary || '',
                 categoryId: category.id,
-                // These will be filled in by fetchSubjectIndexes
                 horizonRank: undefined,
                 techTransfer: undefined,
                 whiteSpace: undefined,
@@ -137,24 +259,23 @@ const Lab: React.FC = () => {
 
               allSubjects.push(frontendSubject);
               category.subjects.push(frontendSubject);
-            }
+            });
           }
-
-          // Add category to list (replace uncategorized if this is the uncategorized category)
-          if (isUncategorized) {
-            // Update the uncategorized category with subjects
-            uncategorizedCategory.subjects = category.subjects;
-          } else {
-            categories.push(category);
-          }
-        }
+        });
       }
 
-      // Always ensure uncategorized is first in the list
-      categories.unshift(uncategorizedCategory);
+      // Convert map to array, ensuring uncategorized is first
+      const categories = Array.from(categoryMap.values());
+      const uncategorizedIndex = categories.findIndex(
+        (cat) => cat.id === 'uncategorized'
+      );
+      if (uncategorizedIndex > 0) {
+        const uncategorized = categories.splice(uncategorizedIndex, 1)[0];
+        categories.unshift(uncategorized);
+      }
 
       console.log('Transformed categories:', categories);
-      console.log('Total subjects before index fetch:', allSubjects.length);
+      console.log('Total subjects:', allSubjects.length);
 
       return {
         id: apiLab._id,
@@ -182,119 +303,6 @@ const Lab: React.FC = () => {
     []
   );
 
-  const fetchSubjectIndexes = useCallback(
-    async (lab: LabType): Promise<LabType> => {
-      if (!token) {
-        console.log('No token available, skipping subject index fetch');
-        return lab;
-      }
-
-      console.log('Fetching indexes for', lab.subjects.length, 'subjects');
-
-      // Create a copy of the lab to update
-      const updatedLab = { ...lab };
-      const updatedCategories = [...lab.categories];
-
-      // Track successful fetches
-      let successfulFetches = 0;
-
-      for (const subject of lab.subjects) {
-        try {
-          // Ensure the fsid has the fsid_ prefix for the API call
-          const subjectFsid = subject.subjectSlug.startsWith('fsid_')
-            ? subject.subjectSlug
-            : `fsid_${subject.subjectSlug}`;
-
-          const response = await fetch(
-            `https://fast.futurity.science/management/subjects/${encodeURIComponent(
-              subjectFsid
-            )}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-
-          if (!response.ok) {
-            console.warn(
-              `Failed to fetch data for subject ${subject.subjectName}: ${response.status}`
-            );
-            continue;
-          }
-
-          const subjectData = await response.json();
-
-          // Extract index values
-          let horizonRank = undefined;
-          let techTransfer = undefined;
-          let whiteSpace = undefined;
-
-          if (
-            subjectData.indexes &&
-            Array.isArray(subjectData.indexes) &&
-            subjectData.indexes.length > 0
-          ) {
-            const firstIndex = subjectData.indexes[0];
-            if (firstIndex && typeof firstIndex === 'object') {
-              horizonRank = firstIndex.HR;
-              techTransfer = firstIndex.TT;
-              whiteSpace = firstIndex.WS;
-            }
-          }
-
-          console.log(
-            `Subject ${subject.subjectName}: HR=${horizonRank}, TT=${techTransfer}, WS=${whiteSpace}`
-          );
-
-          // Update the subject in all references
-          const updatedSubject = {
-            ...subject,
-            horizonRank,
-            techTransfer,
-            whiteSpace,
-          };
-
-          // Update in the main subjects array
-          const subjectIndex = updatedLab.subjects.findIndex(
-            (s) => s.id === subject.id
-          );
-          if (subjectIndex !== -1) {
-            updatedLab.subjects[subjectIndex] = updatedSubject;
-          }
-
-          // Update in the categories
-          for (const category of updatedCategories) {
-            const categorySubjectIndex = category.subjects.findIndex(
-              (s) => s.id === subject.id
-            );
-            if (categorySubjectIndex !== -1) {
-              category.subjects[categorySubjectIndex] = updatedSubject;
-              break;
-            }
-          }
-
-          successfulFetches++;
-        } catch (error) {
-          console.error(
-            `Error fetching data for subject ${subject.subjectName}:`,
-            error
-          );
-        }
-      }
-
-      updatedLab.categories = updatedCategories;
-
-      console.log(
-        `Successfully fetched indexes for ${successfulFetches}/${lab.subjects.length} subjects`
-      );
-
-      return updatedLab;
-    },
-    [token]
-  );
-
   // Memoize the page context to prevent infinite re-renders
   const labPageContext = useMemo(() => {
     if (!lab) return null;
@@ -311,6 +319,17 @@ const Lab: React.FC = () => {
     };
   }, [lab, activeTab]);
 
+  // 🚀 OPTIMIZATION 4: Memoize expensive calculations
+  const labStats = useMemo(() => {
+    if (!lab) return { subjects: 0, analyses: 0, goals: 0 };
+
+    return {
+      subjects: lab.subjects.length,
+      analyses: lab.analyses.length,
+      goals: apiLabData?.goals?.length || 0,
+    };
+  }, [lab, apiLabData]);
+
   // Set up page context when lab data is loaded or tab changes
   useEffect(() => {
     if (labPageContext) {
@@ -320,9 +339,9 @@ const Lab: React.FC = () => {
     return () => clearPageContext();
   }, [setPageContext, clearPageContext, labPageContext]);
 
-  // Fetch lab data with real API
+  // 🚀 OPTIMIZATION 3: Show UI immediately, load indexes in background
   const fetchLabData = useCallback(async (): Promise<void> => {
-    console.log('Starting to fetch lab data for uniqueID:', id);
+    console.log('🚀 Starting optimized lab data fetch for uniqueID:', id);
     setLoading(true);
     setError(null);
 
@@ -339,35 +358,42 @@ const Lab: React.FC = () => {
     }
 
     try {
-      // Use the enhanced lab service with the uniqueID from URL params
+      // Step 1: Fetch lab data
       const apiLabData = await labService.getLabById(id, token);
-      console.log('Successfully fetched lab data from API:', {
+      console.log('✅ Got lab data from API:', {
         _id: apiLabData._id,
         uniqueID: apiLabData.uniqueID,
         urlParam: id,
       });
 
-      // Store the raw API data
-      setApiLabData(apiLabData);
-
-      // Transform API data to frontend format (without indexes initially)
-      let transformedLab = await transformApiLabToFrontend(apiLabData);
-      console.log(
-        'Initial transformation complete, now fetching subject indexes...'
+      // Step 2: Transform to frontend format (without indexes)
+      const transformedLab = await transformApiLabToFrontendOptimized(
+        apiLabData
       );
+      console.log('✅ Transformed lab data');
 
-      // Fetch individual subject data to get indexes (HR, TT, WS)
-      transformedLab = await fetchSubjectIndexes(transformedLab);
-      console.log('Subject indexes fetch complete');
-
+      // Step 3: Set lab data immediately (show UI)
+      setApiLabData(apiLabData);
       setLab(transformedLab);
       setHeaderForm({
         name: transformedLab.name,
         description: transformedLab.description,
       });
-      setLoading(false);
+      setLoading(false); // ✨ Stop loading here - UI shows immediately!
+
+      // Step 4: Fetch subject indexes in background (parallel)
+      if (transformedLab.subjects.length > 0) {
+        console.log('🔄 Fetching subject indexes in background...');
+        const labWithIndexes = await fetchSubjectIndexesParallel(
+          transformedLab
+        );
+
+        // Step 5: Update lab with indexes (triggers re-render with complete data)
+        setLab(labWithIndexes);
+        console.log('✅ Background index loading complete');
+      }
     } catch (error) {
-      console.error('Failed to fetch lab:', error);
+      console.error('❌ Failed to fetch lab:', error);
       if (error instanceof Error) {
         setError(error.message);
       } else {
@@ -375,7 +401,12 @@ const Lab: React.FC = () => {
       }
       setLoading(false);
     }
-  }, [id, token, transformApiLabToFrontend, fetchSubjectIndexes]);
+  }, [
+    id,
+    token,
+    transformApiLabToFrontendOptimized,
+    fetchSubjectIndexesParallel,
+  ]);
 
   useEffect(() => {
     fetchLabData();
@@ -431,7 +462,9 @@ const Lab: React.FC = () => {
 
       // Update both the API data and transformed lab
       setApiLabData(updatedApiLab);
-      const updatedLab = await transformApiLabToFrontend(updatedApiLab);
+      const updatedLab = await transformApiLabToFrontendOptimized(
+        updatedApiLab
+      );
       setLab(updatedLab);
 
       setIsEditingHeader(false);
@@ -495,7 +528,9 @@ const Lab: React.FC = () => {
 
         // Update both the API data and transformed lab
         setApiLabData(updatedApiLab);
-        const updatedLab = await transformApiLabToFrontend(updatedApiLab);
+        const updatedLab = await transformApiLabToFrontendOptimized(
+          updatedApiLab
+        );
         setLab(updatedLab);
 
         console.log('Successfully updated lab terms');
@@ -506,7 +541,7 @@ const Lab: React.FC = () => {
         );
       }
     },
-    [lab, token, id, transformApiLabToFrontend]
+    [lab, token, id, transformApiLabToFrontendOptimized]
   );
 
   // Tab configuration with icons
@@ -819,7 +854,7 @@ const Lab: React.FC = () => {
               )}
             </Flex>
 
-            {/* Lab Metadata */}
+            {/* Lab Metadata with loading indicator */}
             <HStack
               gap={6}
               pt={2}
@@ -827,13 +862,18 @@ const Lab: React.FC = () => {
               borderColor='border.muted'
             >
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                Subjects: {lab.subjects.length}
+                Subjects: {labStats.subjects}
+                {loadingIndexes && (
+                  <Text as='span' color='brand' ml={2}>
+                    (loading metrics...)
+                  </Text>
+                )}
               </Text>
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                Analyses: {lab.analyses.length}
+                Analyses: {labStats.analyses}
               </Text>
               <Text fontSize='sm' color='fg.muted' fontFamily='body'>
-                Goals: {apiLabData?.goals?.length || 0}
+                Goals: {labStats.goals}
               </Text>
             </HStack>
           </VStack>
@@ -908,6 +948,7 @@ const Lab: React.FC = () => {
               setLab((prev) => (prev ? { ...prev, categories } : null));
             }}
             onRefreshLab={fetchLabData}
+            loadingIndexes={loadingIndexes} // Pass loading state to show progressive loading
           />
         )}
         {activeTab === 'analyze' && (
@@ -921,9 +962,6 @@ const Lab: React.FC = () => {
         )}
         {activeTab === 'invent' && <Invent labId={lab.uniqueID || id || ''} />}
       </Box>
-
-      {/* Edit Dialog */}
-      {/* Removed - now using inline editing */}
     </Box>
   );
 };
