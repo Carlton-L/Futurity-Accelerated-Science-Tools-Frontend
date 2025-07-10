@@ -11,7 +11,7 @@ import {
   Spinner,
   Button,
 } from '@chakra-ui/react';
-import { FiInfo } from 'react-icons/fi';
+import { FiInfo, FiRefreshCw } from 'react-icons/fi';
 import Plot from 'react-plotly.js';
 import type { Data, Layout } from 'plotly.js';
 import ChartErrorBoundary from './ChartErrorBoundary';
@@ -284,6 +284,7 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showRealData, setShowRealData] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   // Get processed plot data
   const getProcessedPlotData = (): Partial<Data>[] => {
@@ -306,35 +307,44 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
     return processedData;
   };
 
-  useEffect(() => {
-    const fetchTrendsData = async () => {
-      if (!subjectSlug) return;
+  const fetchTrendsData = async (isRefresh = false) => {
+    if (!subjectSlug) return;
 
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
-      setError(null);
+    }
+    setError(null);
 
-      try {
-        console.log('Fetching trends data for fsid:', subjectSlug);
+    try {
+      console.log('Fetching trends data for fsid:', subjectSlug);
 
-        // Use the new Subject Service to fetch ridgeline data
-        const trendsData: RidgelineData = await subjectService.getRidgelineData(
-          subjectSlug
-        );
-        setData(trendsData);
+      // Use the new Subject Service to fetch ridgeline data
+      const trendsData: RidgelineData = await subjectService.getRidgelineData(
+        subjectSlug
+      );
+      setData(trendsData);
 
-        console.log('Successfully fetched trends data');
-      } catch (err) {
-        console.error('Failed to fetch trends data:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to load trends data'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+      console.log('Successfully fetched trends data');
+    } catch (err) {
+      console.error('Failed to fetch trends data:', err);
+      setError(
+        err instanceof Error ? err.message : 'Failed to load trends data'
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
+  useEffect(() => {
     fetchTrendsData();
   }, [subjectSlug]);
+
+  const handleRefresh = () => {
+    fetchTrendsData(true);
+  };
 
   if (loading) {
     return (
@@ -368,10 +378,45 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
       <Card.Root width='100%' mt={6} bg='bg.canvas'>
         <Card.Body p={6}>
           <VStack gap={6} align='stretch'>
-            <HStack gap={2} align='center'>
-              <Heading as='h2' size='lg' color='fg'>
-                Trends
-              </Heading>
+            <HStack justify='space-between' align='center'>
+              <HStack gap={2} align='center'>
+                <Heading as='h2' size='lg' color='fg'>
+                  Trends
+                </Heading>
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <IconButton
+                      size='sm'
+                      variant='ghost'
+                      aria-label='Info about trends chart'
+                      color='fg'
+                    >
+                      <FiInfo size={16} />
+                    </IconButton>
+                  </Popover.Trigger>
+                  <Popover.Positioner>
+                    <Popover.Content>
+                      <Popover.Arrow />
+                      <Popover.Body>
+                        <Text fontSize='sm' maxW='300px'>
+                          {trendsInfoText}
+                        </Text>
+                      </Popover.Body>
+                    </Popover.Content>
+                  </Popover.Positioner>
+                </Popover.Root>
+              </HStack>
+
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={handleRefresh}
+                loading={refreshing}
+                disabled={refreshing}
+              >
+                <FiRefreshCw size={14} />
+                Retry
+              </Button>
             </HStack>
             <Box
               height='400px'
@@ -379,13 +424,23 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
               alignItems='center'
               justifyContent='center'
             >
-              <VStack gap={2}>
+              <VStack gap={3} textAlign='center'>
                 <Text color='error' fontSize='lg'>
                   Error loading trends data
                 </Text>
                 <Text color='fg.muted' fontSize='sm'>
                   {error}
                 </Text>
+                <Button
+                  size='md'
+                  variant='outline'
+                  onClick={handleRefresh}
+                  loading={refreshing}
+                  disabled={refreshing}
+                >
+                  <FiRefreshCw size={16} />
+                  Try Again
+                </Button>
               </VStack>
             </Box>
           </VStack>
@@ -415,6 +470,7 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
                     size='sm'
                     variant='ghost'
                     aria-label='Info about trends chart'
+                    color='fg.muted'
                   >
                     <FiInfo size={16} />
                   </IconButton>
@@ -432,18 +488,34 @@ const TrendsChart: React.FC<TrendsChartProps> = ({ subjectSlug }) => {
               </Popover.Root>
             </HStack>
 
-            {/* Toggle Button */}
-            <HStack gap={2} align='center' opacity={0.7}>
-              <Button
-                size='xs'
+            {/* Controls */}
+            <HStack gap={2} align='center'>
+              {/* Toggle Button */}
+              <HStack gap={2} align='center' opacity={0.7}>
+                <Button
+                  size='xs'
+                  variant='ghost'
+                  onClick={() => setShowRealData(!showRealData)}
+                  fontSize='xs'
+                  color='fg.muted'
+                  _hover={{ color: 'fg' }}
+                >
+                  {showRealData ? 'Raw' : 'Trends'}
+                </Button>
+              </HStack>
+
+              {/* Refresh Button */}
+              <IconButton
+                size='sm'
                 variant='ghost'
-                onClick={() => setShowRealData(!showRealData)}
-                fontSize='xs'
+                onClick={handleRefresh}
+                loading={refreshing}
+                disabled={refreshing}
+                aria-label='Refresh trends data'
                 color='fg.muted'
-                _hover={{ color: 'fg' }}
               >
-                {showRealData ? 'Raw' : 'Trends'}
-              </Button>
+                <FiRefreshCw size={14} />
+              </IconButton>
             </HStack>
           </HStack>
 

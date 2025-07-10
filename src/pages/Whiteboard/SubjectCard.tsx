@@ -7,6 +7,7 @@ import {
   Menu,
   Box,
   IconButton,
+  Link,
 } from '@chakra-ui/react';
 import {
   FiMove,
@@ -16,6 +17,7 @@ import {
   FiPlus,
 } from 'react-icons/fi';
 import { useDrag } from 'react-dnd';
+import { Link as RouterLink } from 'react-router-dom';
 import type { WhiteboardSubject } from './types';
 import { getMetricValue } from './types';
 
@@ -206,6 +208,13 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
     }
   };
 
+  // Generate the subject URL for proper link behavior
+  const subjectUrl = `/subject/${
+    subject.ent_fsid.startsWith('fsid_')
+      ? subject.ent_fsid.substring(5)
+      : subject.ent_fsid
+  }`;
+
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onQuickAddToLabSeed) {
@@ -282,12 +291,26 @@ const WhiteboardSubjectCard: React.FC<WhiteboardSubjectCardProps> = ({
                 </Menu.Trigger>
                 <Menu.Positioner>
                   <Menu.Content>
-                    {onViewSubject && (
-                      <Menu.Item value='view' onClick={handleViewSubject}>
-                        <FiEye size={14} />
-                        View Details
-                      </Menu.Item>
-                    )}
+                    {/* View Subject option - as a proper link for context menu support */}
+                    <Box
+                      as={RouterLink}
+                      to={subjectUrl}
+                      display='flex'
+                      alignItems='center'
+                      gap={2}
+                      color='fg'
+                      textDecoration='none'
+                      _hover={{ bg: 'bg.hover', textDecoration: 'none' }}
+                      _focus={{ outline: 'none', boxShadow: 'none' }}
+                      _focusVisible={{ outline: 'none', boxShadow: 'none' }}
+                      px={3}
+                      py={2}
+                      borderRadius='sm'
+                      cursor='pointer'
+                    >
+                      <FiEye size={14} />
+                      View Subject
+                    </Box>
                     {sourceType === 'labSeed' && onRemoveFromLabSeed && (
                       <Menu.Item
                         value='removeFromLabSeed'

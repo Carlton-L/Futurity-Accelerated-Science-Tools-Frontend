@@ -19,7 +19,7 @@ import {
   Popover,
   Switch,
 } from '@chakra-ui/react';
-import { FiInfo, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiInfo, FiEye, FiEyeOff, FiRefreshCw } from 'react-icons/fi';
 import Plot from 'react-plotly.js';
 import type { Data, Layout, PlotData } from 'plotly.js';
 import ChartErrorBoundary from './ChartErrorBoundary';
@@ -796,6 +796,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
     const [tableData, setTableData] = useState<TableData | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [loadingChart, setLoadingChart] = useState<boolean>(false);
+    const [refreshing, setRefreshing] = useState<boolean>(false);
     const [showRealData, setShowRealData] = useState<boolean>(false);
     const [pagination, setPagination] = useState<PaginationParams>({
       page: 0,
@@ -823,10 +824,14 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
 
     // Fetch forecast chart data
     const fetchForecastData = useCallback(
-      async (type: ForecastType): Promise<void> => {
+      async (type: ForecastType, isRefresh = false): Promise<void> => {
         if (!subjectSlug) return;
 
-        setLoadingChart(true);
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoadingChart(true);
+        }
 
         try {
           const sourceType = sourceTypeMapping[type];
@@ -893,6 +898,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
           });
         } finally {
           setLoadingChart(false);
+          setRefreshing(false);
         }
       },
       [subjectSlug]
@@ -974,6 +980,14 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
       const newParams = { ...pagination, page: newPage };
       setPagination(newParams);
       fetchTableData(selectedType, newParams);
+    };
+
+    // Handle refresh
+    const handleRefresh = () => {
+      const newPagination = { ...pagination, page: 0 };
+      setPagination(newPagination);
+      fetchForecastData(selectedType, true);
+      fetchTableData(selectedType, newPagination);
     };
 
     // Initialize with first load
@@ -1090,24 +1104,40 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                 Source Plot
               </Heading>
 
-              {/* ============================================================================ */}
-              {/* DATA SPOOFING TOGGLE - REMOVE THIS ENTIRE HSTACK TO DISABLE SPOOFING UI */}
-              {/* ============================================================================ */}
-              <HStack gap={2} align='center' opacity={0.7}>
-                <Button
-                  size='xs'
+              {/* Controls */}
+              <HStack gap={2} align='center'>
+                {/* ============================================================================ */}
+                {/* DATA SPOOFING TOGGLE - REMOVE THIS ENTIRE HSTACK TO DISABLE SPOOFING UI */}
+                {/* ============================================================================ */}
+                <HStack gap={2} align='center' opacity={0.7}>
+                  <Button
+                    size='xs'
+                    variant='ghost'
+                    onClick={() => setShowRealData(!showRealData)}
+                    fontSize='xs'
+                    color='fg.muted'
+                    _hover={{ color: 'fg' }}
+                  >
+                    {showRealData ? 'Raw' : 'Forecast'}
+                  </Button>
+                </HStack>
+                {/* ============================================================================ */}
+                {/* END DATA SPOOFING TOGGLE */}
+                {/* ============================================================================ */}
+
+                {/* Refresh Button */}
+                <IconButton
+                  size='sm'
                   variant='ghost'
-                  onClick={() => setShowRealData(!showRealData)}
-                  fontSize='xs'
+                  onClick={handleRefresh}
+                  loading={refreshing}
+                  disabled={refreshing}
+                  aria-label='Refresh forecast data'
                   color='fg.muted'
-                  _hover={{ color: 'fg' }}
                 >
-                  {showRealData ? 'Raw' : 'Forecast'}
-                </Button>
+                  <FiRefreshCw size={14} />
+                </IconButton>
               </HStack>
-              {/* ============================================================================ */}
-              {/* END DATA SPOOFING TOGGLE */}
-              {/* ============================================================================ */}
             </HStack>
 
             {/* Type Selection Buttons */}
@@ -1138,6 +1168,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                         size='sm'
                         variant='ghost'
                         aria-label={`Info about ${type}`}
+                        color='fg.muted'
                       >
                         <FiInfo size={14} />
                       </IconButton>
@@ -1162,7 +1193,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
               chartName={`${selectedType} Forecast Chart`}
               fallbackHeight='400px'
             >
-              {loadingChart ? (
+              {loadingChart || refreshing ? (
                 <Box
                   height='400px'
                   display='flex'
@@ -1171,7 +1202,11 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                 >
                   <VStack gap={2}>
                     <Spinner size='lg' />
-                    <Text color='gray.500'>Loading chart data...</Text>
+                    <Text color='gray.500'>
+                      {refreshing
+                        ? 'Refreshing chart data...'
+                        : 'Loading chart data...'}
+                    </Text>
                   </VStack>
                 </Box>
               ) : forecastData && hasValidPlotData(getProcessedPlotData()) ? (
@@ -1268,6 +1303,20 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                           </Button>
                         ))}
                     </HStack>
+
+                    {/* Retry button for error cases */}
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={handleRefresh}
+                      loading={refreshing}
+                      disabled={refreshing}
+                      mt={2}
+                      color='fg.muted'
+                    >
+                      <FiRefreshCw size={14} />
+                      Retry
+                    </Button>
                   </VStack>
                 </Box>
               )}

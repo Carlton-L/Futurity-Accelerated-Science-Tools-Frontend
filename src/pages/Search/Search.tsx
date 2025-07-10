@@ -46,9 +46,24 @@ const Search: React.FC = () => {
 
   const searchQuery = query || '';
 
-  // Helper function to convert title to URL-friendly slug
+  // Fixed helper function to convert title to URL-friendly slug
   const createSlug = (title: string): string => {
-    return searchService.createSlug(title);
+    return (
+      title
+        .toLowerCase()
+        .trim()
+        // Replace dots with hyphens
+        .replace(/\./g, '-')
+        // Replace spaces with underscores
+        .replace(/\s+/g, '_')
+        // Keep existing hyphens as they are
+        // Remove any other special characters except hyphens and underscores
+        .replace(/[^a-z0-9\-_]/g, '')
+        // Remove multiple consecutive hyphens or underscores
+        .replace(/[-_]+/g, (match) => match[0])
+        // Remove leading/trailing hyphens or underscores
+        .replace(/^[-_]+|[-_]+$/g, '')
+    );
   };
 
   // Navigation helper function with scroll reset
@@ -161,6 +176,25 @@ const Search: React.FC = () => {
   const handleOrganizationClick = (org: SearchOrgResult): void => {
     console.log('Navigate to organization:', org.ent_name);
     // TODO: Implement navigation to organization page when ready
+  };
+
+  // Helper function to safely get string value or fallback
+  const safeString = (value: any, fallback: string = 'N/A'): string => {
+    if (value === null || value === undefined || value === '') {
+      return fallback;
+    }
+    return String(value);
+  };
+
+  // Helper function to safely get truncated string
+  const safeTruncate = (
+    value: any,
+    maxLength: number,
+    fallback: string = 'No description available'
+  ): string => {
+    const str = safeString(value, fallback);
+    if (str === 'N/A' || str === fallback) return str;
+    return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
   };
 
   // Show loading state
@@ -311,20 +345,25 @@ const Search: React.FC = () => {
                         <HStack justify='space-between' align='start'>
                           <Box flex='1'>
                             <Heading as='h3' size='xl' mb={3} color='fg'>
-                              {exactMatch.ent_name}
+                              {safeString(
+                                exactMatch.ent_name,
+                                'Unknown Subject'
+                              )}
                             </Heading>
                             <Text
                               color='fg.secondary'
                               fontSize='lg'
                               lineHeight='1.6'
                             >
-                              {exactMatch.ent_summary ||
-                                (exactMatch.wikipedia_definition &&
-                                  exactMatch.wikipedia_definition.substring(
-                                    0,
-                                    200
-                                  ) + '...') ||
-                                'No description available'}
+                              {safeTruncate(
+                                exactMatch.ent_summary ||
+                                  (exactMatch.wikipedia_definition &&
+                                    exactMatch.wikipedia_definition.substring(
+                                      0,
+                                      200
+                                    ) + '...'),
+                                200
+                              )}
                             </Text>
                           </Box>
                           <FiChevronRight
@@ -533,7 +572,8 @@ const Search: React.FC = () => {
                   {
                     searchResults.subjects.filter(
                       (subject) =>
-                        !exactMatch || subject._id.$oid !== exactMatch._id.$oid
+                        !exactMatch ||
+                        subject._id?.$oid !== exactMatch._id?.$oid
                     ).length
                   }
                   )
@@ -543,12 +583,13 @@ const Search: React.FC = () => {
                   {searchResults.subjects
                     .filter(
                       (subject) =>
-                        !exactMatch || subject._id.$oid !== exactMatch._id.$oid
+                        !exactMatch ||
+                        subject._id?.$oid !== exactMatch._id?.$oid
                     )
                     .slice(0, 10)
                     .map((subject) => (
                       <Box
-                        key={subject._id.$oid}
+                        key={subject._id?.$oid || Math.random()}
                         bg='bg.canvas'
                         border='1px solid'
                         borderColor='border.muted'
@@ -560,7 +601,11 @@ const Search: React.FC = () => {
                           transform: 'translateX(4px)',
                         }}
                         transition='all 0.2s'
-                        onClick={() => handleSubjectClick(subject.ent_name)}
+                        onClick={() =>
+                          handleSubjectClick(
+                            safeString(subject.ent_name, 'Unknown Subject')
+                          )
+                        }
                       >
                         <HStack justify='space-between' p={4}>
                           <Box flex='1'>
@@ -570,14 +615,17 @@ const Search: React.FC = () => {
                               mb={1}
                             >
                               <Text fontWeight='semibold' color='fg'>
-                                {subject.ent_name}
+                                {safeString(
+                                  subject.ent_name,
+                                  'Unknown Subject'
+                                )}
                               </Text>
                               {/* Show match percentage - check both similarSubjects and regular subjects */}
                               {(() => {
                                 // First check if this subject has a percentage in similarSubjects
                                 const similarMatch =
                                   searchResults.similarSubjects?.find(
-                                    (s) => s._id.$oid === subject._id.$oid
+                                    (s) => s._id?.$oid === subject._id?.$oid
                                   );
                                 if (similarMatch?.percent !== undefined) {
                                   return (
@@ -599,7 +647,7 @@ const Search: React.FC = () => {
                                 // This handles cases where subjects are related but don't appear in similarSubjects
                                 if (
                                   !exactMatch ||
-                                  subject._id.$oid !== exactMatch._id.$oid
+                                  subject._id?.$oid !== exactMatch._id?.$oid
                                 ) {
                                   return (
                                     <Text
@@ -620,14 +668,13 @@ const Search: React.FC = () => {
                               })()}
                             </HStack>
                             <Text fontSize='sm' color='fg.secondary' mb={1}>
-                              {(subject.ent_summary &&
-                                subject.ent_summary.substring(0, 150) +
-                                  '...') ||
-                                'No description available'}
+                              {safeTruncate(subject.ent_summary, 150)}
                             </Text>
                             <Text fontSize='xs' color='fg.muted'>
                               Click to view → /subject/
-                              {createSlug(subject.ent_name)}
+                              {createSlug(
+                                safeString(subject.ent_name, 'unknown-subject')
+                              )}
                             </Text>
                           </Box>
                           <FiChevronRight
@@ -655,7 +702,7 @@ const Search: React.FC = () => {
                 <VStack gap={3} align='stretch'>
                   {analyses.map((analysis) => (
                     <Box
-                      key={analysis._id.$oid}
+                      key={analysis._id?.$oid || Math.random()}
                       bg='bg.canvas'
                       border='1px solid'
                       borderColor='border.muted'
@@ -672,29 +719,37 @@ const Search: React.FC = () => {
                         <Box flex='1'>
                           <HStack justify='space-between' align='start' mb={2}>
                             <Text fontWeight='semibold' color='fg'>
-                              {analysis.ent_name}
+                              {safeString(
+                                analysis.ent_name,
+                                'Unknown Analysis'
+                              )}
                             </Text>
                             <Text
                               fontSize='xs'
                               color='fg.muted'
                               textTransform='uppercase'
                             >
-                              {analysis.status}
+                              {safeString(analysis.status, 'Unknown')}
                             </Text>
                           </HStack>
                           <Text fontSize='sm' color='fg.secondary' mb={2}>
-                            {analysis.ent_summary}
+                            {safeTruncate(analysis.ent_summary, 100)}
                           </Text>
                           <HStack gap={4}>
                             <Text fontSize='xs' color='fg.muted'>
-                              Lab: {analysis.lab_id.toUpperCase()}
+                              Lab:{' '}
+                              {safeString(
+                                analysis.lab_id,
+                                'Unknown'
+                              ).toUpperCase()}
                             </Text>
                             <Text fontSize='xs' color='fg.muted'>
-                              Start: {analysis.ent_start}
+                              Start: {safeString(analysis.ent_start, 'Unknown')}
                             </Text>
                             {analysis.ent_inventors && (
                               <Text fontSize='xs' color='fg.muted'>
-                                By: {analysis.ent_inventors}
+                                By:{' '}
+                                {safeString(analysis.ent_inventors, 'Unknown')}
                               </Text>
                             )}
                           </HStack>
@@ -726,7 +781,7 @@ const Search: React.FC = () => {
                 <VStack gap={3} align='stretch'>
                   {organizations.map((org) => (
                     <Box
-                      key={org._id.$oid}
+                      key={org._id?.$oid || Math.random()}
                       bg='bg.canvas'
                       border='1px solid'
                       borderColor='border.muted'
@@ -742,10 +797,10 @@ const Search: React.FC = () => {
                       <HStack justify='space-between' p={4}>
                         <Box flex='1'>
                           <Text fontWeight='semibold' mb={1} color='fg'>
-                            {org.ent_name}
+                            {safeString(org.ent_name, 'Unknown Organization')}
                           </Text>
                           <Text fontSize='xs' color='fg.muted'>
-                            ID: {org.ent_fsid}
+                            ID: {safeString(org.ent_fsid, 'Unknown')}
                           </Text>
                         </Box>
                         <FiChevronRight
