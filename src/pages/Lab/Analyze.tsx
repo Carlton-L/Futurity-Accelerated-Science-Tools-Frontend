@@ -542,18 +542,18 @@ const Analyze: React.FC<AnalyzeProps> = ({ labId, labUniqueID }) => {
           </Text>
         </VStack>
 
-        {/* Text Summarizer Tool */}
-        <TextSummarizerTool
-          onResultGenerated={(result) => {
-            console.log('Text summarizer result:', result);
-            // Could potentially save results to lab or show in results panel
-          }}
-        />
-
         {/* Correlation Finder Tool */}
         <CorrelationFinderTool
           onResultGenerated={(result) => {
             console.log('Correlation finder result:', result);
+            // Could potentially save results to lab or show in results panel
+          }}
+        />
+
+        {/* Text Summarizer Tool */}
+        <TextSummarizerTool
+          onResultGenerated={(result) => {
+            console.log('Text summarizer result:', result);
             // Could potentially save results to lab or show in results panel
           }}
         />

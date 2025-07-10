@@ -238,8 +238,9 @@ const HorizonChartSection = forwardRef<
                     </Text>
                     <HStack gap={2}>
                       <Button
+                        // color='fg'
                         size='xs'
-                        variant='ghost'
+                        variant='solid'
                         onClick={onSelectAll}
                         disabled={
                           loading || subjectsWithHorizonRank.length === 0
@@ -249,8 +250,9 @@ const HorizonChartSection = forwardRef<
                         {Math.min(maxSubjects, subjectsWithHorizonRank.length)}
                       </Button>
                       <Button
+                        color='fg'
                         size='xs'
-                        variant='ghost'
+                        variant='outline'
                         onClick={onDeselectAll}
                         disabled={loading || allSubjects.length === 0}
                       >
@@ -258,6 +260,7 @@ const HorizonChartSection = forwardRef<
                       </Button>
                       {onRefresh && (
                         <IconButton
+                          color='fg.muted'
                           size='xs'
                           variant='ghost'
                           onClick={onRefresh}

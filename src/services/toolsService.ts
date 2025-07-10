@@ -566,7 +566,7 @@ class ToolsService {
   // ===================
 
   /**
-   * Generate a future image
+   * Generate a future image (now returns URL instead of base64)
    */
   async generateFutureImage(
     prompt: string,
@@ -575,8 +575,7 @@ class ToolsService {
     success: boolean;
     enhanced_prompt: string;
     used_prompt: string;
-    filename: string;
-    image_data: string;
+    image_url: string;
     message: string;
     error: string | null;
   }> {
@@ -620,8 +619,7 @@ class ToolsService {
 
     console.log('✅ Future image generated successfully:', {
       success: result.success,
-      filename: result.filename,
-      hasImageData: !!result.image_data,
+      imageUrl: result.image_url,
       hasError: !!result.error,
     });
 
@@ -666,6 +664,48 @@ class ToolsService {
   }
 
   /**
+   * Download image from URL
+   */
+  async downloadImageFromUrl(
+    imageUrl: string,
+    filename?: string
+  ): Promise<void> {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || 'futuregrapher-image.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      throw new Error('Failed to download image');
+    }
+  }
+
+  /**
+   * Extract filename from image URL
+   */
+  getFilenameFromUrl(url: string): string {
+    try {
+      const urlPath = new URL(url).pathname;
+      return urlPath.split('/').pop() || 'futuregrapher-image.png';
+    } catch (error) {
+      return 'futuregrapher-image.png';
+    }
+  }
+
+  // ===================
+  // DEPRECATED METHODS (for backward compatibility)
+  // ===================
+
+  /**
+   * @deprecated Use downloadImageFromUrl instead
    * Convert base64 image data to blob URL
    */
   convertBase64ToBlob(
@@ -686,6 +726,7 @@ class ToolsService {
   }
 
   /**
+   * @deprecated Use downloadImageFromUrl instead
    * Download image from base64 data
    */
   downloadImageFromBase64(base64Data: string, filename: string): void {

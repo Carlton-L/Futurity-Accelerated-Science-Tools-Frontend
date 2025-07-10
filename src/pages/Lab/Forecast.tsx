@@ -463,7 +463,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
             <Heading as='h2' size='lg' mb={2}>
               Forecast Tools
             </Heading>
-            <Text color='gray.600'>
+            <Text color='fg.muted'>
               Analyze time series data, find patterns, and predict future trends
               using advanced forecasting methods.
             </Text>
@@ -507,7 +507,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                     <Heading as='h3' size='md' mb={4}>
                       Universal Forecaster
                     </Heading>
-                    <Text color='gray.600' mb={4}>
+                    <Text color='fg.muted' mb={4}>
                       Select time series and forecasting methods to generate
                       predictions.
                     </Text>
@@ -525,9 +525,9 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           align='stretch'
                           maxH='200px'
                           overflowY='auto'
-                          p={2}
+                          p={3}
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                           borderRadius='md'
                         >
                           {allTimeSeries.map((ts) => (
@@ -541,12 +541,28 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                               size='sm'
                               onClick={() => handleTimeSeriesToggle(ts.fsid)}
                               justifyContent='flex-start'
+                              h='auto'
+                              p={3}
                             >
-                              <VStack gap={1} align='start'>
-                                <Text fontSize='sm' fontWeight='medium'>
+                              <VStack gap={1} align='start' w='full'>
+                                <Text
+                                  fontSize='sm'
+                                  fontWeight='medium'
+                                  textAlign='left'
+                                  noOfLines={1}
+                                  w='full'
+                                  wordBreak='break-word'
+                                >
                                   {ts.name}
                                 </Text>
-                                <Text fontSize='xs' color='gray.500'>
+                                <Text
+                                  fontSize='xs'
+                                  color='fg.muted'
+                                  textAlign='left'
+                                  noOfLines={1}
+                                  w='full'
+                                  wordBreak='break-word'
+                                >
                                   {ts.subjectName} • {ts.dataPoints} points
                                 </Text>
                               </VStack>
@@ -587,7 +603,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Box>
 
                       <Button
-                        colorScheme='blue'
+                        variant='solid'
                         onClick={runUniversalForecast}
                         loading={universalLoading}
                         disabled={selectedTimeSeries.length === 0}
@@ -604,7 +620,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Text>
                       {universalResults ? (
                         <VStack gap={4} align='stretch'>
-                          <Box p={4} bg='gray.50' borderRadius='md'>
+                          <Box p={4} bg='bg.subtle' borderRadius='md'>
                             <HStack justify='space-between' mb={2}>
                               <Text fontSize='sm' fontWeight='medium'>
                                 Forecast Accuracy
@@ -617,7 +633,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                               <Text fontSize='sm' fontWeight='medium'>
                                 Confidence Level
                               </Text>
-                              <Badge colorScheme='blue'>
+                              <Badge variant='outline'>
                                 {(universalResults.confidence * 100).toFixed(1)}
                                 %
                               </Badge>
@@ -627,7 +643,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           <Box
                             p={4}
                             border='1px solid'
-                            borderColor='gray.200'
+                            borderColor='border.muted'
                             borderRadius='md'
                           >
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
@@ -635,13 +651,13 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                             </Text>
                             <Box
                               h='150px'
-                              bg='gray.100'
+                              bg='bg.muted'
                               borderRadius='md'
                               display='flex'
                               alignItems='center'
                               justifyContent='center'
                             >
-                              <Text color='gray.500'>
+                              <Text color='fg.muted'>
                                 [Forecast Visualization]
                               </Text>
                             </Box>
@@ -671,7 +687,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           </HStack>
                         </VStack>
                       ) : (
-                        <Box p={8} textAlign='center' color='gray.500'>
+                        <Box p={8} textAlign='center' color='fg.muted'>
                           <Text>Run forecast to see results</Text>
                         </Box>
                       )}
@@ -687,7 +703,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                     <Heading as='h3' size='md' mb={4}>
                       Trigger Event Finder
                     </Heading>
-                    <Text color='gray.600' mb={4}>
+                    <Text color='fg.muted' mb={4}>
                       Find inflection points in time series and identify
                       possible trigger events.
                     </Text>
@@ -701,15 +717,18 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                         </Text>
                         <Box
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                           borderRadius='md'
-                          p={2}
+                          p={3}
                         >
-                          <Text fontSize='sm' color='gray.500' mb={2}>
+                          <Text fontSize='sm' color='fg.muted' mb={2}>
                             {triggerTimeSeries
-                              ? allTimeSeries.find(
-                                  (ts) => ts.fsid === triggerTimeSeries
-                                )?.name || 'Unknown'
+                              ? (() => {
+                                  const series = allTimeSeries.find(
+                                    (ts) => ts.fsid === triggerTimeSeries
+                                  );
+                                  return series?.name || 'Unknown';
+                                })()
                               : 'Choose a time series...'}
                           </Text>
                           <VStack
@@ -729,10 +748,27 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                                 size='sm'
                                 onClick={() => setTriggerTimeSeries(ts.fsid)}
                                 justifyContent='flex-start'
+                                h='auto'
+                                p={2}
                               >
-                                <VStack gap={1} align='start'>
-                                  <Text fontSize='sm'>{ts.name}</Text>
-                                  <Text fontSize='xs' color='gray.500'>
+                                <VStack gap={1} align='start' w='full'>
+                                  <Text
+                                    fontSize='sm'
+                                    textAlign='left'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
+                                    {ts.name}
+                                  </Text>
+                                  <Text
+                                    fontSize='xs'
+                                    color='fg.muted'
+                                    textAlign='left'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
                                     {ts.subjectName}
                                   </Text>
                                 </VStack>
@@ -743,7 +779,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Box>
 
                       <Button
-                        colorScheme='orange'
+                        variant='solid'
                         onClick={runTriggerAnalysis}
                         loading={triggerLoading}
                         disabled={!triggerTimeSeries}
@@ -759,7 +795,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Text>
                       {triggerResults ? (
                         <VStack gap={4} align='stretch'>
-                          <Box p={4} bg='gray.50' borderRadius='md'>
+                          <Box p={4} bg='bg.subtle' borderRadius='md'>
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
                               Inflection Points Found
                             </Text>
@@ -795,7 +831,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           <Box
                             p={4}
                             border='1px solid'
-                            borderColor='gray.200'
+                            borderColor='border.muted'
                             borderRadius='md'
                           >
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
@@ -816,14 +852,19 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                                   align='start'
                                   mb={2}
                                 >
-                                  <Text fontSize='sm' fontWeight='medium'>
+                                  <Text
+                                    fontSize='sm'
+                                    fontWeight='medium'
+                                    noOfLines={2}
+                                    wordBreak='break-word'
+                                  >
                                     {trigger.event}
                                   </Text>
                                   <HStack>
-                                    <Text fontSize='xs' color='gray.500'>
+                                    <Text fontSize='xs' color='fg.muted'>
                                       {trigger.date}
                                     </Text>
-                                    <Badge size='sm' colorScheme='blue'>
+                                    <Badge size='sm' variant='outline'>
                                       {(trigger.relevance * 100).toFixed(0)}%
                                       match
                                     </Badge>
@@ -860,7 +901,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           </HStack>
                         </VStack>
                       ) : (
-                        <Box p={8} textAlign='center' color='gray.500'>
+                        <Box p={8} textAlign='center' color='fg.muted'>
                           <Text>Run analysis to see results</Text>
                         </Box>
                       )}
@@ -876,7 +917,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                     <Heading as='h3' size='md' mb={4}>
                       Correlation Finder
                     </Heading>
-                    <Text color='gray.600' mb={4}>
+                    <Text color='fg.muted' mb={4}>
                       Analyze correlation between two time series and generate
                       statistical insights.
                     </Text>
@@ -890,15 +931,18 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                         </Text>
                         <Box
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                           borderRadius='md'
-                          p={2}
+                          p={3}
                         >
-                          <Text fontSize='sm' color='gray.500' mb={2}>
+                          <Text fontSize='sm' color='fg.muted' mb={2}>
                             {correlationSeries1
-                              ? allTimeSeries.find(
-                                  (ts) => ts.fsid === correlationSeries1
-                                )?.name || 'Unknown'
+                              ? (() => {
+                                  const series = allTimeSeries.find(
+                                    (ts) => ts.fsid === correlationSeries1
+                                  );
+                                  return series?.name || 'Unknown';
+                                })()
                               : 'Choose first series...'}
                           </Text>
                           <VStack
@@ -918,10 +962,27 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                                 size='sm'
                                 onClick={() => setCorrelationSeries1(ts.fsid)}
                                 justifyContent='flex-start'
+                                h='auto'
+                                p={2}
                               >
-                                <VStack gap={1} align='start'>
-                                  <Text fontSize='sm'>{ts.name}</Text>
-                                  <Text fontSize='xs' color='gray.500'>
+                                <VStack gap={1} align='start' w='full'>
+                                  <Text
+                                    fontSize='sm'
+                                    textAlign='left'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
+                                    {ts.name}
+                                  </Text>
+                                  <Text
+                                    fontSize='xs'
+                                    color='fg.muted'
+                                    textAlign='left'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
                                     {ts.subjectName}
                                   </Text>
                                 </VStack>
@@ -937,15 +998,18 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                         </Text>
                         <Box
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                           borderRadius='md'
-                          p={2}
+                          p={3}
                         >
-                          <Text fontSize='sm' color='gray.500' mb={2}>
+                          <Text fontSize='sm' color='fg.muted' mb={2}>
                             {correlationSeries2
-                              ? allTimeSeries.find(
-                                  (ts) => ts.fsid === correlationSeries2
-                                )?.name || 'Unknown'
+                              ? (() => {
+                                  const series = allTimeSeries.find(
+                                    (ts) => ts.fsid === correlationSeries2
+                                  );
+                                  return series?.name || 'Unknown';
+                                })()
                               : 'Choose second series...'}
                           </Text>
                           <VStack
@@ -967,10 +1031,27 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                                   size='sm'
                                   onClick={() => setCorrelationSeries2(ts.fsid)}
                                   justifyContent='flex-start'
+                                  h='auto'
+                                  p={2}
                                 >
-                                  <VStack gap={1} align='start'>
-                                    <Text fontSize='sm'>{ts.name}</Text>
-                                    <Text fontSize='xs' color='gray.500'>
+                                  <VStack gap={1} align='start' w='full'>
+                                    <Text
+                                      fontSize='sm'
+                                      textAlign='left'
+                                      noOfLines={1}
+                                      w='full'
+                                      wordBreak='break-word'
+                                    >
+                                      {ts.name}
+                                    </Text>
+                                    <Text
+                                      fontSize='xs'
+                                      color='fg.muted'
+                                      textAlign='left'
+                                      noOfLines={1}
+                                      w='full'
+                                      wordBreak='break-word'
+                                    >
                                       {ts.subjectName}
                                     </Text>
                                   </VStack>
@@ -981,7 +1062,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Box>
 
                       <Button
-                        colorScheme='purple'
+                        variant='solid'
                         onClick={runCorrelationAnalysis}
                         loading={correlationLoading}
                         disabled={!correlationSeries1 || !correlationSeries2}
@@ -997,7 +1078,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Text>
                       {correlationResults ? (
                         <VStack gap={4} align='stretch'>
-                          <Box p={4} bg='gray.50' borderRadius='md'>
+                          <Box p={4} bg='bg.subtle' borderRadius='md'>
                             <VStack gap={2} align='stretch'>
                               <HStack justify='space-between'>
                                 <Text fontSize='sm' fontWeight='medium'>
@@ -1032,7 +1113,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                               </HStack>
                               <Text
                                 fontSize='sm'
-                                color='gray.600'
+                                color='fg.muted'
                                 fontStyle='italic'
                               >
                                 {correlationResults.interpretation}
@@ -1043,7 +1124,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           <Box
                             p={4}
                             border='1px solid'
-                            borderColor='gray.200'
+                            borderColor='border.muted'
                             borderRadius='md'
                           >
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
@@ -1051,13 +1132,13 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                             </Text>
                             <Box
                               h='150px'
-                              bg='gray.100'
+                              bg='bg.muted'
                               borderRadius='md'
                               display='flex'
                               alignItems='center'
                               justifyContent='center'
                             >
-                              <Text color='gray.500'>
+                              <Text color='fg.muted'>
                                 [Correlation Visualization]
                               </Text>
                             </Box>
@@ -1093,7 +1174,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           </HStack>
                         </VStack>
                       ) : (
-                        <Box p={8} textAlign='center' color='gray.500'>
+                        <Box p={8} textAlign='center' color='fg.muted'>
                           <Text>Run analysis to see results</Text>
                         </Box>
                       )}
@@ -1109,7 +1190,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                     <Heading as='h3' size='md' mb={4}>
                       Pattern Matching
                     </Heading>
-                    <Text color='gray.600' mb={4}>
+                    <Text color='fg.muted' mb={4}>
                       Find time series with similar patterns to your selected
                       data.
                     </Text>
@@ -1123,15 +1204,18 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                         </Text>
                         <Box
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                           borderRadius='md'
-                          p={2}
+                          p={3}
                         >
-                          <Text fontSize='sm' color='gray.500' mb={2}>
+                          <Text fontSize='sm' color='fg.muted' mb={2}>
                             {patternTimeSeries
-                              ? allTimeSeries.find(
-                                  (ts) => ts.fsid === patternTimeSeries
-                                )?.name || 'Unknown'
+                              ? (() => {
+                                  const series = allTimeSeries.find(
+                                    (ts) => ts.fsid === patternTimeSeries
+                                  );
+                                  return series?.name || 'Unknown';
+                                })()
                               : 'Choose a time series...'}
                           </Text>
                           <VStack
@@ -1151,10 +1235,27 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                                 size='sm'
                                 onClick={() => setPatternTimeSeries(ts.fsid)}
                                 justifyContent='flex-start'
+                                h='auto'
+                                p={2}
                               >
-                                <VStack gap={1} align='start'>
-                                  <Text fontSize='sm'>{ts.name}</Text>
-                                  <Text fontSize='xs' color='gray.500'>
+                                <VStack gap={1} align='start' w='full'>
+                                  <Text
+                                    fontSize='sm'
+                                    textAlign='left'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
+                                    {ts.name}
+                                  </Text>
+                                  <Text
+                                    fontSize='xs'
+                                    color='fg.muted'
+                                    textAlign='left'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
                                     {ts.subjectName}
                                   </Text>
                                 </VStack>
@@ -1165,7 +1266,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Box>
 
                       <Button
-                        colorScheme='teal'
+                        variant='solid'
                         onClick={runPatternMatching}
                         loading={patternLoading}
                         disabled={!patternTimeSeries}
@@ -1181,7 +1282,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Text>
                       {patternResults ? (
                         <VStack gap={4} align='stretch'>
-                          <Box p={4} bg='gray.50' borderRadius='md'>
+                          <Box p={4} bg='bg.subtle' borderRadius='md'>
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
                               Similar Patterns Found
                             </Text>
@@ -1202,18 +1303,30 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                                   mb={2}
                                   p={2}
                                   border='1px solid'
-                                  borderColor='gray.200'
+                                  borderColor='border.muted'
                                   borderRadius='sm'
                                 >
                                   <HStack justify='space-between' w='100%'>
-                                    <Text fontSize='sm' fontWeight='medium'>
+                                    <Text
+                                      fontSize='sm'
+                                      fontWeight='medium'
+                                      noOfLines={1}
+                                      flex='1'
+                                      wordBreak='break-word'
+                                    >
                                       {match.name}
                                     </Text>
                                     <Badge colorScheme='green'>
                                       {(match.similarity * 100).toFixed(0)}%
                                     </Badge>
                                   </HStack>
-                                  <Text fontSize='xs' color='gray.500'>
+                                  <Text
+                                    fontSize='xs'
+                                    color='fg.muted'
+                                    noOfLines={1}
+                                    w='full'
+                                    wordBreak='break-word'
+                                  >
                                     {match.subject}
                                   </Text>
                                 </VStack>
@@ -1224,7 +1337,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           <Box
                             p={4}
                             border='1px solid'
-                            borderColor='gray.200'
+                            borderColor='border.muted'
                             borderRadius='md'
                           >
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
@@ -1232,13 +1345,13 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                             </Text>
                             <Box
                               h='150px'
-                              bg='gray.100'
+                              bg='bg.muted'
                               borderRadius='md'
                               display='flex'
                               alignItems='center'
                               justifyContent='center'
                             >
-                              <Text color='gray.500'>
+                              <Text color='fg.muted'>
                                 [Pattern Visualization]
                               </Text>
                             </Box>
@@ -1271,7 +1384,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           </HStack>
                         </VStack>
                       ) : (
-                        <Box p={8} textAlign='center' color='gray.500'>
+                        <Box p={8} textAlign='center' color='fg.muted'>
                           <Text>Run analysis to see results</Text>
                         </Box>
                       )}
@@ -1287,7 +1400,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                     <Heading as='h3' size='md' mb={4}>
                       Network Forecaster
                     </Heading>
-                    <Text color='gray.600' mb={4}>
+                    <Text color='fg.muted' mb={4}>
                       Analyze subject relationships and forecast network
                       evolution using graph analysis.
                     </Text>
@@ -1304,9 +1417,9 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           align='stretch'
                           maxH='200px'
                           overflowY='auto'
-                          p={2}
+                          p={3}
                           border='1px solid'
-                          borderColor='gray.200'
+                          borderColor='border.muted'
                           borderRadius='md'
                         >
                           {subjects.map((subject) => (
@@ -1320,12 +1433,28 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                               size='sm'
                               onClick={() => handleSubjectToggle(subject.id)}
                               justifyContent='flex-start'
+                              h='auto'
+                              p={3}
                             >
-                              <VStack gap={1} align='start'>
-                                <Text fontSize='sm' fontWeight='medium'>
+                              <VStack gap={1} align='start' w='full'>
+                                <Text
+                                  fontSize='sm'
+                                  fontWeight='medium'
+                                  textAlign='left'
+                                  noOfLines={1}
+                                  w='full'
+                                  wordBreak='break-word'
+                                >
                                   {subject.name}
                                 </Text>
-                                <Text fontSize='xs' color='gray.500'>
+                                <Text
+                                  fontSize='xs'
+                                  color='fg.muted'
+                                  textAlign='left'
+                                  noOfLines={1}
+                                  w='full'
+                                  wordBreak='break-word'
+                                >
                                   {subject.timeseries.length} time series
                                 </Text>
                               </VStack>
@@ -1335,7 +1464,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Box>
 
                       <Button
-                        colorScheme='cyan'
+                        variant='solid'
                         onClick={runNetworkForecast}
                         loading={networkLoading}
                         disabled={selectedSubjects.length === 0}
@@ -1351,7 +1480,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                       </Text>
                       {networkResults ? (
                         <VStack gap={4} align='stretch'>
-                          <Box p={4} bg='gray.50' borderRadius='md'>
+                          <Box p={4} bg='bg.subtle' borderRadius='md'>
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
                               Current Network Stats
                             </Text>
@@ -1378,7 +1507,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                             </Text>
                           </Box>
 
-                          <Box p={4} bg='blue.50' borderRadius='md'>
+                          <Box p={4} bg='bg.muted' borderRadius='md'>
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
                               Network Forecast
                             </Text>
@@ -1403,7 +1532,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                               </HStack>
                               <HStack justify='space-between'>
                                 <Text fontSize='xs'>Confidence</Text>
-                                <Badge size='sm' colorScheme='blue'>
+                                <Badge size='sm' variant='outline'>
                                   {(
                                     networkResults.forecast.confidence * 100
                                   ).toFixed(0)}
@@ -1416,7 +1545,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           <Box
                             p={4}
                             border='1px solid'
-                            borderColor='gray.200'
+                            borderColor='border.muted'
                             borderRadius='md'
                           >
                             <Text fontSize='sm' fontWeight='medium' mb={2}>
@@ -1424,13 +1553,13 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                             </Text>
                             <Box
                               h='150px'
-                              bg='gray.100'
+                              bg='bg.muted'
                               borderRadius='md'
                               display='flex'
                               alignItems='center'
                               justifyContent='center'
                             >
-                              <Text color='gray.500'>
+                              <Text color='fg.muted'>
                                 [Network Graph Visualization]
                               </Text>
                             </Box>
@@ -1463,7 +1592,7 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
                           </HStack>
                         </VStack>
                       ) : (
-                        <Box p={8} textAlign='center' color='gray.500'>
+                        <Box p={8} textAlign='center' color='fg.muted'>
                           <Text>Run analysis to see results</Text>
                         </Box>
                       )}
@@ -1482,15 +1611,15 @@ const Forecast: React.FC<ForecastProps> = ({ labId }) => {
               Quick Actions
             </Heading>
             <HStack gap={4} wrap='wrap'>
-              <Button size='sm' variant='outline' colorScheme='gray'>
+              <Button size='sm' variant='outline'>
                 <FiRefreshCw size={14} />
                 Refresh Data
               </Button>
-              <Button size='sm' variant='outline' colorScheme='gray'>
+              <Button size='sm' variant='outline'>
                 <FiDownload size={14} />
                 Export All Results
               </Button>
-              <Button size='sm' variant='outline' colorScheme='gray'>
+              <Button size='sm' variant='outline'>
                 <FiShare size={14} />
                 Share Lab Forecasts
               </Button>

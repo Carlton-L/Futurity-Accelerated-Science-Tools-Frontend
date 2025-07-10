@@ -216,7 +216,7 @@ const CorrelationFinderTool: React.FC<CorrelationFinderToolProps> = ({
     <Card.Root variant='outline'>
       <Card.Header>
         <HStack gap={3} align='center'>
-          <Box color='brand' fontSize='lg'>
+          <Box color='fg' fontSize='lg'>
             <FiTrendingUp />
           </Box>
           <VStack gap={1} align='start' flex='1'>

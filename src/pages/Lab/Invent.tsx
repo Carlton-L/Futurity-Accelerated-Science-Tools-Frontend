@@ -25,28 +25,23 @@ import {
   FiX,
   FiInfo,
   FiAlertCircle,
+  FiCpu,
+  FiEdit3,
+  FiEye,
+  FiPlus,
+  FiGitBranch,
+  FiZap,
+  FiClock,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { toolsService } from '../../services/toolsService';
+import InventionGenerator from './InventionGenerator';
 
-// Types
+// Existing types
 interface Subject {
   id: string;
   name: string;
   description: string;
-}
-
-interface IdeaSeed {
-  id: string;
-  name: string;
-  description: string;
-  relatedSubjects: string[];
-  consequences?: string[];
-  improvements?: string[];
-  stories?: string[];
-  personas?: string[];
-  roadmap?: string[];
-  createdAt: string;
 }
 
 interface FutureStoryResult {
@@ -62,8 +57,7 @@ interface FutureImageResult {
   success: boolean;
   enhanced_prompt: string;
   used_prompt: string;
-  filename: string;
-  image_data: string;
+  image_url: string; // Changed from filename and image_data to image_url
   message: string;
   error: string | null;
   originalPrompt: string;
@@ -76,7 +70,7 @@ interface InventProps {
 const Invent: React.FC<InventProps> = ({ labId }) => {
   const { token } = useAuth();
 
-  const [ideaSeeds, setIdeaSeeds] = useState<IdeaSeed[]>([]);
+  const [ideaSeeds, setIdeaSeeds] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
@@ -123,7 +117,7 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Mock idea seeds
-      const mockIdeaSeeds: IdeaSeed[] = [
+      const mockIdeaSeeds: any[] = [
         {
           id: 'idea-1',
           name: 'Smart Fabric Authentication',
@@ -212,14 +206,12 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
   }, [imagePrompt, token]);
 
   // Download image
-  const handleDownloadImage = useCallback(() => {
-    if (!imageResult?.image_data || !imageResult?.filename) return;
+  const handleDownloadImage = useCallback(async () => {
+    if (!imageResult?.image_url) return;
 
     try {
-      toolsService.downloadImageFromBase64(
-        imageResult.image_data,
-        imageResult.filename
-      );
+      const filename = toolsService.getFilenameFromUrl(imageResult.image_url);
+      await toolsService.downloadImageFromUrl(imageResult.image_url, filename);
     } catch (error) {
       console.error('Failed to download image:', error);
       setError('Failed to download image');
@@ -352,6 +344,8 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
           </HStack>
         </Card.Body>
       </Card.Root>
+
+      <InventionGenerator />
 
       {/* Future Stories Section */}
       <VStack gap={4} align='stretch'>
@@ -648,7 +642,9 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                       Generated Image
                     </Text>
                     <Text fontSize='xs' color='fg.muted'>
-                      {imageResult.filename}
+                      {toolsService.getFilenameFromUrl(
+                        imageResult.image_url || ''
+                      )}
                     </Text>
                   </VStack>
                   <HStack gap={2}>
@@ -656,7 +652,7 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                       size='xs'
                       variant='outline'
                       onClick={handleDownloadImage}
-                      disabled={!imageResult.image_data}
+                      disabled={!imageResult.image_url}
                     >
                       <FiDownload size={12} />
                       Download
@@ -687,10 +683,10 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                     </Box>
 
                     {/* Generated Image */}
-                    {imageResult.image_data && (
+                    {imageResult.image_url && (
                       <Box>
                         <Image
-                          src={`data:image/png;base64,${imageResult.image_data}`}
+                          src={imageResult.image_url}
                           alt='Generated future image'
                           maxW='100%'
                           maxH='500px'
@@ -708,39 +704,6 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
           </Card.Root>
         )}
       </VStack>
-
-      {/* Commented out - future tool categories layout */}
-      {/*
-      <Card.Root>
-        <Card.Body p={6}>
-          <Tabs.Root
-            value={activeTab}
-            onValueChange={(details) => setActiveTab(details.value)}
-          >
-            <Tabs.List mb={6}>
-              <Tabs.Trigger value='generation'>
-                <FiCpu size={16} />
-                Idea Generation
-              </Tabs.Trigger>
-              <Tabs.Trigger value='enhancement'>
-                <FiTrendingUp size={16} />
-                Enhancement
-              </Tabs.Trigger>
-              <Tabs.Trigger value='visualization'>
-                <FiImage size={16} />
-                Visualization
-              </Tabs.Trigger>
-              <Tabs.Trigger value='implementation'>
-                <FiMap size={16} />
-                Implementation
-              </Tabs.Trigger>
-            </Tabs.List>
-            
-            // Tool content would go here
-          </Tabs.Root>
-        </Card.Body>
-      </Card.Root>
-      */}
     </VStack>
   );
 };
