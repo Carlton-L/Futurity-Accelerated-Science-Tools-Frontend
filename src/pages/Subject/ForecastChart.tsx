@@ -574,92 +574,8 @@ const spoofRecentData = (data: PlotData[]): PlotData[] => {
     return trace;
   });
 
-  // Second pass: ensure forecast range contains the median forecast with consistent spacing
-  const rangeAdjusted = forecastProcessed.map((trace) => {
-    // We'll handle all forecast traces together in the next step
-    return trace;
-  });
-
-  // Third pass: Comprehensive forecast bounds adjustment
-  const boundsAdjusted = rangeAdjusted.map((trace) => {
-    if (
-      trace.name === 'Median Forecast' &&
-      trace.x &&
-      trace.y &&
-      Array.isArray(trace.x) &&
-      Array.isArray(trace.y)
-    ) {
-      // Find the min and max traces
-      const minTrace = rangeAdjusted.find((t) => t.name === 'Forecast min');
-      const maxTrace = rangeAdjusted.find((t) => t.name === 'Forecast Range');
-
-      if (
-        (minTrace && minTrace.y && Array.isArray(minTrace.y)) ||
-        (maxTrace && maxTrace.y && Array.isArray(maxTrace.y))
-      ) {
-        const medianValues = trace.y as number[];
-        const newMedianValues = [...medianValues];
-
-        // Calculate consistent spacing based on median values
-        const averageMedian =
-          medianValues.reduce((sum, val) => sum + val, 0) / medianValues.length;
-        const targetSpacing = Math.max(averageMedian * 0.15, 10); // 15% of average or minimum 10 units
-
-        // Adjust median to ensure it can fit within bounds
-        for (let i = 0; i < medianValues.length; i++) {
-          const originalMedian = medianValues[i];
-          let adjustedMedian = originalMedian;
-
-          // Check if we have min and max traces
-          const hasMinTrace =
-            minTrace &&
-            minTrace.y &&
-            Array.isArray(minTrace.y) &&
-            i < minTrace.y.length;
-          const hasMaxTrace =
-            maxTrace &&
-            maxTrace.y &&
-            Array.isArray(maxTrace.y) &&
-            i < maxTrace.y.length;
-
-          if (hasMinTrace && hasMaxTrace) {
-            const originalMin = minTrace.y[i] as number;
-            const originalMax = maxTrace.y[i] as number;
-
-            // If median is outside the original bounds, adjust it to fit
-            if (originalMedian < originalMin) {
-              adjustedMedian = Math.max(
-                originalMedian,
-                originalMin + targetSpacing
-              );
-            } else if (originalMedian > originalMax) {
-              adjustedMedian = Math.max(
-                originalMedian,
-                originalMax - targetSpacing
-              );
-            }
-          }
-
-          // Ensure we still respect the "never decrease" constraint
-          newMedianValues[i] = Math.max(originalMedian, adjustedMedian);
-        }
-
-        console.log(
-          `Adjusted median forecast for consistent bounds with spacing: ${targetSpacing}`
-        );
-
-        return {
-          ...trace,
-          y: newMedianValues,
-        };
-      }
-    }
-
-    return trace;
-  });
-
-  // Fourth pass: Adjust min and max bounds to maintain consistent spacing around median
-  const finalBoundsAdjusted = boundsAdjusted.map((trace) => {
+  // Step 4: Adjust min and max bounds to maintain consistent spacing around median
+  const finalBoundsAdjusted = forecastProcessed.map((trace) => {
     if (
       (trace.name === 'Forecast min' || trace.name === 'Forecast Range') &&
       trace.x &&
@@ -668,7 +584,7 @@ const spoofRecentData = (data: PlotData[]): PlotData[] => {
       Array.isArray(trace.y)
     ) {
       // Find the median forecast trace
-      const medianTrace = boundsAdjusted.find(
+      const medianTrace = forecastProcessed.find(
         (t) => t.name === 'Median Forecast'
       );
 
@@ -733,7 +649,7 @@ const spoofRecentData = (data: PlotData[]): PlotData[] => {
     return trace;
   });
 
-  // Fifth pass: adjust dotted connector line endpoint to meet forecast beginning
+  // Step 5: adjust dotted connector line endpoint to meet forecast beginning
   const finalData = finalBoundsAdjusted.map((trace) => {
     if (
       trace.name === 'Forecast start' &&
@@ -930,27 +846,6 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
 
           const data: ForecastData = await response.json();
 
-          // Debug: Log the raw data to understand the structure
-          console.log(`Raw ${type} data:`, data);
-          console.log(`Plot data array:`, data.plot_data);
-          console.log(`Number of traces:`, data.plot_data?.length);
-
-          // Log each trace individually
-          data.plot_data?.forEach((trace: any, index: number) => {
-            console.log(`Trace ${index}:`, {
-              name: trace.name,
-              type: trace.type,
-              mode: trace.mode,
-              showlegend: trace.showlegend,
-              hasX: !!trace.x,
-              hasY: !!trace.y,
-              xLength: Array.isArray(trace.x) ? trace.x.length : 'not array',
-              yLength: Array.isArray(trace.y) ? trace.y.length : 'not array',
-              line: trace.line,
-              yaxis: trace.yaxis,
-            });
-          });
-
           // Ensure plot_data exists and has proper structure
           if (!data.plot_data || !Array.isArray(data.plot_data)) {
             console.warn(`Invalid plot_data for ${type}:`, data.plot_data);
@@ -959,9 +854,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
 
           // Filter out any invalid traces and fix data structure
           const validTraces = data.plot_data.filter((trace: any) => {
-            // Basic validation - ensure it's an object
             if (!trace || typeof trace !== 'object') {
-              console.warn('Invalid trace (not object):', trace);
               return false;
             }
 
@@ -973,75 +866,20 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                 trace.x.some((val: any) => val !== null && val !== undefined) &&
                 trace.y.some((val: any) => val !== null && val !== undefined);
               if (!hasValidData) {
-                console.warn(
-                  'Inflection Point trace has no valid data, skipping'
-                );
                 return false;
               }
             }
 
-            // Check if it has data to display (but allow traces with only legend entries)
             if (!trace.x && !trace.y && !trace.name) {
-              console.warn('Invalid trace (no data or name):', trace);
               return false;
             }
 
             return true;
           });
 
-          // Fix any traces that might be causing rendering issues
-          const fixedPlotData = validTraces.map((trace: any, index: number) => {
-            // Ensure each trace has required properties
-            const fixedTrace = {
-              ...trace,
-              // Ensure mode is set for scatter plots
-              mode:
-                trace.mode || (trace.type === 'scatter' ? 'lines' : undefined),
-              // Ensure showlegend is properly set (default to true unless explicitly false)
-              showlegend: trace.showlegend !== false,
-              // Fix any null/undefined values in data arrays
-              x: Array.isArray(trace.x)
-                ? trace.x.filter(
-                    (val: any) => val !== null && val !== undefined
-                  )
-                : trace.x,
-              y: Array.isArray(trace.y)
-                ? trace.y.filter(
-                    (val: any) => val !== null && val !== undefined
-                  )
-                : trace.y,
-            };
-
-            // Special handling for fill traces
-            if (trace.fill) {
-              fixedTrace.fill = trace.fill;
-              fixedTrace.fillcolor = trace.fillcolor;
-            }
-
-            // Ensure line properties are preserved
-            if (trace.line) {
-              fixedTrace.line = { ...trace.line };
-            }
-
-            // Ensure marker properties are preserved
-            if (trace.marker) {
-              fixedTrace.marker = { ...trace.marker };
-            }
-
-            // Handle yaxis assignment
-            if (trace.yaxis) {
-              fixedTrace.yaxis = trace.yaxis;
-            }
-
-            // Debug: Log each trace
-            console.log(`Fixed trace ${index} (${trace.name}):`, fixedTrace);
-
-            return fixedTrace;
-          });
-
           setForecastData({
             ...data,
-            plot_data: fixedPlotData,
+            plot_data: validTraces,
           });
         } catch (err) {
           console.error('Failed to fetch forecast data:', err);
@@ -1200,6 +1038,24 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
       },
     });
 
+    // Helper function to check if plot data is empty or has no meaningful data
+    const hasValidPlotData = (plotData: PlotData[]): boolean => {
+      if (!plotData || plotData.length === 0) return false;
+
+      // Check if there are any traces with actual data points
+      return plotData.some((trace) => {
+        if (!trace.x || !trace.y) return false;
+        if (!Array.isArray(trace.x) || !Array.isArray(trace.y)) return false;
+        if (trace.x.length === 0 || trace.y.length === 0) return false;
+
+        // Check if all y values are zero/null/undefined
+        const yValues = trace.y as number[];
+        return yValues.some(
+          (value) => value !== null && value !== undefined && value > 0
+        );
+      });
+    };
+
     // Get processed plot data (spoofed or real, with colors)
     const getProcessedPlotData = (): PlotData[] => {
       if (!forecastData?.plot_data) return [];
@@ -1318,7 +1174,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                     <Text color='gray.500'>Loading chart data...</Text>
                   </VStack>
                 </Box>
-              ) : forecastData ? (
+              ) : forecastData && hasValidPlotData(getProcessedPlotData()) ? (
                 <Plot
                   data={getProcessedPlotData() as Data[]}
                   layout={
@@ -1355,13 +1211,64 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                   }}
                 />
               ) : (
+                // Blank state for no chart data
                 <Box
                   height='400px'
                   display='flex'
                   alignItems='center'
                   justifyContent='center'
+                  border='1px solid'
+                  borderColor='border.muted'
+                  borderRadius='md'
+                  bg='bg.canvas'
                 >
-                  <Text color='gray.500'>No chart data available</Text>
+                  <VStack gap={3} textAlign='center' maxW='400px' px={6}>
+                    <Box
+                      width='80px'
+                      height='80px'
+                      borderRadius='full'
+                      bg='bg.muted'
+                      display='flex'
+                      alignItems='center'
+                      justifyContent='center'
+                      mb={2}
+                    >
+                      <Box
+                        width='40px'
+                        height='40px'
+                        borderRadius='md'
+                        bg='border.muted'
+                        opacity={0.6}
+                      />
+                    </Box>
+
+                    <Text fontSize='lg' fontWeight='medium' color='fg.muted'>
+                      No chart data for {selectedType}
+                    </Text>
+
+                    <Text fontSize='sm' color='fg.muted' lineHeight='1.5'>
+                      There is no forecast data available for this source type.
+                      Try selecting a different source type above.
+                    </Text>
+
+                    {/* Suggest trying other source types */}
+                    <HStack gap={2} mt={2} wrap='wrap' justify='center'>
+                      {(Object.keys(infoTexts) as ForecastType[])
+                        .filter((type) => type !== selectedType)
+                        .slice(0, 3)
+                        .map((type) => (
+                          <Button
+                            key={type}
+                            size='xs'
+                            variant='outline'
+                            onClick={() => handleTypeChange(type)}
+                            fontSize='xs'
+                          >
+                            Try {type}
+                          </Button>
+                        ))}
+                    </HStack>
+                  </VStack>
                 </Box>
               )}
             </ChartErrorBoundary>
@@ -1427,7 +1334,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                   </Table.Header>
                   <Table.Body>
                     {tableData && tableData.data.length > 0 ? (
-                      tableData.data.map((row, index) => (
+                      tableData.data.map((row: any, index: number) => (
                         <Table.Row key={index}>
                           <Table.Cell>
                             <div dangerouslySetInnerHTML={{ __html: row[0] }} />
@@ -1453,7 +1360,11 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
                       <Table.Row>
                         <Table.Cell colSpan={2}>
                           <Text textAlign='center' color='gray.500'>
-                            {loading ? 'Loading...' : 'No data available'}
+                            {loading
+                              ? 'Loading...'
+                              : hasValidPlotData(getProcessedPlotData())
+                              ? 'No table data available'
+                              : `No ${selectedType.toLowerCase()} data available`}
                           </Text>
                         </Table.Cell>
                       </Table.Row>
@@ -1463,7 +1374,7 @@ const ForecastChart = forwardRef<ForecastChartRef, ForecastChartProps>(
               </Box>
 
               {/* Table Info and Pagination */}
-              {tableData && (
+              {tableData && tableData.data.length > 0 && (
                 <HStack justify='space-between'>
                   <Text fontSize='sm' color='gray.600'>
                     Showing {currentStart} to {currentEnd} of{' '}
