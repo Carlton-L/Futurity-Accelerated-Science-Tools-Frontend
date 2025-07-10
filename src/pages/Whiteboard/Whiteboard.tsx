@@ -115,7 +115,7 @@ const performSubjectSearch = async (
     if (data.results?.rows) {
       data.results.rows.forEach(
         (row: {
-          _id: any;
+          _id: string | { $oid: string };
           ent_fsid: string;
           ent_name: string;
           ent_summary: string;
@@ -554,9 +554,6 @@ const Whiteboard: React.FC = () => {
   // Optimistic state management to prevent full page reloads and flickering
   const [optimisticWhiteboardData, setOptimisticWhiteboardData] =
     useState<WhiteboardData | null>(null);
-  const [pendingOperations, setPendingOperations] = useState<Set<string>>(
-    new Set()
-  );
 
   // Load whiteboard data from API without triggering loading state if data exists
   const loadWhiteboardData = useCallback(
@@ -669,7 +666,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Search failed',
           description: 'Unable to search subjects. Please try again.',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
       } finally {
@@ -743,7 +740,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Subject added to whiteboard',
           description: `${result.ent_name} has been added successfully`,
-          status: 'success',
+          type: 'success',
           duration: 3000,
         });
       } catch (error) {
@@ -765,7 +762,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Failed to add subject',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
       } finally {
@@ -781,7 +778,7 @@ const Whiteboard: React.FC = () => {
 
   // Actually remove subject from whiteboard
   const removeSubjectFromWhiteboard = useCallback(
-    async (subjectFsid: string) => {
+    async (subjectFsid: string, revertState?: WhiteboardData) => {
       if (!whiteboardData || !token) return;
 
       try {
@@ -791,20 +788,26 @@ const Whiteboard: React.FC = () => {
           token
         );
 
-        // Reload whiteboard data silently
+        // Reload whiteboard data silently to sync with server
         await loadWhiteboardData(true);
 
         toaster.create({
           title: 'Subject removed from whiteboard',
-          status: 'success',
+          type: 'success',
           duration: 3000,
         });
       } catch (error) {
         console.error('Failed to remove subject from whiteboard:', error);
+
+        // Revert optimistic update if we have the previous state
+        if (revertState) {
+          setOptimisticWhiteboardData(revertState);
+        }
+
         toaster.create({
           title: 'Failed to remove subject',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
       }
@@ -815,7 +818,7 @@ const Whiteboard: React.FC = () => {
   // Remove subject from whiteboard entirely
   const handleRemoveFromWhiteboard = useCallback(
     async (subjectFsid: string) => {
-      if (!whiteboardData) return;
+      if (!whiteboardData || !optimisticWhiteboardData) return;
 
       const subject = whiteboardData.subjects.find(
         (s) => s.ent_fsid === subjectFsid
@@ -833,24 +836,81 @@ const Whiteboard: React.FC = () => {
         setLabSeedsContainingSubject(containingLabSeeds);
         setIsDeleteConfirmOpen(true);
       } else {
-        // Remove directly if not in any lab seeds
-        await removeSubjectFromWhiteboard(subjectFsid);
+        // Store current state for potential revert
+        const previousState = { ...optimisticWhiteboardData };
+
+        // OPTIMISTIC UPDATE: Remove immediately from UI
+        setOptimisticWhiteboardData((prev) => {
+          if (!prev) return null;
+
+          return {
+            ...prev,
+            subjects: prev.subjects.filter((s) => s.ent_fsid !== subjectFsid),
+            // Also remove from any lab seeds
+            labSeeds: prev.labSeeds.map((labSeed) => ({
+              ...labSeed,
+              subjects: labSeed.subjects.filter(
+                (s) => s.ent_fsid !== subjectFsid
+              ),
+            })),
+          };
+        });
+
+        // Make API call with revert capability
+        await removeSubjectFromWhiteboard(subjectFsid, previousState);
       }
     },
-    [whiteboardData, removeSubjectFromWhiteboard]
+    [whiteboardData, optimisticWhiteboardData, removeSubjectFromWhiteboard]
   );
 
   // Confirm deletion from whiteboard
   const handleConfirmDelete = useCallback(async () => {
-    if (!subjectToDelete) return;
+    if (!subjectToDelete || !optimisticWhiteboardData) return;
 
-    await removeSubjectFromWhiteboard(subjectToDelete.ent_fsid);
+    // Store current state for potential revert
+    const previousState = { ...optimisticWhiteboardData };
 
-    // Reset modal state
+    // OPTIMISTIC UPDATE: Remove immediately from UI
+    setOptimisticWhiteboardData((prev) => {
+      if (!prev) return null;
+
+      return {
+        ...prev,
+        subjects: prev.subjects.filter(
+          (s) => s.ent_fsid !== subjectToDelete.ent_fsid
+        ),
+        // Also remove from any lab seeds
+        labSeeds: prev.labSeeds.map((labSeed) => ({
+          ...labSeed,
+          subjects: labSeed.subjects.filter(
+            (s) => s.ent_fsid !== subjectToDelete.ent_fsid
+          ),
+        })),
+      };
+    });
+
+    // Reset modal state immediately
     setIsDeleteConfirmOpen(false);
     setSubjectToDelete(null);
     setLabSeedsContainingSubject([]);
-  }, [subjectToDelete, removeSubjectFromWhiteboard]);
+
+    // Make API call with revert capability
+    await removeSubjectFromWhiteboard(subjectToDelete.ent_fsid, previousState);
+  }, [subjectToDelete, optimisticWhiteboardData, removeSubjectFromWhiteboard]);
+
+  // Handle view subject - navigate to subject page (keeping for programmatic navigation)
+  const handleViewSubject = useCallback(
+    (subject: WhiteboardSubject) => {
+      // Extract slug from ent_fsid (remove fsid_ prefix if present)
+      const subjectSlug = subject.ent_fsid.startsWith('fsid_')
+        ? subject.ent_fsid.substring(5)
+        : subject.ent_fsid;
+
+      // Navigate to subject page
+      navigate(`/subject/${subjectSlug}`);
+    },
+    [navigate]
+  );
 
   // Lab Seed management
   const handleCreateLabSeed = useCallback(async () => {
@@ -876,7 +936,7 @@ const Whiteboard: React.FC = () => {
       toaster.create({
         title: 'Lab seed created',
         description: `"${newLabSeedName}" has been created successfully`,
-        status: 'success',
+        type: 'success',
         duration: 3000,
       });
     } catch (error) {
@@ -884,7 +944,7 @@ const Whiteboard: React.FC = () => {
       toaster.create({
         title: 'Failed to create lab seed',
         description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
+        type: 'error',
         duration: 5000,
       });
     } finally {
@@ -918,7 +978,7 @@ const Whiteboard: React.FC = () => {
 
         toaster.create({
           title: 'Lab seed deleted',
-          status: 'success',
+          type: 'success',
           duration: 3000,
         });
       } catch (error) {
@@ -926,7 +986,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Failed to delete lab seed',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
       } finally {
@@ -1037,7 +1097,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Failed to move subject',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
       } finally {
@@ -1100,7 +1160,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Failed to remove subject from lab seed',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
       } finally {
@@ -1126,7 +1186,7 @@ const Whiteboard: React.FC = () => {
           toaster.create({
             title: 'Cannot create lab',
             description: 'Lab seed must contain at least one subject',
-            status: 'warning',
+            type: 'warning',
             duration: 5000,
           });
           return;
@@ -1161,7 +1221,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Creating lab from Lab Seed',
           description: `Starting lab creation with ${labSeed.subjects.length} subjects from "${labSeed.name}"`,
-          status: 'success',
+          type: 'success',
           duration: 3000,
         });
       }
@@ -1170,11 +1230,11 @@ const Whiteboard: React.FC = () => {
   );
 
   // Handle quick add to lab seed (placeholder - would show selection dialog)
-  const handleQuickAddToLabSeed = useCallback((subjectFsid: string) => {
+  const handleQuickAddToLabSeed = useCallback((_subjectFsid: string) => {
     toaster.create({
       title: 'Quick add functionality',
       description: 'Quick add functionality not yet implemented',
-      status: 'info',
+      type: 'info',
       duration: 3000,
     });
   }, []);
@@ -1184,7 +1244,7 @@ const Whiteboard: React.FC = () => {
     toaster.create({
       title: 'Search results page',
       description: 'Search results page navigation not yet implemented',
-      status: 'info',
+      type: 'info',
       duration: 3000,
     });
   }, []);
@@ -1262,7 +1322,7 @@ const Whiteboard: React.FC = () => {
 
         toaster.create({
           title: 'Lab seed name updated',
-          status: 'success',
+          type: 'success',
           duration: 3000,
         });
       } catch (error) {
@@ -1272,7 +1332,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Failed to update name',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
         setIsEditingName(false);
@@ -1309,7 +1369,7 @@ const Whiteboard: React.FC = () => {
 
         toaster.create({
           title: 'Lab seed description updated',
-          status: 'success',
+          type: 'success',
           duration: 3000,
         });
       } catch (error) {
@@ -1319,7 +1379,7 @@ const Whiteboard: React.FC = () => {
         toaster.create({
           title: 'Failed to update description',
           description: error instanceof Error ? error.message : 'Unknown error',
-          status: 'error',
+          type: 'error',
           duration: 5000,
         });
         setIsEditingDescription(false);
@@ -1427,6 +1487,7 @@ const Whiteboard: React.FC = () => {
                         size='sm'
                         variant='ghost'
                         aria-label='Lab Seed options'
+                        color='fg.muted'
                       >
                         <FiMoreHorizontal size={14} />
                       </IconButton>
@@ -1528,6 +1589,7 @@ const Whiteboard: React.FC = () => {
                         sourceType='labSeed'
                         labSeedId={labSeed.uniqueID}
                         onRemoveFromLabSeed={handleRemoveSubjectFromLabSeed}
+                        onViewSubject={handleViewSubject}
                       />
                     ))}
                   </VStack>
@@ -1818,6 +1880,7 @@ const Whiteboard: React.FC = () => {
                                 handleRemoveFromWhiteboard
                               }
                               onQuickAddToLabSeed={handleQuickAddToLabSeed}
+                              onViewSubject={handleViewSubject}
                             />
                           ))}
 
