@@ -164,8 +164,17 @@ const spoofTrendsData = (data: Partial<Data>[]): Partial<Data>[] => {
                 const progress = (i + 1) / yearsToFix.length;
                 const smoothedValue =
                   maxRecent - (maxRecent - targetLevel) * progress;
-                const randomFactor = 0.9 + Math.random() * 0.2;
-                const proposedValue = Math.round(smoothedValue * randomFactor);
+
+                // Use deterministic "random" based on year and trace name for consistency
+                const seed =
+                  year * 1000 + (trace.name?.charCodeAt(0) || 0) * 100;
+                const pseudoRandom = Math.sin(seed) * 10000;
+                const deterministicFactor =
+                  0.9 + (pseudoRandom - Math.floor(pseudoRandom)) * 0.2; // 0.9-1.1
+
+                const proposedValue = Math.round(
+                  smoothedValue * deterministicFactor
+                );
                 // CRITICAL: Never set value lower than original
                 newValues[idx] = Math.max(originalValue, proposedValue);
               }
@@ -180,13 +189,27 @@ const spoofTrendsData = (data: Partial<Data>[]): Partial<Data>[] => {
                   recentData.slice(-2).reduce((a, b) => a + b, 0) / 2;
 
                 if (year === 2024) {
-                  const trendFactor = 0.8 + Math.random() * 0.4;
-                  const proposedValue = Math.round(recentAvg * trendFactor);
+                  // Use deterministic "random" for trend factor
+                  const seed =
+                    year * 1000 + (trace.name?.charCodeAt(0) || 0) * 100;
+                  const pseudoRandom = Math.sin(seed) * 10000;
+                  const deterministicTrend =
+                    0.8 + (pseudoRandom - Math.floor(pseudoRandom)) * 0.4; // 0.8-1.2
+
+                  const proposedValue = Math.round(
+                    recentAvg * deterministicTrend
+                  );
                   newValues[idx] = Math.max(originalValue, proposedValue);
                 } else if (year === 2025) {
-                  const partialYearFactor = 0.15 + Math.random() * 0.25;
+                  // Use deterministic "random" for partial year factor
+                  const seed =
+                    year * 1000 + (trace.name?.charCodeAt(0) || 0) * 100;
+                  const pseudoRandom = Math.sin(seed) * 10000;
+                  const deterministicPartial =
+                    0.15 + (pseudoRandom - Math.floor(pseudoRandom)) * 0.25; // 0.15-0.4
+
                   const proposedValue = Math.round(
-                    newValues[yearIndices[2024]] * partialYearFactor
+                    newValues[yearIndices[2024]] * deterministicPartial
                   );
                   newValues[idx] = Math.max(originalValue, proposedValue);
                 }

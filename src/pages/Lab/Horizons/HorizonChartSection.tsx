@@ -57,7 +57,6 @@ const HorizonChartSection = forwardRef<
     const [horizonDataTimeout, setHorizonDataTimeout] = useState(false);
     const [chartDimensions, setChartDimensions] = useState({
       width: 1000,
-      height: 650,
     });
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const selectionPanelRef = useRef<HTMLDivElement>(null);
@@ -99,58 +98,33 @@ const HorizonChartSection = forwardRef<
     );
     const isLoadingHorizonData = selectedSubjectsWithoutHorizonRank.length > 0;
 
-    // Calculate chart dimensions based on data
+    // Calculate chart width only - let height be determined by content
     useEffect(() => {
-      if (chartContainerRef.current && horizonData.length > 0) {
+      if (chartContainerRef.current) {
         const containerWidth = chartContainerRef.current.offsetWidth;
-        const uniqueCategories = Array.from(
-          new Set(horizonData.map((item) => item.category))
-        );
-        const minRowHeight = 140; // Increased base row height
-        const rowSpacing = 16; // Increased spacing
-        const marginTop = 100; // Increased top margin for column labels
-        const marginBottom = 60; // Increased bottom margin
 
-        // Calculate height based on number of categories with more generous spacing
-        const contentHeight =
-          uniqueCategories.length * minRowHeight +
-          (uniqueCategories.length - 1) * rowSpacing;
-        const totalHeight = contentHeight + marginTop + marginBottom;
-
-        // More generous minimum height
-        const finalHeight = Math.max(500, totalHeight);
-
-        console.log('Chart dimensions calculation:', {
-          uniqueCategories: uniqueCategories.length,
-          minRowHeight,
-          contentHeight,
-          totalHeight,
-          finalHeight,
+        console.log('Chart width calculation:', {
           containerWidth,
+          categoriesCount: Array.from(
+            new Set(horizonData.map((item) => item.category))
+          ).length,
+          horizonDataLength: horizonData.length,
         });
 
         setChartDimensions({
           width: Math.max(800, containerWidth),
-          height: finalHeight,
-        });
-      } else if (horizonData.length === 0) {
-        // Set minimum dimensions for empty state
-        setChartDimensions({
-          width: Math.max(800, chartContainerRef.current?.offsetWidth || 1000),
-          height: 400,
         });
       }
     }, [horizonData, chartContainerRef.current?.offsetWidth]);
 
-    // Handle window resize
+    // Handle window resize for width only
     useEffect(() => {
       const handleResize = () => {
         if (chartContainerRef.current) {
           const containerWidth = chartContainerRef.current.offsetWidth;
-          setChartDimensions((prev) => ({
-            ...prev,
+          setChartDimensions({
             width: Math.max(800, containerWidth),
-          }));
+          });
         }
       };
 
@@ -808,6 +782,7 @@ const HorizonChartSection = forwardRef<
                     borderColor='border.muted'
                     borderRadius='md'
                     bg='bg.subtle'
+                    minH='400px'
                   >
                     <VStack gap={2}>
                       <Skeleton
@@ -831,6 +806,7 @@ const HorizonChartSection = forwardRef<
                     borderColor='red.200'
                     borderRadius='md'
                     bg='red.50'
+                    minH='400px'
                   >
                     <VStack gap={3}>
                       <Text
@@ -871,6 +847,7 @@ const HorizonChartSection = forwardRef<
                     borderColor='blue.200'
                     borderRadius='md'
                     bg='blue.50'
+                    minH='400px'
                   >
                     <VStack gap={3}>
                       <Box
@@ -914,6 +891,7 @@ const HorizonChartSection = forwardRef<
                     borderColor='border.muted'
                     borderRadius='md'
                     bg='bg.subtle'
+                    minH='400px'
                   >
                     <VStack gap={2}>
                       <Text
@@ -936,6 +914,7 @@ const HorizonChartSection = forwardRef<
                     borderColor='orange.200'
                     borderRadius='md'
                     bg='orange.50'
+                    minH='400px'
                   >
                     <VStack gap={2}>
                       <Text
@@ -959,7 +938,7 @@ const HorizonChartSection = forwardRef<
                     </VStack>
                   </Flex>
                 ) : (
-                  // Horizon chart component
+                  // Horizon chart component - REMOVED HEIGHT CONSTRAINTS
                   <VStack gap={2} align='stretch'>
                     {isLoadingHorizonData && horizonDataTimeout && (
                       <Box
@@ -984,22 +963,24 @@ const HorizonChartSection = forwardRef<
                         </Text>
                       </Box>
                     )}
+                    {/* CRITICAL: Allow overflow so labels can extend beyond chart */}
                     <Box
                       w='100%'
-                      minH='400px'
-                      // h={`${chartDimensions.height}px`}
+                      minH='400px' // Only minimum height, no maximum
                       border='1px solid'
                       borderColor='border.muted'
                       borderRadius='md'
-                      overflow='visible' // Changed from 'hidden' to 'visible'
+                      overflow='visible' // Allow labels to overflow on the right
                       position='relative'
+                      // Add right padding to accommodate overflowing labels
+                      pr='150px' // Space for labels that might overflow
                     >
                       <Horizons
                         data={horizonData}
                         showLegend={false}
                         isLoading={false}
                         containerWidth={chartDimensions.width}
-                        containerHeight={chartDimensions.height}
+                        // REMOVED: containerHeight={chartDimensions.height} - let chart calculate its own height
                       />
                     </Box>
                   </VStack>

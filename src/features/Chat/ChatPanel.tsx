@@ -179,6 +179,7 @@ export function ChatPanel({ onPageContextChange, isOpen = true }: ChatPanelProps
     console.log('🖼️ Retrying iframe load via component re-mount');
     setIframeStatus('loading');
     setErrorMessage('');
+    setIframeReady(false); // Reset ready state
     setComponentKey((prev) => prev + 1); // This will re-mount the entire component
     setupLoadTimeout();
   };
@@ -189,6 +190,7 @@ export function ChatPanel({ onPageContextChange, isOpen = true }: ChatPanelProps
     return () => {
       clearTimeout(timeoutRef.current);
       clearInterval(elapsedTimerRef.current);
+      clearTimeout(readyTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [componentKey]); // Re-run when component re-mounts
