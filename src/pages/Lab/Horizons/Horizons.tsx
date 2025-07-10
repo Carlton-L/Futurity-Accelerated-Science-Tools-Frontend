@@ -70,7 +70,7 @@ function Horizons({
   showLegend = false,
   isLoading = false,
   containerWidth = 1000,
-  containerHeight = 650,
+  containerHeight, // Remove default - let it be calculated
 }: HorizonsProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -111,16 +111,16 @@ function Horizons({
       const svg = d3
         .select(svgRef.current)
         .attr('width', containerWidth)
-        .attr('height', containerHeight)
-        .attr('viewBox', [0, 0, containerWidth, containerHeight])
-        .attr('style', 'width: 100%; height: 100%; display: block;');
+        .attr('height', containerHeight || 650)
+        .attr('viewBox', [0, 0, containerWidth, containerHeight || 650])
+        .attr('style', 'width: 100%; height: auto; display: block;');
 
       // Add loading indicator
       const loadingGroup = svg
         .append('g')
         .attr(
           'transform',
-          `translate(${containerWidth / 2}, ${containerHeight / 2})`
+          `translate(${containerWidth / 2}, ${(containerHeight || 650) / 2})`
         );
 
       loadingGroup
@@ -164,18 +164,19 @@ function Horizons({
 
     // Show empty state if no data
     if (!data.length) {
+      const emptyHeight = containerHeight || 400;
       const svg = d3
         .select(svgRef.current)
         .attr('width', containerWidth)
-        .attr('height', containerHeight)
-        .attr('viewBox', [0, 0, containerWidth, containerHeight])
-        .attr('style', 'width: 100%; height: 100%; display: block;');
+        .attr('height', emptyHeight)
+        .attr('viewBox', [0, 0, containerWidth, emptyHeight])
+        .attr('style', 'width: 100%; height: auto; display: block;');
 
       const emptyGroup = svg
         .append('g')
         .attr(
           'transform',
-          `translate(${containerWidth / 2}, ${containerHeight / 2})`
+          `translate(${containerWidth / 2}, ${emptyHeight / 2})`
         );
 
       emptyGroup
@@ -228,9 +229,9 @@ function Horizons({
       }
     });
 
-    // Calculate minimum height based on data
-    const minRowHeight = 120; // Reduced from 160 to be more compact
-    const rowSpacing = 12; // Spacing between rows
+    // Calculate minimum height based on data - EXPANDED FOR LARGER CHARTS
+    const minRowHeight = 140; // Keep consistent row height
+    const rowSpacing = 16; // Spacing between rows
     const subjectsPerCategory = new Map<number, number>();
     validData.forEach((item) => {
       subjectsPerCategory.set(
@@ -245,29 +246,39 @@ function Horizons({
     );
     const calculatedRowHeight = Math.max(
       minRowHeight,
-      maxSubjectsInCategory * 30 + 60 // Reduced multiplier for more compact layout
+      maxSubjectsInCategory * 35 + 70 // Slightly larger for better spacing
     );
     const rowHeight = calculatedRowHeight;
 
-    // Chart dimensions - use container dimensions
+    // Chart dimensions - CALCULATE HEIGHT BASED ON CONTENT
     const categoryLabelWidth = 200; // Fixed width for category labels
     const margin = { top: 80, right: 40, bottom: 40, left: categoryLabelWidth };
     const chartWidth = containerWidth - margin.left - margin.right;
     const contentHeight =
       uniqueCategories.length * rowHeight +
       (uniqueCategories.length - 1) * rowSpacing;
-    const finalHeight = Math.max(
-      containerHeight,
-      contentHeight + margin.top + margin.bottom
-    );
 
-    // Create SVG with calculated dimensions
+    // IMPORTANT: Let the chart grow based on content, don't constrain to containerHeight
+    const calculatedHeight = contentHeight + margin.top + margin.bottom;
+    const finalHeight = Math.max(400, calculatedHeight); // Minimum 400px, but grow as needed
+
+    console.log('Chart sizing:', {
+      uniqueCategories: uniqueCategories.length,
+      rowHeight,
+      contentHeight,
+      calculatedHeight,
+      finalHeight,
+      containerWidth,
+      providedContainerHeight: containerHeight,
+    });
+
+    // Create SVG with calculated dimensions - HEIGHT GROWS WITH CONTENT
     const svg = d3
       .select(svgRef.current)
       .attr('width', containerWidth)
-      .attr('height', finalHeight)
+      .attr('height', finalHeight) // Use calculated height, not containerHeight
       .attr('viewBox', [0, 0, containerWidth, finalHeight])
-      .attr('style', 'width: 100%; height: 100%; display: block;');
+      .attr('style', 'width: 100%; height: auto; display: block;'); // height: auto is key
 
     const g = svg
       .append('g')
@@ -339,22 +350,27 @@ function Horizons({
         .attr('fill', baseColor)
         .attr('opacity', opacity);
 
-      // Add large vertical text in the center of each section
-      const sectionCenterX = sectionStart + sectionWidth / 2;
-      const textY = contentHeight / 2;
+      // Add large vertical text in EVERY OTHER category row, not just center
+      uniqueCategories.forEach((categoryNum, i) => {
+        // Show labels on every other row (0, 2, 4, etc.)
+        if (i % 2 === 0) {
+          const rowY = i * (rowHeight + rowSpacing) + rowHeight / 2;
+          const sectionCenterX = sectionStart + sectionWidth / 2;
 
-      g.append('text')
-        .attr('x', sectionCenterX)
-        .attr('y', textY)
-        .attr('text-anchor', 'middle')
-        .attr('dominant-baseline', 'middle')
-        .attr('font-size', '24px')
-        .attr('font-weight', 'bold')
-        .attr('font-family', 'TT Norms Pro, sans-serif')
-        .attr('fill', baseColor)
-        .attr('opacity', 0.3)
-        .attr('transform', `rotate(-90 ${sectionCenterX} ${textY})`)
-        .text(horizon.name.toUpperCase());
+          g.append('text')
+            .attr('x', sectionCenterX)
+            .attr('y', rowY)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle')
+            .attr('font-size', '20px') // Slightly smaller since we have more
+            .attr('font-weight', 'bold')
+            .attr('font-family', 'TT Norms Pro, sans-serif')
+            .attr('fill', baseColor)
+            .attr('opacity', 0.25) // Slightly more subtle
+            .attr('transform', `rotate(-90 ${sectionCenterX} ${rowY})`)
+            .text(horizon.name.toUpperCase());
+        }
+      });
     });
 
     // Add straight vertical boundary lines between sections
@@ -549,34 +565,13 @@ function Horizons({
           (normalizedHash - 0.5) * availableHeight * verticalSpread;
         const y = baseY + verticalOffset;
 
-        // Label positioning with collision avoidance
-        let labelY = y - 15;
-        const minLabelDistance = 25;
-        const existingPositions = Array.from(labelPositions.values());
-
-        for (let attempt = 0; attempt < 15; attempt++) {
-          let hasOverlap = false;
-
-          for (const existing of existingPositions) {
-            const xDistance = Math.abs(x - existing.x);
-            const yDistance = Math.abs(labelY - existing.labelY);
-
-            if (xDistance < 100 && yDistance < minLabelDistance) {
-              hasOverlap = true;
-              break;
-            }
-          }
-
-          if (!hasOverlap) break;
-
-          labelY +=
-            (attempt % 2 === 0 ? 1 : -1) *
-            (minLabelDistance + Math.floor(attempt / 2) * 5);
-        }
+        // Label positioning - ALWAYS TO THE RIGHT of the hexagon
+        const labelX = x + 15; // Fixed offset to the right
+        const labelY = y; // Same vertical position as hexagon
 
         labelPositions.set(subject.name, { x, y, labelY });
 
-        // Draw subject as blue hexagon
+        // Draw subject as blue hexagon with theme-aware stroke
         const hexagonSize = 6;
         const hexagonPath = `M${x},${y - hexagonSize} L${
           x + hexagonSize * 0.866
@@ -590,7 +585,7 @@ function Horizons({
           .append('path')
           .attr('d', hexagonPath)
           .attr('fill', '#0005E9')
-          .attr('stroke', foregroundColor)
+          .attr('stroke', foregroundColor) // Theme-aware stroke
           .attr('stroke-width', 2)
           .style('z-index', 1001)
           .style('cursor', 'pointer')
@@ -621,17 +616,17 @@ function Horizons({
               .style('top', event.pageY - 10 + 'px');
           });
 
-        // Add subject label
+        // Add subject label - ALWAYS TO THE RIGHT, with theme-aware color
         subjectGroup
           .append('text')
-          .attr('x', x)
+          .attr('x', labelX)
           .attr('y', labelY)
-          .attr('text-anchor', 'middle')
-          .attr('dominant-baseline', 'bottom')
+          .attr('text-anchor', 'start') // Left-aligned since it's to the right
+          .attr('dominant-baseline', 'middle') // Vertically centered
           .attr('font-size', '11px')
           .attr('font-family', 'JetBrains Mono, monospace')
           .attr('font-weight', '500')
-          .attr('fill', foregroundColor)
+          .attr('fill', foregroundColor) // Theme-aware fill
           .style('z-index', 1002)
           .style('pointer-events', 'none')
           .text(subject.name);

@@ -12,6 +12,8 @@
   fill: #222;
   font-weight: normal;
 }
+
+/* CRITICAL: Let the container grow with content, allow overflow for labels */
 .horizons-container {
   width: 100%;
   padding: 1.5rem;
@@ -20,8 +22,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: auto; /* Added to handle larger charts */
+  overflow: visible; /* Allow labels to overflow */
   margin-bottom: 2rem;
+  /* REMOVED: Any height constraints */
 }
 
 [data-bs-theme='dark'] .horizons-container {
@@ -59,26 +62,29 @@
   fill: #666;
 }
 
+/* CRITICAL: Remove aspect-ratio and height constraints - let it grow naturally, allow overflow */
 .horizons-chart {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  height: auto;
+  /* REMOVED: aspect-ratio: 1 / 1; - this was forcing a square shape */
+  /* REMOVED: height: auto; - let D3 control the height */
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 2rem 0;
   padding: 0.5rem;
   min-width: 0;
-  min-height: 0;
-  max-width: 70vw;
-  max-height: 70vh;
+  /* REMOVED: min-height: 0; */
+  /* REMOVED: max-width: 70vw; - don't constrain width */
+  /* REMOVED: max-height: 70vh; - don't constrain height */
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible; /* Allow labels to overflow beyond chart boundaries */
 }
 
 .horizons-chart svg {
-  max-width: 100%;
-  height: auto;
+  width: 100%; /* Take full width */
+  height: auto; /* Let height be determined by content */
+  overflow: visible; /* Allow SVG content to overflow for labels */
+  /* REMOVED: max-width: 100%; - not needed */
 }
 
 .horizons-container .x-axis path,
