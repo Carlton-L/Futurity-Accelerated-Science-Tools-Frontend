@@ -647,17 +647,6 @@ const Invent: React.FC<InventProps> = ({ labId }) => {
                       )}
                     </Text>
                   </VStack>
-                  <HStack gap={2}>
-                    <Button
-                      size='xs'
-                      variant='outline'
-                      onClick={handleDownloadImage}
-                      disabled={!imageResult.image_url}
-                    >
-                      <FiDownload size={12} />
-                      Download
-                    </Button>
-                  </HStack>
                 </HStack>
 
                 {imageResult.error ? (
