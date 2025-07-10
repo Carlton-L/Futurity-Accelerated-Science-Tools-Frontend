@@ -36,24 +36,39 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
   const { user } = useAuth();
 
   const setPageContext = (context: PageContextData) => {
+    console.log('🔍 PageProvider - setPageContext called with:', context);
     setPageContextState(context);
   };
 
   const updatePageContext = (newContext: Partial<PageContextData>) => {
-    setPageContextState(
-      (prev) => ({ ...prev, ...newContext } as PageContextData)
-    );
+    console.log('🔍 PageProvider - updatePageContext called with:', newContext);
+    setPageContextState((prev) => {
+      const updated = { ...prev, ...newContext } as PageContextData;
+      console.log('🔍 PageProvider - updatePageContext - prev:', prev);
+      console.log('🔍 PageProvider - updatePageContext - updated:', updated);
+      return updated;
+    });
   };
 
   const clearPageContext = () => {
+    console.log('🔍 PageProvider - clearPageContext called');
     setPageContextState(defaultPageContext);
   };
 
   const getContextMessage = (): string => {
+    console.log(
+      '🔍 PageProvider - getContextMessage called, returning:',
+      pageContext.pageTitle
+    );
     return pageContext.pageTitle;
   };
 
   const getContextForChat = (): string => {
+    console.log(
+      '🔍 PageProvider - getContextForChat called with pageContext:',
+      pageContext
+    );
+
     let contextString = '';
 
     // Global context
@@ -89,6 +104,10 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
     } else if (pageContext.pageType === 'subject') {
       const subjectContext = pageContext as SubjectPageContext;
       contextString += `Subject: ${subjectContext.subject.name} (ID: ${subjectContext.subject.id})\n`;
+      console.log(
+        '🔍 PageProvider - getContextForChat - subject context:',
+        subjectContext
+      );
     } else if (pageContext.pageType === 'organization') {
       const orgContext = pageContext as OrganizationPageContext;
       contextString += `Organization: ${orgContext.organization.name} (ID: ${orgContext.organization.id})\n`;
@@ -98,7 +117,7 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
       contextString += `Current Tab: ${labContext.currentTab}\n`;
     } else if (pageContext.pageType === 'whiteboard') {
       const whiteboardContext = pageContext as WhiteboardPageContext;
-      if (whiteboardContext.drafts.length > 0) {
+      if (whiteboardContext.drafts && whiteboardContext.drafts.length > 0) {
         contextString += `Drafts: ${whiteboardContext.drafts.length}\n`;
         whiteboardContext.drafts.forEach((draft) => {
           contextString += `  - ${draft.name}: ${draft.subjects.length} subjects, ${draft.terms.length} terms\n`;
@@ -130,7 +149,9 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
       }
     }
 
-    return contextString.trim();
+    const result = contextString.trim();
+    console.log('🔍 PageProvider - getContextForChat returning:', result);
+    return result;
   };
 
   const value: PageContextType = {
@@ -141,6 +162,11 @@ export const PageProvider: React.FC<PageProviderProps> = ({ children }) => {
     getContextMessage,
     getContextForChat,
   };
+
+  // Debug log when pageContext changes
+  React.useEffect(() => {
+    console.log('🔍 PageProvider - pageContext state changed:', pageContext);
+  }, [pageContext]);
 
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
 };

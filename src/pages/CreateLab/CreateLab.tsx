@@ -108,13 +108,26 @@ const CreateLab: React.FC<CreateLabProps> = ({
 
   // State management
   const [formData, setFormData] = useState<LabCreationFormData>(() => {
-    return createDefaultFormData();
+    const defaultData = createDefaultFormData();
+
+    // If we have an initial lab seed, populate name and description immediately
+    if (initialLabSeed) {
+      return {
+        ...defaultData,
+        name: initialLabSeed.name,
+        summary: initialLabSeed.description,
+        replaceTitleFromLabSeed: true, // Default to true when coming from whiteboard
+        replaceSummaryFromLabSeed: true, // Default to true when coming from whiteboard
+      };
+    }
+
+    return defaultData;
   });
 
   const [wizardState, setWizardState] = useState<WizardState>({
     currentStep: 1,
     steps: {
-      1: { completed: false, populated: false, hasError: false },
+      1: { completed: false, populated: !!initialLabSeed, hasError: false }, // Mark as populated if we have lab seed
       2: { completed: false, populated: !!initialLabSeed, hasError: false },
       3: { completed: false, populated: false, hasError: false },
     },

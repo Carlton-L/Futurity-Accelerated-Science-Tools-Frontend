@@ -26,8 +26,10 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [componentKey, setComponentKey] = useState<number>(0); // For component re-mounting
   const [hasTimedOut, setHasTimedOut] = useState<boolean>(false); // Track if timeout occurred
+  const [iframeReady, setIframeReady] = useState<boolean>(false); // Track if iframe is ready to receive messages
   const timeoutRef = useRef<NodeJS.Timeout>();
   const elapsedTimerRef = useRef<NodeJS.Timeout>();
+  const readyTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Notify parent when page context changes (for refresh logic)
   useEffect(() => {
@@ -52,8 +54,36 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     clearTimeout(timeoutRef.current);
     clearInterval(elapsedTimerRef.current);
 
-    // Send initial context via postMessage once iframe loads
-    sendContextToIframe();
+    // Wait for iframe to signal it's ready to receive messages
+    waitForIframeReady();
+  };
+
+  // Wait for iframe to send ready signal
+  const waitForIframeReady = () => {
+    console.log('🖼️ Waiting for iframe ready signal...');
+
+    // Set up timeout for ready signal (5 seconds)
+    readyTimeoutRef.current = setTimeout(() => {
+      console.log('🖼️ Iframe ready timeout - sending message anyway');
+      setIframeReady(true);
+    }, 5000);
+
+    // Listen for ready message from iframe
+    const handleReadyMessage = (event: MessageEvent) => {
+      // Security check - accept messages from iframe origin
+      if (event.origin !== 'https://agents.futurity.science') {
+        return;
+      }
+
+      if (event.data && event.data.type === 'IFRAME_READY') {
+        console.log('🖼️ Received iframe ready signal');
+        clearTimeout(readyTimeoutRef.current);
+        setIframeReady(true);
+        window.removeEventListener('message', handleReadyMessage);
+      }
+    };
+
+    window.addEventListener('message', handleReadyMessage);
   };
 
   // Handle iframe load error
@@ -171,6 +201,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     console.log('🖼️ Retrying iframe load via component re-mount');
     setIframeStatus('loading');
     setErrorMessage('');
+    setIframeReady(false); // Reset ready state
     setComponentKey((prev) => prev + 1); // This will re-mount the entire component
     setupLoadTimeout();
   };
@@ -181,6 +212,7 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     return () => {
       clearTimeout(timeoutRef.current);
       clearInterval(elapsedTimerRef.current);
+      clearTimeout(readyTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [componentKey]); // Re-run when component re-mounts
@@ -193,34 +225,125 @@ export function ChatPanel({ onPageContextChange }: ChatPanelProps) {
     return () => clearInterval(interval);
   }, [iframeStatus, hasTimedOut]);
 
-  // PostMessage method to send context to iframe
-  const sendContextToIframe = () => {
-    if (iframeRef.current && iframeStatus === 'loaded') {
-      const contextData = {
-        type: 'PAGE_CONTEXT_UPDATE',
-        pageContext: pageContext,
-        contextString: contextString,
-        timestamp: Date.now(),
-      };
+  // Generate the AI chat context message based on current page
+  const generateChatMessage = () => {
+    // Debug logging to help identify the issue
+    console.log('🔍 Debug - pageContext:', pageContext);
+    console.log('🔍 Debug - pageContext.pageType:', pageContext.pageType);
+    if (pageContext.pageType === 'subject') {
+      console.log(
+        '🔍 Debug - subject data:',
+        'subject' in pageContext ? pageContext.subject : 'NO SUBJECT DATA'
+      );
+    }
 
-      try {
-        // Use '*' as target origin to avoid origin mismatch issues
-        // In production, you should replace '*' with the actual iframe origin for security
-        iframeRef.current.contentWindow?.postMessage(contextData, '*');
-        console.log('🖼️ Context sent to iframe via postMessage:', contextData);
-      } catch (error) {
-        console.error('🖼️ Failed to send context to iframe:', error);
+    // Get human-readable page description
+    const getPageDescription = () => {
+      switch (pageContext.pageType) {
+        case 'subject':
+          return 'snapshot page';
+        case 'lab':
+          if ('lab' in pageContext && pageContext.lab) {
+            return `Lab page for ${pageContext.lab.name} (${pageContext.currentTab} tab)`;
+          }
+          return 'Lab page';
+        case 'search':
+          if ('searchQuery' in pageContext) {
+            return `Search results for "${pageContext.searchQuery}"`;
+          }
+          return 'Search page';
+        case 'organization':
+          if ('organization' in pageContext && pageContext.organization) {
+            return `Organization page for ${pageContext.organization.name}`;
+          }
+          return 'Organization page';
+        case 'whiteboard':
+          return 'My Whiteboard page';
+        case 'team-home':
+          if ('team' in pageContext && pageContext.team) {
+            return `Team page for ${pageContext.team.name}`;
+          }
+          return 'Team page';
+        case 'team-admin':
+          if ('team' in pageContext && pageContext.team) {
+            return `Team admin page for ${pageContext.team.name}`;
+          }
+          return 'Team admin page';
+        case 'user-profile':
+          return 'User profile page';
+        case 'create-lab':
+          return 'Create lab page';
+        case 'lab-admin':
+          if ('lab' in pageContext && pageContext.lab) {
+            return `Lab admin page for ${pageContext.lab.name}`;
+          }
+          return 'Lab admin page';
+        case 'idea-seed':
+          if ('ideaSeed' in pageContext && pageContext.ideaSeed) {
+            return `IdeaSeed page for ${pageContext.ideaSeed.name}`;
+          }
+          return 'IdeaSeed page';
+        default:
+          return pageContext.pageTitle || 'Unknown page';
       }
+    };
+
+    // Determine mode and subject data
+    if (
+      pageContext.pageType === 'subject' &&
+      'subject' in pageContext &&
+      pageContext.subject
+    ) {
+      // Expert mode for subject pages
+      const message = {
+        mode: 'expert' as const,
+        subject: pageContext.subject.name,
+        subject_fsid: pageContext.subject.fsid || pageContext.subject.id, // Use fsid if available, fallback to id
+        page: getPageDescription(),
+      };
+      console.log('🔍 Debug - Generated EXPERT message:', message);
+      return message;
+    } else {
+      // Full agency mode for all other pages
+      const message = {
+        mode: 'full-agency' as const,
+        subject: '',
+        subject_fsid: '',
+        page: getPageDescription(),
+      };
+      console.log('🔍 Debug - Generated FULL-AGENCY message:', message);
+      return message;
     }
   };
 
-  // Send context updates to iframe when context changes
+  // PostMessage method to send context to iframe
+  const sendContextToIframe = () => {
+    if (iframeRef.current && iframeStatus === 'loaded' && iframeReady) {
+      const message = generateChatMessage();
+
+      try {
+        // Use '*' as target origin as specified by backend engineer
+        iframeRef.current.contentWindow?.postMessage(message, '*');
+        console.log('🖼️ Context message sent to iframe:', message);
+      } catch (error) {
+        console.error('🖼️ Failed to send context to iframe:', error);
+      }
+    } else {
+      console.log('🖼️ Not sending context - iframe not ready:', {
+        iframeLoaded: iframeStatus === 'loaded',
+        iframeReady,
+        hasIframeRef: !!iframeRef.current,
+      });
+    }
+  };
+
+  // Send context updates to iframe when context changes OR when iframe becomes ready
   useEffect(() => {
-    if (iframeStatus === 'loaded') {
+    if (iframeStatus === 'loaded' && iframeReady) {
       sendContextToIframe();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageContext, contextString, iframeStatus]);
+  }, [pageContext, iframeStatus, iframeReady]);
 
   // URL generation methods (kept for potential future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

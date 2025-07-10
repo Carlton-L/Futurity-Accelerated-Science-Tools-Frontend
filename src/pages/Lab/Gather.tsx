@@ -1340,7 +1340,7 @@ const Gather: React.FC<GatherProps> = ({
                 variant='outline'
                 onClick={() => setIsAddCategoryOpen(true)}
                 disabled={isLoading}
-                color='brand'
+                color='fg'
                 borderColor='border.emphasized'
                 bg='bg.canvas'
                 _hover={{

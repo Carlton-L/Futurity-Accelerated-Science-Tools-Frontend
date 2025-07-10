@@ -239,7 +239,7 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                 e.stopPropagation();
                 onGoToSearchResults();
               }}
-              color='brand'
+              color='fg'
               _hover={{ bg: 'bg.hover' }}
               borderRadius='0'
               borderBottom='1px solid'
@@ -294,7 +294,7 @@ export const SubjectSearch: React.FC<SubjectSearchProps> = ({
                         {alreadyInLab && (
                           <Box
                             bg='success'
-                            color='white'
+                            color='bg'
                             fontSize='xs'
                             px={2}
                             py={1}

@@ -161,34 +161,30 @@ const LabCreationLoadingModal: React.FC<LabCreationLoadingModalProps> = ({
               {(stage === 'creating' || stage === 'processing') && (
                 <Box
                   p={3}
-                  bg='warning'
-                  _dark={{ bg: 'orange.900' }}
+                  bg='bg.subtle'
                   borderRadius='md'
                   borderWidth='1px'
-                  borderColor='warning'
-                  _dark={{ borderColor: 'orange.700' }}
+                  borderColor='border.muted'
                   w='100%'
                 >
                   <HStack gap={2} align='start'>
                     <FiAlertTriangle
                       size={16}
-                      color='var(--chakra-colors-orange-800)'
+                      color='var(--chakra-colors-warning)'
                       style={{ flexShrink: 0, marginTop: '2px' }}
                     />
                     <VStack gap={1} align='start'>
                       <Text
                         fontSize='sm'
                         fontWeight='medium'
-                        color='orange.800'
-                        _dark={{ color: 'orange.200' }}
+                        color='warning'
                         fontFamily='heading'
                       >
                         Please don't navigate away
                       </Text>
                       <Text
                         fontSize='xs'
-                        color='orange.700'
-                        _dark={{ color: 'orange.300' }}
+                        color='fg.muted'
                         fontFamily='body'
                         lineHeight='1.4'
                       >
